@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+        "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" [
+	<!ENTITY rapidio SYSTEM "rapidio.xml">
+	]>
+
+<book id="RDDMA-Guide">
+ <bookinfo>
+  <title>RDDMA Subsystem Guide</title>
+
+  <authorgroup>
+   <author>
+    <firstname>Phil</firstname>
+    <surname>Terry</surname>
+    <affiliation>
+     <address>
+      <email>pterry@micromemory.com</email>
+     </address>
+    </affiliation>
+   </author>
+  </authorgroup>
+
+  <copyright>
+   <year>2007</year>
+   <holder>Micro Memory LLC.</holder>
+  </copyright>
+
+  <legalnotice>
+   <para>
+     This documentation is free software; you can redistribute
+     it and/or modify it under the terms of the GNU General Public
+     License version 2 as published by the Free Software Foundation.
+   </para>
+
+   <para>
+     This program is distributed in the hope that it will be
+     useful, but WITHOUT ANY WARRANTY; without even the implied
+     warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+     See the GNU General Public License for more details.
+   </para>
+
+   <para>
+     You should have received a copy of the GNU General Public
+     License along with this program; if not, write to the Free
+     Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+     MA 02111-1307 USA
+   </para>
+
+   <para>
+     For more details see the file COPYING in the source
+     distribution of Linux.
+   </para>
+  </legalnotice>
+ </bookinfo>
+
+<toc></toc>
+
+  <chapter id="intro">
+      <title>Introduction</title>
+  <para>
+	The Rincon Distributed DMA (RDDMA) Subsystem is a bulk
+	transfer IPC for a multi-computer system based on DMA over a
+	backplane fabric. The initial implementation is based on the
+	DMA driver of the FreeScale MPC8641D processor and its Serial
+	RapidIO fabric interfaces.
+  </para>
+  <para>
+        The complete software stack consists of a userland API, plus
+        the kernel RDDMA, DMA and fabric drivers. This document covers
+        only the kernel drivers. The API is covered in a seperate
+        document.
+  </para>
+  <para>
+  	This documentation is provided for developers intending
+	to support RDDMA on new architectures, write new drivers,
+	or to understand the subsystem internals.
+  </para>
+  </chapter>
+
+  <chapter id="bugs">
+     <title>Known Bugs and Limitations</title>
+
+     <sect1>
+     	<title>Bugs</title>
+	  <para>None. ;)</para>
+     </sect1>
+     <sect1>
+     	<title>Limitations</title>
+	  <para>
+	    None Known.
+	 </para>
+     </sect1>
+  </chapter>
+
+<chapter id="overview">
+<title>Overview</title>
+<para>
+The RDDMA system is based around a limited number of abstract types
+and a few operations on those types. The types are arranged in a
+hierarchy with the operations on each type inherited from its parent type.
+</para>
+<para>The base type is a "location." The location types operators
+cover the concepts of communicating the operation to the target
+location, in otherwords the remote procedure call over the fabric. A
+"location" instance representing the local node may also be defined in
+terms of "local" operations. These are unable to communicate with
+remote locations and participate in remote operations but simply mimic
+the system locally. This limits the RDDMA operations to local sharing
+between processes. This is analogous to performing RPC on the loopback
+address of 127.0.0.1 in TCP/IP as opposed to performing the same RPC
+on the routable address which represents the node, say
+192.168.x.y. The former can do all of the same operations as the
+latter but cannot communicate with remote partners.</para>
+
+<para>This system of abstract type operations operates in
+multi-threaded kernel threads.</para>
+
+<para>Local processes interact with this subsystem using file
+operations on a char device. These operations are responsible for
+taking the application requests and passing them to the
+subsystem. They can do this syncrhonously or asynchronously using
+read/write, or aio_read/aio_write respectively. What it written and
+read is not the data to be DMA'd or exchanged between processes but
+rather string representing the operations abstractly.</para>
+</chapter>
+
+  <chapter id="drivers">
+     	<title>RDDMA driver interface</title>
+	<para>
+		Drivers are provided a set of calls in order
+		to interface with the subsystem to gather info
+		on devices, request/map memory region resources,
+		and manage shared memory buffers and transfers.
+	</para>
+	<sect1>
+		<title>Functions</title>
+!Idrivers/rddma/rddma_ops.c
+	</sect1>
+  </chapter>
+
+</book>

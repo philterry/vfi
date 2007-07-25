@@ -1,0 +1,577 @@
+Random explanations!
+
+Structure of operations, organization of files
+----------------------------------------------
+rddma_cdev and rddma_fabric deal with the file and rapidio fabric
+message interfaces. The receive and send strings of the following
+style:
+
+   op_name://name.location#offset:extent?var=val,var=val
+
+The both call the common do_operation after taking care of any of the
+house work specific to their interfaces to handle the operations of
+the interfaces, asynchronicity, call-backs, etc, etc.
+
+rddma_ops.[ch] contains do_operation and the abstract operations which
+convert the strings above into function calls of the operators in
+question
+
+op_name://desc ---> struct op_data *op_func(loc, desc)
+
+etc.
+
+In general the op_func for op_name on desc is found in the
+ops of the location component. So the top level abstract operations in
+rddma_ops.[ch] simply parse the string, find the location and indirect
+via its ops.
+
+There are generic functions for dealing with the strings, parsing,
+printing them canonically etc in rddma_parse.[ch]
+
+The abstract types we deal with and their hierarchy are:
+rddma subsystem kset of location 
+    location kobj ->smbs ->xrefs
+	smbs kset smb
+		smb kobj
+	xfers kset xfer
+		xfer kobj -> binds
+			binds kset bind
+                           bind kobj -> dsts
+				dsts kset dst
+					dst kobj -> srcs
+						srcs kset src
+							src kobj
+
+The location is the fundamental type from which the op_func types are
+derived. There are two fundamental types of operations, local and
+fabric.
+
+local operations generate data structures locally.
+fabric operations generate data structures remotely together with a
+corresponding local structure to track the remote partner.
+
+So the operations for an smb and xfer are inherited from their
+location, bind from xfer, dst from bind, src from dst.
+
+These two classes of operations (just bandying terms to confuse the
+C++ guys :-) are found in rddma_local_ops.[ch] and rddma_fabric.[ch]
+
+Each of the fundamental types is represented by the files
+rddma_<type>.[ch], e.g rddma_location.[ch], rddma_smb.[ch], etc.
+
+These files define a data structure and its methods. These are heavily
+based on kobject/kset code for refcounting, lifecycle, etc., so in
+fact the base of these files are generated code from a shell script.
+
+Some of the relationships are one to many, eg an xfer may have many
+bind mappings defined on it. These are represented
+with ksets, so in addition to rddma_smb.[ch], etc you will also see
+rddma_smbs.[ch] for the set operations. These are mainly boilerplate
+generated code necessary to make the hierarchy work with one to many
+relationships so you can ignore these files.
+
+Each type file will include operations for generating a new instance
+of the type and registering it with the subsystem.
+   new_rddma_<type>
+   rddma_<type>_register
+   rddma_<type>_unregister
+
+These are also combined in create and delete methods
+      rddma_<type>_create
+      rddma_<type>_delete
+
+These methods should not be confused with the fabric and local methods
+of similar name and function. These are concered simply with the
+kobject/sysfs aspects of managing the data structures on the local
+machine. These operations are used by both the fabric and local
+op_functions. These in turn should not be confused with the highest
+level abstract operators of do_operation.
+
+The hierarchy looks like:
+
+do_operation("op://str")
+	op_func(loc,str)
+		op_<local|fabric>_func(loc,str)
+			rddma_<type>_funcs(...)
+
+In addition to the basic create/delete fucntions there are find
+functions corresponding to name lookups. Name creation/deletion is
+automatic as a by-product of the type create/deletes and the service
+is distributed as required by virtue of the location ops. Again there
+is a hierarchy of find operations from the do_operation level on a
+descriptor string at the top to the basic kset/kobject types at the
+bottom.
+
+Finally, there are two operations on xfers, start and stop.
+
+Nobody expects the spanish inquisition: there's also the map operators
+for mapping SMBs into user space and between locations using the
+LAW/ATMU mappings of the soc.
+
+Thats it folks!
+
+Everything else is just the glue to make it all work.
+
+Fabric Subsystem
+----------------
+
+
+DMA Subsystem
+-------------
+Oh, still to come, rddma_dma.[ch] the interface to the dma
+subsystem. Again this is glue like rddma_cdev and rddma_fabric to glue
+the subsystem to the DMA device.
+
+
+Rincon Picture
+--------------
+	          userland procs
+			|
+			v
+		    rddma_cdev
+			|
+			v
+	          rddma subsystem
+		     /      \
+		    /        \
+		   /          \
+	     rddma_dma      rddma_fabric
+		/ |          |     \
+	       /  |          |      \
+    dma hardware  |          |   rio_hardware
+		  |          |
+             pseduo hw    other fabrics
+
+
+Creating Binds and Xfers
+------------------------
+
+An SMB has a name and location (fqn if you like) with attributes size.
+   smb.board.fabric:size
+
+So a bind is
+   smbdest.boardx.fabric#dstoffset:extent=smbsrc.boardy.fabric#srcoffset:extent
+
+the half binds are the two smb#offset:extents either side of the equal
+sign, eg dst=src. A feature of a bind is that the src:extent and the
+dst:extent must be equal. If you leave one out it will default to the
+value of the other. If you leave both out it will default to the
+extent you specify in the xfer, e.g.,
+       xfer.location:extent/dst=src
+
+If you leave them all out then it will default to the minimum of the
+rest of the dst and src.
+
+So when the above bind is given in a xfer_create we find the two smbs
+check the offset extent is in range and then create the dst and src in
+the dsts and srcs sets of the respective smbs.
+
+Well almost...
+
+It does not make sense to have multiple equal or overlapping dst
+components on an SMB. So if an dst has attributes offset and extent,
+d->o and d->e then if someone wants to a new dst, y#o:e, then
+for all x in smb.dsts
+
+    x->o > y->o + y->e || y->o > x->o + x->e
+
+so when given a bind in an xfer we validate
+   1. the smbs exist,
+   2. that the offset and extent is in range of the smb,
+   3. that both extents are equal(or can be made so if defaulting),
+   4. that the dst is unique in dst->dsts
+
+then we create dst in dsts and src in srcs and create bind in xfer
+
+So an xfer is a set of binds, each bind has an offset and extent.
+   d->e == s->e == b->e
+
+What is the offset of a bind and what is the size of an xfer?
+
+Basically, a xfer is the dma'ing of a lot of binds, the amount of data
+transferred is the sum of the extents of all the binds in the xfer.
+	    size = sum(b->e)
+so one definition of the extent of an xfer could be its size.
+
+The binds are created in some order and we can arbitrarily define the
+offset of the bind as the position in the xfer. If you don't specify
+an offset for the bind it defaults to the current extent of the xfer,
+i.e., its added to the end. However the user could create the binds
+and specify their order in the dma chain by specifying the offset and
+extent. This means that an xfer can have holes in it. Because the binds only
+have a notional offset, extent in the xfer we don't really mind
+duplicates other than that we need unique names for the binds in the
+xfer set. So for all b in an xfer set the duple b->o, b->e is unique,
+xfer->e is the max of b->o + b->e for all b in xfer and x->size is the
+sum of b->e for all b in x.
+
+This is neat. If you specify xfer:e/dst#o=src#o for all your binds as
+you create them then the xfer naturally builds into a packed set of
+binds where x->e == x->size and each bind has a unique offset. This is
+the most natural way of specifying everything. But if at some point
+later you want to add a new bind to it and you need it to occurr
+earlier than at the end you can simply specify
+	xfer#o:e/dst#o=src#o
+and it will work as expected except now x->size > x->e and theres an
+"overlapping" bind in there somewhere.
+
+Sub-binds
+---------
+
+When a user specifies a half-bind in terms of arbitrary virtual
+offsets and extents it has to be translated by the rddma into a set of
+real DMA transactions dealing in physical addresses which are page
+size limited.
+
+If the #o:e is page aligned and a clean multiple of page size then it will
+turn into :e/PAGE_SIZE DMA transactions.
+
+If it is page aligned but not a clean multile of page size then it will turn
+into :e/PAGE_SIZE + 1 DMA transactions.
+
+If it is a clean multiple but not aligned then it will turn into
+:e/PAGE_SIZE + 2 DMAs
+
+If it is neither clean nor aligned then its from 2 * (:e/PAGE_SIZE) +
+1 to 2 * (:e/PAGE_SIZE) + 1 DMAs depending on the alignment of the
+end.
+
+#define CLEAN_START(b) (((b)->o & PAGE_MASK) ? 1 : 0)
+#define CLEAN_END(b) ((((b)->o + (b)->e) & PAGE_MASK) ? 1 : 0)
+#define CLEAN_SHIFT(b) (CLEAN_START((b)) ? 0 : 1)
+#define NUM_DMA(b) ((((b)->e / PAGE_SIZE) << CLEAN_SHIFT((b))) \
+                    + CLEAN_START((b)) + CLEAN_END((b)))
+
+So far so good. But...
+
+Even if my half of the bind is clean the other half may be non-clean
+so I'll still have to create lots of DMAs. So its a co-operative
+effort to translate a bind dst#o:e=src#o:e into a set of sub-binds
+representing the actual DMA transactions.
+
+So... you can't acutally create the half-bind or bind that the user
+designates, you can only create that as place holder parent for the
+set of actual sub-binds which get created by requesting your nominated
+sub-bind. Lets run this from the dest side, ie dest proposes, src
+disposes.
+
+With a real number example:
+
+     User proposed bind: xfer:2000/dst#4000=src#c000
+
+Note: My offset to the src is an offset to his named smb and is
+notionally a clean start. However I have no idea what the real offset
+is if src can be created on non-aligned start. So it may be clean or
+it may not.
+
+In this example I'm using a clean size, ie two 4K pages.
+
+So dst proposes its first sub-bind:
+   dst#4000:2000/dst#xxxxx000:1000=src#c000:1000
+
+If the src is aligned it will respond by creating
+   dst#4000:2000/dst#xxxxx000:1000=src#yyyyy000:1000
+
+which is a null operation indicating agreement with my proposed
+sub-bind.
+
+However, it might reply instead with two transactions (can only be two
+cos my initial proposals are always clean size)
+    dst#4000:2000/dst#xxxxx000:800=src#yyyyy000:800
+    dst#4000:2000/dst#xxxxx800:800=src#yyyyy800:800
+
+ie its split my proposal in two. It will always be two but not
+necessarily half as shown above. The division may be anywhere with the
+1000 page size.
+
+In this case I adjust the extent of my proposed sub-bind to match the
+src's proposal and create the second sub-bind as requested.
+
+OK, that's the flow, now lets look at some details of the above and
+consider the sysfs structure which results.
+
+Lets assume we are in a chassis with a fabric so the base location on
+all boards is a say, rapido fabric called "fabric".
+
+Each board has its own location name on the fabric, this could be the
+old fashioned slot1, slot2, etc. but should be the more abstract and
+therefore useful, radar1, proc1, etc. So lets assume that src is an
+smb on an input IO board called radar.fabric, eg. srcsmb.radar.fabric
+and that dst is an smb on a processor board called proc.fabric, eg,
+dstsmb.proc.fabric.
+
+Worked Example
+--------------
+
+So just for grins lets assume that fred asks dma to perform the xfer
+between proc and radar, ie four boards are involved, fred the
+initiator of these requests:
+
+     smb_create://srcsmb.radar.fabric#800:10000
+     smb_create://dstsmb.proc.fabric:8000
+     xfer_create://toproc.dma.fabric:2000/dstsmb.proc.fabric#4000=srcsmb.radar.fabric#c000
+     xfer_start://toproc.dma.fabric
+
+dma the board which will execute the xfer_create and proc and radar
+the boards with the destination and source smbs respectively.
+
+Initially, each boards sysfs would look as follows:
+
+   /sys/rddma/
+		fabric/
+				smbs/
+				xfers/
+		xxx.fabric/
+				smbs/
+				xfers/
+
+where xxx is each boards respective name, fred, dma, proc, and
+radar. 
+
+After executing the two smb_creates the situation for fred would be:
+
+   /sys/rddma/
+		fabric/
+				smbs/
+				xfers/
+		fred.fabric/
+				smbs/
+				xfers/
+		proc.fabric/
+				smbs/
+					dstsmb/ 
+						size <- file containing 8000
+						offset <- file containing 0
+				xfers/
+		radar.fabric/
+				smbs/
+					srcsmb/ 
+						size <- file containing 10000
+						offset <- file containing 800
+				xfers/
+
+Notice a lot of things about the above. Fred has smb structure data
+even though the smb's are remote from him. This is indicated by the
+smb's being "filed" under their respective location directories. The
+location directories got created because fred needed to communicate to
+some guy "radar" and some guy "proc" when processing the respecitve
+smb create requests. 
+
+The flow went as follows:
+
+   /sys/rddma/
+		fabric/
+				smbs/
+				xfers/
+		fred.fabric/
+				smbs/
+				xfers/
+		radar.fabric/
+				smbs/
+					srcsmb/
+						size <- file containing 10000
+						offset <- file containing 800
+				xfers/
+
+For proc:
+
+   /sys/rddma/
+		fabric/
+				smbs/
+				xfers/
+		fred.fabric/
+				smbs/
+				xfers/
+		proc.fabric/
+				smbs/
+					dstsmb/ 
+						size <- file containing 8000
+						offset <- file containing 0
+				xfers/
+and dma:
+
+   /sys/rddma/
+		fabric/
+				smbs/
+				xfers/
+		dma.fabric/
+				smbs/
+				xfers/
+
+Each board shows locations for other boards it has interacted with in
+addition to itself. Fred shows smbs at two of those "remote" locations
+because it knows it created them. Those remote locations have those
+smbs showing at their respective "local" location but are unaware of
+each other, theres been no interactin between src and dst.
+
+dma has had no interactions and just sits with himself doing nothing.
+
+The interaction were:
+
+    fred->radar:
+	smb_create://srcsmb.radar.fabric#800:10000
+
+    fred->proc:
+	smb_create://dstsmb.proc.fabric:8000
+
+Now lets follow fred -> dma with
+    xfer_create://toproc.dma.fabric:2000/dstsmb.proc.fabric#4000=srcsmb.radar.fabric#c000
+
+here is the set of transaction across the fabric which will results
+from dma executing the above. To try and reduce the fluff I've
+abbreviated all the names.
+
+fred -> dma
+	xfer_create://tp.x:2000/d.p#4000=s.r#c000
+
+ dma -> proc
+	 dsts_create://tp.x:2000/d.p#4000=s.r#c000
+
+  proc -> dma
+	  dst_create://tp.x:2000/d.p#uuuuu000:1000=s.r#c000:1000
+
+   dma -> radar
+	   srcs_create://tp.x:2000/d.p#uuuuu000:1000=s.r#c000:1000
+
+    radar -> dma
+	    src_create://tp.x:2000/d.p#uuuuu000:800=s.r#xxxxx800:800
+	    src_create://tp.x:2000/d.p#uuuuu800:800=s.r#yyyyy000:800
+
+  proc -> dma
+	  dst-create://tp.x:2000/d.p#vvvvv000:1000=s.r#d000:1000
+
+   dma -> radar
+	   srcs_create://tp.x:2000/d.p#vvvvv000:1000=s.r#d000:1000
+
+    radar -> dma
+	    src_create://tp.x:2000/d.p#vvvvv000:800=s.r#yyyyy800:800
+	    src_create://tp.x:2000/d.p#vvvvv800:800=s.r#zzzzz000:800
+
+The indentation shows the call tree.
+
+Lets look at the resultant sysfs structure on each board.
+
+Fred will simply create the location and xfers to show he requested
+it:
+	/sys/rddma/
+		fabric/	
+				smbs/
+				xfers/
+		fred.fabric/
+				smbs/
+				xfers/
+		proc.fabric/
+				smbs/
+					dstsmb/ 
+				xfers/
+		radar.fabric/
+				smbs/
+					srcsmb/ 
+				xfers/
+		dma.fabric/
+				smbs/
+				xfers/
+					toproc/
+                                             binds/
+					        toproc.dma.fabric:2000
+							dstsmb.proc.fabric#4000=srcsmb.radar.fabric#c000
+
+For proc the result is:
+    /sys/rddma/
+	fabric/
+		smbs/
+		xfers/
+	proc.fabric/
+		smbs/
+			dstsmb/
+		xfers/
+	dma.fabric/
+		smbs/
+		xfers/
+			toproc/
+				binds/
+					toproc.dma.fabric:2000/
+						dstsmb.proc.fabric#4000=srcsmb.radar.fabric#c000/
+							dstsmb.proc.fabric#uuuuu000:1000/
+								srcsmb.radar.fabric#c000:1000/
+							dstsmb.proc.fabric#vvvvv000:1000/
+								srcsmb.radar.fabric#d000:1000/
+For radar the result is:
+    /sys/rddma/
+	fabric/
+		smbs/
+		xfers/
+	fred.fabric/
+		smbs/
+		xfers/
+	dma.fabric/
+		smbs/
+		xfers/
+			toproc/
+				binds/
+					toproc.dma.fabric:2000
+						dsts/
+							dstsmb.proc.fabric#uuuuu000:1000
+								srcsmb.radar.fabric#c000:1000/
+									srcsmb.radar.fabric#xxxxx800:800
+									srcsmb.radar.fabric#yyyyy000:800
+							dstsmb.proc.fabric#vvvvv000:1000
+								srcsbm.radar.fabric#d000:1000/
+									srcsmb.radar.fabric#yyyyy800:800
+									srcsmb.radar.fabric#zzzzz000:800
+
+
+For dma the result is:
+
+    /sys/rddma/
+	fabric/
+		smbs/
+		xfers/
+	fred.fabric/
+		smbs/
+		xfers/
+	dma.fabric/
+		smbs/
+		xfers/
+			toproc/
+				binds/
+					toproc.dma.fabric:2000
+						dstsmb.proc.fabric#4000=srcsmb.radar.fabric#c000/
+							dstsmb.proc.fabric#uuuuu000:1000
+								srcsmb.radar.fabric#c000:1000/
+									srcsmb.radar.fabric#xxxxx800:800
+									srcsmb.radar.fabric#yyyyy000:800
+							dstsmb.proc.fabric#vvvvv000:1000
+								srcsmb.radar.fabric#d000:1000/
+									srcsmb.radar.fabric#yyyyy800:800
+									srcsmb.radar.fabric#zzzzz000:800
+fred saw
+	xfer_create://tp.x:2000/d.p#4000=s.r#c000
+
+proc saw
+	dsts_create://tp.x:2000/d.p#4000=s.r#c000
+
+radar saw
+	srcs_create://tp.x:2000/d.p#uuuuu000:1000=s.r#c000:1000
+	srcs_create://tp.x:2000/d.p#vvvvv000:1000=s.r#d000:1000
+
+dma saw
+	xfer_create://tp.x:2000/d.p#4000=s.r#c000
+	dst_create://tp.x:2000/d.p#uuuuu000:1000=s.r#c000:1000
+	src_create://tp.x:2000/d.p#uuuuu000:800=s.r#xxxxx800:800
+	src_create://tp.x:2000/d.p#uuuuu800:800=s.r#yyyyy000:800
+	dst-create://tp.x:2000/d.p#vvvvv000:1000=s.r#d000:1000
+	src_create://tp.x:2000/d.p#vvvvv000:800=s.r#yyyyy800:800
+	src_create://tp.x:2000/d.p#vvvvv800:800=s.r#zzzzz000:800
+
+The only disparity we can observer here is that radar, the source
+board, doesn't know what to call his dsts structure, as we can see
+from the who saw what list above, he's the only one who can't see the
+d.p#4000=s.r#c000 detail: so he simply calls the structure for sysfs
+purposes, "dsts". This structure is accessed via a pointer from the
+parent structure rather than being found in a set so its name doesn't
+really matter. We could call it "dsts" for all of the actors above
+with no change in function but there would be a loss for us as humans
+observing the sys structure for debug/information. We would not be able
+to know what the value of the virtual offsets in the original requests
+from the application.

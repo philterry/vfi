@@ -1,0 +1,38 @@
+#ifndef RDDMA_XFER_H
+#define RDDMA_XFER_H
+
+#include <linux/rddma.h>
+#include <linux/rddma_parse.h>
+#include <linux/rddma_location.h>
+
+struct rddma_xfer {
+	struct rddma_xfer_param desc;
+	struct kobject kobj;
+	struct rddma_bind *head_bind;
+	struct rddma_binds *binds;
+};
+
+static inline struct rddma_xfer *to_rddma_xfer(struct kobject *kobj)
+{
+	return kobj ? container_of(kobj, struct rddma_xfer, kobj) : NULL;
+}
+
+static inline struct rddma_xfer *rddma_xfer_get(struct rddma_xfer *rddma_xfer)
+{
+	return to_rddma_xfer(kobject_get(&rddma_xfer->kobj));
+}
+
+static inline void rddma_xfer_put(struct rddma_xfer *rddma_xfer)
+{
+	if (rddma_xfer) kobject_put(&rddma_xfer->kobj);
+}
+
+extern struct rddma_xfer *new_rddma_xfer(struct rddma_location *, struct rddma_xfer_param *);
+extern int rddma_xfer_register(struct rddma_xfer *);
+extern void rddma_xfer_unregister(struct rddma_xfer *);
+extern struct rddma_xfer *find_rddma_xfer(struct rddma_xfer_param *);
+extern struct rddma_xfer *rddma_xfer_create(struct rddma_location *, struct rddma_xfer_param *);
+extern void rddma_xfer_delete(struct rddma_xfer *);
+extern void rddma_xfer_load_binds(struct rddma_xfer *, struct rddma_bind *);
+extern struct kobj_type rddma_xfer_type;
+#endif /* RDDMA_XFER_H */

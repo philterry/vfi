@@ -1,0 +1,6 @@
+#!/bin/bash
+
+kernelsrc=/lib/modules/`uname -r`/build
+echo $kernelsrc
+
+ln -s `pwd`/*.h $kernelsrc/include/linux

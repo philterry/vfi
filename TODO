@@ -1,0 +1,120 @@
+2007-07-25
+----------
+
+In no particular order of importance, size, complexity or urgency.
+
+1. Debug
+--------
+
+Nothing has been debugged.
+
+1.a cdev
+--------
+
+Suggest building a dummy operation for do-operation which "just"
+returns, returns after a schedule timeout, etc.
+
+Use this to test the read/write request/result passing in the face of
+closing the file descriptor while do-operation is outstanding test the
+ref counting of the write to read queue, etc.
+
+Test the synchronous aio_write/aio_read similarly.
+
+Test the aysnchronous aio_write/aio_read similarly.
+
+1.b fabric
+----------
+
+fabric should be tested with the same dooperation interface command to
+test work queue alloction, refcounting, request to reply copying, etc.
+
+Need to use a lower layer fabric other than fabric_rio which is a
+simple test harness.
+
+1.c driver types
+----------------
+
+Now test each type create/delete/find on location/smb/xfer
+
+1.d general ref counting
+------------------------
+
+Overall not enough care has been spent putting the get/put and
+create/delete parings to make sure release works throughout the driver
+on all levels.
+
+
+2. Unfinished
+-------------
+
+While some of the above debug suggests things are ready, in fact
+some/most will require additional coding on unfinished areas.
+
+2.a DMA registration
+--------------------
+
+when how to register the various lower level dma interfaces and
+propogation of dma_ops through stack needs auditing/writing/debugging
+
+2.b Fabric registration
+-----------------------
+
+Ditto for fabric. Also how to multiplex based on address to allow
+multiple low levels to co-exist, e.g, both rio and ethernet.
+
+2.c Timeout/Failure Recovery
+----------------------------
+
+This is really how to do remote ref counting in the face of failure of
+boards holding remote counts. ??????
+
+2.d Virtual Physical Address mappings
+-------------------------------------
+
+The one's I've thrown in are currently probably wrong (kernel virtual
+vs bus physical) so need fixing/replacing and also need extending to
+cope with the ATMU mappings between 36 bit MPX bus physical and 34-bit
+rio fabric.
+
+2.e Local mmaping of SMBs
+-------------------------
+This is completely missing at the moment all the way from cdev mmap
+call, do-operation map calls, etc.
+
+2.f xfer_start/xfer_stop
+------------------------
+
+Again missing from do-operation on down. 
+
+3. Enhancements
+---------------
+
+Once the above framework is complete and debugged and working we can
+start adding a whole boat load of enhancements.
+
+3.1 Access Permissions
+----------------------
+Giving SMBs ugo permissions carrying same in transactions enforcing.
+Capability checking.
+etc
+
+3.2 Scope
+---------
+
+This is basically in there with local based base location vs fabric
+based base location giving local private domains between processes on
+a node versus processes between nodes. Providing multiple node domains
+is also probably in by just creating more fabric based base locations.
+
+3.3 QoS
+-------
+
+We need to start thinking about how to prioritize and schedule the
+various DMA transfers according to QoS policies instead of just fifo
+lists. 
+
+3.4 ????
+--------
+
+Feel free to add.
+

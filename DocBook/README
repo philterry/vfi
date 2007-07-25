@@ -1,0 +1,19 @@
+In your kernel source tree create a sysmlink drivers/rddma to this
+source tree (the parent of the directory containing this README).
+
+In your kernel source tree create a symlink Documentation/DocBook/rddma.tmpl 
+to the rddma.tmpl file in this directory.
+
+Edit the Makefile in Documentation/DocBook to add rddma.xml to DOCBOOKS or
+make rddma.xml the only documentation to be produced, your choice.
+
+Now where ever you build your *kernel* you can issue make with the normal
+documentation targets to build the documentation of your choice.
+
+make help will show you the targets
+
+	make mandocs
+	make htmldocs
+	make pdfdocs
+
+etc, etc.

@@ -1,0 +1,115 @@
+2007-07-25  Phil Terry  <pterry@micromemory.com>
+
+	* Makefile (publish): Add TODO file
+
+2007-07-24  Phil Terry  <pterry@micromemory.com>
+
+	* rddma_dma_rio.c: Start integrating Jimmy's DMA code.
+	Add functions for linking all the descriptors together as we build
+	the xfer structures. xfer->head_bind is a mega-list of descriptors
+	ready to go.
+
+	* rddma_local_ops.c (rddma_local_srcs_create): First stab.
+
+	* rddma_ops.c: Fixed all of the operators and do_operation so that
+	the return value is as for snprintf for the result,size buffer
+	provided in the call parameters. The semantics is that an
+	operation will print back its parameters canonicalized where
+	applicable together with a ?result=%d result string on the end if
+	you supply a result buffer. If you provide a null buffer pointer
+	the result will be 0 unless an error occured when the negative
+	value normally returned in ?result=%d is returned. If returned
+	value is equal or greater than size then the result has been
+	truncated.  Fixed all operator replies against accidentally
+	returning the original ?request=%x strings.
+
+	* rddma_fabric_net.c: Fix up registering of low level functions to
+	dev_add_pack, etc
+
+	* rddma_fabric_ops.c: First stab at delete operators.
+
+2007-07-23  Phil Terry  <pterry@micromemory.com>
+
+	* rddma_fabric_ops.c: First stab at create operators.
+
+	* symlinks: A script to symlink the include files into the linux
+	tree so that we can do in tree and module builds. Can start
+	working on the Kconfig files... Sed all files to include
+	<linux/rddma_xxx.h> instead of the old "rddma_xxx.h" so you have
+	to use this script.
+
+	* rddma_fabric_ops.c: First stab at the find operations.
+
+	* Generally lots of changes to simplify the implementation of the
+	higher ops and rationalize the distributed protocol
+	interactions. I'm basically using a four way test case, badly
+	documented in the end of the README, to flesh everything out. A
+	requestor asks a dma xfer to do a third party transfer from a
+	source to a destination, ie four boards involved in the set up of
+	a single transfer. Its getting there.
+
+	* rddma_local_ops.c: Trying to get create_xfer et al to work.
+
+	* rddma_fabric.h: Clarify the intended structure and interfaces of
+	the drivers lower interface to the fabric.
+
+	* Makefile (publish): Copy README for the driver to website.
+
+2007-07-20  Phil Terry  <pterry@micromemory.com>
+
+	* README: Wrote up the flow for create_xfer://... This required
+	that I change the type hierarchy. Fortunately this was just
+	reorganizing the way they link together rather than any wholesale
+	change of functionality. Now need to implement it.
+
+	* rddma_location.c (find_rddma_location): I finally think I've got
+	the recursion right for location creation as a by-product of name
+	lookups with find. This vastly simplifies all other operations.
+
+2007-07-19  Phil Terry  <pterry@micromemory.com>
+
+	* rddma_dma.c: Just roughing out some module stuff for the dma
+	driver. This will act in the same way as the rio driver to just
+	provide an internal low-level API for use by the rest of the rddma
+	driver. Some initial thoughts on layering it to use a
+	rddma_dma_net, rddma_dma_rio, etc, in an analogous fashion to the
+	rddma_fabric stack.
+
+	* rddma_local_ops.c: With the new parameter passing revamp all the
+	type find/create/delete methods and get them working with
+	rddma_local_ops and local_ops. Now onto the network and fabric ops.
+
+2007-07-18  Phil Terry  <pterry@micromemory.com>
+
+	* rddma_parse.[ch]: Revamp the whole parameter passing API to
+	reduce the amount of rescanning/str duping going on. Hopefully
+	this reduces string lifetime management problems as well.
+
+2007-07-17  Phil Terry  <pterry@micromemory.com>
+
+	* rddma.h (RDDMA_DEBUG): Fixed that pesky variadic macro stuff...
+
+	* rddma_fabric_net.c: Add the network abstraction layer to allow
+	rddma_fabric to run over rionet, rddma_net or ethernet. 
+
+	* rddma_net.c: A clone of rionet but using mbox 1 and different doorbells.
+
+2007-07-16  Phil Terry  <pterry@micromemory.com>
+
+	* DocBook/README: How to autogenerate documentation. Now we just need to write some...
+
+2007-07-15  Phil Terry  <pterry@micromemory.com>
+
+	* DocBook: Start trying to automate documentation generation.
+
+2007-07-14  Phil Terry  <pterry@micromemory.com>
+
+	* README: Added this to try and keep things straight, i.e., where
+	does this function fit in to the grand scheme of things again?
+
+2007-07-13  Phil Terry  <pterry@micromemory.com>
+
+	* Makefile (publish): Have it publish this changelog to my website along with the tarball.
+
+	* First stab. It compiles.
+
