@@ -13,7 +13,7 @@ clean:
 etags:
 	etags *.[ch]
 tar: clean etags
-	cd ..;	tar zcvf rddma.tar.gz rddma
+	cd ..;	tar zcvf rddma.tar.gz --exclude=.git --exclude=TAGS rddma
 publish: tar doc
 	cp ../rddma.tar.gz /mnt/Public/Rincon/PhilsWeb/
 	cp ChangeLog /mnt/Public/Rincon/PhilsWeb/

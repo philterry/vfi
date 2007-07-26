@@ -1,0 +1,154 @@
+#!/bin/bash
+while getopts :vius OPT; do
+    case $OPT in
+	v|+v)
+	    V=-v
+	    ;;
+	i|+i)
+	dowhat=Install
+	;;
+	u|+u)
+	dowhat=Uninstall
+	;;
+	s|+s)
+	dowhat=Symlink
+	;;
+	*)
+	    echo "usage: ${0##*/} [+-v} [--] ARGS..."
+	    exit 2
+    esac
+done
+shift $[ OPTIND - 1 ]
+
+kernelsrc=/lib/modules/`uname -r`/build\
+
+function help () 
+{
+
+cat<<EOF
+This script can install or uninstall this rddma system:
+	$(pwd)
+in your kernel:
+	$kernelsrc
+
+which should be a softlink:
+$(ls -ld $kernelsrc)
+
+Install copies the source files into the thee so that we can do
+a kernel build.
+
+Symlink just symlinks the include files into the kernel tree so
+that the out of tree module build will work. This is a subset of 
+Install.
+
+Uninstall undoes either/both of the above.
+
+Type the number of the selection you want. Type RET to see the list again.
+
+What do you want to do?
+EOF
+
+}
+
+if [ -z "$dowhat" ] ; then
+    echo "What do you want to do?"
+    select dowhat in "Install" "Uninstall" "Symlink" "Cancel" "Help"; do
+	case x$dowhat in
+	    x)
+	    help
+	    ;;
+	    xInstall)
+	    break
+	    ;;
+	    xUninstall)
+	    break
+	    ;;
+	    xSymlink)
+	    break
+	    ;;
+	    xCancel)
+	    echo -n "Timewaster! Then I guess we are all "
+	    break
+	    ;;
+	    *)
+	    help
+	    ;;
+	esac
+    done
+fi
+if [ "$dowhat" = "Install" ] ; then
+    if [  -L $kernelsrc/drivers/rddma ]; then
+	echo $kernelsrc/drivers/rddma is currently a symbolic link
+	echo "	" $(ls -l -d $kernelsrc/drivers/rddma)
+	echo replacing with a directory.
+	rm $kernelsrc/drivers/rddma
+    fi
+
+    if [ -d $kernelsrc/drivers/rddma ]; then
+	if [ -n "$V" ] ; then
+	    echo $kernelsrc/drivers/rddma is currently a directory containing:
+	    echo ls -lR $kernelsrc/drivers/rddma
+	    ls -lR $kernelsrc/drivers/rddma
+	fi
+	if [ -d $kernelsrc/drivers/rddma.orig ]; then
+	    echo "Can't save existing directory $kernelsrc/drivers/rddma becuase rddma.orig exists"
+	    echo "What do you want to do with rddma.orig?"
+	    select action in "Replace" "Cancel"; do
+		case x$action in
+		    x)
+		    echo "Don't understand $REPLY"
+		    ;;
+		    xReplace)
+		    echo "Replacing"
+		    rm -rf $kernelsrc/drivers/rddma.orig
+		    break
+		    ;;
+		    xCancel)
+		    exit 0
+		    break;
+		    ;;
+		    *)
+		    echo Huh bug report to phil
+		    exit -128
+		    ;;
+		esac
+	    done
+	fi
+	if [ -n "$V" ] ; then
+	    echo Saving existing rddma directory as follows:
+	fi
+	mv $V $kernelsrc/drivers/rddma $kernelsrc/drivers/rddma.orig
+    fi
+
+    mkdir $kernelsrc/drivers/rddma
+    echo Populating $kernelsrc/drivers/rddma
+    cp *.c Kbuild $kernelsrc/drivers/rddma
+
+    echo Populating $kernelsrc/Documentation/DocBook
+    cp $V --backup=numbered DocBook/rddma.tmpl $kernelsrc/Documentation/DocBook
+
+fi
+
+if [ "$dowhat" = "Install" -o "$dowhat" = "Symlink" ] ; then
+    echo Populating $kernelsrc/include/linux
+    for file in *.h ; do
+	if [ -L $kernelsrc/include/linux/$file ] ; then
+	    echo removing symlink for $file
+	    ls -l $kernelsrc/include/linux/$file
+	    rm $kernelsrc/include/linux/$file
+	fi
+	cp $V --backup=numbered $file $kernelsrc/include/linux
+    done
+fi
+
+if [ "$dowhat" = "Uninstall" ] ; then
+    if [ -L $kernelsrc/drivers/rddma ] ; then
+	rm $kernelsrc/drivers/rddma 
+    fi
+
+    rm -rf $kernelsrc/drivers/rddma
+    rm $kernelsrc/include/linux/rddma*
+    rm $kernelsrc/Documentation/DocBook/rddma.tmpl
+fi
+
+echo Done

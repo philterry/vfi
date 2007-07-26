@@ -1,3 +1,14 @@
+2007-07-26  Phil Terry  <pterry@micromemory.com>
+
+	* install: This script superceeds symlink script. Use it to
+	symlink your includes so that the out of tree build works. I'm
+	transitioning to an intree kernel build so that we can sort out
+	the Kconfig requirements as well. Using this script I'll try and
+	keep the out of tree tarball working in parallel until such time
+	as we are all transitioned to a stable project kernel.
+
+	* Makefile (tar): Exclude git repository and TAGS file
+
 2007-07-25  Phil Terry  <pterry@micromemory.com>
 
 	* Makefile (publish): Add TODO file
