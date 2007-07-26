@@ -4,3 +4,4 @@
 *.ko.cmd
 .tmp_versions
 Module.symvers
+TAGS
