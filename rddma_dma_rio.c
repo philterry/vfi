@@ -1,10 +1,11 @@
 #include <linux/rddma_dma_rio.h>
 #include <linux/rddma_src.h>
+#include <asm/io.h>
 
 static void rddma_dma_rio_load(struct rddma_src *src)
 {
 	struct seg_desc *rio = (struct seg_desc *)&src->descriptor;
-	rio->paddr = virtual_to_phys(rio);
+	rio->paddr = virt_to_phys(rio);
 	rio->hw.saddr = src->desc.src.offset & 0xffffffff;
 	rio->hw.src_attr = src->desc.src.offset >> 32;
 	rio->hw.daddr = src->desc.dst.offset & 0xffffffff;
@@ -12,7 +13,7 @@ static void rddma_dma_rio_load(struct rddma_src *src)
 	rio->hw.nbytes = src->desc.dst.extent;
 	rio->hw.next_ext = 0;
 	rio->hw.next = 1;
-	list_init(&rio->node);
+	INIT_LIST_HEAD(&rio->node);
 }
 
 static void rddma_dma_rio_link_src(struct rddma_src *first, struct rddma_src *second)
