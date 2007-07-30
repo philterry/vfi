@@ -13,14 +13,9 @@
 static char *rddma_str_dup(const char *name)
 {
 	char *ret = NULL;
-	if (!name)
-		goto out;
-
-	if (NULL == (ret = kzalloc(strnlen(name,4095)+1, GFP_KERNEL)) )
-		goto out;
-
-	strncpy(ret, name, 4095);
-out:
+	if (name)
+		if ((ret = kzalloc(strnlen(name,4095)+1, GFP_KERNEL)) )
+			strncpy(ret, name, 4095);
 	return ret;
 }
 
@@ -29,13 +24,14 @@ out:
  */
 static char *name_remainder(char *name, int c, char **remainder)
 {
-	char *p = strchr(name,c);
+	char *p = NULL;
 
-	if ( NULL == p) 
-		goto out;
+	if (name)
+		p = strchr(name,c);
 
-	p++[0] = 0;
-out:
+	if (p) 
+		*p++ = 0;
+
 	if (remainder)
 		*remainder = p;
 
@@ -103,12 +99,12 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 
 	if (sextent) {
 		d->extent = simple_strtol(sextent,&sextent,0);
-		RDDMA_ASSERT((NULL == sextent),"Dodgy extent string(%d) contains %s", ret = 1, sextent);
+ 		RDDMA_ASSERT((NULL == sextent),"Dodgy extent string(%d) contains %s", ret = 1, sextent); 
 	}
 
 	if (soffset) {
 		d->offset = simple_strtol(soffset,&soffset,0);
-		RDDMA_ASSERT((NULL == soffset),"Dodgy offset string(%d) contains %s", ret = 1, soffset);
+ 		RDDMA_ASSERT((NULL == soffset),"Dodgy offset string(%d) contains %s", ret = 1, soffset); 
 	}
 
 	i = 0;
@@ -122,6 +118,7 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 			d->ops = &rddma_fabric_ops;
 	}
 
+	return 0;
 out:
 	return ret;
 }

@@ -11,7 +11,7 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 }
 
 static struct packet_type rddma_packets = {
-	.type = htons(0xfeed),
+	.type = __constant_htons(0xfeed),
 	.func = rddma_rx_packet,
 };
 

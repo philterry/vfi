@@ -81,14 +81,14 @@ static const char *rddma_binds_uevent_name(struct kset *kset, struct kobject *ko
 
 static int rddma_binds_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
 {
-	return 0; /* Do not generate event */
+	return -ENODEV ; /* Do not generate event */
 }
 
 
 static struct kset_uevent_ops rddma_binds_uevent_ops = {
 	.filter = rddma_binds_uevent_filter,
 	.name = rddma_binds_uevent_name,
-	.uevent = rddma_binds_uevent,
+ 	.uevent = rddma_binds_uevent, 
 };
 
 struct rddma_binds *new_rddma_binds(char *name, struct rddma_xfer *parent)

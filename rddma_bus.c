@@ -31,14 +31,14 @@ int rddma_bus_probe(struct device *dev)
 
 int rddma_bus_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
 {
-	return 0;
+	return -ENODEV;
 }
 
 struct bus_type rddma_bus_type = {
 	.name = "rddma_bus",
 	.probe = rddma_bus_probe,
 	.match = rddma_bus_match,
-	.uevent = rddma_bus_uevent,
+ 	.uevent = rddma_bus_uevent, 
 };
 
 int rddma_bus_register(struct rddma_subsys *rsys)

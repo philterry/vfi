@@ -20,7 +20,7 @@ while getopts :vius OPT; do
 done
 shift $[ OPTIND - 1 ]
 
-kernelsrc=/lib/modules/`uname -r`/build\
+kernelsrc=/lib/modules/`uname -r`/build
 
 function help () 
 {

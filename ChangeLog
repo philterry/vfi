@@ -1,3 +1,11 @@
+2007-07-30  Phil Terry  <pterry@micromemory.com>
+
+	* rddma_parse.c (rddma_str_dup): tidy up some functions to Jimmy's standard.
+
+	* Makefile (publish): New website location
+
+	* Kinstall: Had to rename install script otherwise make install doesn't work... :-)
+
 2007-07-26  Phil Terry  <pterry@micromemory.com>
 
 	* install: This script superceeds symlink script. Use it to
