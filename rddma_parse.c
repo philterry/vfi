@@ -1,3 +1,14 @@
+/* 
+ * 
+ * Copyright 2007 MicroMemory, LLC.
+ * Phil Terry <pterry@micromemory.com> 
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
 #include <linux/rddma.h>
 #include <linux/rddma_parse.h>
 #include <linux/rddma_ops.h>
@@ -8,7 +19,13 @@
 #define strtol simple_strtol
 
 /**
- * rddma_str_dup: Safe copy of name to max truncated length of 4095 plus null termination in a page.
+ * rddma_str_dup - Safe copy of name to max truncated length of 4095 plus null termination in a page.
+ * @name: null terminated string to be duplicated.
+ *
+ * @name is duplicated into a freshly allocated buffer. This
+ * allocation is limited to a 4096 byte page allocation and must be
+ * null terminated so the allocation is max of @name length and 4095
+ * plus 1.
  */
 static char *rddma_str_dup(const char *name)
 {
@@ -20,7 +37,21 @@ static char *rddma_str_dup(const char *name)
 }
 
 /**
- * name_remainder: Poor mans strtok butchers input string.
+ * name_remainder - Poor mans strtok butchers input string.
+ * @name: string to be parsed into components.
+ * @c: the character at which the division is to occur. This character
+ * in the string is replaced with null.
+ * @remainder: pointer to a string pointer in which the pointer to the
+ * remainder of the string following @c is to be placed. If null the
+ * remainder pointer is only available as the return value of the
+ * function.
+ *
+ * The input string is modified by replacing the first occurence of
+ * character c with a null. The pointer to the remainder of the string
+ * is returned by the function and optionally place in the supplied
+ * string pointer variable.
+ * Return Value: the remainder of @name following @c or null if @c was
+ * not found.
  */
 static char *name_remainder(char *name, int c, char **remainder)
 {
@@ -38,7 +69,19 @@ static char *name_remainder(char *name, int c, char **remainder)
 	return p;
 }
 /**
- * rddma_get_option: returns value of var or var if present.
+ * rddma_get_option - returns value of var or var if present.
+ * @desc: An rddma_desc_param structure into which a string has been
+ * previously parsed. Any query option strings present in the original
+ * will have been parsed into the options and rest members of the
+ * struct.
+ * @needle: the name of the option being searched for.
+ *
+ * Returns the value string of var=value options or the name of var
+ * options if present in the structure.
+ * Return Value: If the option was a var=val form then the return
+ * string is a pointer to the val. If the option is merely a boolean
+ * present option var then the pointer to the name var is returned. If
+ * the option var is not found null is returned.
  */
 char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
 {
@@ -55,13 +98,16 @@ char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
 }
 
 /**
- * rddma_parse_desc: Takes a string which is duped and parsed into the desc struct.
- * Chops string into components and assigns to param struct parts.
- * Pass an rddma_str_dup'd name if the string needs to be preserved intact
- * or you don't own it or can't otherwise ensure its lifetime.
+ * rddma_parse_desc - Takes a string which is then duped and parsed into the desc struct.
+ * @d: rddma_desc_param struct pointer into which the string will be
+ * parsed.
+ * @desc: the string to be parsed. The string is first duped and then
+ * parsed into @d to enusre valid lifetimes.
  *
- * name[.loc]*[#offset][:extent]
- * name[.loc]*[:extent][#offset]
+ * Chops string into components and assigns to param struct parts.
+ * Example desc_param strings:
+ * name[.loc]*[#offset][:extent][?var[=val][,var[=val]]*]
+ * name[.loc]*[:extent][#offset][?var[=val][,var[=val]]*]
  *
  */
 
@@ -124,7 +170,11 @@ out:
 }
 
 /**
- * rddma_parse_bind: Dupe string and parse it into bind_param struct.
+ * rddma_parse_bind - Dupe string and parse it into bind_param struct.
+ * @b: struct rddma_bind_param pointer into which @desc is parsed.
+ * @desc: a string describing a bind.
+ *
+ * A bind is a string of the form desc_param=desc_param.
  */
 int rddma_parse_bind( struct rddma_bind_param *b, const char *desc)
 {
@@ -143,7 +193,12 @@ out:
 }
 
 /**
- * rddma_parse_xfer: Dups string and parses it into xfer_param struct.
+ * rddma_parse_xfer - Dups string and parses it into xfer_param struct.
+ * @x: A struct rddma_xfer_param pointer into which the string is
+ * parsed.
+ *@desc: A string describing a transfer.
+ *
+ * A transfer is a string of the form desc_param/bind_param.
  */
 int rddma_parse_xfer(struct rddma_xfer_param *x, const char *desc)
 {

@@ -1,3 +1,14 @@
+/* 
+ * 
+ * Copyright 2007 MicroMemory, LLC.
+ * Phil Terry <pterry@micromemory.com> 
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
 #include <linux/rddma_dma_rio.h>
 #include <linux/rddma_src.h>
 #include <asm/io.h>
@@ -21,7 +32,7 @@ static void rddma_dma_rio_link_src(struct rddma_src *first, struct rddma_src *se
 	struct seg_desc *rio1 = (struct seg_desc *)&first->descriptor;
 	struct seg_desc *rio2 = (struct seg_desc *)&second->descriptor;
 	struct seg_desc *riolast = to_sdesc(rio1->node.prev);
-	list_add(&rio1->node, &rio2->node);
+	list_add_tail(&rio1->node, &rio2->node);
 	riolast->hw.next = rio2->paddr &0xffffffe0;
 }
 
@@ -30,7 +41,7 @@ static void rddma_dma_rio_link_dst(struct rddma_dst *first, struct rddma_dst *se
 	struct seg_desc *rio1 = (struct seg_desc *)&first->head_src->descriptor;
 	struct seg_desc *rio2 = (struct seg_desc *)&second->head_src->descriptor;
 	struct seg_desc *riolast = to_sdesc(rio1->node.prev);
-	list_add(&rio1->node, &rio2->node);
+	list_add_tail(&rio1->node, &rio2->node);
 	riolast->hw.next = rio2->paddr &0xffffffe0;
 }
 
@@ -39,7 +50,7 @@ static void rddma_dma_rio_link_bind(struct rddma_bind *first, struct rddma_bind 
 	struct seg_desc *rio1 = (struct seg_desc *)&first->head_dst->head_src->descriptor;
 	struct seg_desc *rio2 = (struct seg_desc *)&second->head_dst->head_src->descriptor;
 	struct seg_desc *riolast = to_sdesc(rio1->node.prev);
-	list_add(&rio1->node, &rio2->node);
+	list_add_tail(&rio1->node, &rio2->node);
 	riolast->hw.next = rio2->paddr &0xffffffe0;
 }
 

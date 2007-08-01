@@ -125,17 +125,64 @@ rather string representing the operations abstractly.</para>
 </chapter>
 
   <chapter id="drivers">
-     	<title>RDDMA driver interface</title>
-	<para>
-		Drivers are provided a set of calls in order
-		to interface with the subsystem to gather info
-		on devices, request/map memory region resources,
-		and manage shared memory buffers and transfers.
-	</para>
+     	<title>RDDMA driver</title>
+<para>
+The driver is designed and implemented as an abstract driver executing
+abstract operations within the kernel. The interface to this is
+defined in rddma_ops.[ch]. This interface consists of a single
+function called do_operation. Concrete interfaces, from either user space
+processes or from remote processes via remote procedure calls over a
+fabric, are then implemented around this. So for example,
+rddma_cdev.[ch] takes a char device interface providing
+read/write/mmap/aio_read/aio_write etc., and creates a mechanism to
+interface these concrete interfaces to the do_operation interface of
+the abstract driver. Similarly, rddma_fabric.[ch] takes an abstract
+hardware independent fabric interface based on messages, and
+interfaces it to do_operation.
+</para>
+<para>
+The central abstract driver runs multithreaded and asynchronously. So
+the concrete interfaces must either match their interfaces in the same
+way, or manufacture mechanisms to hide this fact, presenting a
+synchronous, single threaded interface if desired.
+</para>
+<para>
+The single interface do_operation achieves its polymorphism by virtue
+of using a string interface which is semantically parsed. The
+definitions of this interface and supporting functions to implement it
+are defined in rddma_parse.[ch].
+</para>
 	<sect1>
-		<title>Functions</title>
+		<title>rddma_ops</title>
+	<para>
+	The driver provides a single interface function, do_operation,
+which takes a string and returns a string in the supplied result
+buffer. The input string meets a syntax required to define the
+operation requested, the parameters of that operation, plus any flags
+or options. The result string provides a similar syntax string to
+indicate any results or flags resulting from the operation. The return
+value of do_operation is the number of characters written to the
+output buffer or is a negative error value if a gross error has
+occured. If you specify a null pointer for the result buffer, no
+result string is generated and the return value indicates success
+(zero) or error (negative) for the operation.
+	</para>
+
+<para>
+In this section I list the currently defined operations available
+through do_operation. Understand that these functions are in fact all
+static and private to rddma_ops.c and are only accessible through the
+interface of do_operation, you cannot call them directly.
+</para>
+<para>
+Only do_operation is a public callable function. </para>
 !Idrivers/rddma/rddma_ops.c
 	</sect1>
+<sect1>
+<title>rddma_parse</title>
+!Iinclude/linux/rddma_parse.h
+!Idrivers/rddma/rddma_parse.c
+</sect1>
   </chapter>
 
 </book>

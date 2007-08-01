@@ -1,3 +1,14 @@
+/* 
+ * 
+ * Copyright 2007 MicroMemory, LLC.
+ * Phil Terry <pterry@micromemory.com> 
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
 #include <linux/rddma_parse.h>
 #include <linux/rddma_location.h>
 #include <linux/rddma_ops.h>
@@ -9,6 +20,18 @@
 
 #include <linux/device.h>
 
+/**
+ * location_create - Creates a location with the given methods and
+ * attributes.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int location_create(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -28,10 +51,12 @@ static int location_create(const char *desc, char *result, int size)
 		
 	ret = -EINVAL;
 
-	if ( (loc = find_rddma_location(&params))) {
-		if (loc->desc.ops && loc->desc.ops->location_create) {
-			ret = (new_loc = loc->desc.ops->location_create(loc,&params)) == NULL;
-			rddma_location_put(loc);
+	if ( params.location ) {
+		if ( (loc = find_rddma_location(&params))) {
+			if (loc->desc.ops && loc->desc.ops->location_create) {
+				ret = (new_loc = loc->desc.ops->location_create(loc,&params)) == NULL;
+				rddma_location_put(loc);
+			}
 		}
 	}
 	else {
@@ -45,6 +70,17 @@ out:
 	return ret;
 }
 
+/**
+ * location_delete - Deletes the named location.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int location_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -82,6 +118,17 @@ out:
 	return ret;
 }
 
+/**
+ * location_find - Finds the named location.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int location_find(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -113,6 +160,17 @@ out:
 	return ret;
 }
 
+/**
+ * smb_create - Creates an SMB with given attributes at location.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int smb_create(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -151,6 +209,17 @@ out:
 	return ret;
 }
 
+/**
+ * smb_delete - Deletes named SMB
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int smb_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -188,6 +257,17 @@ out:
 	return ret;
 }
 
+/**
+ * smb_find - Finds the named SMB.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int smb_find(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -227,6 +307,17 @@ out:
 	return ret;
 }
 
+/**
+ * xfer_create - Creates the named transfer bind component.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int xfer_create(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -270,6 +361,17 @@ out:
 	return ret;
 }
 
+/**
+ * xfer_delete - Deletes the named transfer bind component
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int xfer_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -305,6 +407,17 @@ out:
 	return ret;
 }
 
+/**
+ * xfer_find - Finds the named transfer.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int xfer_find(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -347,6 +460,17 @@ out:
 	return ret;
 }
 
+/**
+ * bind_create - Creates a bind component.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int bind_create(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -390,6 +514,17 @@ out:
 	return ret;
 }
 
+/**
+ * bind_delete - Deletes named bind component.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int bind_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -425,6 +560,17 @@ out:
 	return ret;
 }
 
+/**
+ * bind_find - Find named bind.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int bind_find(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -468,6 +614,17 @@ out:
 	return ret;
 }
 
+/**
+ * dst_create - Creates named destination component
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int dst_create(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -510,6 +667,17 @@ out:
 	return ret;
 }
 
+/**
+ * dst_delete - Deletes named destination component.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int dst_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -545,6 +713,17 @@ out:
 	return ret;
 }
 
+/**
+ * dst_find - Find named destination component.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int dst_find(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -586,6 +765,17 @@ out:
 	return ret;
 }
 
+/**
+ * src_create - Creates named source componenet
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int src_create(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -628,6 +818,17 @@ out:
 	return ret;
 }
 
+/**
+ * src_delete - Deletes named source component.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int src_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -663,6 +864,17 @@ out:
 	return ret;
 }
 
+/**
+ * src_find - Finds named source component.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int src_find(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -704,6 +916,17 @@ out:
 	return ret;
 }
 
+/**
+ * srcs_create - Creates set holder for sources.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int srcs_create(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -738,6 +961,17 @@ out:
 	return ret;
 }
 
+/**
+ * srcs_delete - Deletes source set.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int srcs_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -772,6 +1006,17 @@ out:
 	return ret;
 }
 
+/**
+ * srcs_find - Find sources
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int srcs_find(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
@@ -840,7 +1085,8 @@ static struct ops {
  *
  * Looks up the function corresponding to op_name and calls it with the
  * reset of the string, name.loc... and the result buffer and
- * size. Return value is the number of characters written into result.
+ * size. Return value is the number of characters written into result
+ * or negative if there is an error.
  */
 int do_operation(const char *cmd, char *result, int size)
 {

@@ -1,5 +1,5 @@
 #!/bin/bash
-while getopts :vius OPT; do
+while getopts :viusc OPT; do
     case $OPT in
 	v|+v)
 	    V=-v
@@ -12,6 +12,9 @@ while getopts :vius OPT; do
 	;;
 	s|+s)
 	dowhat=Symlink
+	;;
+	c|+c)
+	dowhat=Copyleft
 	;;
 	*)
 	    echo "usage: ${0##*/} [+-v} [--] ARGS..."
@@ -151,4 +154,21 @@ if [ "$dowhat" = "Uninstall" ] ; then
     rm $kernelsrc/Documentation/DocBook/rddma.tmpl
 fi
 
+if [ "$dowhat" = "Copyleft" ] ; then
+
+for file in *.[ch] ; do
+    sed -i -e '1i\
+/* \
+ * \
+ * Copyright 2007 MicroMemory, LLC.\
+ * Phil Terry <pterry@micromemory.com> \
+ *\
+ * This program is free software; you can redistribute  it and/or modify it\
+ * under  the terms of  the GNU General  Public License as published by the\
+ * Free Software Foundation;  either version 2 of the  License, or (at your\
+ * option) any later version.\
+ */\
+' $file
+done
+fi
 echo Done
