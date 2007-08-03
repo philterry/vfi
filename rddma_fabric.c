@@ -24,7 +24,6 @@ struct call_back_tag {
 	struct sk_buff *rply_skb;
 	wait_queue_head_t wq;
 	struct work_struct wo;
-	void *reply_cb;
 	struct rddma_location *sender;
 	void *cb_data;
 	struct call_back_tag *check;
@@ -38,14 +37,6 @@ static int fabric_tx(struct rddma_location *loc, struct sk_buff *skb)
 	}
 
 	return ret;
-}
-
-static int fabric_tx_reply(struct rddma_location *loc, struct call_back_tag *cb)
-{
-	skb_put(cb->rply_skb,sprintf(cb->rply_skb->data, ",reply=%p",cb->reply_cb));
-
-	return fabric_tx(loc,cb->rply_skb);
-	
 }
 
 static void fabric_do_rqst(struct work_struct *wo)
@@ -63,7 +54,7 @@ static void fabric_do_rqst(struct work_struct *wo)
 
 	dev_kfree_skb(cb->rqst_skb);
 
-	fabric_tx_reply((struct rddma_location *)cb->sender,cb);
+	fabric_tx((struct rddma_location *)cb->sender,cb->rply_skb);
 
 	kfree(cb);
 }
@@ -74,19 +65,16 @@ int rddma_fabric_receive(struct rddma_location *sender, struct sk_buff *skb)
 	struct call_back_tag *cb = NULL;
 	char *buf;
 
-	if ((buf = strstr(msg,"?reply="))) {
-		if ( sscanf(buf,"?reply=%p",&cb) ) {
+	if ((buf = strstr(msg,"reply="))) {
+		if ( sscanf(buf,"reply=%p",&cb) ) {
 			if (cb && cb->check == cb)
 					cb->rply_skb = skb;
 					wake_up_interruptible(&cb->wq);
 		}
 	}
-	else if ((buf = strstr(msg,"?request="))) {
-		void *reply_cb;
+	else if ((buf = strstr(msg,"request="))) {
 		struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
-		sscanf(buf,"?request=%p",&reply_cb);
 		cb->rqst_skb = skb;
-		cb->reply_cb = reply_cb;
 		cb->check = cb;
 		INIT_WORK(&cb->wo, fabric_do_rqst);
 		schedule_work(&cb->wo);

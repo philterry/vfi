@@ -30,9 +30,11 @@
 static char *rddma_str_dup(const char *name)
 {
 	char *ret = NULL;
-	if (name)
-		if ((ret = kzalloc(strnlen(name,4095)+1, GFP_KERNEL)) )
-			strncpy(ret, name, 4095);
+	if (name) {
+		size_t size = strnlen(name,4095);
+		if ((ret = kzalloc(size+1, GFP_KERNEL)) )
+			strncpy(ret, name, size);
+	}
 	return ret;
 }
 
@@ -89,7 +91,7 @@ char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
 	char *found_val = NULL;
 	int i;
 
-	for (i = 0; i <= RDDMA_MAX_QUERY_STRINGS; i++)
+	for (i = 0; i <= RDDMA_MAX_QUERY_STRINGS && desc->query[i]; i++)
 		if (desc->query[i])
 			if ((found_var = strstr(desc->query[i],needle)))
 				found_val = strstr(found_var,"=");

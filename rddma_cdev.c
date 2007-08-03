@@ -98,25 +98,22 @@ static ssize_t rddma_aio_read(struct kiocb * iocb, const struct iovec *iovs, uns
 	return 0;;
 }
 
-#define BUF_EXTEND(size) ((size)+sizeof(struct mybuffers)+((size)>>1)+2)
+#define BUF_EXTEND(size) (sizeof(struct mybuffers)+((size)<<1)+2)
+#define BUF_STRUCT(b,size) ((struct mybuffers *)((b)+(size)+1))
+#define BUF_EXTENSION(b,size) ((b)+(size)+1+sizeof(struct mybuffers))
 
 static ssize_t rddma_real_write(char *buf, size_t count, loff_t *offset)
 {
 	int ret;
-	
-	ret = do_operation(buf, buf+count+1, count);
+	char *reply = BUF_EXTENSION(buf,count);
+	ret = do_operation(buf, reply, count);
 
-	if (strstr(buf,"?"))
-		buf[count] = ',';
-	else
-		buf[count] = '?';
-	
-	if ( ret ) {
+	if ( ret < 0 ) {
 		return ret;
 	}
 
 	*offset += count;
-	return count;
+	return ret;
 }
 
 static void queue_to_read(struct privdata *priv, struct mybuffers *mybuf)
@@ -136,7 +133,7 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 {
 	int ret;
 	char *buffer = kzalloc(BUF_EXTEND(count),GFP_KERNEL);
-	struct mybuffers *mybuf = (struct mybuffers *)buffer+((count+1)<<1);
+	struct mybuffers *mybuf = BUF_STRUCT(buffer,count);
 	struct privdata *priv = filep->private_data;
 
 	if ( (ret = copy_from_user(buffer,buf,count)) ) {
@@ -146,10 +143,14 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 
 	ret = rddma_real_write(buffer,count,offset);
 
-	mybuf->buf=buffer;
+	if ( ret < 0 )
+		return ret;
+
+	mybuf->buf=BUF_EXTENSION(buffer,count);
+	mybuf->size = ret;
 	queue_to_read(priv,mybuf);
 
-	return ret;
+	return count;
 }
 
 struct aio_def_work {
@@ -170,16 +171,21 @@ static void aio_def_write(struct work_struct *wk)
 	ssize_t count = 0;
 	while (i < work->nr_iovs) {
 		if (!ret) {
-			struct mybuffers *mybuf = (struct mybuffers *)work->iovs[i].iov_base+((work->iovs[i].iov_len+1)<<1);
+			struct mybuffers *mybuf = BUF_STRUCT(work->iovs[i].iov_base,work->iovs[i].iov_len);
+
 			if ( (ret = rddma_real_write(work->iovs[i].iov_base, work->iovs[i].iov_len, &work->offset)) < 0 )
 				count = ret;
-			else {
-				count += ret;
+			else 
+				count += work->iovs[i].iov_len;
+
+			numdone++;
+
+			if ( ret >= 0 ) {
+				mybuf->buf=BUF_EXTENSION(work->iovs[i].iov_base,work->iovs[i].iov_len);
+				mybuf->size = ret;
+				queue_to_read(priv,mybuf);
 				ret = 0;
 			}
-			numdone++;
-			mybuf->buf=work->iovs[i].iov_base;
-			queue_to_read(priv,mybuf);
 		}
 		else
 			kfree(work->iovs[i].iov_base);
@@ -201,20 +207,21 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 		ssize_t count = 0;
 		while (i < nr_iovs) {
 			char *buffer = kzalloc(BUF_EXTEND(iovs[i].iov_len), GFP_KERNEL);
-			struct mybuffers *mybuf = (struct mybuffers *)buffer+((iovs[i].iov_len+1)<<1);
+			struct mybuffers *mybuf = BUF_STRUCT(buffer,iovs[i].iov_len);
 			if (copy_from_user(buffer, iovs[i].iov_base,iovs[i].iov_len)) {
 				kfree(buffer);
 				return -EFAULT;
 			}
 			ret = rddma_real_write(buffer, iovs[i].iov_len, &offset);
 			
-			mybuf->buf = buffer;
+			if (  ret < 0 ) 
+				return ret;
+			
+			mybuf->buf = BUF_EXTENSION(buffer,iovs[i].iov_len);
+			mybuf->size = ret;
 			queue_to_read(priv,mybuf);
 
-			if (  ret < 0 ) {
-				return ret;
-			}
-			count += ret;
+			count += iovs[i].iov_len;
 			i++;
 		}
 		return count;
@@ -292,9 +299,10 @@ static int rddma_release(struct inode *inode, struct file *filep)
 {
 	struct privdata *priv = filep->private_data;
 	struct list_head *entry;
+	struct list_head *temp;
 	spin_lock(&priv->lock);
 	priv->open = 0;
-	list_for_each(entry,&priv->list) {
+	list_for_each_safe(entry,temp,&priv->list) {
 		list_del(entry);
 		kfree(entry);
 	}

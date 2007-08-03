@@ -1,3 +1,18 @@
+2007-08-02  Phil Terry  <pterry@micromemory.com>
+
+	* rddma_fabric.c: leave request/reply echo to abstract operators.
+
+	* rddma_ops.c: move reply/request tag handling into the
+	operators. This functionality is required by the asynchronous cdev
+	operators as much as the fabric operators so it doesn't make sense
+	to duplicate the code/functionality.
+
+	* rddma_parse.c (rddma_str_dup): Red Face Alert!
+
+	* rddma_cdev.c: What can I say. Sorry! So lengths, counts,
+	offsets, you name it was missing and if it wasn't missing it was
+	wrong. But all better now?
+
 2007-07-30  Phil Terry  <pterry@micromemory.com>
 
 	* rddma_parse.c (rddma_str_dup): tidy up some functions to Jimmy's standard.
