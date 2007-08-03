@@ -101,7 +101,7 @@ RDDMA_SMB_ATTR(name, 0444, rddma_smb_name_show, 0);
 
 static ssize_t rddma_smb_size_show(struct rddma_smb *rddma_smb, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%d\n", rddma_smb->size);
+	return snprintf(buffer, PAGE_SIZE, "%d\n", (int)rddma_smb->size);
 }
 
 RDDMA_SMB_ATTR(size, 0444, rddma_smb_size_show, 0);
