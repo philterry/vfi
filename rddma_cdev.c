@@ -20,12 +20,15 @@
 
 #include <linux/rddma_drv.h>
 #include <linux/rddma_ops.h>
+#include <linux/version.h>
 
 struct mybuffers {
 	struct list_head list;
 	int size;
 	char *buf;
 };
+
+#define to_mybuffers(lh) list_entry(lh, struct mybuffers, list)
 
 struct privdata {
 	spinlock_t lock;
@@ -58,8 +61,8 @@ static ssize_t rddma_read(struct file *filep, char __user *buf, size_t count, lo
 		if (!priv->mybuf) {
 			spin_lock(&priv->lock);
 			if (!list_empty(&priv->list)) {
-				priv->mybuf = list_first_entry(&priv->list, struct mybuffers, list);
-				list_del(&priv->mybuf->list);
+				priv->mybuf = to_mybuffers(priv->list.next);
+				list_del(priv->list.next);
 			}
 			spin_unlock(&priv->lock);
 			if (!priv->mybuf)
@@ -161,9 +164,15 @@ struct aio_def_work {
 	struct work_struct work;
 };
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+static void aio_def_write(void *data)
+{
+	struct aio_def_work *work = (struct aio_def_work *) data;
+#else
 static void aio_def_write(struct work_struct *wk)
 {
 	struct aio_def_work *work = container_of(wk,struct aio_def_work,work);
+#endif
 	struct privdata *priv = work->iocb->ki_filp->private_data;
 	int i = 0;
 	int numdone = 0;
@@ -230,7 +239,11 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 		struct aio_def_work *work = kzalloc(sizeof(struct aio_def_work),GFP_KERNEL);
 		int i = 0;
 		int ret = 0;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+		INIT_WORK(&work->work,aio_def_write, (void *) work);
+#else
 		INIT_WORK(&work->work,aio_def_write);
+#endif
 		work->iocb = iocb;
 		work->iovs = kzalloc(sizeof(struct kvec)*nr_iovs, GFP_KERNEL);
 		while ( i < nr_iovs) {
@@ -304,7 +317,7 @@ static int rddma_release(struct inode *inode, struct file *filep)
 	priv->open = 0;
 	list_for_each_safe(entry,temp,&priv->list) {
 		list_del(entry);
-		kfree(entry);
+		kfree(to_mybuffers(entry));
 	}
 	spin_unlock(&priv->lock);
 	kobject_put(&priv->kobj);

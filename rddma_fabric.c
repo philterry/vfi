@@ -18,6 +18,7 @@
 
 #include <linux/sched.h>
 #include <linux/skbuff.h>
+#include <linux/version.h>
 
 struct call_back_tag {
 	struct sk_buff *rqst_skb;
@@ -39,8 +40,14 @@ static int fabric_tx(struct rddma_location *loc, struct sk_buff *skb)
 	return ret;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+static void fabric_do_rqst(void *data)
+{
+	struct work_struct *wo = (struct work_struct *) data;
+#else
 static void fabric_do_rqst(struct work_struct *wo)
 {
+#endif
 	int ret = 0;
 	struct call_back_tag *cb = container_of(wo, struct call_back_tag, wo);
 
@@ -76,7 +83,11 @@ int rddma_fabric_receive(struct rddma_location *sender, struct sk_buff *skb)
 		struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
 		cb->rqst_skb = skb;
 		cb->check = cb;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+		INIT_WORK(&cb->wo, fabric_do_rqst, (void *) &cb->wo);
+#else
 		INIT_WORK(&cb->wo, fabric_do_rqst);
+#endif
 		schedule_work(&cb->wo);
 	}
 	else

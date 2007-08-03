@@ -1002,16 +1002,23 @@ int do_operation(const char *cmd, char *result, int size)
 {
 	int ret = -EINVAL;
 	char *sp1;
+	int found = 0;
 
 	if ( (sp1 = strstr(cmd,"://")) ) {
 		struct ops *op = &ops[0];
 
 		while (op->f)
-			if (!strncmp(cmd,op->cmd,sp1-cmd))
+			if (!strncmp(cmd,op->cmd,strlen(op->cmd))) {
 				ret = op->f(sp1+3,result,size);
+				found = 1;
+			}
 			else
 				op++;
 	}
+	if (!found) {
+		snprintf(result,size,"Huh \"%s\"\n" ,cmd);
+	}
+
 	return ret;
 }
 

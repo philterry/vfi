@@ -63,7 +63,7 @@ static char *name_remainder(char *name, int c, char **remainder)
 		p = strchr(name,c);
 
 	if (p) 
-		*p++ = 0;
+		*p++ = '\0';
 
 	if (remainder)
 		*remainder = p;
@@ -92,9 +92,10 @@ char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
 	int i;
 
 	for (i = 0; i <= RDDMA_MAX_QUERY_STRINGS && desc->query[i]; i++)
-		if (desc->query[i])
+		if (desc->query[i]) {
 			if ((found_var = strstr(desc->query[i],needle)))
 				found_val = strstr(found_var,"=");
+		}
 
 	return found_val ? found_val+1 : found_var ;
 }
