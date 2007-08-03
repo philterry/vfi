@@ -1,3 +1,9 @@
+2007-08-03  Phil Terry  <pterry@micromemory.com>
+
+	* rddma_cdev.c: Took out spinlocks and put proper semaphore
+	locking in. read operation should now block properly waiting for
+	data from write unless you open O_NONBLOCK.
+
 2007-08-02  Phil Terry  <pterry@micromemory.com>
 
 	* rddma_fabric.c: leave request/reply echo to abstract operators.

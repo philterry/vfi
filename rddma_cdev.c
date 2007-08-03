@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/kobject.h>
-#include <linux/spinlock.h>
 
 #include <linux/rddma_drv.h>
 #include <linux/rddma_ops.h>
@@ -31,7 +30,8 @@ struct mybuffers {
 #define to_mybuffers(lh) list_entry(lh, struct mybuffers, list)
 
 struct privdata {
-	spinlock_t lock;
+	struct semaphore sem;
+	wait_queue_head_t rwq;
 	struct list_head list;
 	int open;
 	struct mybuffers *mybuf;
@@ -57,16 +57,24 @@ static ssize_t rddma_read(struct file *filep, char __user *buf, size_t count, lo
 	struct privdata *priv = (struct privdata *)filep->private_data;
 	int left;
 
+	if (down_interruptible(&priv->sem))
+		return -ERESTARTSYS;
+
 	while (mycount < count) {
 		if (!priv->mybuf) {
-			spin_lock(&priv->lock);
 			if (!list_empty(&priv->list)) {
 				priv->mybuf = to_mybuffers(priv->list.next);
 				list_del(priv->list.next);
 			}
-			spin_unlock(&priv->lock);
-			if (!priv->mybuf)
-				goto out;
+			while (!priv->mybuf) {
+				up(&priv->sem);
+				if (filep->f_flags & O_NONBLOCK)
+					return -EAGAIN;
+				if (wait_event_interruptible(priv->rwq, (priv->mybuf)))
+					return -ERESTARTSYS;
+				if (down_interruptible(&priv->sem))
+					return -ERESTARTSYS;
+			}
 			priv->size = priv->mybuf->size;
 			priv->offset = 0;
 		}
@@ -83,6 +91,8 @@ static ssize_t rddma_read(struct file *filep, char __user *buf, size_t count, lo
 		}
 	}
 out:
+	up(&priv->sem);
+
 	*offset += mycount;
 	return mycount;
 }
@@ -122,13 +132,14 @@ static ssize_t rddma_real_write(char *buf, size_t count, loff_t *offset)
 static void queue_to_read(struct privdata *priv, struct mybuffers *mybuf)
 {
 	INIT_LIST_HEAD(&mybuf->list);
-	spin_lock(&priv->lock);
+	down(&priv->sem);
 	if (priv->open) {
 		list_add_tail(&priv->list,&mybuf->list);
-		spin_unlock(&priv->lock);
+		up(&priv->sem);
+		wake_up_interruptible(&priv->rwq);
 		return;
 	}
-	spin_unlock(&priv->lock);
+	up(&priv->sem);
 	kfree(mybuf->buf);
 }
 
@@ -292,20 +303,18 @@ static unsigned int rddma_poll(struct file *filep, struct poll_table_struct *pol
 
 static int rddma_open(struct inode *inode, struct file *filep)
 {
-	int ret = -ENOMEM;
 	struct privdata *priv = kzalloc(sizeof(struct privdata), GFP_KERNEL);
 	if ( NULL == priv )
-		goto fail;
+		return -ENOMEM;
 
-	spin_lock_init(&priv->lock);
+	sema_init(&priv->sem,1);
+	init_waitqueue_head(&priv->rwq);
 	INIT_LIST_HEAD(&priv->list);
 	priv->kobj.ktype = &privtype;
 	kobject_init(&priv->kobj);
 	priv->open = 1;
 	filep->private_data = priv;
-	ret = 0;
-fail:
-	return ret;
+	return 0;
 }
 
 static int rddma_release(struct inode *inode, struct file *filep)
@@ -313,13 +322,15 @@ static int rddma_release(struct inode *inode, struct file *filep)
 	struct privdata *priv = filep->private_data;
 	struct list_head *entry;
 	struct list_head *temp;
-	spin_lock(&priv->lock);
+	if (down_interruptible(&priv->sem))
+		return -ERESTARTSYS;
+
 	priv->open = 0;
 	list_for_each_safe(entry,temp,&priv->list) {
 		list_del(entry);
 		kfree(to_mybuffers(entry));
 	}
-	spin_unlock(&priv->lock);
+	up(&priv->sem);
 	kobject_put(&priv->kobj);
 
 	return 0;
