@@ -39,6 +39,7 @@ static int location_create(const char *desc, char *result, int size)
 	struct rddma_location *loc;
 	struct rddma_desc_param params;
 	
+	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
 	if ( (ret = rddma_parse_desc(&params, desc) ) < 0 )
 		goto fail;
 
@@ -1003,20 +1004,22 @@ int do_operation(const char *cmd, char *result, int size)
 	int ret = -EINVAL;
 	char *sp1;
 	int found = 0;
+	RDDMA_DEBUG(1,"%s entered size=%d\n",__FUNCTION__, size);
 
 	if ( (sp1 = strstr(cmd,"://")) ) {
 		struct ops *op = &ops[0];
-
+		*sp1 = '\0';
 		while (op->f)
-			if (!strncmp(cmd,op->cmd,strlen(op->cmd))) {
+			if (!strcmp(cmd,op->cmd)) {
 				ret = op->f(sp1+3,result,size);
 				found = 1;
+				break;
 			}
 			else
 				op++;
 	}
 	if (!found) {
-		snprintf(result,size,"Huh \"%s\"\n" ,cmd);
+		ret = snprintf(result,size,"Huh \"%s\"\n" ,cmd);
 	}
 
 	return ret;
