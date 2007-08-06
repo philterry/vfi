@@ -79,7 +79,7 @@ RDDMA_LOCATION_ATTR(default, 0644, rddma_location_default_show, rddma_location_d
 
 static ssize_t rddma_location_location_show(struct rddma_location *rddma_location, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_location_location");
+	return snprintf(buffer, PAGE_SIZE, "%s\n",rddma_location->desc.location);
 }
 
 static ssize_t rddma_location_location_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
@@ -91,7 +91,7 @@ RDDMA_LOCATION_ATTR(location, 0644, rddma_location_location_show, rddma_location
 
 static ssize_t rddma_location_name_show(struct rddma_location *rddma_location, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_location_name");
+	return snprintf(buffer, PAGE_SIZE, "%s\n",rddma_location->desc.name);
 }
 
 static ssize_t rddma_location_name_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
@@ -115,7 +115,7 @@ RDDMA_LOCATION_ATTR(id, 0644, rddma_location_id_show, rddma_location_id_store);
 
 static ssize_t rddma_location_type_show(struct rddma_location *rddma_location, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_location_type");
+	return snprintf(buffer, PAGE_SIZE, "%s\n", rddma_location->desc.ops == &rddma_fabric_ops ? "public" : rddma_location->desc.ops == &rddma_local_ops ? "private" : "NULL");
 }
 
 static ssize_t rddma_location_type_store(struct rddma_location *rddma_location, const char *buffer, size_t size)

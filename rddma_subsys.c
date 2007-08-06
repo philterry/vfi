@@ -65,7 +65,7 @@ static struct sysfs_ops rddma_subsys_sysfs_ops = {
 
 static ssize_t rddma_subsys_debug_show(struct rddma_subsys *rddma_subsys, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%d\n", atomic_read(&rddma_subsys->kset.kobj.kref.refcount));
+	return snprintf(buffer, PAGE_SIZE, "%d\n", rddma_debug_level);
 }
 
 static ssize_t rddma_subsys_debug_store(struct rddma_subsys *rddma_subsys, const char *buffer, size_t size)
