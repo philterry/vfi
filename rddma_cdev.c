@@ -113,7 +113,7 @@ static ssize_t rddma_aio_read(struct kiocb * iocb, const struct iovec *iovs, uns
 		}
 		return count;
 	}
-	return 0;;
+	return 0;
 }
 
 static ssize_t rddma_real_write(struct mybuffers *mybuf, size_t count, loff_t *offset)
@@ -136,7 +136,7 @@ static void queue_to_read(struct privdata *priv, struct mybuffers *mybuf)
 	INIT_LIST_HEAD(&mybuf->list);
 	down(&priv->sem);
 	if (priv->open) {
-		list_add_tail(&priv->list,&mybuf->list);
+		list_add_tail(&mybuf->list,&priv->list);
 		up(&priv->sem);
 		wake_up_interruptible(&priv->rwq);
 		return;

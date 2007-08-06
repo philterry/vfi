@@ -158,7 +158,7 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 	}
 
 	i = 0;
-	while (name_remainder(d->query[i], ',', &d->query[i+1]) && i < RDDMA_MAX_QUERY_STRINGS);
+	while (name_remainder(d->query[i], ',', &d->query[i+1]) && i < RDDMA_MAX_QUERY_STRINGS) i++;
 	/* The above naughty loop will leave any remaining options in d->rest */
 	
 	if ( (ops = rddma_get_option(d,"default_ops")) ) {
