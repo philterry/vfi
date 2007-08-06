@@ -146,6 +146,26 @@ static void queue_to_read(struct privdata *priv, struct mybuffers *mybuf)
 	kfree(mybuf);
 }
 
+/**
+ * rddma_write - Write a command to the rddma driver.
+ * @filep - the open filep structure
+ * @buf - the user buffer should contain a single, line-feed terminated command
+ * @count - the length of the string
+ * @offset - the notional offset into the "file".
+ *
+ * The rddma driver is command string oriented. The char device write
+ * command is simply writing a chuck of data in the stream of
+ * chararcters. Usually, the glibc/kernel superstructure will cause a
+ * line-feed terminated string to flush through the system. However,
+ * this is not guaranteed, multiple and/or partial lines may be
+ * written. This write routine scans for the first linefeed and writes
+ * only the single command. Therefore the API should be careful to
+ * flush the writes in the right manner. The synchronous read/write
+ * interface is not the prefered interface to the driver, the
+ * asynchronous and/or vectored interface of aio_read/aio_write is
+ * preferred to avoid these potential problems with a stream vs record
+ * interface.
+ */
 static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t count, loff_t *offset)
 {
 	int ret;
@@ -160,17 +180,17 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 	}
 
 	mybuf = kzalloc(1024,GFP_KERNEL);
-	mybuf->buf = buffer;
+	mybuf->buf = strsep(&buffer,"\n");
 	mybuf->reply = (char *)(mybuf+1);
 
 	ret = rddma_real_write(mybuf,count,offset);
-
+	
 	if ( ret < 0 ) {
-		kfree(buffer);
+		kfree(mybuf->buf);
 		kfree(mybuf);
 		return ret;
 	}
-
+	
 	mybuf->size = ret;
 	queue_to_read(priv,mybuf);
 
