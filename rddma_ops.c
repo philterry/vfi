@@ -961,6 +961,7 @@ out:
 	return ret;
 }
 
+#define MAX_OP_LEN 15		/* length of location_create */
 static struct ops {
 	char *cmd;
 	int (*f)(const char *, char *, int);
@@ -1000,18 +1001,28 @@ static struct ops {
  * size. Return value is the number of characters written into result
  * or negative if there is an error.
  */
+
 int do_operation(const char *cmd, char *result, int size)
 {
 	int ret = -EINVAL;
 	char *sp1;
+	char test[MAX_OP_LEN + 1];
+	int toklen;
 	int found = 0;
+
 	RDDMA_DEBUG(1,"%s entered size=%d\n",__FUNCTION__, size);
 
 	if ( (sp1 = strstr(cmd,"://")) ) {
 		struct ops *op = &ops[0];
-		*sp1 = '\0';
+		
+		toklen = sp1 - cmd;
+		if (toklen > MAX_OP_LEN)
+			goto out;
+
+		strncpy(test,cmd,toklen);
+		test[toklen] = '\0';
 		while (op->f)
-			if (!strcmp(cmd,op->cmd)) {
+			if (!strcmp(test,op->cmd)) {
 				ret = op->f(sp1+3,result,size);
 				found = 1;
 				break;
@@ -1019,6 +1030,7 @@ int do_operation(const char *cmd, char *result, int size)
 			else
 				op++;
 	}
+out:
 	if (!found) {
 		ret = snprintf(result,size,"Huh \"%s\"\n" ,cmd);
 	}
