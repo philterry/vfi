@@ -1,3 +1,38 @@
+2007-08-09  Phil Terry  <pterry@micromemory.com>
+
+	* Kbuild: Build rddma_fabric_net as a separate optional module
+	which registers with the main driver when used.
+
+	* rddma_fabric_net.c: Implement the fabric transport's side of the
+	registration protocols.
+
+	* rddma_fabric.c: Implement the driver's side of the
+	fabric_transport registration handshakes.
+
+	* rddma_fabric.h: Changes to get optional fabric_transports to
+	register with driver and get used by locations. In progress not
+	finished yet, may change.
+
+	* rddma_xfer.c (new_rddma_xfer): use rddma_clone_xfer...
+
+	* rddma_src.c (new_rddma_src): use rddma_clone_bind....
+
+	* rddma_smb.c (new_rddma_smb): use rddma_clone_desc to deep copy orig_desc.
+
+	* rddma_location.c (new_rddma_location): use rddma_clone_desc to
+	deep copy orig_desc.
+
+	* rddma_dst.c (new_rddma_dst): use rddma_clone_bind to deep copy orig_desc.
+
+	* rddma_bind.c (new_rddma_bind): use rddma_clone_bind to deep copy
+	orig_desc.
+
+	* rddma_parse.[ch]: Add a carry through parameter orig_desc for use
+	by inlines rddma_clone_{desc,bind,xfer} to "fix" string dup problems.
+
+	* Kinstall: Add a force operation for use in install to avoid
+	interactive question on what to do with overwriting backup.
+
 2007-08-03  Phil Terry  <pterry@micromemory.com>
 
 	* rddma_cdev.c: Took out spinlocks and put proper semaphore

@@ -1,5 +1,5 @@
 #!/bin/bash
-while getopts :viusc OPT; do
+while getopts :viuscf OPT; do
     case $OPT in
 	v|+v)
 	    V=-v
@@ -15,6 +15,9 @@ while getopts :viusc OPT; do
 	;;
 	c|+c)
 	dowhat=Copyleft
+	;;
+	f|+f)
+	doforce=$OPT
 	;;
 	*)
 	    echo "usage: ${0##*/} [+-v} [--] ARGS..."
@@ -94,28 +97,32 @@ if [ "$dowhat" = "Install" ] ; then
 	    ls -lR $kernelsrc/drivers/rddma
 	fi
 	if [ -d $kernelsrc/drivers/rddma.orig ]; then
-	    echo "Can't save existing directory $kernelsrc/drivers/rddma becuase rddma.orig exists"
-	    echo "What do you want to do with rddma.orig?"
-	    select action in "Replace" "Cancel"; do
-		case x$action in
-		    x)
-		    echo "Don't understand $REPLY"
-		    ;;
-		    xReplace)
-		    echo "Replacing"
-		    rm -rf $kernelsrc/drivers/rddma.orig
-		    break
-		    ;;
-		    xCancel)
-		    exit 0
-		    break;
-		    ;;
-		    *)
-		    echo Huh bug report to phil
-		    exit -128
-		    ;;
-		esac
-	    done
+	    if [ -z "$doforce" ]; then
+		echo "Can't save existing directory $kernelsrc/drivers/rddma becuase rddma.orig exists"
+		echo "What do you want to do with rddma.orig?"
+		select action in "Replace" "Cancel"; do
+		    case x$action in
+			x)
+			echo "Don't understand $REPLY"
+			;;
+			xReplace)
+			echo "Replacing"
+			rm -rf $kernelsrc/drivers/rddma.orig
+			break
+			;;
+			xCancel)
+			exit 0
+			break;
+			;;
+			*)
+			echo Huh bug report to phil
+			exit -128
+			;;
+		    esac
+		done
+	    else
+		rm -rf $kernelsrc/drivers/rddma.orig
+	    fi
 	fi
 	if [ -n "$V" ] ; then
 	    echo Saving existing rddma directory as follows:
