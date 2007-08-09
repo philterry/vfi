@@ -30,16 +30,6 @@ struct call_back_tag {
 	struct call_back_tag *check;
 };
 
-static int fabric_tx(struct rddma_location *loc, struct sk_buff *skb)
-{
-	int ret = 0;
-	if ( (ret = loc->address.ops->fabric_transmit(&loc->address,skb)) ) {
-		dev_kfree_skb(skb);
-	}
-
-	return ret;
-}
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 static void fabric_do_rqst(void *data)
 {
@@ -61,11 +51,73 @@ static void fabric_do_rqst(struct work_struct *wo)
 
 	dev_kfree_skb(cb->rqst_skb);
 
-	fabric_tx((struct rddma_location *)cb->sender,cb->rply_skb);
+	rddma_fabric_tx((struct rddma_location *)cb->sender,cb->rply_skb);
 
 	kfree(cb);
 }
 
+/* Downcalls via the location->address */
+
+int rddma_fabric_tx(struct rddma_location *loc, struct sk_buff *skb)
+{
+	int ret = 0;
+	if ( loc && loc->address && loc->address->ops ) {
+		if ( (ret = loc->address->ops->transmit(loc->address,skb)) ) 
+			dev_kfree_skb(skb);
+	} else
+		dev_kfree_skb(skb);
+
+	return ret;
+}
+
+int rddma_address_register(struct rddma_location *loc)
+{
+	int ret = -EINVAL;
+	if (loc && loc->address && loc->address->ops)
+		ret = loc->address->ops->register_location(loc);
+	return ret;
+}
+
+void rddma_address_unregister(struct rddma_location *loc)
+{
+	if (loc && loc->address && loc->address->ops)
+		loc->address->ops->unregister_location(loc);
+}
+
+
+struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, ...)
+{
+	va_list ap;
+	struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
+	if (cb) {
+		struct sk_buff *skb = dev_alloc_skb(2048);
+		if (skb) {
+			cb->check = cb;
+			cb->rply_skb = NULL;
+			
+			va_start(ap,f);
+			skb_put(skb,vsprintf(skb->data,f,ap));
+			va_end(ap);
+			skb_put(skb,sprintf(skb->data, "?request=%p",cb));
+				
+			rddma_fabric_tx(loc, skb);
+		
+			init_waitqueue_head(&cb->wq);
+
+			if (wait_event_interruptible_timeout(cb->wq, (cb->rply_skb != NULL), to*HZ) == 0) {
+				kfree(cb);
+				return NULL;
+			}
+
+			skb = cb->rply_skb;
+			kfree(cb);
+			return skb;
+		}
+	}
+	return NULL;
+}
+
+/* Upcalls */
 int rddma_fabric_receive(struct rddma_location *sender, struct sk_buff *skb)
 {
 	char *msg = skb->data;
@@ -97,44 +149,56 @@ int rddma_fabric_receive(struct rddma_location *sender, struct sk_buff *skb)
 
 }
 
-struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, ...)
+static struct rddma_fabric_address *fabrics[RDDMA_MAX_FABRICS];
+
+int rddma_fabric_register(struct rddma_fabric_address *addr)
 {
-	va_list ap;
-	struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
-	if (cb) {
-		struct sk_buff *skb = dev_alloc_skb(2048);
-		if (skb) {
-			cb->check = cb;
-			cb->rply_skb = NULL;
-			
-			va_start(ap,f);
-			skb_put(skb,vsprintf(skb->data,f,ap));
-			va_end(ap);
-			skb_put(skb,sprintf(skb->data, "?request=%p",cb));
-				
-			fabric_tx(loc, skb);
-		
-			init_waitqueue_head(&cb->wq);
+	int ret = -EEXIST;
+	int i;
 
-			if (wait_event_interruptible_timeout(cb->wq, (cb->rply_skb != NULL), to*HZ) == 0) {
-				kfree(cb);
-				return NULL;
+	for (i = 0; i < RDDMA_MAX_FABRICS && fabrics[i] ; i++)
+		if (!strcmp(kobject_name(&addr->kobj), kobject_name(&fabrics[i]->kobj)) )
+			return ret;
+
+	if ( i == RDDMA_MAX_FABRICS)
+		return -ENOMEM;
+
+	fabrics[i] = addr;
+
+	return 0;
+}
+
+void rddma_fabric_unregister(struct rddma_fabric_address *addr)
+{
+	int i;
+
+	for (i = 0; i < RDDMA_MAX_FABRICS && fabrics[i] ; i++)
+		if (fabrics[i])
+			if (!strcmp(kobject_name(&addr->kobj),kobject_name(&fabrics[i]->kobj))) {
+				fabrics[i] = NULL;
+				return;
 			}
+}
 
-			skb = cb->rply_skb;
-			kfree(cb);
-			return skb;
-		}
-	}
+struct rddma_fabric_address *rddma_fabric_find(const char *name)
+{
+	int i;
+	struct rddma_fabric_address *ap;
+
+	for (i = 0, ap = fabrics[0]; i < RDDMA_MAX_FABRICS && ap ; i++, ap++)
+		if (ap)
+			if (!strcmp(name,kobject_name(&ap->kobj))) {
+				if (try_module_get(ap->owner))
+					return ap;
+			}
 	return NULL;
 }
 
-int rddma_fabric_register(struct rddma_location *loc)
+void rddma_fabric_put(struct rddma_fabric_address *addr)
 {
-	return loc->address.ops->fabric_register(&loc->address);
+	module_put(addr->owner);
 }
 
-void rddma_fabric_unregister(struct rddma_location *loc)
-{
-	loc->address.ops->fabric_unregister(&loc->address);
-}
+EXPORT_SYMBOL(rddma_fabric_receive);
+EXPORT_SYMBOL(rddma_fabric_register);
+EXPORT_SYMBOL(rddma_fabric_unregister);

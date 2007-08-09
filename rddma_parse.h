@@ -11,7 +11,10 @@
 
 #ifndef RDDMA_PARSE_H
 #define RDDMA_PARSE_H
+
 #include <linux/types.h>
+#include <linux/device.h>
+
 /*
  * offset    := <hexstr>
  * extent    := <hexstr>
@@ -53,6 +56,7 @@ struct rddma_desc_param {
 	char *rest;		/* var[=val][,var[=val]]* */
 /* rest is aliased as query[RDDMA_MAX_QUERY_STRINGS] in the parse routine! Naughty code! */
 /* private: */
+	const char *orig_desc;
 	struct rddma_ops *ops;
 	struct rddma_dma_ops *dma_ops;
 };
@@ -96,5 +100,30 @@ extern int   rddma_parse_xfer( struct rddma_xfer_param *, const char *);
 extern int   rddma_parse_bind( struct rddma_bind_param *, const char *);
 extern int   rddma_parse_desc( struct rddma_desc_param *, const char *);
 extern char *rddma_get_option( struct rddma_desc_param *, const char *);
+
+static inline int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
+{
+	int ret = -EINVAL;
+	if (old->orig_desc)
+		if ( !(ret = rddma_parse_desc(new,old->orig_desc)) )
+			new->orig_desc = NULL;
+	return ret;
+}
+
+static inline int rddma_clone_bind(struct rddma_bind_param *new, struct rddma_bind_param *old)
+{
+	int ret = -EINVAL;
+	if ( !(ret = rddma_clone_desc(&new->dst, &old->dst)) )
+		ret = rddma_clone_desc(&new->src, &old->src);
+	return ret;
+}
+
+static inline int rddma_clone_xfer(struct rddma_xfer_param *new, struct rddma_xfer_param *old)
+{
+	int ret = -EINVAL;
+	if ( !(ret = rddma_clone_desc(&new->xfer, &old->xfer)) )
+		ret = rddma_clone_bind(&new->bind, &old->bind);
+	return ret;
+}
 
 #endif	/* RDDMA_PARSE_H */

@@ -13,19 +13,24 @@
 #include <linux/rddma_location.h>
 
 #include <linux/netdevice.h>
+#include <linux/module.h>
+#include <linux/if_ether.h>
+
+struct fabric_net_addr {
+	struct rddma_location *locs[256];
+	struct netdev *ndev;
+	struct packet_type pt;
+};
 
 static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct rddma_location *loc = NULL;
-/* from the senders mac address we need to map to the senders location. */
-	return rddma_fabric_receive(loc,skb);
+/* 	struct rddma_location *loc = NULL; */
+/* 	struct ethhdr *mac = eth_hdr(skb); */
+/* 	if ( (loc = fabric_net[mac->h_dest[5]])) */
+/* 		return rddma_fabric_receive(loc,skb); */
+	dev_kfree_skb(skb);
+	return NET_RX_DROP;
 }
-
-static struct packet_type rddma_packets = {
-	.type = __constant_htons(0xfeed),
-	.func = rddma_rx_packet,
-};
-
 
 static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *skb)
 {
@@ -33,21 +38,58 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 	return 0;
 }
 
-static int fabric_register(struct rddma_fabric_address *addr)
+static int fabric_register(struct rddma_location *loc)
 {
-	rddma_packets.type = htons(addr->rcv_addr.ethertype);
-	dev_add_pack( &rddma_packets );
+	char *netdev_name;
+	struct net_device *ndev;
+/* 	struct fabric_net_addr *fna = (struct fabric_net_addr *)loc->address->address; */
+	netdev_name = rddma_get_option(&loc->desc,"net_dev");
+	ndev = dev_get_by_name(netdev_name);
+/* 	dev_add_pack( &rddma_packets ); */
 	return 0;
 }
 
-static int fabric_unregister(struct rddma_fabric_address *addr)
+static void fabric_unregister(struct rddma_location *loc)
 {
-	dev_remove_pack( &rddma_packets );
-	return 0;
+/* 	dev_remove_pack( &rddma_packets ); */
 }
 
-struct rddma_net_ops rddma_fabric_net_ops = {
-	.fabric_transmit = fabric_transmit,
-	.fabric_register = fabric_register,
-	.fabric_unregister = fabric_unregister,
+static struct rddma_fabric_address *fabric_get(struct rddma_fabric_address *addr)
+{
+	return container_of(kobject_get(&addr->kobj), struct rddma_fabric_address, kobj);
+}
+
+static void fabric_put(struct rddma_fabric_address *addr)
+{
+	kobject_put(&addr->kobj);
+}
+
+static struct rddma_address_ops rddma_fabric_net_ops = {
+	.transmit = fabric_transmit,
+	.register_location = fabric_register,
+	.unregister_location = fabric_unregister,
+	.get = fabric_get,
+	.put = fabric_put,
 };
+
+static struct rddma_fabric_address net_fabric_address = {
+	.owner = THIS_MODULE,
+	.ops = &rddma_fabric_net_ops,
+};
+
+static int __init fabric_net_init(void)
+{
+	return rddma_fabric_register(&net_fabric_address);
+}
+
+static void __exit fabric_net_close(void)
+{
+	rddma_fabric_unregister(&net_fabric_address);
+}
+
+static char *netdev_name = NULL; /* "eth0" or "br0" or "bond0" etc */
+
+module_init(fabric_net_init);
+module_exit(fabric_net_close);
+
+module_param(netdev_name, charp, 0644);

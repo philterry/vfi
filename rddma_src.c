@@ -112,7 +112,7 @@ struct rddma_src *new_rddma_src(struct rddma_dst *parent, struct rddma_xfer_para
 	if (NULL == new)
 		goto out;
 
-	new->desc = desc->bind;
+	rddma_clone_bind(&new->desc, &desc->bind);
 	new->kobj.ktype = &rddma_src_type;
 	kobject_set_name(&new->kobj,"#%llx:%x", new->desc.src.offset, new->desc.src.extent);
 

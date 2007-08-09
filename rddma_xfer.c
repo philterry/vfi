@@ -144,7 +144,7 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_xf
 	if (NULL == new)
 		goto out;
 
-	new->desc = *desc;
+	rddma_clone_xfer(&new->desc, desc);
 	new->kobj.ktype = &rddma_xfer_type;
 	kobject_set_name(&new->kobj,"%s", new->desc.xfer.name);
 

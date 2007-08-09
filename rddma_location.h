@@ -20,7 +20,7 @@ struct rddma_ops;
 
 struct rddma_location {
 	struct rddma_desc_param desc;
-	struct rddma_fabric_address address;
+	struct rddma_fabric_address *address;
 
 	struct kobject kobj;
 	struct rddma_smbs *smbs;

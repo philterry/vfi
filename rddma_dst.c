@@ -114,7 +114,7 @@ struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_xfer_par
 	if (NULL == new)
 		goto out;
 
-	new->desc = desc->bind;
+	rddma_clone_bind(&new->desc, &desc->bind);
 	new->kobj.ktype = &rddma_dst_type;
 	kobject_set_name(&new->kobj,"#%llx:%x", new->desc.dst.offset, new->desc.dst.extent);
 

@@ -63,25 +63,24 @@ struct rddma_location;
  * addressable node on a network/fabric is the "location" type,
  * rddma_location. This should include an abstract address type.
  */
+
+#define RDDMA_MAX_FABRICS 5
+
 struct rddma_fabric_address;
 
-struct rddma_net_ops {
-	int (*fabric_transmit)(struct rddma_fabric_address *, struct sk_buff *);
-	int (*fabric_register)(struct rddma_fabric_address *);
-	int (*fabric_unregister)(struct rddma_fabric_address *);
+struct rddma_address_ops {
+	int (*transmit)  (struct rddma_fabric_address *, struct sk_buff *);
+	int (*register_location)  (struct rddma_location *);
+	void(*unregister_location)(struct rddma_location *);
+	struct rddma_fabric_address *(*get)(struct rddma_fabric_address *);
+	void (*put)(struct rddma_fabric_address *);
 };
 
 struct rddma_fabric_address {
-	struct rddma_net_ops *ops;
-	union {
-		int rio_id;
-		char eth_addr[6];
-	} send_addr;
-	union {
-		int rio_id;
-		char eth_addr[6];
-		short ethertype;
-	} rcv_addr;
+	struct module *owner;
+	struct rddma_address_ops *ops;
+	void * address;
+	struct kobject kobj;
 };
 
 /*
@@ -90,6 +89,12 @@ struct rddma_fabric_address {
  * skb. The invocation should be blocking with a timeout.
 */
 extern struct sk_buff *rddma_fabric_call(struct rddma_location *, int, char *, ...) __attribute__((format(printf, 3,4)));
+
+/*
+ * Next a straightforward transmit an skb
+ */
+
+extern int rddma_fabric_tx(struct rddma_location *, struct sk_buff *);
 
 /*
  * Next we need to be able to receive via any of the above interfaces
@@ -103,9 +108,10 @@ extern int rddma_fabric_receive (struct rddma_location *,struct sk_buff * );
 /*
  * Finally, register and unregister take care of linking everything up
  * with the underlying fabric interfaces based upon rddma_fabric_address
- * which must therefore be set up in the location before calling these:
+ * The rddma uses named interfaces when creating locations.
  */
-extern int rddma_fabric_register(struct rddma_location *);
-extern void rddma_fabric_unregister(struct rddma_location *);
-
+extern int rddma_fabric_register(struct rddma_fabric_address *);
+extern void rddma_fabric_unregister(struct rddma_fabric_address *);
+extern struct rddma_fabric_address *rddma_fabric_find(const char *);
+extern void rddma_fabric_put(struct rddma_fabric_address *);
 #endif	/* RDDMA_FABRIC_H */

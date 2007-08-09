@@ -146,7 +146,7 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
     
 	if (NULL == new)
 		goto out;
-	new->desc = *desc;
+	rddma_clone_desc(&new->desc, desc);
 	new->kobj.ktype = &rddma_location_type;
 	kobject_set_name(&new->kobj, "%s", new->desc.name);
 	new->kobj.kset = &rddma_subsys->kset;

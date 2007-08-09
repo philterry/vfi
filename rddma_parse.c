@@ -99,6 +99,7 @@ char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
 
 	return found_val ? found_val+1 : found_var ;
 }
+EXPORT_SYMBOL(rddma_get_option);
 
 /**
  * rddma_parse_desc - Takes a string which is then duped and parsed into the desc struct.
@@ -129,6 +130,7 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 	d->rest = NULL;
 	d->ops = NULL;
 	d->dma_ops = NULL;
+	d->orig_desc = desc;
 
 	if ( NULL == (d->name = rddma_str_dup(desc)) )
 		goto out;
@@ -164,15 +166,18 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 	if ( (ops = rddma_get_option(d,"default_ops")) ) {
 		if (!strncmp(ops,"private",7))
 			d->ops = &rddma_local_ops;
-		else if (!strncmp(ops,"public",6))
+		else if (!strncmp(ops,"public",6)) {
 			d->ops = &rddma_fabric_ops;
+			/* Set up address and ops */
+			 /* FIX ME */
+		}
 	}
 
 	if ( (ops = rddma_get_option(d,"dma_ops")) ) {
 		if (!strncmp(ops,"fabric",7))
-			d->ops = NULL; /* FIX ME */
+			d->dma_ops = NULL; /* FIX ME */
 		else if (!strncmp(ops,"debug",6))
-			d->ops = NULL; /* FIX ME */
+			d->dma_ops = NULL; /* FIX ME */
 	}
 
 	return 0;
