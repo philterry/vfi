@@ -243,7 +243,7 @@ static int __init fabric_net_init(void)
 static void __exit fabric_net_close(void)
 {
 	dev_remove_pack(&rddma_packets);
-	rddma_fabric_unregister(netdev_name);
+	rddma_fabric_unregister("rddma_fabric_net");
 }
 
 module_init(fabric_net_init);
