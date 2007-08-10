@@ -25,7 +25,7 @@ struct call_back_tag {
 	struct sk_buff *rply_skb;
 	wait_queue_head_t wq;
 	struct work_struct wo;
-	struct rddma_location *sender;
+	struct rddma_fabric_address *sender;
 	void *cb_data;
 	struct call_back_tag *check;
 };
@@ -51,18 +51,19 @@ static void fabric_do_rqst(struct work_struct *wo)
 
 	dev_kfree_skb(cb->rqst_skb);
 
-	rddma_fabric_tx((struct rddma_location *)cb->sender,cb->rply_skb);
+	rddma_fabric_tx(cb->sender,cb->rply_skb);
+	rddma_fabric_put(cb->sender);
 
 	kfree(cb);
 }
 
 /* Downcalls via the location->address */
 
-int rddma_fabric_tx(struct rddma_location *loc, struct sk_buff *skb)
+int rddma_fabric_tx(struct rddma_fabric_address *address, struct sk_buff *skb)
 {
 	int ret = 0;
-	if ( loc && loc->address && loc->address->ops ) {
-		if ( (ret = loc->address->ops->transmit(loc->address,skb)) ) 
+	if ( address && address->ops ) {
+		if ( (ret = address->ops->transmit(address,skb)) ) 
 			dev_kfree_skb(skb);
 	} else
 		dev_kfree_skb(skb);
@@ -100,7 +101,7 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 			va_end(ap);
 			skb_put(skb,sprintf(skb->data, "?request=%p",cb));
 				
-			rddma_fabric_tx(loc, skb);
+			rddma_fabric_tx(loc->address, skb);
 		
 			init_waitqueue_head(&cb->wq);
 
@@ -118,7 +119,7 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 }
 
 /* Upcalls */
-int rddma_fabric_receive(struct rddma_location *sender, struct sk_buff *skb)
+int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *skb)
 {
 	char *msg = skb->data;
 	struct call_back_tag *cb = NULL;
@@ -126,26 +127,34 @@ int rddma_fabric_receive(struct rddma_location *sender, struct sk_buff *skb)
 
 	if ((buf = strstr(msg,"reply="))) {
 		if ( sscanf(buf,"reply=%p",&cb) ) {
-			if (cb && cb->check == cb)
+			if (cb && cb->check == cb) {
 					cb->rply_skb = skb;
 					wake_up_interruptible(&cb->wq);
+					return 0;
+			}
 		}
+		dev_kfree_skb(skb);
 	}
 	else if ((buf = strstr(msg,"request="))) {
 		struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
 		cb->rqst_skb = skb;
 		cb->check = cb;
+		if ( (cb->sender = rddma_fabric_get(sender)) ) {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-		INIT_WORK(&cb->wo, fabric_do_rqst, (void *) &cb->wo);
+			INIT_WORK(&cb->wo, fabric_do_rqst, (void *) &cb->wo);
 #else
-		INIT_WORK(&cb->wo, fabric_do_rqst);
+			INIT_WORK(&cb->wo, fabric_do_rqst);
 #endif
-		schedule_work(&cb->wo);
+			schedule_work(&cb->wo);
+			return 0;
+		}
+		else {
+			dev_kfree_skb(skb);
+			kfree(cb);
+		}
 	}
-	else
-		return -EINVAL;
 
-	return 0;
+	return -EINVAL;
 
 }
 
@@ -157,7 +166,7 @@ int rddma_fabric_register(struct rddma_fabric_address *addr)
 	int i;
 
 	for (i = 0; i < RDDMA_MAX_FABRICS && fabrics[i] ; i++)
-		if (!strcmp(kobject_name(&addr->kobj), kobject_name(&fabrics[i]->kobj)) )
+		if (!strcmp(addr->name, fabrics[i]->name) )
 			return ret;
 
 	if ( i == RDDMA_MAX_FABRICS)
@@ -168,13 +177,13 @@ int rddma_fabric_register(struct rddma_fabric_address *addr)
 	return 0;
 }
 
-void rddma_fabric_unregister(struct rddma_fabric_address *addr)
+void rddma_fabric_unregister(const char *name)
 {
 	int i;
 
 	for (i = 0; i < RDDMA_MAX_FABRICS && fabrics[i] ; i++)
 		if (fabrics[i])
-			if (!strcmp(kobject_name(&addr->kobj),kobject_name(&fabrics[i]->kobj))) {
+			if (!strcmp(name,fabrics[i]->name) ) {
 				fabrics[i] = NULL;
 				return;
 			}
@@ -187,15 +196,27 @@ struct rddma_fabric_address *rddma_fabric_find(const char *name)
 
 	for (i = 0, ap = fabrics[0]; i < RDDMA_MAX_FABRICS && ap ; i++, ap++)
 		if (ap)
-			if (!strcmp(name,kobject_name(&ap->kobj))) {
-				if (try_module_get(ap->owner))
+			if (!strcmp(name,ap->name) ) {
+				if (try_module_get(ap->owner)) {
+					ap->ops->get(ap);
 					return ap;
+				}
 			}
+	return NULL;
+}
+
+struct rddma_fabric_address *rddma_fabric_get(struct rddma_fabric_address *addr)
+{
+	if (try_module_get(addr->owner)) {
+		addr->ops->get(addr);
+		return addr;
+	}
 	return NULL;
 }
 
 void rddma_fabric_put(struct rddma_fabric_address *addr)
 {
+	addr->ops->put(addr);
 	module_put(addr->owner);
 }
 

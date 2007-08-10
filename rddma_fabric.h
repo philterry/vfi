@@ -65,6 +65,7 @@ struct rddma_location;
  */
 
 #define RDDMA_MAX_FABRICS 5
+#define RDDMA_MAX_FABRIC_NAME_LEN 15
 
 struct rddma_fabric_address;
 
@@ -79,12 +80,11 @@ struct rddma_address_ops {
 struct rddma_fabric_address {
 	struct module *owner;
 	struct rddma_address_ops *ops;
-	void * address;
-	struct kobject kobj;
+	char name[RDDMA_MAX_FABRIC_NAME_LEN+1];
 };
 
 /*
- * The most comomon form of interaction is the rpc, to send a request
+ * The most common form of interaction is the rpc, to send a request
  * to a location and return with the result of that request as an
  * skb. The invocation should be blocking with a timeout.
 */
@@ -94,7 +94,7 @@ extern struct sk_buff *rddma_fabric_call(struct rddma_location *, int, char *, .
  * Next a straightforward transmit an skb
  */
 
-extern int rddma_fabric_tx(struct rddma_location *, struct sk_buff *);
+extern int rddma_fabric_tx(struct rddma_fabric_address *, struct sk_buff *);
 
 /*
  * Next we need to be able to receive via any of the above interfaces
@@ -103,7 +103,7 @@ extern int rddma_fabric_tx(struct rddma_location *, struct sk_buff *);
  * which all of the underlying interfaces should manufacture by calling:
  */
 
-extern int rddma_fabric_receive (struct rddma_location *,struct sk_buff * );
+extern int rddma_fabric_receive (struct rddma_fabric_address *,struct sk_buff * );
 
 /*
  * Finally, register and unregister take care of linking everything up
@@ -111,7 +111,9 @@ extern int rddma_fabric_receive (struct rddma_location *,struct sk_buff * );
  * The rddma uses named interfaces when creating locations.
  */
 extern int rddma_fabric_register(struct rddma_fabric_address *);
-extern void rddma_fabric_unregister(struct rddma_fabric_address *);
+extern void rddma_fabric_unregister(const char *);
+
 extern struct rddma_fabric_address *rddma_fabric_find(const char *);
+extern struct rddma_fabric_address *rddma_fabric_get(struct rddma_fabric_address *);
 extern void rddma_fabric_put(struct rddma_fabric_address *);
 #endif	/* RDDMA_FABRIC_H */

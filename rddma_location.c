@@ -260,6 +260,5 @@ void rddma_location_delete(struct rddma_location *loc)
 {
 	if (loc) {
 		rddma_location_unregister(loc);
-		rddma_location_put(loc);
 	}
 }
