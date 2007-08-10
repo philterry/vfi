@@ -200,13 +200,10 @@ out:
 void rddma_location_unregister(struct rddma_location *rddma_location)
 {
 	rddma_xfers_unregister(rddma_location->xfers);
-	rddma_xfers_put(rddma_location->xfers);
 
 	rddma_smbs_unregister(rddma_location->smbs);
-	rddma_smbs_put(rddma_location->smbs);
 
 	kobject_unregister(&rddma_location->kobj);
-	rddma_location_put(rddma_location);
 }
 
 struct rddma_location *find_rddma_name(struct rddma_desc_param *params)

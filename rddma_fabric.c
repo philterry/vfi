@@ -99,7 +99,8 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 			va_start(ap,f);
 			skb_put(skb,vsprintf(skb->data,f,ap));
 			va_end(ap);
-			skb_put(skb,sprintf(skb->data, "?request=%p",cb));
+			skb_put(skb,sprintf(skb->tail, "?request=%p",cb)); 
+			RDDMA_DEBUG(1,"	%s: %s 2\n",__FUNCTION__, skb->data);
 				
 			rddma_fabric_tx(loc->address, skb);
 		
