@@ -160,7 +160,6 @@ out:
 void rddma_bind_delete(struct rddma_bind *bind)
 {
 	rddma_bind_unregister(bind);
-	rddma_bind_put(bind);
 }
 
 void rddma_bind_load_dsts(struct rddma_bind *bind)

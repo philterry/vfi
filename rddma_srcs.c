@@ -156,5 +156,4 @@ out:
 void rddma_srcs_delete(struct rddma_srcs *srcs)
 {
 	rddma_srcs_unregister(srcs);
-	rddma_srcs_put(srcs);
 }

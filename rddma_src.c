@@ -170,6 +170,5 @@ void rddma_src_delete(struct rddma_src *src)
 {
 	if (src) {
 		rddma_src_unregister(src);
-		rddma_src_put(src);
 	}
 }

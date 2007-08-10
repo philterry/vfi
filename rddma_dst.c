@@ -175,7 +175,6 @@ void rddma_dst_delete(struct rddma_dst *dst)
 {
 	if (dst) {
 		rddma_dst_unregister(dst);
-		rddma_dst_put(dst);
 	}
 }
 

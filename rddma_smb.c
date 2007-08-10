@@ -198,7 +198,6 @@ void rddma_smb_delete(struct rddma_smb *smb)
 {
 	if (smb) {
 		rddma_smb_unregister(smb);
-		rddma_smb_put(smb);
 	}
 }
 

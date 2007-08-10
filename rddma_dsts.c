@@ -180,5 +180,4 @@ out:
 void rddma_dsts_delete(struct rddma_dsts *dsts)
 {
 	rddma_dsts_unregister(dsts);
-	rddma_dsts_put(dsts);
 }

@@ -227,7 +227,6 @@ void rddma_xfer_delete(struct rddma_xfer *xfer)
 {
 	if (xfer) {
 		rddma_xfer_unregister(xfer);
-		rddma_xfer_put(xfer);
 	}
 }
 
