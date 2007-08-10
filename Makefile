@@ -14,16 +14,16 @@ etags:
 	etags *.[ch]
 tar: clean etags
 	cd ..;	tar zcvf rddma.tar.gz --exclude=.git --exclude=TAGS rddma
-publish: tar doc
+publish: tar
 	cp ../rddma.tar.gz /mnt/Public/Rincon/PhilsWeb/dev
 	cp ChangeLog /mnt/Public/Rincon/PhilsWeb/dev
 	cp README /mnt/Public/Rincon/PhilsWeb/dev/READMEdrv
 	cp TODO /mnt/Public/Rincon/PhilsWeb/devTODOdrv
+publish_doc: doc
 	cp $(KERNELDIR)/Documentation/DocBook/index.html /mnt/Public/Rincon/PhilsWeb/kerneldoc
 	cp -r $(KERNELDIR)/Documentation/DocBook/rddma /mnt/Public/Rincon/PhilsWeb/kerneldoc
 	cp -r $(KERNELDIR)/Documentation/DocBook/kernel-api /mnt/Public/Rincon/PhilsWeb/kerneldoc
 	cp -r $(KERNELDIR)/Documentation/DocBook/rapidio /mnt/Public/Rincon/PhilsWeb/kerneldoc
-
 doc:
 	$(MAKE) -C $(KERNELDIR) htmldocs
 	$(MAKE) -C $(KERNELDIR) mandocs

@@ -115,6 +115,51 @@ Everything else is just the glue to make it all work.
 Fabric Subsystem
 ----------------
 
+The fabric bottom layer of the rddma driver is in rddma_fabric.[ch] It
+publishes a registration function and an rddma_fabric_address
+structure with some operations which a "fabric transport" module must
+adhere to. A "fabric transport" is what actually does the work of
+moving messages over some media. In most final real products this will
+be the rapid io messaging system.
+
+As a first worked example I am creating rddma_fabric_net.c as. This
+module implements an ethernet framed protocol exchange over some
+network media. What this media is is not fixed by this transport
+because it uses the dev_add_pack and a named network device to
+capture/insert frames with a particular ethertype (also a parameter of
+the module). 
+
+Thus you could use this to run over ethernet, in our early test
+harness approaches this could indeed be real ethernet between our test
+machines, laptops, workstations, etc., in the real product it could be
+a backplane 10Gig ethernet and/it can include rionet, the network
+stack module for rapidio backplane.
+
+If you use the linux bridge code you can in fact attach multiple
+interfaces, eth0, eth1, rionet0, etc., to a bridge, br0 for example,
+and then run the fabric transport over the bridge.
+
+If you use the vlan software on the interfaces you can run multiple
+logical bridges, br0, br1, etc., and run secure isolated virtual
+networks and have a rddma transport in each. Then you can build
+locations in separte networks. Good spiel for marketing to "security"
+(not mil grade unless you invoke Selinux).
+
+As well as working out the registration handshaking for a transport
+and the rddma driver this is also forcing me to work out the
+dns,arp,ip etc., analogues to my location system.
+
+Essentially I'm using the location offset as a rddma "IP address".
+
+So an rddma_location to rddma_fabric_address binding is a DNS
+resolution (name to IP address) and the rddma to transport binding is
+an "IP address" to transport "mac address" arp binding.
+
+The way this interacts with a remote configurator setting up the
+locations and their bindings is effectively a bootp/dhcp mechanism.
+
+I'm only talking analogues in the above. Our driver isn't a
+replacement for IP!
 
 DMA Subsystem
 -------------

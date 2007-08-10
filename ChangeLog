@@ -1,3 +1,12 @@
+2007-08-10  Phil Terry  <pterry@micromemory.com>
+
+	* TODO: update to reflect fabric registration changes.
+
+	* README: Added write up on fabric stuff.
+
+	* Makefile (publish_doc): Split publishing tarballs and code from
+	publishing documentation.
+
 2007-08-09  Phil Terry  <pterry@micromemory.com>
 
 	* Kbuild: Build rddma_fabric_net as a separate optional module

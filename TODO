@@ -59,8 +59,10 @@ propogation of dma_ops through stack needs auditing/writing/debugging
 2.b Fabric registration
 -----------------------
 
-Ditto for fabric. Also how to multiplex based on address to allow
-multiple low levels to co-exist, e.g, both rio and ethernet.
+I've added code for fabric registratio with a net based transport as
+the first worked example. This also shows how to multiplex based on
+address to allow multiple low levels to co-exist, e.g, both rio and
+ethernet.
 
 2.c Timeout/Failure Recovery
 ----------------------------
