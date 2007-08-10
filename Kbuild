@@ -1,7 +1,6 @@
-obj-m += rddma_dma.o \
-              rddma_dma_rio.o
+obj-m += rddma_dma_rio.o
 
-obj-m +=  rddma_fabric_net.o
+obj-m += rddma_fabric_net.o
 
 obj-m += rddma.o
 rddma-objs := \
@@ -9,6 +8,7 @@ rddma-objs := \
               rddma_bus.o \
               rddma_class.o \
                  rddma_fabric.o \
+                 rddma_dma.o \
                  rddma_cdev.o \
               rddma_parse.o \
               rddma_ops.o \

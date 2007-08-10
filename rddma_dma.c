@@ -60,45 +60,68 @@ int rddma_alloc_pages( size_t size, struct page **pages[], int *num_pages)
 	return -ENOMEM;
 }
 
-static void rddma_dma_remove(struct rddma_dma_dev *rdev)
+static struct rddma_dma_engine *dma_engines[RDDMA_MAX_DMA_ENGINES];
+
+int rddma_dma_register(struct rddma_dma_engine *rde)
 {
+	int ret = -EEXIST;
+	int i;
+
+	for (i = 0; i < RDDMA_MAX_DMA_ENGINES && dma_engines[i] ; i++)
+		if (!strcmp(rde->name, dma_engines[i]->name) )
+			return ret;
+
+	if ( i == RDDMA_MAX_DMA_ENGINES)
+		return -ENOMEM;
+
+	dma_engines[i] = rde;
+
+	return 0;
 }
 
-static int rddma_dma_probe(struct rddma_dma_dev *rdev, const struct rddma_dma_device_id *id)
+void rddma_dma_unregister(const char *name)
 {
-	int rc = -ENODEV;
-	return rc;
+	int i;
+
+	for (i = 0; i < RDDMA_MAX_DMA_ENGINES && dma_engines[i] ; i++)
+		if (dma_engines[i])
+			if (!strcmp(name,dma_engines[i]->name) ) {
+				dma_engines[i] = NULL;
+				return;
+			}
 }
 
-static struct rddma_dma_device_id rddma_dma_id_table[] = {
-
-};
-
-static struct rddma_dma_driver rddma_dma_driver = {
-	.name = "rddma_drv",
-	.id_table = rddma_dma_id_table,
-	.probe = rddma_dma_probe,
-	.remove = rddma_dma_remove,
-};
-static int dma_register_driver(struct rddma_dma_driver *driver)
+struct rddma_dma_engine *rddma_dma_find(const char *name)
 {
-	return driver_register(&driver->driver);
+	int i;
+	struct rddma_dma_engine *rdp;
+
+	for (i = 0, rdp = dma_engines[0]; i < RDDMA_MAX_DMA_ENGINES && rdp ; i++, rdp++)
+		if (rdp)
+			if (!strcmp(name,rdp->name) ) {
+				if (try_module_get(rdp->owner)) {
+					rdp->ops->get(rdp);
+					return rdp;
+				}
+			}
+	return NULL;
 }
 
-static void dma_unregister_driver(struct rddma_dma_driver *driver)
+struct rddma_dma_engine *rddma_dma_get(struct rddma_dma_engine *rde)
 {
-	driver_unregister(&driver->driver);
+	if (try_module_get(rde->owner)) {
+		rde->ops->get(rde);
+		return rde;
+	}
+	return NULL;
 }
 
-static int __init rddma_dma_init(void)
+void rddma_dma_put(struct rddma_dma_engine *rde)
 {
-	return dma_register_driver(&rddma_dma_driver);
+	rde->ops->put(rde);
+	module_put(rde->owner);
 }
 
-static void __exit rddma_dma_exit(void)
-{
-	dma_unregister_driver(&rddma_dma_driver);
-}
+EXPORT_SYMBOL(rddma_dma_register);
+EXPORT_SYMBOL(rddma_dma_unregister);
 
-module_init(rddma_dma_init);
-module_exit(rddma_dma_exit);

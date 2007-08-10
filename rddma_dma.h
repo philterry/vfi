@@ -44,32 +44,31 @@ struct rddma_dma_descriptor {
 struct rddma_src;
 struct rddma_dst;
 struct rddma_bind;
+struct rddma_dma_engine;
 
 struct rddma_dma_ops {
 	void (*load)(struct rddma_src *);
 	void (*link_src)(struct rddma_src *, struct rddma_src *);
 	void (*link_dst)(struct rddma_dst *, struct rddma_dst *);
 	void (*link_bind)(struct rddma_bind *, struct rddma_bind *);
+	struct rddma_dma_engine *(*get)(struct rddma_dma_engine *);
+	void (*put)(struct rddma_dma_engine *);
+};
+#define RDDMA_MAX_DMA_ENGINES  5
+#define RDDMA_MAX_DMA_NAME_LEN 15
+
+struct rddma_dma_engine {
+	struct module *owner;
+	struct rddma_dma_ops *ops;
+	char name[RDDMA_MAX_DMA_NAME_LEN+1];
 };
 
-struct rddma_dma_device_id {
-	u16 did, vid;
-	u16 asm_did, asm_vid;
-};
-struct rddma_dma_dev {
-};
+extern int rddma_dma_register(struct rddma_dma_engine *);
+extern void rddma_dma_unregister(const char *);
 
-struct rddma_dma_driver {
-	struct list_head node;
-	char *name;
-	const struct rddma_dma_device_id *id_table;
-	int (*probe) (struct rddma_dma_dev * dev, const struct rddma_dma_device_id * id);
-	void (*remove) (struct rddma_dma_dev * dev);
-	int (*suspend) (struct rddma_dma_dev * dev, u32 state);
-	int (*resume) (struct rddma_dma_dev * dev);
-	int (*enable_wake) (struct rddma_dma_dev * dev, u32 state, int enable);
-	struct device_driver driver;
-};
+extern struct rddma_dma_engine *rddma_dma_find(const char *);
+extern struct rddma_dma_engine *rddma_dma_get(struct rddma_dma_engine *);
+extern void rddma_dma_put(struct rddma_dma_engine *);
 
 extern void rddma_dealloc_pages( struct page **pages, int num_pages);
 extern int rddma_alloc_pages( size_t size, struct page **pages[], int *num_pages);
