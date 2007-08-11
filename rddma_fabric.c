@@ -62,7 +62,7 @@ static void fabric_do_rqst(struct work_struct *wo)
 int rddma_fabric_tx(struct rddma_fabric_address *address, struct sk_buff *skb)
 {
 	int ret = 0;
-	if ( address && address->ops ) {
+	if ( address && address->ops && address->ops->get(address) ) {
 		if ( (ret = address->ops->transmit(address,skb)) ) 
 			dev_kfree_skb(skb);
 	} else
@@ -134,6 +134,7 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 					return 0;
 			}
 		}
+		sender->ops->put(sender);
 		dev_kfree_skb(skb);
 	}
 	else if ((buf = strstr(msg,"request="))) {
@@ -150,11 +151,12 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 			return 0;
 		}
 		else {
+			sender->ops->put(sender);
 			dev_kfree_skb(skb);
 			kfree(cb);
 		}
 	}
-
+	sender->ops->put(sender);
 	return -EINVAL;
 
 }
