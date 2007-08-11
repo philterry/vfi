@@ -154,11 +154,16 @@ fi
 if [ "$dowhat" = "Uninstall" ] ; then
     if [ -L $kernelsrc/drivers/rddma ] ; then
 	rm $kernelsrc/drivers/rddma 
+    else
+	rm -rf $kernelsrc/drivers/rddma
     fi
 
-    rm -rf $kernelsrc/drivers/rddma
     rm $kernelsrc/include/linux/rddma*
     rm $kernelsrc/Documentation/DocBook/rddma.tmpl
+
+    if [ -n "$doforce" ]; then
+	rm -rf $kernelsrc/drivers/rddma.orig
+    fi
 fi
 
 if [ "$dowhat" = "Copyleft" ] ; then
