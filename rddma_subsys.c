@@ -132,7 +132,7 @@ struct rddma_subsys *new_rddma_subsys(char *name)
     if (NULL == new)
 	return new;
 
-    if ( rddma_parse_desc( &new->desc, name) < 0 )
+    if ( rddma_parse_desc( &new->desc, name) )
 	    goto out;
 
     new->kset.ktype = &rddma_location_type;

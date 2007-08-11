@@ -115,9 +115,9 @@ EXPORT_SYMBOL(rddma_get_option);
  *
  */
 
-int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
+static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 {
-	int ret = -EINVAL;
+	int ret = 0;
 	char *sextent=NULL;
 	char *soffset=NULL;
 	char *ops;
@@ -131,9 +131,7 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 	d->ops = NULL;
 	d->dma_ops = NULL;
 	d->orig_desc = desc;
-
-	if ( NULL == (d->name = rddma_str_dup(desc)) )
-		goto out;
+	d->name = desc;
 
 	name_remainder(d->name,     '?', &d->query[0]);
 	name_remainder(d->name,     '.', &d->location);
@@ -151,12 +149,12 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 
 	if (sextent) {
 		d->extent = simple_strtol(sextent,&sextent,0);
- 		RDDMA_ASSERT((NULL == sextent),"Dodgy extent string(%d) contains %s", ret = 1, sextent); 
+ 		RDDMA_ASSERT((NULL == sextent),"Dodgy extent string(%d) contains %s", (ret = (sextent - d->name)), sextent); 
 	}
 
 	if (soffset) {
 		d->offset = simple_strtol(soffset,&soffset,0);
- 		RDDMA_ASSERT((NULL == soffset),"Dodgy offset string(%d) contains %s", ret = 1, soffset); 
+ 		RDDMA_ASSERT((NULL == soffset),"Dodgy offset string(%d) contains %s", (ret = (soffset - d->name)), soffset); 
 	}
 
 	i = 0;
@@ -179,32 +177,26 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 		else if (!strncmp(ops,"debug",6))
 			d->dma_ops = NULL; /* FIX ME */
 	}
-
-	return 0;
-out:
 	return ret;
 }
 
-/**
- * rddma_parse_bind - Dupe string and parse it into bind_param struct.
- * @b: struct rddma_bind_param pointer into which @desc is parsed.
- * @desc: a string describing a bind.
- *
- * A bind is a string of the form desc_param=desc_param.
- */
-int rddma_parse_bind( struct rddma_bind_param *b, const char *desc)
+int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 {
 	int ret = -EINVAL;
 	char *mydesc;
+	if ( (mydesc = rddma_str_dup(desc)) )
+		ret = _rddma_parse_desc(d,mydesc);
+	return ret;
+}
 
-	if ( NULL == (mydesc = rddma_str_dup(desc)) )
-		goto out;
+static int rddma_parse_bind( struct rddma_bind_param *b, char *desc)
+{
+	int ret = -EINVAL;
 
-	if ( name_remainder(mydesc, '=', &b->src.name) )
-			if ((ret = rddma_parse_desc( &b->src, b->src.name )))
-				ret = rddma_parse_desc( &b->dst, mydesc );
-	kfree(mydesc);
-out:
+	if ( name_remainder(desc, '=', &b->src.name) )
+		if ( !(ret = _rddma_parse_desc( &b->src, b->src.name)) )
+			ret = _rddma_parse_desc( &b->dst, desc );
+
 	return ret;
 }
 
@@ -221,13 +213,19 @@ int rddma_parse_xfer(struct rddma_xfer_param *x, const char *desc)
 	int ret = -EINVAL;
 	char *mydesc;
 
-	if ( NULL == (mydesc = rddma_str_dup(desc)) )
-		goto out;
+	if ( (mydesc = rddma_str_dup(desc)) ) 
+		if ( name_remainder(mydesc, '/', &x->bind.dst.name) ) {
+			if (!(ret = rddma_parse_bind( &x->bind, x->bind.dst.name ))) 
+				ret = _rddma_parse_desc( &x->xfer, mydesc );
+			else
+				ret += x->bind.dst.name - mydesc;
+		}
+	
+	if (ret) {
+		memset(x,0,sizeof(*x));
+		kfree(mydesc);
+	}
 
-	if ( name_remainder(mydesc, '/', &x->bind.dst.name) ) 
-		if (!(ret = rddma_parse_bind( &x->bind, x->bind.dst.name )))
-			ret = rddma_parse_desc( &x->xfer, mydesc );
-out:
 	return ret;
 }
 

@@ -96,9 +96,8 @@ struct rddma_xfer_param {
 	struct rddma_bind_param bind;
 };
 
-extern int   rddma_parse_xfer( struct rddma_xfer_param *, const char *);
-extern int   rddma_parse_bind( struct rddma_bind_param *, const char *);
-extern int   rddma_parse_desc( struct rddma_desc_param *, const char *);
+extern int __must_check rddma_parse_xfer( struct rddma_xfer_param *, const char *);
+extern int __must_check rddma_parse_desc( struct rddma_desc_param *, const char *);
 extern char *rddma_get_option( struct rddma_desc_param *, const char *);
 
 static inline int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)

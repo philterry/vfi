@@ -224,10 +224,12 @@ struct rddma_location *find_rddma_location(struct rddma_desc_param *params)
 		struct rddma_desc_param tmpparams;
 		struct rddma_location *tmploc = NULL;
 
-		rddma_parse_desc(&tmpparams,params->location);
-		if ( (tmploc = find_rddma_location(&tmpparams)) ) {
-			loc = tmploc->desc.ops->location_create(tmploc,params);
-			rddma_location_put(tmploc);
+		if ( !rddma_parse_desc(&tmpparams,params->location) ) {
+			if ( (tmploc = find_rddma_location(&tmpparams)) ) {
+				loc = tmploc->desc.ops->location_create(tmploc,params);
+				rddma_location_put(tmploc);
+			}
+			kfree(tmpparams.name);
 		}
 		return loc;
 	}

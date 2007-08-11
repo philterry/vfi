@@ -40,7 +40,7 @@ static int location_create(const char *desc, char *result, int size)
 	struct rddma_desc_param params;
 	
 	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
-	if ( (ret = rddma_parse_desc(&params, desc) ) < 0 )
+	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto fail;
 
 	ret = -EEXIST;
@@ -89,7 +89,7 @@ static int location_delete(const char *desc, char *result, int size)
 	struct rddma_location *loc = NULL;
 	struct rddma_desc_param params;
 
-	if ( (ret = rddma_parse_desc(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -139,7 +139,7 @@ static int location_find(const char *desc, char *result, int size)
 	struct rddma_location *loc = NULL;
 	struct rddma_desc_param params;
 
-	if ( (ret = rddma_parse_desc(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
 	if ( (new_loc = find_rddma_name(&params)) ) {
@@ -183,7 +183,7 @@ static int smb_create(const char *desc, char *result, int size)
 	struct rddma_location *loc;
 	struct rddma_desc_param params;
 
-	if ( (ret = rddma_parse_desc(&params, desc)) < 0 )
+	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -227,7 +227,7 @@ static int smb_delete(const char *desc, char *result, int size)
 	struct rddma_location *loc;
 	struct rddma_desc_param params;
 
-	if ( (ret = rddma_parse_desc(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -270,7 +270,7 @@ static int smb_find(const char *desc, char *result, int size)
 	struct rddma_location *loc;
 	struct rddma_desc_param params;
 
-	if ( (ret = rddma_parse_desc(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -316,7 +316,7 @@ static int xfer_create(const char *desc, char *result, int size)
 	struct rddma_location *location;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) < 0 )
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -364,7 +364,7 @@ static int xfer_delete(const char *desc, char *result, int size)
 	struct rddma_location *location;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -406,7 +406,7 @@ static int xfer_find(const char *desc, char *result, int size)
 	struct rddma_location *location;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -454,7 +454,7 @@ static int bind_create(const char *desc, char *result, int size)
 	struct rddma_bind *bind = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) < 0 )
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -501,7 +501,7 @@ static int bind_delete(const char *desc, char *result, int size)
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -543,7 +543,7 @@ static int bind_find(const char *desc, char *result, int size)
 	struct rddma_bind *bind = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -591,7 +591,7 @@ static int dst_create(const char *desc, char *result, int size)
 	struct rddma_bind *bind = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) < 0 )
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -637,7 +637,7 @@ static int dst_delete(const char *desc, char *result, int size)
 	struct rddma_bind *bind = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -679,7 +679,7 @@ static int dst_find(const char *desc, char *result, int size)
 	struct rddma_bind *bind = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -726,7 +726,7 @@ static int src_create(const char *desc, char *result, int size)
 	struct rddma_dst *dst = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) < 0 )
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -772,7 +772,7 @@ static int src_delete(const char *desc, char *result, int size)
 	struct rddma_dst *dst = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -814,7 +814,7 @@ static int src_find(const char *desc, char *result, int size)
 	struct rddma_dst *dst = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -861,7 +861,7 @@ static int srcs_create(const char *desc, char *result, int size)
 	struct rddma_dst *dst = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) < 0 )
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -900,7 +900,7 @@ static int srcs_delete(const char *desc, char *result, int size)
 	struct rddma_dst *dst = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -941,7 +941,7 @@ static int srcs_find(const char *desc, char *result, int size)
 	struct rddma_dst *dst = NULL;
 	struct rddma_xfer_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc) ) < 0)
+	if ( (ret = rddma_parse_xfer(&params, desc)) )
 		goto out;
 
 	if ( (dst = find_rddma_dst(&params)) ) {

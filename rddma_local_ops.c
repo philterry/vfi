@@ -164,7 +164,7 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	first_page = START_PAGE(&dsmb->desc,&desc->bind.dst);
 	last_page = first_page + NUM_DMA(&dsmb->desc,&desc->bind.dst);
 
-	rddma_parse_desc(&params.bind.dst, desc->bind.dst.name);
+/* 	rddma_parse_desc(&params.bind.dst, desc->bind.dst.name); */
 
 	params.bind.dst.offset = START_OFFSET(&dsmb->desc, &desc->bind.dst);
 	params.bind.src.extent = params.bind.dst.extent = START_SIZE(&dsmb->desc, &desc->bind.dst);
@@ -205,7 +205,7 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	first_page = START_PAGE(&smb->desc,&desc->bind.src);
 	last_page = first_page + NUM_DMA(&smb->desc,&desc->bind.src);
 
-	rddma_parse_desc(&params.bind.src, desc->bind.src.name);
+/* 	rddma_parse_desc(&params.bind.src, desc->bind.src.name); */
 
 	params.bind.src.offset = START_OFFSET(&smb->desc, &desc->bind.src);
 	params.bind.src.extent = START_SIZE(&smb->desc, &desc->bind.src);
