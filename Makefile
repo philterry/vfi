@@ -10,9 +10,9 @@ install:
 clean:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` $@
 	-rm Module.symvers *~ TAGS
-etags:
+TAGS:
 	etags *.[ch]
-tar: clean etags
+tar: clean TAGS
 	cd ..;	tar zcvf rddma.tar.gz --exclude=.git --exclude=TAGS rddma
 publish: tar
 	cp ../rddma.tar.gz /mnt/Public/Rincon/PhilsWeb/dev
