@@ -1,5 +1,8 @@
 2007-08-12  Phil Terry  <pterry@micromemory.com>
 
+	* rddma_local_ops.c (rddma_local_location_find): Add some function
+	entry debug to help with debugging fabric_net.
+
 	* rddma_location.c (find_rddma_location): Does an explict name vs
 	location lookup so our callers don't have to.
 
