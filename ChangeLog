@@ -1,5 +1,14 @@
 2007-08-12  Phil Terry  <pterry@micromemory.com>
 
+	* rddma_parse.h: rddma_fabric_address now a common parameter for all
+	objects in rddma_desc_param.
+
+	* rddma_location.h: Move fabric address into desc_param for inheritance
+	by all objects.
+
+	* rddma_drv.c: Export rddma_debug_level for other modules to use
+	in my case rddma_fabric_net.
+
 	* Kinstall: Fixed symbolic link install of includes
 
 2007-08-10  Phil Terry  <pterry@micromemory.com>

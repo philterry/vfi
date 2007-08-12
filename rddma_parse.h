@@ -59,6 +59,7 @@ struct rddma_desc_param {
 	const char *orig_desc;
 	struct rddma_ops *ops;
 	struct rddma_dma_ops *dma_ops;
+	struct rddma_fabric_address *address;
 };
 /**
  * struct rddma_bind_param - A bind is simply dest_desc_param=source_desc_param
