@@ -79,6 +79,7 @@ static struct rddma_address_ops fabric_net_ops;
 static struct fabric_address *new_fabric_address(unsigned long idx, char *hwaddr, struct net_device *ndev)
 {
 	struct fabric_address *new = kzalloc(sizeof(struct fabric_address),GFP_KERNEL);
+	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
 
 	INIT_LIST_HEAD(&new->list);
 
@@ -100,6 +101,7 @@ static struct fabric_address *find_fabric_address(unsigned long idx, char *hwadd
 	struct fabric_address *fp = address_table[idx & 15];
 	struct fabric_address *new;
 
+	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
 	if ( idx == UNKNOWN_IDX)
 		return new_fabric_address(idx,hwaddr,ndev);
 
@@ -175,10 +177,10 @@ static inline struct rddmahdr *rddma_hdr(struct sk_buff *skb)
 
 static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct rddma_fabric_address *rcvaddr = NULL;
 	struct fabric_address *fna;
 	struct rddmahdr *mac = rddma_hdr(skb);
 	unsigned long srcidx, dstidx;
+	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
 
 	memcpy(&dstidx, &mac->h_dstidx, 4);
 	be32_to_cpus((__u32 *)&dstidx);
@@ -186,15 +188,22 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 	memcpy(&srcidx, &mac->h_srcidx, 4);
 	be32_to_cpus((__u32 *)&srcidx);
 
-	if ( (dstidx == UNKNOWN_IDX) && (mac->h_dest[0] & 1) )
+	if ( ((dstidx == UNKNOWN_IDX) && (mac->h_dest[0] & 1))
+	     ||
+	     ((dstidx == UNKNOWN_IDX) && (srcidx == UNKNOWN_IDX)) )
 		/* If you don't know who and you don't know where then we can't help you. */
 		goto out;
 
 	fna = find_fabric_address(srcidx,mac->h_source,dev);
 	
-	rcvaddr = &fna->rfa;
-	
-	return rddma_fabric_receive(rcvaddr,skb);
+	if (fna->reg_loc)
+		if (fna->reg_loc->desc.offset != dstidx)
+			goto forget;
+
+	return rddma_fabric_receive(&fna->rfa, skb);
+
+forget:
+	_fabric_put(fna);
 out:
 	kfree_skb(skb);
 	return NET_RX_DROP;
@@ -212,6 +221,7 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 	int ret = NET_XMIT_DROP;
 	struct fabric_address *fna = to_fabric_address(addr);
 
+	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
 	if (fna->ndev) {
 		mac  = (struct rddmahdr *)skb_push(skb,sizeof(struct rddmahdr));
 
@@ -247,21 +257,24 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 
 static struct rddma_fabric_address *fabric_get(struct rddma_fabric_address *rfa)
 {
+	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
 	return rfa ? _fabric_get(to_fabric_address(rfa)), rfa : NULL;
 }
 
 static void fabric_put(struct rddma_fabric_address *rfa)
 {
+	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
 	if ( rfa ) _fabric_put(to_fabric_address(rfa));
 }
 
 static int fabric_register(struct rddma_location *loc)
 {
-	struct fabric_address *old = to_fabric_address(loc->address);
+	struct fabric_address *old = to_fabric_address(loc->desc.address);
 	struct fabric_address *fna;
 	char *ndev_name;
 	struct net_device *ndev = NULL;
 
+	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
 	if (old->reg_loc)
 		return -EEXIST;
 
@@ -275,7 +288,7 @@ static int fabric_register(struct rddma_location *loc)
 		return -ENODEV;
 	
 	fna = find_fabric_address(loc->desc.offset,0,ndev);
-	loc->address = &fna->rfa;
+	loc->desc.address = &fna->rfa;
 	_fabric_put(old);
 
 	fna->reg_loc = rddma_location_get(loc);
@@ -285,7 +298,8 @@ static int fabric_register(struct rddma_location *loc)
 
 static void fabric_unregister(struct rddma_location *loc)
 {
-	fabric_put(loc->address);
+	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	fabric_put(loc->desc.address);
 	rddma_location_put(loc);
 }
 

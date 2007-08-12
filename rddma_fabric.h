@@ -94,7 +94,7 @@ extern struct sk_buff *rddma_fabric_call(struct rddma_location *, int, char *, .
  * Next a straightforward transmit an skb
  */
 
-extern int rddma_fabric_tx(struct rddma_fabric_address *, struct sk_buff *);
+extern int __must_check rddma_fabric_tx(struct rddma_fabric_address *, struct sk_buff *);
 
 /*
  * Next we need to be able to receive via any of the above interfaces
