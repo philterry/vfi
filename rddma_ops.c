@@ -43,26 +43,18 @@ static int location_create(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto fail;
 
-	ret = -EEXIST;
-
-	if ( (loc = find_rddma_name(&params)) ) {
-		rddma_location_put(loc);
-		goto fail;
-	}
-		
 	ret = -EINVAL;
 
 	if ( params.location ) {
 		if ( (loc = find_rddma_location(&params))) {
-			if (loc->desc.ops && loc->desc.ops->location_create) {
+			if (loc->desc.ops && loc->desc.ops->location_create) 
 				ret = (new_loc = loc->desc.ops->location_create(loc,&params)) == NULL;
-				rddma_location_put(loc);
-			}
+			rddma_location_put(loc);
 		}
 	}
 	else {
 		if (params.ops)
-			ret = (new_loc = params.ops->location_create(NULL, &params)) == NULL;
+			ret = (new_loc = params.ops->location_find(&params)) == NULL;
 	}
 fail:
 	if (result)
@@ -139,13 +131,9 @@ static int location_find(const char *desc, char *result, int size)
 	struct rddma_location *loc = NULL;
 	struct rddma_desc_param params;
 
+	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
-
-	if ( (new_loc = find_rddma_name(&params)) ) {
-		ret = 0;
-		goto out;
-	}
 
 	ret = -EINVAL;
 	
@@ -156,10 +144,13 @@ static int location_find(const char *desc, char *result, int size)
 			rddma_location_put(loc);
 		}
 	}
+	else {
+		if (params.ops)
+			ret = (new_loc = params.ops->location_find(&params)) == NULL;
+	}
 out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.name, ret, rddma_get_option(&params,"request"));
-
 	kfree(params.name);
 
 	return ret;
@@ -1010,7 +1001,7 @@ int do_operation(const char *cmd, char *result, int size)
 	int toklen;
 	int found = 0;
 
-	RDDMA_DEBUG(1,"%s entered size=%d\n",__FUNCTION__, size);
+	RDDMA_DEBUG(1,"%s entered with %s, result=%p, size=%d\n",__FUNCTION__,cmd,result, size);
 
 	if ( (sp1 = strstr(cmd,"://")) ) {
 		struct ops *op = &ops[0];
