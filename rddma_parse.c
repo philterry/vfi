@@ -166,8 +166,9 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 			d->ops = &rddma_local_ops;
 		else if (!strncmp(ops,"public",6)) {
 			d->ops = &rddma_fabric_ops;
-			/* Set up address and ops */
-			 /* FIX ME */
+			if ( (ops = rddma_get_option(d, "fabric")) ) {
+				d->address = rddma_fabric_find(ops);
+			}
 		}
 	}
 
