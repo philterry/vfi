@@ -214,10 +214,11 @@ struct rddma_location *find_rddma_name(struct rddma_desc_param *params)
 struct rddma_location *find_rddma_location(struct rddma_desc_param *params)
 {
 	struct rddma_location *loc;
-	
-	loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->location));
-	
-	if (loc)
+
+	if ( (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name))) )
+		return loc;
+
+	if ( (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->location))) )
 		return loc;
 
 	if (params->location) {

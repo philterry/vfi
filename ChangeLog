@@ -1,5 +1,8 @@
 2007-08-12  Phil Terry  <pterry@micromemory.com>
 
+	* rddma_location.c (find_rddma_location): Does an explict name vs
+	location lookup so our callers don't have to.
+
 	* rddma_parse.h: rddma_fabric_address now a common parameter for all
 	objects in rddma_desc_param.
 
