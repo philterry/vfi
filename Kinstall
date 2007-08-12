@@ -147,7 +147,11 @@ if [ "$dowhat" = "Install" -o "$dowhat" = "Symlink" ] ; then
 	    ls -l $kernelsrc/include/linux/$file
 	    rm $kernelsrc/include/linux/$file
 	fi
-	cp $V --backup=numbered $file $kernelsrc/include/linux
+	if [ "$dowhat" = "Symlink" ]; then
+	    ln -s $(pwd)/$file $kernelsrc/include/linux/$file
+	else
+	    cp $V --backup=numbered $file $kernelsrc/include/linux
+	fi
     done
 fi
 

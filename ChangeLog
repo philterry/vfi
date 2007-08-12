@@ -1,3 +1,7 @@
+2007-08-12  Phil Terry  <pterry@micromemory.com>
+
+	* Kinstall: Fixed symbolic link install of includes
+
 2007-08-10  Phil Terry  <pterry@micromemory.com>
 
 	* TODO: update to reflect fabric registration changes.
