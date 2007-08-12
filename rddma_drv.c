@@ -28,6 +28,7 @@ int rddma_minor = 0;
 int rddma_nr_minor = 1;
 #ifdef CONFIG_RDDMA_DEBUG
 int rddma_debug_level = 7;
+EXPORT_SYMBOL(rddma_debug_level);
 module_param(rddma_debug_level, int, 0664);
 #endif
 module_param(rddma_major, int, 0664);
