@@ -93,8 +93,8 @@ static ssize_t rddma_subsys_debug_store(struct rddma_subsys *rddma_subsys, const
 	int whowhat = 0;
 	const char *token;
 	int toklen;
-	for (token = buffer, toklen = strcspn(buffer," "); toklen ; token += toklen, token += strspn(token," "), toklen = strcspn(token, " ")) {
-		if (sscanf(token,"%d", &level)) continue;
+	while (*buffer == ' ') buffer++;
+	for (token = buffer, toklen = strcspn(buffer," "); toklen ; toklen = strcspn(token, " ")) {
 		STORE_BIT("location", RDDMA_DBG_LOCATION);
 		STORE_BIT("smb", RDDMA_DBG_SMB);
 		STORE_BIT("xfer", RDDMA_DBG_XFER);
@@ -111,6 +111,9 @@ static ssize_t rddma_subsys_debug_store(struct rddma_subsys *rddma_subsys, const
 		STORE_BIT("everyone", RDDMA_DBG_EVERYONE);
 		STORE_BIT("everything", RDDMA_DBG_EVERYTHING);
 		STORE_BIT("always", RDDMA_DBG_ALWAYS);
+		sscanf(token,"%d", &level);
+		token += toklen;
+		while (*token == ' ') token++;
 	}
 	rddma_debug_level = (level & RDDMA_DBG_WHEN) | whowhat;
 	return size;
