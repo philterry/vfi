@@ -182,21 +182,32 @@ if [ -n "$doInstall" -o -n "$doSymlink" ] ; then
 	    cp $V --backup=numbered $file $kernelsrc/include/linux
 	fi
     done
+    echo Populating $kernelsrc/drivers/rddma
+    if [ -L $kernelsrc/drivers/rddma ] ; then
+	rm $kernelsrc/drivers/rddma
+    fi
+    mkdir -p $kernelsrc/drivers/rddma
+    for file in *.c Makefile Kbuild Kconfig ; do
+	if [ -n "$doSymlink" ]; then
+	    ln -s $(pwd)/$file $kernelsrc/drivers/rddma/$file
+	else
+	    cp $V --backup=numbered $file $kernelsrc/drivers/rddma
+	fi
+
+    done
 fi
 
 if [ -n "$doUninstall" ] ; then
-    if [ -L ${kernelsrc:=/lib/modules/`uname -r`/build}/drivers/rddma ] ; then
-	rm $kernelsrc/drivers/rddma 
-    else
+    if [ -L ${kernelsrc:=/lib/modules/`uname -r`/build}/drivers/rddma ]; then
+	rm $kernelsrc/drivers/rddma
+    elif [ -n "$doforce" ] ; then
 	rm -rf $kernelsrc/drivers/rddma
+    else
+	rm $kernelsrc/drivers/rddma/*.[ch]
+	rm $kernelsrc/drivers/rddma/{Kconfig,Kbuild,Makefile}
     fi
-
     rm $kernelsrc/include/linux/rddma*
     rm $kernelsrc/Documentation/DocBook/rddma.tmpl
-
-    if [ -n "$doforce" ]; then
-	rm -rf $kernelsrc/drivers/rddma.orig
-    fi
 fi
 
 if [ -n "$doCopyleft" ] ; then

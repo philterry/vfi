@@ -1,0 +1,13 @@
+#
+# DMA engine configuration
+#
+
+menu "Rincon DMA driver support"
+
+config RDDMA
+	tristate "Rincon DMA driver"
+	default y
+	---help---
+	  Enable support for the Rincon Distributed DMA engine.
+
+endmenu
