@@ -20,6 +20,8 @@
 
 #include <linux/device.h>
 
+#define MY_DEBUG RDDMA_DBG_OPS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+
 /**
  * location_create - Creates a location with the given methods and
  * attributes.
@@ -39,7 +41,7 @@ static int location_create(const char *desc, char *result, int size)
 	struct rddma_location *loc;
 	struct rddma_desc_param params;
 	
-	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__,desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__,desc);
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto fail;
 
@@ -131,7 +133,7 @@ static int location_find(const char *desc, char *result, int size)
 	struct rddma_location *loc = NULL;
 	struct rddma_desc_param params;
 
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
@@ -1001,7 +1003,7 @@ int do_operation(const char *cmd, char *result, int size)
 	int toklen;
 	int found = 0;
 
-	RDDMA_DEBUG(1,"%s entered with %s, result=%p, size=%d\n",__FUNCTION__,cmd,result, size);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s, result=%p, size=%d\n",__FUNCTION__,cmd,result, size);
 
 	if ( (sp1 = strstr(cmd,"://")) ) {
 		struct ops *op = &ops[0];

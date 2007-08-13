@@ -22,6 +22,8 @@
 #include <linux/rddma_ops.h>
 #include <linux/version.h>
 
+#define MY_DEBUG RDDMA_DBG_CDEV | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+
 struct mybuffers {
 	struct list_head list;
 	int size;
@@ -62,7 +64,7 @@ static ssize_t rddma_read(struct file *filep, char __user *buf, size_t count, lo
 	if (down_interruptible(&priv->sem))
 		return -ERESTARTSYS;
 
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	while (!mycount) {
 		if (!priv->mybuf) {
@@ -119,7 +121,7 @@ static ssize_t rddma_aio_read(struct kiocb * iocb, const struct iovec *iovs, uns
 static ssize_t rddma_real_write(struct mybuffers *mybuf, size_t count, loff_t *offset)
 {
 	int ret;
-	RDDMA_DEBUG(1,"%s entered count=%d\n",__FUNCTION__, count);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered count=%d\n",__FUNCTION__, count);
 	ret = do_operation(mybuf->buf, mybuf->reply, 1024-sizeof(struct mybuffers));
 
 	if ( ret < 0 ) {
@@ -132,7 +134,7 @@ static ssize_t rddma_real_write(struct mybuffers *mybuf, size_t count, loff_t *o
 
 static void queue_to_read(struct privdata *priv, struct mybuffers *mybuf)
 {
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	INIT_LIST_HEAD(&mybuf->list);
 	down(&priv->sem);
 	if (priv->open) {
@@ -173,7 +175,7 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 	char *buffer = kzalloc(count+1,GFP_KERNEL);
 	struct privdata *priv = filep->private_data;
 
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if ( (ret = copy_from_user(buffer,buf,count)) ) {
 		kfree(buffer);
 		return -EFAULT;

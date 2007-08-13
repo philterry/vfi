@@ -18,6 +18,8 @@
 
 #define strtol simple_strtol
 
+#define MY_DEBUG RDDMA_DBG_PARSE | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+
 /**
  * rddma_str_dup - Safe copy of name to max truncated length of 4095 plus null termination in a page.
  * @name: null terminated string to be duplicated.
@@ -122,7 +124,7 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	char *soffset=NULL;
 	char *ops;
 	int i;
-	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__,desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__,desc);
 	d->extent = 0;
 	d->offset = 0;
 	d->location = NULL;
@@ -185,7 +187,7 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 	int ret = -EINVAL;
 	char *mydesc;
 
-	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__,desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__,desc);
 	if ( (mydesc = rddma_str_dup(desc)) ) {
 		d->orig_desc = desc;
 		ret = _rddma_parse_desc(d,mydesc);

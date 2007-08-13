@@ -21,6 +21,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
+#define MY_DEBUG RDDMA_DBG_LOCATION | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+
 static void rddma_location_release(struct kobject *kobj)
 {
     struct rddma_location *p = to_rddma_location(kobj);
@@ -143,7 +145,7 @@ struct kobj_type rddma_location_type = {
 struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_location *new = kzalloc(sizeof(struct rddma_location), GFP_KERNEL);
- 	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__,desc->orig_desc);
+ 	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__,desc->orig_desc);
    
 	if (NULL == new)
 		goto out;

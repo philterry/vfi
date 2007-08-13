@@ -26,12 +26,15 @@
 
 #include <linux/device.h>
 #include <linux/mm.h>
+
+#define MY_DEBUG RDDMA_DBG_LOCOPS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+
 /*
  * F I N D    O P E R A T I O N S
  */
 static struct rddma_location *rddma_local_location_find(struct rddma_desc_param *desc)
 {
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	return to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->name));
 }
 
@@ -79,7 +82,7 @@ static struct rddma_src *rddma_local_src_find(struct rddma_dst *parent, struct r
  */
 static struct rddma_location *rddma_local_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	return rddma_location_create(loc,desc);
 }
 

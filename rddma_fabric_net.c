@@ -16,6 +16,9 @@
 #include <linux/module.h>
 #include <linux/if_ether.h>
 
+#define MY_DEBUG      RDDMA_DBG_FABNET | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_FABNET | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 static char *netdev_name = "eth0"; /* "eth0" or "br0" or "bond0" "rionet0" etc */
 module_param(netdev_name, charp, 0444);
 
@@ -79,7 +82,7 @@ static struct rddma_address_ops fabric_net_ops;
 static struct fabric_address *new_fabric_address(unsigned long idx, char *hwaddr, struct net_device *ndev)
 {
 	struct fabric_address *new = kzalloc(sizeof(struct fabric_address),GFP_KERNEL);
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered\n",__FUNCTION__);
 
 	INIT_LIST_HEAD(&new->list);
 
@@ -101,7 +104,7 @@ static struct fabric_address *find_fabric_address(unsigned long idx, char *hwadd
 	struct fabric_address *fp = address_table[idx & 15];
 	struct fabric_address *new;
 
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if ( idx == UNKNOWN_IDX)
 		return new_fabric_address(idx,hwaddr,ndev);
 
@@ -180,7 +183,7 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 	struct fabric_address *fna;
 	struct rddmahdr *mac = rddma_hdr(skb);
 	unsigned long srcidx, dstidx;
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	memcpy(&dstidx, &mac->h_dstidx, 4);
 	be32_to_cpus((__u32 *)&dstidx);
@@ -221,7 +224,7 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 	int ret = NET_XMIT_DROP;
 	struct fabric_address *fna = to_fabric_address(addr);
 
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if (fna->ndev) {
 		mac  = (struct rddmahdr *)skb_push(skb,sizeof(struct rddmahdr));
 
@@ -257,13 +260,13 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 
 static struct rddma_fabric_address *fabric_get(struct rddma_fabric_address *rfa)
 {
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered\n",__FUNCTION__);
 	return rfa ? _fabric_get(to_fabric_address(rfa)), rfa : NULL;
 }
 
 static void fabric_put(struct rddma_fabric_address *rfa)
 {
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered\n",__FUNCTION__);
 	if ( rfa ) _fabric_put(to_fabric_address(rfa));
 }
 
@@ -274,7 +277,7 @@ static int fabric_register(struct rddma_location *loc)
 	char *ndev_name;
 	struct net_device *ndev = NULL;
 
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if (old->reg_loc)
 		return -EEXIST;
 
@@ -298,7 +301,7 @@ static int fabric_register(struct rddma_location *loc)
 
 static void fabric_unregister(struct rddma_location *loc)
 {
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	fabric_put(loc->desc.address);
 	rddma_location_put(loc);
 }

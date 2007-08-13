@@ -105,7 +105,7 @@ static inline int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_de
 {
 	int ret = -EINVAL;
 	if (old->orig_desc) {
-		RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__, old->orig_desc);
+		RDDMA_DEBUG((RDDMA_DBG_PARSE | RDDMA_DBG_DEBUG),"%s entered with %s\n",__FUNCTION__, old->orig_desc);
 		if ( !(ret = rddma_parse_desc(new,old->orig_desc)) )
 			new->orig_desc = NULL;
 	}

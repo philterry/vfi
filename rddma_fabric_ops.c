@@ -27,6 +27,8 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 
+#define MY_DEBUG RDDMA_DBG_FABOPS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+
 /*
  * F I N D    O P E R A T I O N S
  */
@@ -35,7 +37,7 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_desc_param
 {
 	struct sk_buff  *skb;
 	struct rddma_location *loc;
-	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__,desc->orig_desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__,desc->orig_desc);
 
 	if ( (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->name))) )
 		return loc;
@@ -194,7 +196,7 @@ static struct rddma_location *rddma_fabric_location_create(struct rddma_location
 {
 	struct sk_buff  *skb;
 	struct rddma_location *newloc = NULL;
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	skb = rddma_fabric_call(loc, 5, "location_create://%s", desc->name);
 	if (skb) {

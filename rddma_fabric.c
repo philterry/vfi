@@ -20,6 +20,9 @@
 #include <linux/skbuff.h>
 #include <linux/version.h>
 
+#define MY_DEBUG      RDDMA_DBG_FABRIC | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_FABRIC | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 struct call_back_tag {
 	struct sk_buff *rqst_skb;
 	struct sk_buff *rply_skb;
@@ -40,7 +43,7 @@ static void fabric_do_rqst(struct work_struct *wo)
 #endif
 	int ret = 0;
 	struct call_back_tag *cb = container_of(wo, struct call_back_tag, wo);
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	cb->rply_skb = dev_alloc_skb(2048);
 	skb_reserve(cb->rply_skb,128);
@@ -63,14 +66,13 @@ static void fabric_do_rqst(struct work_struct *wo)
 int __must_check rddma_fabric_tx(struct rddma_fabric_address *address, struct sk_buff *skb)
 {
 	int ret = -ENODEV;
-	RDDMA_DEBUG(1,"%s entered address=%p\n",__FUNCTION__,address);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered address=%p\n",__FUNCTION__,address);
 
-	RDDMA_SAFE_DEBUG(1,(address),"%s: address_ops=%p\n",__FUNCTION__,address->ops);
+	RDDMA_DEBUG_SAFE(MY_DEBUG,(address),"%s: address_ops=%p\n",__FUNCTION__,address->ops);
 
 	if ( address && address->ops  ) {
 		address = address->ops->get(address);
 		if ( (ret = address->ops->transmit(address,skb)) ) {
-			address->ops->put(address);
 			dev_kfree_skb(skb);
 		}
 	} else
@@ -82,7 +84,7 @@ int __must_check rddma_fabric_tx(struct rddma_fabric_address *address, struct sk
 int rddma_address_register(struct rddma_location *loc)
 {
 	int ret = -EINVAL;
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	if (loc && loc->desc.address && loc->desc.address->ops)
 		ret = loc->desc.address->ops->register_location(loc);
@@ -91,7 +93,7 @@ int rddma_address_register(struct rddma_location *loc)
 
 void rddma_address_unregister(struct rddma_location *loc)
 {
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if (loc && loc->desc.address && loc->desc.address->ops)
 		loc->desc.address->ops->unregister_location(loc);
 }
@@ -101,7 +103,7 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 {
 	va_list ap;
 	struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if (cb) {
 		struct sk_buff *skb = dev_alloc_skb(2048);
 		skb_reserve(skb,128);
@@ -113,7 +115,7 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 			skb_put(skb,vsprintf(skb->data,f,ap));
 			va_end(ap);
 			skb_put(skb,sprintf(skb->tail, "?request=%p",cb)); 
-			RDDMA_DEBUG(1,"	%s: %s\n",__FUNCTION__, skb->data);
+			RDDMA_DEBUG(MY_DEBUG,"	%s: %s\n",__FUNCTION__, skb->data);
 			
 			if (rddma_fabric_tx(loc->desc.address, skb)) {
 				kfree(cb);
@@ -142,7 +144,7 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 	char *msg = skb->data;
 	struct call_back_tag *cb = NULL;
 	char *buf;
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	if ((buf = strstr(msg,"reply="))) {
 		if ( sscanf(buf,"reply=%p",&cb) ) {
@@ -198,15 +200,15 @@ int rddma_fabric_register(struct rddma_fabric_address *addr)
 	if (!ret)
 		fabrics[i] = addr;
 
-	RDDMA_SAFE_DEBUG(1,(addr),"%s ops=%p\n",__FUNCTION__,addr->ops);
-	RDDMA_SAFE_DEBUG(1,(addr),"%s register %s returns %d\n",__FUNCTION__,addr->name,ret);
+	RDDMA_DEBUG_SAFE(MY_DEBUG,(addr),"%s ops=%p\n",__FUNCTION__,addr->ops);
+	RDDMA_DEBUG_SAFE(MY_DEBUG,(addr),"%s register %s returns %d\n",__FUNCTION__,addr->name,ret);
 	return ret;
 }
 
 void rddma_fabric_unregister(const char *name)
 {
 	int i;
-	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__,name);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__,name);
 
 	for (i = 0; i < RDDMA_MAX_FABRICS && fabrics[i] ; i++)
 		if (fabrics[i])
@@ -219,26 +221,26 @@ void rddma_fabric_unregister(const char *name)
 struct rddma_fabric_address *rddma_fabric_find(const char *name)
 {
 	int i;
-	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__, name);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__, name);
 	if (name)
 		for (i = 0 ; i < RDDMA_MAX_FABRICS && fabrics[i]; i++)
 			if (fabrics[i])
 				if (!strcmp(name,fabrics[i]->name) ) {
 					if (try_module_get(fabrics[i]->owner)) {
 						fabrics[i]->ops->get(fabrics[i]);
-						RDDMA_DEBUG(1,"\t%s returning with %s\n",__FUNCTION__, fabrics[i]->name);
+						RDDMA_DEBUG(MY_DEBUG,"\t%s returning with %s\n",__FUNCTION__, fabrics[i]->name);
 						return fabrics[i];
 					}
-					RDDMA_DEBUG(1,"\t%s failed module_get\n",__FUNCTION__);
+					RDDMA_DEBUG(MY_DEBUG,"\t%s failed module_get\n",__FUNCTION__);
 					return NULL;
 				}
-	RDDMA_DEBUG(1,"\t%s failed to find %s\n",__FUNCTION__,name);
+	RDDMA_DEBUG(MY_DEBUG,"\t%s failed to find %s\n",__FUNCTION__,name);
 	return NULL;
 }
 
 struct rddma_fabric_address *rddma_fabric_get(struct rddma_fabric_address *addr)
 {
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered\n",__FUNCTION__);
 	if (try_module_get(addr->owner)) {
 		addr->ops->get(addr);
 		return addr;
@@ -248,7 +250,7 @@ struct rddma_fabric_address *rddma_fabric_get(struct rddma_fabric_address *addr)
 
 void rddma_fabric_put(struct rddma_fabric_address *addr)
 {
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered\n",__FUNCTION__);
 	addr->ops->put(addr);
 	module_put(addr->owner);
 }
