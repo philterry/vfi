@@ -57,9 +57,10 @@ extern int rddma_debug_level;
 /* RDDMA_DBG_LOCATION | RDDMA_DBG_FUNCALL | RDDMA_DBG_INFO */
 #define RDDMA_DBG_EVERYONE   RDDMA_DBG_WHO
 #define RDDMA_DBG_EVERYTHING RDDMA_DBG_WHAT
-#define RDDMA_DBG_ALWAYS     RDDMA_DBG_WHEN
+#define RDDMA_DBG_ALWAYS     0
 #define RDDMA_DBG_ALL       (RDDMA_DBG_EVERYONE | RDDMA_DBG_EVERYTHING | RDDMA_DBG_ALWAYS)
 
+#define RDDMA_DBG_SYSLOG_LEVEL "<1>"
 #ifdef CONFIG_RDDMA_DEBUG
 
 static void rddma_debug(char *format, ...) __attribute__((unused,format(printf,1,2)));
@@ -70,8 +71,9 @@ static void rddma_debug(char *format, ...)
 	vprintk(format,args);
 	va_end(args);
 }
-#define RDDMA_ASSERT(c,f,arg...) if (!(c)) rddma_debug("<%d>" f,0,## arg)
-#define RDDMA_DEBUG(l,f, arg...) if ((((l) & RDDMA_DBG_WHEN) <= rddma_debug_level) && (((l) & RDDMA_DBG_WHO_WHAT)) == (l)) rddma_debug("<%d>" f,(l), ## arg)
+#define RDDMA_ASSERT(c,f,arg...) if (!(c)) rddma_debug(RDDMA_DBG_SYSLOG_LEVEL f,## arg)
+#define RDDMA_DEBUG(l,f, arg...) if ((((l) & RDDMA_DBG_WHEN) <= (rddma_debug_level & RDDMA_DBG_WHEN)) && \
+				     ((((l) & RDDMA_DBG_WHO_WHAT) & rddma_debug_level ) == ((l) & RDDMA_DBG_WHO_WHAT)) ) rddma_debug(RDDMA_DBG_SYSLOG_LEVEL f, ## arg)
 #define RDDMA_DEBUG_SAFE(l,c,f,arg...) if ((c)) RDDMA_DEBUG((l),f, ## arg)
 #else
 #define RDDMA_ASSERT(c,f,arg...) do {} while (0)
