@@ -1,23 +1,64 @@
 #!/bin/bash
-while getopts :viuscf OPT; do
+if [ -f ~/.umemrddmarc ]; then
+    . ~/.umemrddmarc
+fi
+function help () 
+{
+
+cat<<EOF
+This script can install or uninstall this rddma system:
+	$(pwd)
+in your kernel:
+	${kernelsrc:=/lib/modules/`uname -r`/build}
+
+which should be a softlink:
+$(ls -ld $kernelsrc)
+
+Install (-i) copies the source files into the thee so that we can do
+a kernel build.
+
+Symlink (-s) just symlinks the include files into the kernel tree so
+that the out of tree module build will work. This is a subset of 
+Install.
+
+Uninstall (-u) undoes either/both of the above.
+
+Force (-f) forces install/uninstall to remove .orig backups.
+
+Help (-h) Erm...
+
+Verbose (-v) A longer version of Erm...
+EOF
+}
+
+
+while getopts :viuscfh OPT; do
     case $OPT in
 	v|+v)
 	    V=-v
 	    ;;
 	i|+i)
+	doInstall=Install
 	dowhat=Install
 	;;
 	u|+u)
+	doUninstall=Uninstall
 	dowhat=Uninstall
 	;;
 	s|+s)
+	doSymlink=Symlink
 	dowhat=Symlink
 	;;
 	c|+c)
+	doCopyleft=Copyleft
 	dowhat=Copyleft
 	;;
 	f|+f)
 	doforce=$OPT
+	;;
+	h|+h)
+	help
+	exit 0
 	;;
 	*)
 	    echo "usage: ${0##*/} [+-v} [--] ARGS..."
@@ -26,35 +67,8 @@ while getopts :viuscf OPT; do
 done
 shift $[ OPTIND - 1 ]
 
-kernelsrc=/lib/modules/`uname -r`/build
 
-function help () 
-{
 
-cat<<EOF
-This script can install or uninstall this rddma system:
-	$(pwd)
-in your kernel:
-	$kernelsrc
-
-which should be a softlink:
-$(ls -ld $kernelsrc)
-
-Install copies the source files into the thee so that we can do
-a kernel build.
-
-Symlink just symlinks the include files into the kernel tree so
-that the out of tree module build will work. This is a subset of 
-Install.
-
-Uninstall undoes either/both of the above.
-
-Type the number of the selection you want. Type RET to see the list again.
-
-What do you want to do?
-EOF
-
-}
 
 if [ -z "$dowhat" ] ; then
     echo "What do you want to do?"
@@ -64,12 +78,15 @@ if [ -z "$dowhat" ] ; then
 	    help
 	    ;;
 	    xInstall)
+	    doInstall=Install
 	    break
 	    ;;
 	    xUninstall)
+	    doUninstall=Uninstall
 	    break
 	    ;;
 	    xSymlink)
+	    doSymlink=Symlink
 	    break
 	    ;;
 	    xCancel)
@@ -82,8 +99,9 @@ if [ -z "$dowhat" ] ; then
 	esac
     done
 fi
-if [ "$dowhat" = "Install" ] ; then
-    if [  -L $kernelsrc/drivers/rddma ]; then
+
+if [ -n "$doInstall" ] ; then
+    if [  -L ${kernelsrc:=/lib/modules/`uname -r`/build}/drivers/rddma ]; then
 	echo $kernelsrc/drivers/rddma is currently a symbolic link
 	echo "	" $(ls -l -d $kernelsrc/drivers/rddma)
 	echo replacing with a directory.
@@ -139,15 +157,17 @@ if [ "$dowhat" = "Install" ] ; then
 
 fi
 
-if [ "$dowhat" = "Install" -o "$dowhat" = "Symlink" ] ; then
-    echo Populating $kernelsrc/include/linux
+if [ -n "$doInstall" -o -n "$doSymlink" ] ; then
+    echo Populating ${kernelsrc:=/lib/modules/`uname -r`/build}/include/linux
     for file in *.h ; do
 	if [ -L $kernelsrc/include/linux/$file ] ; then
-	    echo removing symlink for $file
-	    ls -l $kernelsrc/include/linux/$file
+	    if [ -n "$V" ]; then
+		echo removing symlink for $file
+		ls -l $kernelsrc/include/linux/$file
+	    fi
 	    rm $kernelsrc/include/linux/$file
 	fi
-	if [ "$dowhat" = "Symlink" ]; then
+	if [ -n "$doSymlink" ]; then
 	    ln -s $(pwd)/$file $kernelsrc/include/linux/$file
 	else
 	    cp $V --backup=numbered $file $kernelsrc/include/linux
@@ -155,8 +175,8 @@ if [ "$dowhat" = "Install" -o "$dowhat" = "Symlink" ] ; then
     done
 fi
 
-if [ "$dowhat" = "Uninstall" ] ; then
-    if [ -L $kernelsrc/drivers/rddma ] ; then
+if [ -n "$doUninstall" ] ; then
+    if [ -L ${kernelsrc:=/lib/modules/`uname -r`/build}/drivers/rddma ] ; then
 	rm $kernelsrc/drivers/rddma 
     else
 	rm -rf $kernelsrc/drivers/rddma
@@ -170,21 +190,24 @@ if [ "$dowhat" = "Uninstall" ] ; then
     fi
 fi
 
-if [ "$dowhat" = "Copyleft" ] ; then
+if [ -n "$doCopyleft" ] ; then
 
 for file in *.[ch] ; do
-    sed -i -e '1i\
-/* \
- * \
- * Copyright 2007 MicroMemory, LLC.\
- * Phil Terry <pterry@micromemory.com> \
- *\
- * This program is free software; you can redistribute  it and/or modify it\
- * under  the terms of  the GNU General  Public License as published by the\
- * Free Software Foundation;  either version 2 of the  License, or (at your\
- * option) any later version.\
- */\
-' $file
+    grep -q Copyright $file
+    if [ $? -ne 0 ] ; then
+    sed -i -e "1i\
+/* \\
+ * \\
+ * Copyright 2007 MicroMemory, LLC. \\
+ * ${name:-Phil Terry} <${email:-pterry}@micromemory.com> \\
+ * \\
+ * This program is free software; you can redistribute  it and/or modify it\\
+ * under  the terms of  the GNU General  Public License as published by the\\
+ * Free Software Foundation;  either version 2 of the  License, or (at your\\
+ * option) any later version.\\
+ */\\
+" $file
+fi
 done
 fi
 echo Done
