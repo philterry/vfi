@@ -35,7 +35,7 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_desc_param
 {
 	struct sk_buff  *skb;
 	struct rddma_location *loc;
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__,desc->orig_desc);
 
 	if ( (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->name))) )
 		return loc;

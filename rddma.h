@@ -29,9 +29,11 @@ static void rddma_debug(char *format, ...)
 }
 #define RDDMA_ASSERT(c,f,arg...) if (!(c)) rddma_debug("<%d>" f,0,##arg)
 #define RDDMA_DEBUG(l,f, arg...) if ((l) < rddma_debug_level) rddma_debug("<%d>" f,(l), ## arg)
+#define RDDMA_SAFE_DEBUG(l,c,f,arg...) if (((l) < rddma_debug_level) && (c)) rddma_debug("<%d>" f,(l), ## arg)
 #else
 #define RDDMA_ASSERT(c,f,arg...) do {} while (0)
 #define RDDMA_DEBUG(l,f,arg...) do {} while (0)
+#define RDDMA_SAFE_DEBUG(l,c,f,arg...) do {} while (0)
 #endif
 
 static inline struct kobject *to_kobj(struct list_head *entry)

@@ -337,3 +337,8 @@ static void __exit fabric_net_close(void)
 module_init(fabric_net_init);
 module_exit(fabric_net_close);
 
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Phil Terry <pterry@micromemroy.com>");
+MODULE_DESCRIPTION("Implements an ethenet frame based transport for RDDMA");
+
+

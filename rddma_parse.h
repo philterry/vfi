@@ -11,7 +11,7 @@
 
 #ifndef RDDMA_PARSE_H
 #define RDDMA_PARSE_H
-
+#include <linux/rddma.h>
 #include <linux/types.h>
 #include <linux/device.h>
 
@@ -104,9 +104,11 @@ extern char *rddma_get_option( struct rddma_desc_param *, const char *);
 static inline int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
 {
 	int ret = -EINVAL;
-	if (old->orig_desc)
+	if (old->orig_desc) {
+		RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__, old->orig_desc);
 		if ( !(ret = rddma_parse_desc(new,old->orig_desc)) )
 			new->orig_desc = NULL;
+	}
 	return ret;
 }
 

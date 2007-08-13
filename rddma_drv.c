@@ -35,7 +35,6 @@ module_param(rddma_major, int, 0664);
 module_param(rddma_minor, int, 0664);
 module_param(rddma_nr_minor, int, 0664);
 
-MODULE_LICENSE("GPL");
 
 struct rddma_subsys *rddma_subsys;
 
@@ -93,3 +92,7 @@ static void __exit rddma_cleanup(void)
 
 module_init(rddma_init);
 module_exit(rddma_cleanup);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Phil Terry <pterry@micromemory.com>");
+MODULE_DESCRIPTION("The Micromemory Rincon Distributed DMA Driver");

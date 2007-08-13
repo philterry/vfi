@@ -143,7 +143,8 @@ struct kobj_type rddma_location_type = {
 struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_location *new = kzalloc(sizeof(struct rddma_location), GFP_KERNEL);
-    
+ 	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__,desc->orig_desc);
+   
 	if (NULL == new)
 		goto out;
 	rddma_clone_desc(&new->desc, desc);

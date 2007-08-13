@@ -65,7 +65,7 @@ struct rddma_location;
  */
 
 #define RDDMA_MAX_FABRICS 5
-#define RDDMA_MAX_FABRIC_NAME_LEN 15
+#define RDDMA_MAX_FABRIC_NAME_LEN 31
 
 struct rddma_fabric_address;
 

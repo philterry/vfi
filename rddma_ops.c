@@ -39,7 +39,7 @@ static int location_create(const char *desc, char *result, int size)
 	struct rddma_location *loc;
 	struct rddma_desc_param params;
 	
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__,desc);
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto fail;
 

@@ -122,7 +122,7 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	char *soffset=NULL;
 	char *ops;
 	int i;
-
+	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__,desc);
 	d->extent = 0;
 	d->offset = 0;
 	d->location = NULL;
@@ -130,7 +130,6 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	d->rest = NULL;
 	d->ops = NULL;
 	d->dma_ops = NULL;
-	d->orig_desc = desc;
 	d->name = desc;
 
 	name_remainder(d->name,     '?', &d->query[0]);
@@ -185,8 +184,12 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 {
 	int ret = -EINVAL;
 	char *mydesc;
-	if ( (mydesc = rddma_str_dup(desc)) )
+
+	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__,desc);
+	if ( (mydesc = rddma_str_dup(desc)) ) {
+		d->orig_desc = desc;
 		ret = _rddma_parse_desc(d,mydesc);
+	}
 	return ret;
 }
 

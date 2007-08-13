@@ -63,11 +63,16 @@ static void fabric_do_rqst(struct work_struct *wo)
 int __must_check rddma_fabric_tx(struct rddma_fabric_address *address, struct sk_buff *skb)
 {
 	int ret = -ENODEV;
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(1,"%s entered address=%p\n",__FUNCTION__,address);
 
-	if ( address && address->ops && address->ops->get(address) ) {
-		if ( (ret = address->ops->transmit(address,skb)) ) 
+	RDDMA_SAFE_DEBUG(1,(address),"%s: address_ops=%p\n",__FUNCTION__,address->ops);
+
+	if ( address && address->ops  ) {
+		address = address->ops->get(address);
+		if ( (ret = address->ops->transmit(address,skb)) ) {
+			address->ops->put(address);
 			dev_kfree_skb(skb);
+		}
 	} else
 		dev_kfree_skb(skb);
 
@@ -99,6 +104,7 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
 	if (cb) {
 		struct sk_buff *skb = dev_alloc_skb(2048);
+		skb_reserve(skb,128);
 		if (skb) {
 			cb->check = cb;
 			cb->rply_skb = NULL;
@@ -177,20 +183,24 @@ static struct rddma_fabric_address *fabrics[RDDMA_MAX_FABRICS];
 
 int rddma_fabric_register(struct rddma_fabric_address *addr)
 {
-	int ret = -EEXIST;
+	int ret = 0;
 	int i;
-	RDDMA_DEBUG(1,"%s entered\n",__FUNCTION__);
 
 	for (i = 0; i < RDDMA_MAX_FABRICS && fabrics[i] ; i++)
-		if (!strcmp(addr->name, fabrics[i]->name) )
-			return ret;
+		if (!strcmp(addr->name, fabrics[i]->name) ) {
+			ret = -EEXIST;
+			break;
+		}
 
 	if ( i == RDDMA_MAX_FABRICS)
-		return -ENOMEM;
+		ret = -ENOMEM;
 
-	fabrics[i] = addr;
+	if (!ret)
+		fabrics[i] = addr;
 
-	return 0;
+	RDDMA_SAFE_DEBUG(1,(addr),"%s ops=%p\n",__FUNCTION__,addr->ops);
+	RDDMA_SAFE_DEBUG(1,(addr),"%s register %s returns %d\n",__FUNCTION__,addr->name,ret);
+	return ret;
 }
 
 void rddma_fabric_unregister(const char *name)
@@ -209,17 +219,20 @@ void rddma_fabric_unregister(const char *name)
 struct rddma_fabric_address *rddma_fabric_find(const char *name)
 {
 	int i;
-	struct rddma_fabric_address *ap;
 	RDDMA_DEBUG(1,"%s entered with %s\n",__FUNCTION__, name);
 	if (name)
-		for (i = 0, ap = fabrics[0]; i < RDDMA_MAX_FABRICS && ap ; i++, ap++)
-			if (ap)
-				if (!strcmp(name,ap->name) ) {
-					if (try_module_get(ap->owner)) {
-						ap->ops->get(ap);
-						return ap;
+		for (i = 0 ; i < RDDMA_MAX_FABRICS && fabrics[i]; i++)
+			if (fabrics[i])
+				if (!strcmp(name,fabrics[i]->name) ) {
+					if (try_module_get(fabrics[i]->owner)) {
+						fabrics[i]->ops->get(fabrics[i]);
+						RDDMA_DEBUG(1,"\t%s returning with %s\n",__FUNCTION__, fabrics[i]->name);
+						return fabrics[i];
 					}
+					RDDMA_DEBUG(1,"\t%s failed module_get\n",__FUNCTION__);
+					return NULL;
 				}
+	RDDMA_DEBUG(1,"\t%s failed to find %s\n",__FUNCTION__,name);
 	return NULL;
 }
 

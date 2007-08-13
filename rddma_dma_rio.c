@@ -113,3 +113,7 @@ static void __exit dma_rio_close(void)
 
 module_init(dma_rio_init);
 module_exit(dma_rio_close);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Phil Terry <pterry@micromemory.com>");
+MODULE_DESCRIPTION("DMA Engine for RDDMA");
