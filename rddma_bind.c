@@ -27,6 +27,7 @@
 static void rddma_bind_release(struct kobject *kobj)
 {
     struct rddma_bind *p = to_rddma_bind(kobj);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
     kfree(p);
 }
 
@@ -111,6 +112,7 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_xfer_p
     new->kobj.kset = &parent->binds->kset;
     new->desc.dst.ops = parent->desc.xfer.ops;
 
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
     return new;
 }
 

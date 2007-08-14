@@ -26,11 +26,13 @@ static inline struct rddma_srcs *to_rddma_srcs(struct kobject *kobj)
 
 static inline struct rddma_srcs *rddma_srcs_get(struct rddma_srcs *rddma_srcs)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_srcs);
 	return to_rddma_srcs(kobject_get(&rddma_srcs->kset.kobj));
 }
 
 static inline void rddma_srcs_put(struct rddma_srcs *rddma_srcs)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_srcs);
 	if (rddma_srcs) kset_put(&rddma_srcs->kset);
 }
 

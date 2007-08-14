@@ -30,11 +30,13 @@ static inline struct rddma_dst *to_rddma_dst(struct kobject *kobj)
 
 static inline struct rddma_dst *rddma_dst_get(struct rddma_dst *rddma_dst)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_dst);
 	return to_rddma_dst(kobject_get(&rddma_dst->kobj));
 }
 
 static inline void rddma_dst_put(struct rddma_dst *rddma_dst)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_dst);
 	kobject_put(&rddma_dst->kobj);
 }
 

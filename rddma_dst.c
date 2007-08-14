@@ -24,6 +24,7 @@
 static void rddma_dst_release(struct kobject *kobj)
 {
     struct rddma_dst *p = to_rddma_dst(kobj);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
     kfree(p);
 }
 
@@ -124,6 +125,7 @@ struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_xfer_par
 	new->kobj.kset = &parent->dsts->kset;
 	new->desc.dst.ops = parent->desc.dst.ops;
 out:
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
 }
 

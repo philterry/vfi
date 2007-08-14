@@ -21,16 +21,18 @@ struct rddma_binds {
 
 static inline struct rddma_binds *to_rddma_binds(struct kobject *kobj)
 {
-    return kobj ? container_of(to_kset(kobj), struct rddma_binds,kset) : NULL;
+	return kobj ? container_of(to_kset(kobj), struct rddma_binds,kset) : NULL;
 }
 
 static inline struct rddma_binds *rddma_binds_get(struct rddma_binds *rddma_binds)
 {
-    return to_rddma_binds(kobject_get(&rddma_binds->kset.kobj));
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_binds);
+	return to_rddma_binds(kobject_get(&rddma_binds->kset.kobj));
 }
 
 static inline void rddma_binds_put(struct rddma_binds *rddma_binds)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_binds);
 	if (rddma_binds) kset_put(&rddma_binds->kset);
 }
 

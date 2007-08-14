@@ -26,11 +26,13 @@ static inline struct rddma_xfers *to_rddma_xfers(struct kobject *kobj)
 
 static inline struct rddma_xfers *rddma_xfers_get(struct rddma_xfers *rddma_xfers)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_xfers);
 	return to_rddma_xfers(kobject_get(&rddma_xfers->kset.kobj));
 }
 
 static inline void rddma_xfers_put(struct rddma_xfers *rddma_xfers)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_xfers);
 	if (rddma_xfers) kset_put(&rddma_xfers->kset);
 }
 

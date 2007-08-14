@@ -21,6 +21,7 @@
 static void rddma_subsys_release(struct kobject *kobj)
 {
     struct rddma_subsys *p = to_rddma_subsys(kobj);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
     
     kfree(p);
 }
@@ -187,9 +188,11 @@ struct rddma_subsys *new_rddma_subsys(char *name)
     new->kset.uevent_ops = &rddma_subsys_uevent_ops;
     new->kset.kobj.ktype = &rddma_subsys_type;
 
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
     return new;
 out:
     rddma_subsys_put(new);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,NULL);
     return NULL;
 }
 

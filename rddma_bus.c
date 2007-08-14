@@ -9,6 +9,9 @@
  * option) any later version.
  */
 
+#define MY_DEBUG      RDDMA_DBG_SUBSYS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_SUBSYS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 #include <linux/rddma.h>
 
 #include <linux/rddma_bus.h>

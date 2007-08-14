@@ -36,11 +36,13 @@ static inline struct rddma_subsys *to_rddma_subsys(struct kobject *kobj)
 
 static inline struct rddma_subsys *rddma_subsys_get(struct rddma_subsys *rddma_subsys)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_subsys);
 	return to_rddma_subsys(kobject_get(&rddma_subsys->kset.kobj));
 }
 
 static inline void rddma_subsys_put(struct rddma_subsys *rddma_subsys)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_subsys);
 	if (rddma_subsys) kset_put(&rddma_subsys->kset);
 }
 

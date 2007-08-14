@@ -47,11 +47,13 @@ static inline struct rddma_smb *to_rddma_smb(struct kobject *kobj)
 
 static inline struct rddma_smb *rddma_smb_get(struct rddma_smb *rddma_smb)
 {
-    return to_rddma_smb(kobject_get(&rddma_smb->kobj));
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_smb);
+	return to_rddma_smb(kobject_get(&rddma_smb->kobj));
 }
 
 static inline void rddma_smb_put(struct rddma_smb *rddma_smb)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_smb);
 	if (rddma_smb) kobject_put(&rddma_smb->kobj);
 }
 

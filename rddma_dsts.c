@@ -21,6 +21,7 @@
 static void rddma_dsts_release(struct kobject *kobj)
 {
     struct rddma_dsts *p = to_rddma_dsts(kobj);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
     kfree(p);
 }
 
@@ -126,11 +127,13 @@ struct rddma_dsts *new_rddma_dsts(struct rddma_xfer_param *params, struct rddma_
 	new->kset.uevent_ops = &rddma_dsts_uevent_ops;
 	new->kset.kobj.kset = &parent->dsts->kset;
 
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
 fail_printf:
 	kfree(buf);
 fail_buf:
 	kfree(new);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,NULL);
 	return NULL;
 }
 

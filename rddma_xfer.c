@@ -26,6 +26,9 @@
 static void rddma_xfer_release(struct kobject *kobj)
 {
     struct rddma_xfer *p = to_rddma_xfer(kobj);
+    if (p->desc.xfer.name)
+	    kfree(p->desc.xfer.name);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
     kfree(p);
 }
 
@@ -154,6 +157,7 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_xf
 	new->kobj.kset = &parent->xfers->kset;
 	new->desc.xfer.ops = parent->desc.ops;
 out:
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
 }
 

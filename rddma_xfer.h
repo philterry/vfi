@@ -30,11 +30,13 @@ static inline struct rddma_xfer *to_rddma_xfer(struct kobject *kobj)
 
 static inline struct rddma_xfer *rddma_xfer_get(struct rddma_xfer *rddma_xfer)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_xfer);
 	return to_rddma_xfer(kobject_get(&rddma_xfer->kobj));
 }
 
 static inline void rddma_xfer_put(struct rddma_xfer *rddma_xfer)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_xfer);
 	if (rddma_xfer) kobject_put(&rddma_xfer->kobj);
 }
 

@@ -21,6 +21,7 @@
 static void rddma_srcs_release(struct kobject *kobj)
 {
     struct rddma_srcs *p = to_rddma_srcs(kobj);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
     kfree(p);
 }
 
@@ -117,6 +118,7 @@ struct rddma_srcs *new_rddma_srcs(struct rddma_xfer_param *desc, struct rddma_ds
     new->kset.uevent_ops = &rddma_srcs_uevent_ops;
     new->kset.kobj.kset = &parent->srcs->kset;
 
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
     return new;
 }
 

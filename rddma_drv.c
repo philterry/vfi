@@ -13,6 +13,10 @@
 /*
  * The Rincon Distributed DMA Driver Implementation
  */
+
+#define MY_DEBUG      RDDMA_DBG_SUBSYS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_SUBSYS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/rddma.h>

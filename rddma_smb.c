@@ -27,7 +27,9 @@
 static void rddma_smb_release(struct kobject *kobj)
 {
 	struct rddma_smb *p = to_rddma_smb(kobj);
-	kfree(p->desc.name);
+	if (p->desc.name)
+		kfree(p->desc.name);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
 	kfree(p);
 }
 
@@ -139,6 +141,7 @@ struct rddma_smb *new_rddma_smb(struct rddma_location *loc, struct rddma_desc_pa
 	new->kobj.kset = &loc->smbs->kset;
 	new->desc.ops = loc->desc.ops;
 out:
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
 }
 

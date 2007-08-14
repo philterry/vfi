@@ -9,14 +9,19 @@
  * option) any later version.
  */
 
+#define MY_DEBUG      RDDMA_DBG_SUBSYS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_SUBSYS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 #include <linux/rddma.h>
 #include <linux/rddma_class.h>
 
-#define to_rddma_dev(d) container_of((d), struct rddma_dev, class_device)
+#define to_rddma_dev(d) d ? container_of((d), struct rddma_dev, class_device) : NULL
 
 static void rddma_release_device(struct class_device *dev)
 {
-	kfree(to_rddma_dev(dev));
+	struct rddma_dev *p = to_rddma_dev(dev);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+	kfree(p);
 }
 
 static void rddma_release_class(struct class *class)

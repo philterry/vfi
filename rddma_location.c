@@ -29,6 +29,7 @@ static void rddma_location_release(struct kobject *kobj)
     struct rddma_location *p = to_rddma_location(kobj);
     if (p->desc.name)
 	    kfree(p->desc.name);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
     kfree(p);
 }
 
@@ -161,6 +162,7 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 			new->desc.ops = &rddma_fabric_ops;
 	}
 out:
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
 }
 
