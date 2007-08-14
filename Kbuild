@@ -2,7 +2,7 @@ obj-m += rddma_dma_rio.o
 
 obj-m += rddma_fabric_net.o
 
-obj-m += rddma.o
+obj-$(CONFIG_RDDMA) += rddma.o
 rddma-objs := \
               rddma_drv.o \
               rddma_bus.o \
