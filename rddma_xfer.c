@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_XFER | RDDMA_DBG_FUNCALL | RDDMA_DBG_ALWAYS
-#define MY_LIFE_DEBUG RDDMA_DBG_XFER | RDDMA_DBG_LIFE    | RDDMA_DBG_ALWAYS
+#define MY_DEBUG      RDDMA_DBG_XFER | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_XFER | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
 #include <linux/rddma_xfer.h>
 #include <linux/rddma_parse.h>
@@ -26,9 +26,19 @@
 static void rddma_xfer_release(struct kobject *kobj)
 {
     struct rddma_xfer *p = to_rddma_xfer(kobj);
-    if (p->desc.xfer.name)
-	    kfree(p->desc.xfer.name);
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+    if (p->desc.bind.src.name) {
+	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free src %p\n",__FUNCTION__,p->desc.bind.src.name);
+	    kfree(p->desc.bind.src.name);
+    }
+    if (p->desc.bind.dst.name) {
+	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free dst %p\n",__FUNCTION__,p->desc.bind.dst.name);
+	    kfree(p->desc.bind.dst.name);
+    }
+    if (p->desc.xfer.name) {
+	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free xfer %p\n",__FUNCTION__,p->desc.xfer.name);
+	    kfree(p->desc.xfer.name);
+    }
     kfree(p);
 }
 

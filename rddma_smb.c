@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_SMB | RDDMA_DBG_FUNCALL | RDDMA_DBG_ALWAYS
-#define MY_LIFE_DEBUG RDDMA_DBG_SMB | RDDMA_DBG_LIFE    | RDDMA_DBG_ALWAYS
+#define MY_DEBUG      RDDMA_DBG_SMB | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_SMB | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
 #include <linux/rddma_smb.h>
 #include <linux/rddma_parse.h>
@@ -27,9 +27,11 @@
 static void rddma_smb_release(struct kobject *kobj)
 {
 	struct rddma_smb *p = to_rddma_smb(kobj);
-	if (p->desc.name)
-		kfree(p->desc.name);
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+	if (p->desc.name) {
+		RDDMA_DEBUG(MY_LIFE_DEBUG,"%s name %p\n",__FUNCTION__,p->desc.name);
+		kfree(p->desc.name);
+	}
 	kfree(p);
 }
 

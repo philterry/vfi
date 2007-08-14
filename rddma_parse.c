@@ -39,6 +39,7 @@ static char *rddma_str_dup(const char *name)
 		if ((ret = kzalloc(size+1, GFP_KERNEL)) )
 			strncpy(ret, name, size);
 	}
+	RDDMA_DEBUG(MY_DEBUG,"%s %p to %p\n",__FUNCTION__,name,ret);
 	return ret;
 }
 
@@ -71,7 +72,7 @@ static char *name_remainder(char *name, int c, char **remainder)
 
 	if (remainder)
 		*remainder = p;
-
+	RDDMA_DEBUG(MY_DEBUG,"%s %s %c %p -> \n\t\t%s\n",__FUNCTION__,name,c,remainder,p);
 	return p;
 }
 /**
@@ -100,7 +101,7 @@ char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
 			if ((found_var = strstr(desc->query[i],needle)))
 				found_val = strstr(found_var,"=");
 		}
-
+	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s->%s%s\n",__FUNCTION__,desc,needle,found_var,found_val);
 	return found_val ? found_val+1 : found_var ;
 }
 EXPORT_SYMBOL(rddma_get_option);
@@ -126,7 +127,7 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	char *soffset=NULL;
 	char *ops;
 	int i;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__,desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
 	d->extent = 0;
 	d->offset = 0;
 	d->location = NULL;
@@ -189,10 +190,11 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 	int ret = -EINVAL;
 	char *mydesc;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__,desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
 	if ( (mydesc = rddma_str_dup(desc)) ) {
 		d->orig_desc = desc;
-		ret = _rddma_parse_desc(d,mydesc);
+		if ( (ret = _rddma_parse_desc(d,mydesc)) )
+			kfree(mydesc);
 	}
 	return ret;
 }
@@ -201,9 +203,11 @@ static int rddma_parse_bind( struct rddma_bind_param *b, char *desc)
 {
 	int ret = -EINVAL;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,b,desc);
 	if ( name_remainder(desc, '=', &b->src.name) )
-		if ( !(ret = _rddma_parse_desc( &b->src, b->src.name)) )
-			ret = _rddma_parse_desc( &b->dst, desc );
+		if ( !(ret = rddma_parse_desc( &b->src, b->src.name)) )
+			if ( (ret = rddma_parse_desc( &b->dst, desc )) )
+				kfree(b->src.name);
 
 	return ret;
 }
@@ -221,6 +225,7 @@ int rddma_parse_xfer(struct rddma_xfer_param *x, const char *desc)
 	int ret = -EINVAL;
 	char *mydesc;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,x,desc);
 	if ( (mydesc = rddma_str_dup(desc)) ) 
 		if ( name_remainder(mydesc, '/', &x->bind.dst.name) ) {
 			if (!(ret = rddma_parse_bind( &x->bind, x->bind.dst.name ))) 

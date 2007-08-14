@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_SRC | RDDMA_DBG_FUNCALL | RDDMA_DBG_ALWAYS
-#define MY_LIFE_DEBUG RDDMA_DBG_SRC | RDDMA_DBG_LIFE    | RDDMA_DBG_ALWAYS
+#define MY_DEBUG      RDDMA_DBG_SRC | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_SRC | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
 #include <linux/rddma_src.h>
 #include <linux/rddma_parse.h>
@@ -21,9 +21,17 @@
 
 static void rddma_src_release(struct kobject *kobj)
 {
-    struct rddma_src *p = to_rddma_src(kobj);
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-    kfree(p);
+	struct rddma_src *p = to_rddma_src(kobj);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+	if (p->desc.src.name) {
+		RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free src %p\n",__FUNCTION__,p->desc.src.name);
+		kfree(p->desc.src.name);
+	}
+	if (p->desc.dst.name) {
+		RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free dst %p\n",__FUNCTION__,p->desc.dst.name);
+		kfree(p->desc.dst.name);
+	}
+	kfree(p);
 }
 
 struct rddma_src_attribute {

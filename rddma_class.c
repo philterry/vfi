@@ -26,6 +26,7 @@ static void rddma_release_device(struct class_device *dev)
 
 static void rddma_release_class(struct class *class)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s FIX ME %p\n",__FUNCTION__,class);
 	
 }
 

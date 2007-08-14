@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_BIND | RDDMA_DBG_FUNCALL | RDDMA_DBG_ALWAYS
-#define MY_LIFE_DEBUG RDDMA_DBG_BIND | RDDMA_DBG_LIFE    | RDDMA_DBG_ALWAYS
+#define MY_DEBUG      RDDMA_DBG_BIND | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_BIND | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
 #include <linux/rddma_bind.h>
 #include <linux/rddma_xfer.h>
@@ -28,6 +28,14 @@ static void rddma_bind_release(struct kobject *kobj)
 {
     struct rddma_bind *p = to_rddma_bind(kobj);
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+    if (p->desc.src.name) {
+	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free src %p\n",__FUNCTION__,p->desc.src.name);
+	    kfree(p->desc.src.name);
+    }
+    if (p->desc.dst.name) {
+	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free dst %p\n",__FUNCTION__,p->desc.dst.name);
+	    kfree(p->desc.dst.name);
+    }
     kfree(p);
 }
 
