@@ -56,7 +56,7 @@ static int location_create(const char *desc, char *result, int size)
 	}
 	else {
 		if (params.ops)
-			ret = (new_loc = params.ops->location_find(&params)) == NULL;
+			ret = (new_loc = params.ops->location_create(NULL,&params)) == NULL;
 	}
 fail:
 	if (result)

@@ -198,7 +198,17 @@ static struct rddma_location *rddma_fabric_location_create(struct rddma_location
 	struct rddma_location *newloc = NULL;
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "location_create://%s", desc->name);
+	if (loc)
+		newloc = loc;
+	else
+		newloc = new_rddma_location(NULL,desc);
+
+	skb = rddma_fabric_call(newloc, 5, "location_create://%s", desc->name);
+	if (!loc)
+		rddma_location_put(newloc);
+
+	newloc = NULL;
+
 	if (skb) {
 		struct rddma_desc_param reply;
 		int ret = -EINVAL;
