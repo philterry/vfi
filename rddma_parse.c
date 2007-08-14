@@ -9,6 +9,9 @@
  * option) any later version.
  */
 
+#define MY_DEBUG      RDDMA_DBG_PARSE | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_PARSE | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 #include <linux/rddma.h>
 #include <linux/rddma_parse.h>
 #include <linux/rddma_ops.h>
@@ -18,7 +21,6 @@
 
 #define strtol simple_strtol
 
-#define MY_DEBUG RDDMA_DBG_PARSE | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 
 /**
  * rddma_str_dup - Safe copy of name to max truncated length of 4095 plus null termination in a page.

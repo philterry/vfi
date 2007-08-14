@@ -9,6 +9,9 @@
  * option) any later version.
  */
 
+#define MY_DEBUG      RDDMA_DBG_LOCOPS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_LOCOPS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 #include <linux/rddma_location.h>
 #include <linux/rddma_ops.h>
 #include <linux/rddma_smb.h>
@@ -26,8 +29,6 @@
 
 #include <linux/device.h>
 #include <linux/mm.h>
-
-#define MY_DEBUG RDDMA_DBG_LOCOPS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 
 /*
  * F I N D    O P E R A T I O N S

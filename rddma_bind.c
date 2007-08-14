@@ -9,6 +9,9 @@
  * option) any later version.
  */
 
+#define MY_DEBUG      RDDMA_DBG_BIND | RDDMA_DBG_FUNCALL | RDDMA_DBG_ALWAYS
+#define MY_LIFE_DEBUG RDDMA_DBG_BIND | RDDMA_DBG_LIFE    | RDDMA_DBG_ALWAYS
+
 #include <linux/rddma_bind.h>
 #include <linux/rddma_xfer.h>
 #include <linux/rddma_ops.h>

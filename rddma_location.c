@@ -9,6 +9,9 @@
  * option) any later version.
  */
 
+#define MY_DEBUG      RDDMA_DBG_LOCATION | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_LOCATION | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 #include <linux/rddma_location.h>
 #include <linux/rddma_drv.h>
 #include <linux/rddma_parse.h>
@@ -20,8 +23,6 @@
 
 #include <linux/slab.h>
 #include <linux/module.h>
-
-#define MY_DEBUG RDDMA_DBG_LOCATION | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 
 static void rddma_location_release(struct kobject *kobj)
 {

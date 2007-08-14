@@ -9,6 +9,9 @@
  * option) any later version.
  */
 
+#define MY_DEBUG      RDDMA_DBG_OPS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_OPS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 #include <linux/rddma_parse.h>
 #include <linux/rddma_location.h>
 #include <linux/rddma_ops.h>
@@ -19,8 +22,6 @@
 #include <linux/rddma_bind.h>
 
 #include <linux/device.h>
-
-#define MY_DEBUG RDDMA_DBG_OPS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 
 /**
  * location_create - Creates a location with the given methods and

@@ -9,15 +9,15 @@
  * option) any later version.
  */
 
+#define MY_DEBUG      RDDMA_DBG_FABNET | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_FABNET | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 #include <linux/rddma_fabric.h>
 #include <linux/rddma_location.h>
 
 #include <linux/netdevice.h>
 #include <linux/module.h>
 #include <linux/if_ether.h>
-
-#define MY_DEBUG      RDDMA_DBG_FABNET | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_FABNET | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
 static char *netdev_name = "eth0"; /* "eth0" or "br0" or "bond0" "rionet0" etc */
 module_param(netdev_name, charp, 0444);
@@ -47,6 +47,7 @@ static inline struct fabric_address *to_fabric_address(struct rddma_fabric_addre
 static void fabric_address_release(struct kobject *kobj)
 {
 	struct fabric_address *old = kobj ? container_of(kobj, struct fabric_address, kobj) : NULL;
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,old);
 	if (old) {
 		kfree(old);
 	}
@@ -58,11 +59,13 @@ static struct kobj_type fabric_address_type = {
 
 static inline struct fabric_address *_fabric_get(struct fabric_address *fna)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,fna);
 	return (fna ? kobject_get(&fna->kobj), fna : NULL) ;
 }
 
 static inline void _fabric_put(struct fabric_address *fna)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,fna);
 	if ( fna ) kobject_put(&fna->kobj);
 }
 
@@ -249,6 +252,7 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 		memcpy(&mac->h_dstidx, &dstidx, sizeof(mac->h_dstidx));
 
 		skb->dev = fna->ndev;
+		skb->protocol = htons(netdev_type);
 		_fabric_put(fna);
 		return dev_queue_xmit(skb);
 	}
@@ -260,13 +264,13 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 
 static struct rddma_fabric_address *fabric_get(struct rddma_fabric_address *rfa)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered rfa=%p\n",__FUNCTION__,rfa);
 	return rfa ? _fabric_get(to_fabric_address(rfa)), rfa : NULL;
 }
 
 static void fabric_put(struct rddma_fabric_address *rfa)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered rfa=%p\n",__FUNCTION__,rfa);
 	if ( rfa ) _fabric_put(to_fabric_address(rfa));
 }
 

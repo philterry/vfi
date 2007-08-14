@@ -43,8 +43,14 @@ extern int rddma_debug_level;
 #define RDDMA_DBG_LOCOPS   0x01000000
 #define RDDMA_DBG_FABOPS   0x00800000
 #define RDDMA_DBG_PARSE    0x00400000
+#define RDDMA_DBG_DMA      0x00200000
+#define RDDMA_DBG_DMARIO   0x00100000
+#define RDDMA_DBG_SUBSYS   0x00080000
+#define RDDMA_DBG_BIND     0x00040000
+#define RDDMA_DBG_DST      0x00020000
+#define RDDMA_DBG_SRC      0x00010000
 
-#define RDDMA_DBG_WHO      0xffc00000
+#define RDDMA_DBG_WHO      0xffff0000
 
 /* The bottom bits of who_what select a functional area, what to debug */
 #define RDDMA_DBG_FUNCALL  0x00000010

@@ -33,11 +33,13 @@ static inline struct rddma_location *to_rddma_location(struct kobject *kobj)
 
 static inline struct rddma_location *rddma_location_get(struct rddma_location *rddma_location)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered location=%p\n",__FUNCTION__,rddma_location);
 	return to_rddma_location(kobject_get(&rddma_location->kobj));
 }
 
 static inline void rddma_location_put(struct rddma_location *rddma_location)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered location=%p\n",__FUNCTION__,rddma_location);
 	if (rddma_location) kobject_put(&rddma_location->kobj);
 }
 

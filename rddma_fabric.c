@@ -9,6 +9,9 @@
  * option) any later version.
  */
 
+#define MY_DEBUG      RDDMA_DBG_FABRIC | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_FABRIC | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 #include <linux/rddma.h>
 #include <linux/rddma_subsys.h>
 #include <linux/rddma_location.h>
@@ -19,9 +22,6 @@
 #include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/version.h>
-
-#define MY_DEBUG      RDDMA_DBG_FABRIC | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_FABRIC | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
 struct call_back_tag {
 	struct sk_buff *rqst_skb;
@@ -240,7 +240,7 @@ struct rddma_fabric_address *rddma_fabric_find(const char *name)
 
 struct rddma_fabric_address *rddma_fabric_get(struct rddma_fabric_address *addr)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,addr);
 	if (try_module_get(addr->owner)) {
 		addr->ops->get(addr);
 		return addr;
@@ -250,7 +250,7 @@ struct rddma_fabric_address *rddma_fabric_get(struct rddma_fabric_address *addr)
 
 void rddma_fabric_put(struct rddma_fabric_address *addr)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,addr);
 	addr->ops->put(addr);
 	module_put(addr->owner);
 }
