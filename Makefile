@@ -10,7 +10,7 @@ install:
 clean:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` $@
 	-rm Module.symvers *~ TAGS
-TAGS:
+TAGS: *.[ch]
 	etags *.[ch]
 tar: clean TAGS
 	cd ..;	tar zcvf rddma.tar.gz --exclude=.git --exclude=TAGS rddma

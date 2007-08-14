@@ -40,7 +40,6 @@ Verbose (-v) A longer version of Erm...
 EOF
 }
 
-
 while getopts :viuscfh OPT; do
     case $OPT in
 	v|+v)
@@ -76,9 +75,6 @@ while getopts :viuscfh OPT; do
 done
 shift $[ OPTIND - 1 ]
 
-
-
-
 if [ -z "$dowhat" ] ; then
     echo "What do you want to do?"
     select dowhat in "Install" "Uninstall" "Symlink" "Cancel" "Help"; do
@@ -109,63 +105,6 @@ if [ -z "$dowhat" ] ; then
     done
 fi
 
-if [ -n "$doInstall" ] ; then
-    if [  -L ${kernelsrc:=/lib/modules/`uname -r`/build}/drivers/rddma ]; then
-	echo $kernelsrc/drivers/rddma is currently a symbolic link
-	echo "	" $(ls -l -d $kernelsrc/drivers/rddma)
-	echo replacing with a directory.
-	rm $kernelsrc/drivers/rddma
-    fi
-
-    if [ -d $kernelsrc/drivers/rddma ]; then
-	if [ -n "$V" ] ; then
-	    echo $kernelsrc/drivers/rddma is currently a directory containing:
-	    echo ls -lR $kernelsrc/drivers/rddma
-	    ls -lR $kernelsrc/drivers/rddma
-	fi
-	if [ -d $kernelsrc/drivers/rddma.orig ]; then
-	    if [ -z "$doforce" ]; then
-		echo "Can't save existing directory $kernelsrc/drivers/rddma becuase rddma.orig exists"
-		echo "What do you want to do with rddma.orig?"
-		select action in "Replace" "Cancel"; do
-		    case x$action in
-			x)
-			echo "Don't understand $REPLY"
-			;;
-			xReplace)
-			echo "Replacing"
-			rm -rf $kernelsrc/drivers/rddma.orig
-			break
-			;;
-			xCancel)
-			exit 0
-			break;
-			;;
-			*)
-			echo Huh bug report to phil
-			exit -128
-			;;
-		    esac
-		done
-	    else
-		rm -rf $kernelsrc/drivers/rddma.orig
-	    fi
-	fi
-	if [ -n "$V" ] ; then
-	    echo Saving existing rddma directory as follows:
-	fi
-	mv $V $kernelsrc/drivers/rddma $kernelsrc/drivers/rddma.orig
-    fi
-
-    mkdir $kernelsrc/drivers/rddma
-    echo Populating $kernelsrc/drivers/rddma
-    cp *.c Kbuild $kernelsrc/drivers/rddma
-
-    echo Populating $kernelsrc/Documentation/DocBook
-    cp $V --backup=numbered DocBook/rddma.tmpl $kernelsrc/Documentation/DocBook
-
-fi
-
 if [ -n "$doInstall" -o -n "$doSymlink" ] ; then
     echo Populating ${kernelsrc:=/lib/modules/`uname -r`/build}/include/linux
     for file in *.h ; do
@@ -182,6 +121,7 @@ if [ -n "$doInstall" -o -n "$doSymlink" ] ; then
 	    cp $V --backup=numbered $file $kernelsrc/include/linux
 	fi
     done
+
     echo Populating $kernelsrc/drivers/rddma
     if [ -L $kernelsrc/drivers/rddma ] ; then
 	rm $kernelsrc/drivers/rddma
@@ -195,6 +135,24 @@ if [ -n "$doInstall" -o -n "$doSymlink" ] ; then
 	fi
 
     done
+
+    echo "Patching $kernelsrc/drivers/Kconfig"
+patch -p0 <<EOF
+--- $kernelsrc/drivers/Kconfig~	2007-08-02 13:26:43.000000000 -0700
++++ $kernelsrc/drivers/Kconfig	2007-08-14 10:13:47.000000000 -0700
+@@ -82,6 +82,8 @@
+ 
+ source "drivers/dma/Kconfig"
+ 
++source "drivers/rddma/Kconfig"
++
+ source "drivers/auxdisplay/Kconfig"
+ 
+ source "drivers/kvm/Kconfig"
+EOF
+
+    echo Populating $kernelsrc/Documentation/DocBook
+    cp $V --backup=numbered DocBook/rddma.tmpl $kernelsrc/Documentation/DocBook
 fi
 
 if [ -n "$doUninstall" ] ; then
@@ -208,7 +166,20 @@ if [ -n "$doUninstall" ] ; then
     fi
     rm $kernelsrc/include/linux/rddma*
     rm $kernelsrc/Documentation/DocBook/rddma.tmpl
-fi
+patch -p0 -R <<EOF
+--- $kernelsrc/drivers/Kconfig~	2007-08-02 13:26:43.000000000 -0700
++++ $kernelsrc/drivers/Kconfig	2007-08-14 10:13:47.000000000 -0700
+@@ -82,6 +82,8 @@
+ 
+ source "drivers/dma/Kconfig"
+ 
++source "drivers/rddma/Kconfig"
++
+ source "drivers/auxdisplay/Kconfig"
+ 
+ source "drivers/kvm/Kconfig"
+EOF
+fi 
 
 if [ -n "$doCopyleft" ] ; then
 
@@ -223,11 +194,12 @@ for file in *.[ch] ; do
  * \\
  * This program is free software; you can redistribute  it and/or modify it\\
  * under  the terms of  the GNU General  Public License as published by the\\
- * Free Software Foundation;  either version 2 of the  License, or (at your\\
+ * Free Software Foundation;  either version 2 of the  License, or  (at your\\
  * option) any later version.\\
  */\\
 " $file
 fi
 done
 fi
+
 echo Done
