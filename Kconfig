@@ -10,4 +10,19 @@ config RDDMA
 	---help---
 	  Enable support for the Rincon Distributed DMA engine.
 
+config RDDMA_FABRIC_NET
+	tristate "Rincon DMA driver"
+	depends on RDDMA && NET
+	default m
+	---help---
+	  Enable support for using the ethernet for RDDMA as if
+	  it were a switch fabric.
+
+config RDDMA_DMA_RIO
+	tristate "Rincon DMA driver"
+	depends on RDDMA && RAPIDIO
+	default m
+	---help---
+	  Enable support for Rincon DMA over Rapid I/O.
+
 endmenu

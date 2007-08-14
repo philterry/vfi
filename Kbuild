@@ -1,6 +1,6 @@
 obj-m += rddma_dma_rio.o
 
-obj-m += rddma_fabric_net.o
+obj-$(CONFIG_RDDMA_FABRIC_NET) += rddma_fabric_net.o
 
 obj-$(CONFIG_RDDMA) += rddma.o
 rddma-objs := \
