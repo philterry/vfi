@@ -193,6 +193,11 @@ static int smb_create(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
+	if (params.offset > (PAGE_SIZE - 32)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	ret = -ENODEV;
 
 	if ( (loc = find_rddma_location(&params) ) ) {
@@ -281,6 +286,9 @@ static int smb_find(const char *desc, char *result, int size)
 		goto out;
 
 	ret = -ENODEV;
+
+	if (!params.location)  
+		goto out;
 
 	if ( (loc = find_rddma_location(&params)) ) {
 		ret = -EINVAL;

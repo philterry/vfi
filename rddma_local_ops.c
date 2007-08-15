@@ -89,7 +89,20 @@ static struct rddma_location *rddma_local_location_create(struct rddma_location 
 
 static struct rddma_smb *rddma_local_smb_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	return rddma_smb_create(loc,desc);
+	struct rddma_smb *smb = NULL;
+
+	smb = rddma_smb_create(loc, desc);
+	if (smb == NULL)
+		return NULL;
+
+	/* Allocate memory for this SMB */
+	if (rddma_alloc_pages(smb->size, smb->desc.offset, &smb->pages, 
+		&smb->num_pages) == 0)
+		return smb;
+
+	/* Failed */
+	rddma_smb_delete(smb);
+	return NULL;
 }
 
 static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, struct rddma_xfer_param *desc)
@@ -246,7 +259,11 @@ static void rddma_local_location_delete(struct rddma_location *loc, struct rddma
 
 static void rddma_local_smb_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	rddma_smb_delete(rddma_local_smb_find(loc,desc));
+	struct rddma_smb *smb = rddma_local_smb_find(loc,desc);
+	if (smb) {
+		rddma_smb_put(smb);
+		rddma_smb_delete(smb);
+	}
 }
 
 static void rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_xfer_param *desc)

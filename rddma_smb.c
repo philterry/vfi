@@ -32,6 +32,8 @@ static void rddma_smb_release(struct kobject *kobj)
 		RDDMA_DEBUG(MY_LIFE_DEBUG,"%s name %p\n",__FUNCTION__,p->desc.name);
 		kfree(p->desc.name);
 	}
+	if (p->pages)
+		rddma_dealloc_pages(p->pages, p->num_pages);
 	kfree(p);
 }
 
@@ -154,12 +156,8 @@ int rddma_smb_register(struct rddma_smb *rddma_smb)
 	if ( (ret = kobject_register(&rddma_smb->kobj) ) )
 		goto out;
 
-	ret = -ENOMEM;
-
 	return ret;
-
 out:
-	rddma_smb_put(rddma_smb);
 	return ret;
 }
 

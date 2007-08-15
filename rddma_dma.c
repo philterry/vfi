@@ -21,7 +21,7 @@ void rddma_dealloc_pages( struct page **pages, int num_pages)
 	kfree(pages);
 }
 
-int rddma_alloc_pages( size_t size, struct page **pages[], int *num_pages)
+int rddma_alloc_pages( size_t size, int offset, struct page **pages[], int *num_pages)
 {
 	int page;
 	struct page **page_ary;
@@ -31,7 +31,8 @@ int rddma_alloc_pages( size_t size, struct page **pages[], int *num_pages)
 		return -EINVAL;
  
 	if (num_pages)
-		*num_pages = (size >> PAGE_SHIFT) + (size & PAGE_MASK ? 1 : 0);
+		*num_pages = ((size + offset) >> PAGE_SHIFT) + 
+			((size + offset) & ~PAGE_MASK ? 1 : 0);
 	else
 		return -EINVAL;
 
