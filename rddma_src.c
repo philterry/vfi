@@ -91,7 +91,7 @@ RDDMA_SRC_ATTR(name, 0644, rddma_src_name_show, 0);
 
 static ssize_t rddma_src_extent_show(struct rddma_src *rddma_src, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%d\n",rddma_src->desc.src.extent);
+	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_src->desc.src.extent);
 }
 
 RDDMA_SRC_ATTR(extent, 0644, rddma_src_extent_show, 0);

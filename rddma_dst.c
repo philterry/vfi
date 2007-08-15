@@ -93,7 +93,7 @@ RDDMA_DST_ATTR(name, 0644, rddma_dst_name_show, 0);
 
 static ssize_t rddma_dst_extent_show(struct rddma_dst *rddma_dst, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%d\n",rddma_dst->desc.dst.extent);
+	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_dst->desc.dst.extent);
 }
 
 RDDMA_DST_ATTR(extent, 0644, rddma_dst_extent_show,0);

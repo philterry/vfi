@@ -89,7 +89,7 @@ RDDMA_BIND_ATTR(offset, 0644, rddma_bind_offset_show, 0);
 
 static ssize_t rddma_bind_extent_show(struct rddma_bind *rddma_bind, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%d\n",rddma_bind->desc.dst.extent);
+	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_bind->desc.dst.extent);
 }
 
 RDDMA_BIND_ATTR(extent, 0644, rddma_bind_extent_show, 0);
