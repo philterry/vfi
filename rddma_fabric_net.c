@@ -85,7 +85,7 @@ static struct rddma_address_ops fabric_net_ops;
 static struct fabric_address *new_fabric_address(unsigned long idx, char *hwaddr, struct net_device *ndev)
 {
 	struct fabric_address *new = kzalloc(sizeof(struct fabric_address),GFP_KERNEL);
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 
 	INIT_LIST_HEAD(&new->list);
 
@@ -107,7 +107,7 @@ static struct fabric_address *find_fabric_address(unsigned long idx, char *hwadd
 	struct fabric_address *fp = address_table[idx & 15];
 	struct fabric_address *new;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s %lx\n",__FUNCTION__,idx);
 	if ( idx == UNKNOWN_IDX)
 		return new_fabric_address(idx,hwaddr,ndev);
 

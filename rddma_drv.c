@@ -31,9 +31,9 @@ int rddma_major = 0;
 int rddma_minor = 0;
 int rddma_nr_minor = 1;
 #ifdef CONFIG_RDDMA_DEBUG
-int rddma_debug_level = RDDMA_DBG_ALL;
+unsigned int rddma_debug_level = RDDMA_DBG_ALL;
 EXPORT_SYMBOL(rddma_debug_level);
-module_param(rddma_debug_level, int, 0664);
+module_param(rddma_debug_level, uint, 0664);
 #endif
 module_param(rddma_major, int, 0664);
 module_param(rddma_minor, int, 0664);

@@ -66,39 +66,49 @@ static struct sysfs_ops rddma_subsys_sysfs_ops = {
     .store = rddma_subsys_store,
 };
 
-#define SHOW_BIT(b,s) if (left && (rddma_debug_level & (b))) size = snprintf(bp,left,s); bp+= size ; left -= size
+#define SHOW_BIT(s,b) if (left && (rddma_debug_level & (b))) size = snprintf(bp,left,"%s ",s); bp+= size ; left -= size
 #define SHOW_LEVEL() size = snprintf(bp, PAGE_SIZE, "%d\n", rddma_debug_level & RDDMA_DBG_WHEN); bp+= size ; left -= size
 static ssize_t rddma_subsys_debug_show(struct rddma_subsys *rddma_subsys, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
 	char *bp = buffer;
-	SHOW_BIT( RDDMA_DBG_LOCATION,"location ");
-	SHOW_BIT( RDDMA_DBG_SMB,"smb ");
-	SHOW_BIT( RDDMA_DBG_XFER,"xfer ");
-	SHOW_BIT( RDDMA_DBG_CDEV,"cdev ");
-	SHOW_BIT( RDDMA_DBG_FABRIC,"fabric ");
-	SHOW_BIT( RDDMA_DBG_FABNET,"fabnet ");
-	SHOW_BIT( RDDMA_DBG_OPS,"ops ");
-	SHOW_BIT( RDDMA_DBG_LOCOPS,"private ");
-	SHOW_BIT( RDDMA_DBG_FABOPS,"public ");
-	SHOW_BIT( RDDMA_DBG_PARSE,"parse ");
-	SHOW_BIT( RDDMA_DBG_FUNCALL,"funcall ");
-	SHOW_BIT( RDDMA_DBG_LIFE,"life ");
+	SHOW_BIT( "location", RDDMA_DBG_LOCATION);
+	SHOW_BIT( "smb", RDDMA_DBG_SMB);
+	SHOW_BIT( "xfer", RDDMA_DBG_XFER);
+	SHOW_BIT( "cdev", RDDMA_DBG_CDEV);
+	SHOW_BIT( "fabric", RDDMA_DBG_FABRIC);
+	SHOW_BIT( "fabnet", RDDMA_DBG_FABNET);
+	SHOW_BIT( "ops", RDDMA_DBG_OPS);
+	SHOW_BIT( "private", RDDMA_DBG_LOCOPS);
+	SHOW_BIT( "public", RDDMA_DBG_FABOPS);
+	SHOW_BIT( "parse", RDDMA_DBG_PARSE);
+	SHOW_BIT( "dma", RDDMA_DBG_DMA);
+	SHOW_BIT( "riodma", RDDMA_DBG_DMARIO);
+	SHOW_BIT( "subsys", RDDMA_DBG_SUBSYS);
+	SHOW_BIT( "bind", RDDMA_DBG_BIND);
+	SHOW_BIT( "dst", RDDMA_DBG_DST);
+	SHOW_BIT( "src", RDDMA_DBG_SRC);
+	SHOW_BIT( "funcall", RDDMA_DBG_FUNCALL);
+	SHOW_BIT( "life", RDDMA_DBG_LIFE);
 	SHOW_LEVEL();
 	return PAGE_SIZE - left;
 }
 
-#define STORE_BIT(s,b) if (!strncmp(token,s,toklen))do { whowhat |= b ; continue; } while (0)
+#define STORE_BIT(s,b) if (!strncmp(token,s,toklen)) do {if (negate) whowhat &= ~b; else whowhat |= b; } while (0)
 
 static ssize_t rddma_subsys_debug_store(struct rddma_subsys *rddma_subsys, const char *buffer, size_t size)
 {
-	int level = 0;
-	int whowhat = 0;
+	unsigned int level = rddma_debug_level & RDDMA_DBG_WHEN;
+	unsigned int whowhat = rddma_debug_level & RDDMA_DBG_WHO_WHAT;
 	const char *token;
 	int toklen;
+	int negate = 0;
 	while (*buffer == ' ') buffer++;
-	for (token = buffer, toklen = strcspn(buffer," "); toklen ; toklen = strcspn(token, " ")) {
+	if ( ( negate = (*buffer == '~')) ) buffer++;
+	token = buffer;
+	toklen = strcspn(buffer," \n");
+	while ( toklen ) {
 		STORE_BIT("location", RDDMA_DBG_LOCATION);
 		STORE_BIT("smb", RDDMA_DBG_SMB);
 		STORE_BIT("xfer", RDDMA_DBG_XFER);
@@ -109,6 +119,12 @@ static ssize_t rddma_subsys_debug_store(struct rddma_subsys *rddma_subsys, const
 		STORE_BIT("private", RDDMA_DBG_LOCOPS);
 		STORE_BIT("public", RDDMA_DBG_FABOPS);
 		STORE_BIT("parse", RDDMA_DBG_PARSE);
+		STORE_BIT("dma", RDDMA_DBG_DMA);
+		STORE_BIT("riodma", RDDMA_DBG_DMARIO);
+		STORE_BIT("subsys", RDDMA_DBG_SUBSYS);
+		STORE_BIT("bind", RDDMA_DBG_BIND);
+		STORE_BIT("dst", RDDMA_DBG_DST);
+		STORE_BIT("src", RDDMA_DBG_SRC);
 		STORE_BIT("funcall", RDDMA_DBG_FUNCALL);
 		STORE_BIT("life", RDDMA_DBG_LIFE);
 		STORE_BIT("all", RDDMA_DBG_ALL);
@@ -118,6 +134,8 @@ static ssize_t rddma_subsys_debug_store(struct rddma_subsys *rddma_subsys, const
 		sscanf(token,"%d", &level);
 		token += toklen;
 		while (*token == ' ') token++;
+		if ( (negate = (*token == '~')) ) token++;
+		toklen = strcspn(token, " \n");
 	}
 	rddma_debug_level = (level & RDDMA_DBG_WHEN) | whowhat;
 	return size;

@@ -17,7 +17,7 @@
 
 #define CONFIG_RDDMA_DEBUG
 
-extern int rddma_debug_level;
+extern unsigned int rddma_debug_level;
 /* Debug level is treated as a four-bit level integer, when, and a 28-bit mask, who_what */
 #define RDDMA_DBG_WHEN 0xf
 #define RDDMA_DBG_WHO_WHAT ~RDDMA_DBG_WHEN
