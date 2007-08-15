@@ -137,7 +137,7 @@ struct rddma_smb *new_rddma_smb(struct rddma_location *loc, struct rddma_desc_pa
 	rddma_clone_desc(&new->desc, desc);
 	new->size = new->desc.extent;
 	
-	kobject_set_name(&new->kobj,"%s.%s",new->desc.name,new->desc.location);
+	kobject_set_name(&new->kobj,"%s",new->desc.name);
 	new->kobj.ktype = &rddma_smb_type;
 
 	new->kobj.kset = &loc->smbs->kset;
