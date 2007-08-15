@@ -153,12 +153,12 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 
 	if (sextent) {
 		d->extent = simple_strtol(sextent,&sextent,0);
- 		RDDMA_ASSERT((NULL == sextent),"Dodgy extent string(%d) contains %s", (ret = (sextent - d->name)), sextent); 
+ 		RDDMA_ASSERT(('\0' == *sextent),"Dodgy extent string(%d) contains %s", (ret = (sextent - d->name)), sextent); 
 	}
 
 	if (soffset) {
 		d->offset = simple_strtol(soffset,&soffset,0);
- 		RDDMA_ASSERT((NULL == soffset),"Dodgy offset string(%d) contains %s", (ret = (soffset - d->name)), soffset); 
+ 		RDDMA_ASSERT(('\0' == *soffset),"Dodgy offset string(%d) contains %s", (ret = (soffset - d->name)), soffset); 
 	}
 
 	i = 0;
