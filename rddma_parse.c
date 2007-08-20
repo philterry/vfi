@@ -15,7 +15,7 @@
 #include <linux/rddma.h>
 #include <linux/rddma_parse.h>
 #include <linux/rddma_ops.h>
-
+#include <linux/rddma_fabric.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 
@@ -164,24 +164,27 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	i = 0;
 	while (name_remainder(d->query[i], ',', &d->query[i+1]) && i < RDDMA_MAX_QUERY_STRINGS) i++;
 	/* The above naughty loop will leave any remaining options in d->rest */
-	
+
 	if ( (ops = rddma_get_option(d,"default_ops")) ) {
 		if (!strncmp(ops,"private",7))
 			d->ops = &rddma_local_ops;
 		else if (!strncmp(ops,"public",6)) {
 			d->ops = &rddma_fabric_ops;
+#if 0	
 			if ( (ops = rddma_get_option(d, "fabric")) ) {
 				d->address = rddma_fabric_find(ops);
 			}
+#endif
 		}
 	}
-
+#if 0
 	if ( (ops = rddma_get_option(d,"dma_ops")) ) {
 		if (!strncmp(ops,"fabric",7))
 			d->dma_ops = NULL; /* FIX ME */
 		else if (!strncmp(ops,"debug",6))
 			d->dma_ops = NULL; /* FIX ME */
 	}
+#endif
 	return ret;
 }
 
@@ -229,17 +232,56 @@ int rddma_parse_xfer(struct rddma_xfer_param *x, const char *desc)
 	if ( (mydesc = rddma_str_dup(desc)) ) 
 		if ( name_remainder(mydesc, '/', &x->bind.dst.name) ) {
 			if (!(ret = rddma_parse_bind( &x->bind, x->bind.dst.name ))) 
-				ret = _rddma_parse_desc( &x->xfer, mydesc );
+				ret = rddma_parse_desc( &x->xfer, mydesc );
 			else
 				ret += x->bind.dst.name - mydesc;
 		}
 	
-	if (ret) {
+	if (ret)
 		memset(x,0,sizeof(*x));
-		kfree(mydesc);
-	}
+
+	kfree(mydesc);
 
 	return ret;
 }
 
+
+int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
+{
+	int ret = -EINVAL;
+	if (old->orig_desc) {
+		RDDMA_DEBUG((RDDMA_DBG_PARSE | RDDMA_DBG_DEBUG),"%s entered with %s\n",__FUNCTION__, old->orig_desc);
+		if ( !(ret = rddma_parse_desc(new,old->orig_desc)) ) 
+			new->orig_desc = NULL;
+	}
+	return ret;
+}
+
+int rddma_clone_bind(struct rddma_bind_param *new, struct rddma_bind_param *old)
+{
+	int ret = -EINVAL;
+	if ( !(ret = rddma_clone_desc(&new->dst, &old->dst)) )
+		ret = rddma_clone_desc(&new->src, &old->src);
+	return ret;
+}
+
+int rddma_clone_xfer(struct rddma_xfer_param *new, struct rddma_xfer_param *old)
+{
+	int ret = -EINVAL;
+	if ( !(ret = rddma_clone_desc(&new->xfer, &old->xfer)) )
+		ret = rddma_clone_bind(&new->bind, &old->bind);
+	return ret;
+}
+void rddma_clean_desc(struct rddma_desc_param *p)
+{
+	if (p && p->name)
+		kfree(p->name);
+}
+
+void rddma_clean_xfer(struct rddma_xfer_param *p)
+{
+	rddma_clean_desc(&p->xfer);
+	rddma_clean_desc(&p->bind.dst);
+	rddma_clean_desc(&p->bind.src);
+}
 

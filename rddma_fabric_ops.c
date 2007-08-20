@@ -195,16 +195,26 @@ static struct rddma_src *rddma_fabric_src_find(struct rddma_dst *parent, struct 
  */
 static struct rddma_location *rddma_fabric_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	struct sk_buff  *skb;
+	struct sk_buff  *skb = NULL;
 	struct rddma_location *newloc = NULL;
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	if (loc)
 		newloc = loc;
-	else
-		newloc = new_rddma_location(NULL,desc);
+	else {
+		char *fabric_name;
+		if ( (fabric_name =rddma_get_option(desc,"fabric")) ) {
+			struct rddma_fabric_address *rfa = rddma_fabric_find(fabric_name);
+			if ( rfa ) {
+				newloc = new_rddma_location(NULL,desc);
+				newloc->desc.address = rfa;
+			}
+		}   
+	}
 
-	skb = rddma_fabric_call(newloc, 5, "location_create://%s", desc->name);
+	if (newloc)
+		skb = rddma_fabric_call(newloc, 5, "location_create://%s", desc->name);
+
 	if (!loc)
 		rddma_location_put(newloc);
 

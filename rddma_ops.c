@@ -23,19 +23,6 @@
 
 #include <linux/device.h>
 
-static inline void clean_desc_params(struct rddma_desc_param *p)
-{
-	if (p && p->name)
-		kfree(p->name);
-}
-
-static inline void clean_xfer_params(struct rddma_xfer_param *p)
-{
-	clean_desc_params(&p->xfer);
-	clean_desc_params(&p->bind.dst);
-	clean_desc_params(&p->bind.src);
-}
-
 /**
  * location_create - Creates a location with the given methods and
  * attributes.
@@ -63,7 +50,7 @@ static int location_create(const char *desc, char *result, int size)
 
 	if ( params.location ) {
 		if ( (loc = find_rddma_location(&params))) {
-			if (loc->desc.ops && loc->desc.ops->location_create) 
+			if (loc && loc->desc.ops && loc->desc.ops->location_create) 
 				ret = (new_loc = loc->desc.ops->location_create(loc,&params)) == NULL;
 			rddma_location_put(loc);
 		}
@@ -75,7 +62,7 @@ static int location_create(const char *desc, char *result, int size)
 fail:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
-	kfree(params.name);
+	rddma_clean_desc(&params);
 
 	return ret;
 }
@@ -122,7 +109,7 @@ out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
 
-	clean_desc_params(&params);
+	rddma_clean_desc(&params);
 
 	rddma_location_put(loc);
 
@@ -167,7 +154,7 @@ static int location_find(const char *desc, char *result, int size)
 out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.name, ret, rddma_get_option(&params,"request"));
-	clean_desc_params(&params);
+	rddma_clean_desc(&params);
 
 	return ret;
 }
@@ -217,7 +204,7 @@ out:
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
 	}
 
-	clean_desc_params(&params);
+	rddma_clean_desc(&params);
 
 	return ret;
 }
@@ -259,7 +246,7 @@ out:
 	if (result) 
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
 
-	clean_desc_params(&params);
+	rddma_clean_desc(&params);
 
 	return ret;
 }
@@ -308,7 +295,7 @@ out:
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
 	}
 
-	clean_desc_params(&params);
+	rddma_clean_desc(&params);
 
 	return ret;
 }
@@ -357,7 +344,7 @@ out:
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret, rddma_get_option(&params.xfer,"request"));
 	}
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -398,7 +385,7 @@ out:
 	if (result) 
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.xfer.name,ret,rddma_get_option(&params.xfer,"request"));
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -446,7 +433,7 @@ out:
 				ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -494,7 +481,7 @@ out:
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -535,7 +522,7 @@ out:
 	if (result) 
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.xfer.name,ret,rddma_get_option(&params.xfer,"request"));
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -583,7 +570,7 @@ out:
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -630,7 +617,7 @@ out:
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -671,7 +658,7 @@ out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.xfer.name,ret,rddma_get_option(&params.xfer,"request"));
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -718,7 +705,7 @@ out:
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -765,7 +752,7 @@ out:
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -806,7 +793,7 @@ out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -853,7 +840,7 @@ out:
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -893,7 +880,7 @@ out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -933,7 +920,7 @@ out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.xfer.name,ret,rddma_get_option(&params.xfer,"request"));
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }
@@ -971,7 +958,7 @@ out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.xfer.name,ret,rddma_get_option(&params.xfer,"request"));
 
-	clean_xfer_params(&params);
+	rddma_clean_xfer(&params);
 
 	return ret;
 }

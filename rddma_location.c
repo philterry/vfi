@@ -29,6 +29,9 @@ static void rddma_location_release(struct kobject *kobj)
     struct rddma_location *p = to_rddma_location(kobj);
     if (p->desc.name)
 	    kfree(p->desc.name);
+    if (p->desc.address)
+	    rddma_fabric_put(p->desc.address);
+
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
     kfree(p);
 }
@@ -161,6 +164,7 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 		else
 			new->desc.ops = &rddma_fabric_ops;
 	}
+	kobject_init(&new->kobj);
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
@@ -170,10 +174,10 @@ int rddma_location_register(struct rddma_location *rddma_location)
 {
 	int ret = 0;
 
-	if ( (ret = kobject_register(&rddma_location->kobj) ) ) {
-		kobject_put(&rddma_location->kobj);
+	if ( (ret = kobject_add(&rddma_location->kobj) ) )
 		goto out;
-	}
+
+	kobject_uevent(&rddma_location->kobj, KOBJ_ADD);
 
 	ret = -ENOMEM;
 
@@ -236,7 +240,7 @@ struct rddma_location *find_rddma_location(struct rddma_desc_param *params)
 				loc = tmploc->desc.ops->location_create(tmploc,params);
 				rddma_location_put(tmploc);
 			}
-			kfree(tmpparams.name);
+			rddma_clean_desc(&tmpparams);
 		}
 		return loc;
 	}

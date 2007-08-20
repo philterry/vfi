@@ -101,31 +101,10 @@ extern int __must_check rddma_parse_xfer( struct rddma_xfer_param *, const char 
 extern int __must_check rddma_parse_desc( struct rddma_desc_param *, const char *);
 extern char *rddma_get_option( struct rddma_desc_param *, const char *);
 
-static inline int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
-{
-	int ret = -EINVAL;
-	if (old->orig_desc) {
-		RDDMA_DEBUG((RDDMA_DBG_PARSE | RDDMA_DBG_DEBUG),"%s entered with %s\n",__FUNCTION__, old->orig_desc);
-		if ( !(ret = rddma_parse_desc(new,old->orig_desc)) )
-			new->orig_desc = NULL;
-	}
-	return ret;
-}
-
-static inline int rddma_clone_bind(struct rddma_bind_param *new, struct rddma_bind_param *old)
-{
-	int ret = -EINVAL;
-	if ( !(ret = rddma_clone_desc(&new->dst, &old->dst)) )
-		ret = rddma_clone_desc(&new->src, &old->src);
-	return ret;
-}
-
-static inline int rddma_clone_xfer(struct rddma_xfer_param *new, struct rddma_xfer_param *old)
-{
-	int ret = -EINVAL;
-	if ( !(ret = rddma_clone_desc(&new->xfer, &old->xfer)) )
-		ret = rddma_clone_bind(&new->bind, &old->bind);
-	return ret;
-}
+extern int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old);
+extern int rddma_clone_bind(struct rddma_bind_param *new, struct rddma_bind_param *old);
+extern int rddma_clone_xfer(struct rddma_xfer_param *new, struct rddma_xfer_param *old);
+extern void rddma_clean_desc(struct rddma_desc_param *);
+extern void rddma_clean_xfer(struct rddma_xfer_param *);
 
 #endif	/* RDDMA_PARSE_H */
