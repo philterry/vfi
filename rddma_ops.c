@@ -300,6 +300,31 @@ out:
 	return ret;
 }
 
+static int valid_extents(struct rddma_xfer_param *x)
+{
+	if ( x->xfer.extent == 0 && x->bind.dst.extent == 0 && x->bind.src.extent == 0 )
+		return 0;
+
+	if (x->bind.dst.extent == 0 && x->bind.src.extent == 0) {
+		x->bind.dst.extent = x->bind.src.extent = x->xfer.extent;
+		return 1;
+	}
+	
+	if (x->bind.dst.extent == 0)
+		x->bind.dst.extent = x->bind.src.extent;
+
+	if (x->bind.src.extent == 0)
+		x->bind.src.extent = x->bind.dst.extent;
+
+	if (x->xfer.extent == 0)
+		x->xfer.extent = x->bind.dst.extent;
+
+	if (x->xfer.extent != x->bind.dst.extent || x->xfer.extent != x->bind.src.extent || x->bind.dst.extent != x->bind.src.extent)
+		return 0;
+
+	return 1;
+}
+
 /**
  * xfer_create - Creates the named transfer bind component.
  *
@@ -319,6 +344,11 @@ static int xfer_create(const char *desc, char *result, int size)
 	struct rddma_xfer_param params;
 
 	if ( (ret = rddma_parse_xfer(&params, desc)) )
+		goto out;
+
+	ret = -EINVAL;
+
+	if ( !valid_extents(&params) )
 		goto out;
 
 	ret = -ENODEV;

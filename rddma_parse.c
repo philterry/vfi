@@ -127,7 +127,7 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	char *soffset=NULL;
 	char *ops;
 	int i;
-	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s %s\n",__FUNCTION__,d,desc,d->orig_desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
 	d->extent = 0;
 	d->offset = 0;
 	d->location = NULL;
@@ -195,7 +195,6 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
 	if ( (mydesc = rddma_str_dup(desc)) ) {
-		d->orig_desc = desc;
 		if ( (ret = _rddma_parse_desc(d,mydesc)) )
 			kfree(mydesc);
 	}
@@ -248,10 +247,12 @@ int rddma_parse_xfer(struct rddma_xfer_param *x, const char *desc)
 
 int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
  {
-	int ret = -EINVAL;
-	if (old->orig_desc) {
-		RDDMA_DEBUG((RDDMA_DBG_PARSE | RDDMA_DBG_DEBUG),"%s entered with %s\n",__FUNCTION__, old->orig_desc);
-		ret = rddma_parse_desc(new,old->orig_desc);
+	int ret = -ENOMEM;
+	RDDMA_DEBUG((RDDMA_DBG_PARSE | RDDMA_DBG_DEBUG),"%s \n",__FUNCTION__);
+	*new = *old;
+	if ( (new->name = rddma_str_dup(old->name)) ) {
+		new->location = strchr(new->name, '.');
+		return 0;
 	}
 	return ret;
 }

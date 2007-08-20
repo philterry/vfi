@@ -148,7 +148,7 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	struct rddma_smb *dsmb = NULL;
 	struct rddma_location *sloc = NULL;
 	struct rddma_dst *new = NULL;
-	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,params.bind.dst.orig_desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	if ( NULL == (dsmb = find_rddma_smb(&desc->bind.dst)) )
 		goto fail_dsmb;

@@ -28,7 +28,7 @@
 #define START_OFFSET(b,d) (((b)->offset + (d)->offset) & PAGE_MASK)
 #define START_SIZE(b,d) (PAGE_SIZE - START_OFFSET((b),(d)))
 
-#define DESC_VALID(b,d) (((d)->offset + (d)->extent) < (b)->extent)
+#define DESC_VALID(b,d) (((d)->offset + (d)->extent) <= (b)->extent)
 
 struct rddma_smb {
 	struct rddma_desc_param desc;

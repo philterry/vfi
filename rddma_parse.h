@@ -56,7 +56,6 @@ struct rddma_desc_param {
 	char *rest;		/* var[=val][,var[=val]]* */
 /* rest is aliased as query[RDDMA_MAX_QUERY_STRINGS] in the parse routine! Naughty code! */
 /* private: */
-	const char *orig_desc;
 	struct rddma_ops *ops;
 	struct rddma_dma_ops *dma_ops;
 	struct rddma_fabric_address *address;
