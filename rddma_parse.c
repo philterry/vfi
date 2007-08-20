@@ -127,7 +127,7 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	char *soffset=NULL;
 	char *ops;
 	int i;
-	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s %s\n",__FUNCTION__,d,desc,d->orig_desc);
 	d->extent = 0;
 	d->offset = 0;
 	d->location = NULL;
@@ -247,12 +247,11 @@ int rddma_parse_xfer(struct rddma_xfer_param *x, const char *desc)
 
 
 int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
-{
+ {
 	int ret = -EINVAL;
 	if (old->orig_desc) {
 		RDDMA_DEBUG((RDDMA_DBG_PARSE | RDDMA_DBG_DEBUG),"%s entered with %s\n",__FUNCTION__, old->orig_desc);
-		if ( !(ret = rddma_parse_desc(new,old->orig_desc)) ) 
-			new->orig_desc = NULL;
+		ret = rddma_parse_desc(new,old->orig_desc);
 	}
 	return ret;
 }

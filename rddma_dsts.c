@@ -125,7 +125,7 @@ struct rddma_dsts *new_rddma_dsts(struct rddma_xfer_param *params, struct rddma_
 	kfree(buf);
 	new->kset.kobj.ktype = &rddma_dsts_type;
 	new->kset.uevent_ops = &rddma_dsts_uevent_ops;
-	new->kset.kobj.kset = &parent->dsts->kset;
+	new->kset.kobj.parent = &parent->kobj;
 
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;

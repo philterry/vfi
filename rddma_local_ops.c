@@ -140,36 +140,6 @@ static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, st
 	return xfer;
 }
 
-static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, struct rddma_xfer_param *desc, char *name, ...)
-{
-	struct rddma_dsts *dsts = NULL;
-	va_list ap;
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	
-	if (NULL == parent->dsts) {
-		va_start(ap,name);
-		dsts = rddma_dsts_create_ap(parent,desc,name,ap);
-		va_end(ap);
-
-		if (NULL == dsts ) 
-			goto out;
-
-		parent->dsts = dsts;
-	}
-
-	if ( NULL == rddma_dst_create(parent,desc))
-		goto fail_dst;
-
-	rddma_bind_load_dsts(parent);
-
-	return parent->dsts;
-
-fail_dst:
-	rddma_dsts_delete(dsts);
-out:
-	return NULL;
-}
-
 static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struct rddma_xfer_param *desc)
 {
 	int page, first_page, last_page;
@@ -178,7 +148,7 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	struct rddma_smb *dsmb = NULL;
 	struct rddma_location *sloc = NULL;
 	struct rddma_dst *new = NULL;
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,params.bind.dst.orig_desc);
 
 	if ( NULL == (dsmb = find_rddma_smb(&desc->bind.dst)) )
 		goto fail_dsmb;
@@ -219,6 +189,36 @@ fail_sdesc:
 fail_ddesc:
 	rddma_smb_put(dsmb);
 fail_dsmb:
+	return NULL;
+}
+
+static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, struct rddma_xfer_param *desc, char *name, ...)
+{
+	struct rddma_dsts *dsts = NULL;
+	va_list ap;
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	
+	if (NULL == parent->dsts) {
+		va_start(ap,name);
+		dsts = rddma_dsts_create_ap(parent,desc,name,ap);
+		va_end(ap);
+
+		if (NULL == dsts ) 
+			goto out;
+
+		parent->dsts = dsts;
+	}
+
+	if ( NULL == rddma_local_dst_create(parent,desc))
+		goto fail_dst;
+
+	rddma_bind_load_dsts(parent);
+
+	return parent->dsts;
+
+fail_dst:
+	rddma_dsts_delete(dsts);
+out:
 	return NULL;
 }
 

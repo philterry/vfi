@@ -116,7 +116,7 @@ struct rddma_binds *new_rddma_binds(char *name, struct rddma_xfer *parent)
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &rddma_binds_type;
     new->kset.uevent_ops = &rddma_binds_uevent_ops;
-    new->kset.kobj.kset = &parent->binds->kset;
+    new->kset.kobj.parent = &parent->kobj;
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
     return new;

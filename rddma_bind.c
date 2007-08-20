@@ -126,15 +126,7 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_xfer_p
 
 int rddma_bind_register(struct rddma_bind *rddma_bind)
 {
-    int ret = 0;
-
-    if ( (ret = kobject_register(&rddma_bind->kobj) ) )
-	goto out;
-
-      return ret;
-
-out:
-    return ret;
+	return kobject_register(&rddma_bind->kobj);
 }
 
 void rddma_bind_unregister(struct rddma_bind *rddma_bind)
@@ -156,18 +148,10 @@ struct rddma_bind *find_rddma_bind(struct rddma_xfer_param *desc)
 struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_xfer_param *desc)
 {
 	struct rddma_bind *new = new_rddma_bind(xfer,desc);
-	if (NULL == new)
-		goto out;
-
-	if (rddma_bind_register(new))
-		goto fail_reg;
-
+	if (new)
+		if (rddma_bind_register(new))
+			return NULL;
 	return new;
-
-fail_reg:
-	rddma_bind_put(new);
-out:	
-	return NULL;
 }
 
 void rddma_bind_delete(struct rddma_bind *bind)
