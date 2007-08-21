@@ -18,15 +18,15 @@
 #include <linux/rddma_dsts.h>
 #include <linux/rddma_srcs.h>
 
-#define CLEAN_START(b,d) ((((b)->offset +(d)->offset) & PAGE_MASK) ? 1 : 0)
-#define CLEAN_END(b,d) ((((b)->offset + (d)->offset + (d)->extent) & PAGE_MASK) ? 1 : 0)
-#define CLEAN_SHIFT(b,d) (CLEAN_START((b),(d)) ? 0 : 1)
-#define NUM_DMA(b,d) ((((d)->extent >> PAGE_SHIFT) << CLEAN_SHIFT((b),(d))) \
-		      + CLEAN_START((b),(d)) + CLEAN_END((b),(d)))
+#define DIRTY_START(b,d) ((((b)->offset +(d)->offset) & ~PAGE_MASK) ? 1 : 0)
+#define DIRTY_END(b,d) ((((b)->offset + (d)->offset + (d)->extent) & ~PAGE_MASK) ? 1 : 0)
+#define DIRTY_SHIFT(b,d) (DIRTY_START((b),(d)) ? 1 : 0)
+#define NUM_DMA(b,d) ((((d)->extent >> PAGE_SHIFT) << DIRTY_SHIFT((b),(d))) \
+		      + DIRTY_START((b),(d)) + DIRTY_END((b),(d)))
 
 #define START_PAGE(b,d) (((b)->offset + (d)->offset)>>PAGE_SHIFT)
-#define START_OFFSET(b,d) (((b)->offset + (d)->offset) & PAGE_MASK)
-#define START_SIZE(b,d) (PAGE_SIZE - START_OFFSET((b),(d)))
+#define START_OFFSET(b,d) (((b)->offset + (d)->offset) & ~PAGE_MASK)
+#define START_SIZE(b,d) ({int _avail = (PAGE_SIZE - START_OFFSET((b),(d))); _avail > (d)->extent ? (d)->extent : _avail;})
 
 #define DESC_VALID(b,d) (((d)->offset + (d)->extent) <= (b)->extent)
 

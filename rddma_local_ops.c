@@ -171,7 +171,7 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 
 	params.bind.dst.offset = START_OFFSET(&dsmb->desc, &desc->bind.dst);
 	params.bind.src.extent = params.bind.dst.extent = START_SIZE(&dsmb->desc, &desc->bind.dst);
-	
+	RDDMA_DEBUG(MY_DEBUG,"%s %x %x %llx %x %lx\n",__FUNCTION__,first_page,last_page,params.bind.dst.offset,params.bind.dst.extent,PAGE_MASK);
 	for (page=first_page; page < last_page; page++) {
 		params.bind.dst.offset += (unsigned long)page_address(dsmb->pages[page]);
 		new = rddma_dst_create(parent,&params);
@@ -243,14 +243,14 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 
 	params.bind.src.offset = START_OFFSET(&smb->desc, &desc->bind.src);
 	params.bind.src.extent = START_SIZE(&smb->desc, &desc->bind.src);
-	
+	RDDMA_DEBUG(MY_DEBUG,"%s %x %x %llx %x\n",__FUNCTION__,first_page,last_page,params.bind.src.offset,params.bind.src.extent);
 	for (page=first_page; page < last_page; page++) {
 		params.bind.src.offset += (unsigned long)page_address(smb->pages[page]);
 		src = parent->desc.dst.ops->src_create(parent,&params);
 		params.bind.src.offset = 0;
 		params.bind.src.extent = PAGE_SIZE;
 	}
-	rddma_dst_load_srcs(parent);
+	/*rddma_dst_load_srcs(parent);*/
 	return srcs;
 }
 
