@@ -233,7 +233,7 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	struct rddma_xfer_param params = *desc;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	srcs = rddma_srcs_create(parent,desc);
+	parent->srcs = srcs = rddma_srcs_create(parent,desc);
 	smb = find_rddma_smb(&desc->bind.src);
 
 	first_page = START_PAGE(&smb->desc,&desc->bind.src);
@@ -258,7 +258,7 @@ static struct rddma_src *rddma_local_src_create(struct rddma_dst *parent, struct
 {
 /* 	src_create://tp.x:2000/d.p#uuuuu000:800=s.r#xxxxx800:800 */
 	struct rddma_src *src;
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s %s#%llx:%x\n",__FUNCTION__,desc->bind.src.name, desc->bind.src.offset,desc->bind.src.extent);
 
 	src = rddma_src_create(parent,desc);
 

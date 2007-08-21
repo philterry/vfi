@@ -741,7 +741,7 @@ out:
 }
 
 /**
- * src_create - Creates named source componenet
+ * src_create - Creates named source component
  *
  * @desc: Null terminated string with parameters of operation
  * @result:Pointer to buffer to hold result string

@@ -131,7 +131,7 @@ struct rddma_src *new_rddma_src(struct rddma_dst *parent, struct rddma_xfer_para
 	new->kobj.kset = &parent->srcs->kset;
 	new->desc.src.ops = parent->desc.src.ops;
 out:
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p %p\n",__FUNCTION__,new,parent->srcs);
 	return new;
 }
 
@@ -164,6 +164,7 @@ struct rddma_src *find_rddma_src(struct rddma_desc_param *desc, struct rddma_dst
 struct rddma_src *rddma_src_create(struct rddma_dst *parent, struct rddma_xfer_param *desc)
 {
 	struct rddma_src *new = new_rddma_src(parent,desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,new);
 
 	if (NULL == new)
 		goto out;
