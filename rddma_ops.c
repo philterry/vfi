@@ -454,6 +454,7 @@ out:
 	return ret;
 }
 
+#if 0
 /**
  * xfer_delete - Deletes the named transfer bind component
  *
@@ -491,6 +492,49 @@ out:
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.xfer.name,ret,rddma_get_option(&params.xfer,"request"));
 
 	rddma_clean_xfer(&params);
+
+	return ret;
+}
+#endif
+
+/**
+ * xfer_delete - Deletes the named transfer bind component
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int xfer_delete(const char *desc, char *result, int size)
+{
+	int ret = -ENOMEM;
+	struct rddma_location *loc;
+	struct rddma_desc_param params;
+
+	if ( (ret = rddma_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+
+	if ( (loc = find_rddma_location(&params) ) ) {
+		ret = -EINVAL;
+		if ( loc->desc.ops && loc->desc.ops->xfer_delete ) {
+			ret = 0;
+			loc->desc.ops->xfer_delete(loc, &params);
+		}
+	}
+
+
+	rddma_location_put(loc);
+
+out:
+	if (result) 
+		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
+
+	rddma_clean_desc(&params);
 
 	return ret;
 }

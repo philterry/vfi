@@ -47,9 +47,9 @@ static struct rddma_smb *rddma_local_smb_find(struct rddma_location *parent, str
 	return smb;
 }
 
-static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, struct rddma_xfer_param *desc)
+static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, struct rddma_desc_param *desc)
 {
-	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&parent->xfers->kset,desc->xfer.name));
+	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&parent->xfers->kset,desc->name));
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,xfer);
 	return xfer;
 }
@@ -309,10 +309,18 @@ static void rddma_local_smb_delete(struct rddma_location *loc, struct rddma_desc
 	}
 }
 
-static void rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_xfer_param *desc)
+static int rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
+	struct rddma_xfer *xfer;
+	int ret = -EINVAL;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	rddma_xfer_delete(rddma_local_xfer_find(loc,desc));
+	xfer = rddma_local_xfer_find(loc,desc);
+	if (xfer) {
+		kobject_put(&xfer->kobj);
+		rddma_xfer_delete(xfer);
+		ret = 0;
+	}
+	return ret;
 }
 
 static void rddma_local_dst_delete(struct rddma_bind *parent, struct rddma_xfer_param *desc)
