@@ -11,6 +11,7 @@ rddma-objs := \
                  rddma_dma.o \
                  rddma_cdev.o \
               rddma_parse.o \
+              rddma_dump.o \
               rddma_ops.o \
                    rddma_fabric_ops.o \
                    rddma_local_ops.o \

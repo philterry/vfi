@@ -100,7 +100,7 @@ RDDMA_DST_ATTR(extent, 0644, rddma_dst_extent_show,0);
 
 static ssize_t rddma_dst_offset_show(struct rddma_dst *rddma_dst, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%llx\n",rddma_dst->desc.dst.offset);
+	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_dst->desc.dst.offset);
 }
 
 RDDMA_DST_ATTR(offset, 0644, rddma_dst_offset_show, 0);
@@ -128,7 +128,7 @@ struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_xfer_par
 
 	rddma_clone_bind(&new->desc, &desc->bind);
 	new->kobj.ktype = &rddma_dst_type;
-	kobject_set_name(&new->kobj,"%s#%llx:%x", new->desc.dst.name,new->desc.dst.offset, new->desc.dst.extent);
+	kobject_set_name(&new->kobj,"%s#%x:%x", new->desc.dst.name,new->desc.dst.offset, new->desc.dst.extent);
 
 	new->kobj.kset = &parent->dsts->kset;
 	new->desc.dst.ops = parent->desc.dst.ops;

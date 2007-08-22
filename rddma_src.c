@@ -98,7 +98,7 @@ RDDMA_SRC_ATTR(extent, 0644, rddma_src_extent_show, 0);
 
 static ssize_t rddma_src_offset_show(struct rddma_src *rddma_src, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%llx\n",rddma_src->desc.src.offset);
+	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_src->desc.src.offset);
 }
 
 RDDMA_SRC_ATTR(offset, 0644, rddma_src_offset_show, 0);
@@ -126,7 +126,7 @@ struct rddma_src *new_rddma_src(struct rddma_dst *parent, struct rddma_xfer_para
 
 	rddma_clone_bind(&new->desc, &desc->bind);
 	new->kobj.ktype = &rddma_src_type;
-	kobject_set_name(&new->kobj,"%s#%llx:%x",new->desc.src.name, new->desc.src.offset, new->desc.src.extent);
+	kobject_set_name(&new->kobj,"%s#%x:%x",new->desc.src.name, new->desc.src.offset, new->desc.src.extent);
 
 	new->kobj.kset = &parent->srcs->kset;
 	new->desc.src.ops = parent->desc.src.ops;
@@ -158,7 +158,7 @@ void rddma_src_unregister(struct rddma_src *rddma_src)
 struct rddma_src *find_rddma_src(struct rddma_desc_param *desc, struct rddma_dst *parent)
 {
 	char name[128];
-	sprintf(name,"#%llx:%x",desc->offset,desc->extent);
+	sprintf(name,"#%x:%x",desc->offset,desc->extent);
 	return to_rddma_src(kset_find_obj(&parent->srcs->kset, name));
 }
 

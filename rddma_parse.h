@@ -48,7 +48,7 @@
 struct rddma_desc_param {
 	char *name;
 	char *location;
-	u64 offset;
+	/* u64 */ int offset;
 	unsigned int extent;
 #define RDDMA_MAX_QUERY_STRINGS 5
 /* DO NOT SEPERATE THE FOLLOWING TWO LINES */

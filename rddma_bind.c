@@ -82,7 +82,7 @@ static struct sysfs_ops rddma_bind_sysfs_ops = {
 
 static ssize_t rddma_bind_offset_show(struct rddma_bind *rddma_bind, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%llx\n",rddma_bind->desc.dst.offset);
+	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_bind->desc.dst.offset);
 }
 
 RDDMA_BIND_ATTR(offset, 0644, rddma_bind_offset_show, 0);
@@ -114,7 +114,7 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_xfer_p
 	return new;
 
     rddma_clone_bind(&new->desc, &desc->bind);
-    kobject_set_name(&new->kobj,"%s#%llx:%x", desc->xfer.name, desc->xfer.offset,desc->xfer.extent);
+    kobject_set_name(&new->kobj,"%s#%x:%x", desc->xfer.name, desc->xfer.offset,desc->xfer.extent);
     new->kobj.ktype = &rddma_bind_type;
 
     new->kobj.kset = &parent->binds->kset;
