@@ -454,49 +454,6 @@ out:
 	return ret;
 }
 
-#if 0
-/**
- * xfer_delete - Deletes the named transfer bind component
- *
- * @desc: Null terminated string with parameters of operation
- * @result:Pointer to buffer to hold result string
- * @size: Maximum size of result buffer.
- * returns the number of characters written into result (not including
- * terminating null) or negative if an error.
- * Passing a null result pointer is valid if you only need the success
- * or failure return code.
- */
-static int xfer_delete(const char *desc, char *result, int size)
-{
-	int ret = -ENOMEM;
-	struct rddma_location *location;
-	struct rddma_xfer_param params;
-
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
-		goto out;
-
-	ret = -ENODEV;
-
-	if ( (location = find_rddma_location(&params.xfer) ) ) {
-		ret = -EINVAL;
-		if ( location->desc.ops && location->desc.ops->xfer_delete ) {
-			ret = 0;
-			location->desc.ops->xfer_delete(location, &params);
-		}
-	}
-
-	rddma_location_put(location);
-
-out:
-	if (result) 
-		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.xfer.name,ret,rddma_get_option(&params.xfer,"request"));
-
-	rddma_clean_xfer(&params);
-
-	return ret;
-}
-#endif
-
 /**
  * xfer_delete - Deletes the named transfer bind component
  *
@@ -522,11 +479,9 @@ static int xfer_delete(const char *desc, char *result, int size)
 	if ( (loc = find_rddma_location(&params) ) ) {
 		ret = -EINVAL;
 		if ( loc->desc.ops && loc->desc.ops->xfer_delete ) {
-			ret = 0;
-			loc->desc.ops->xfer_delete(loc, &params);
+			ret = loc->desc.ops->xfer_delete(loc, &params);
 		}
 	}
-
 
 	rddma_location_put(loc);
 
@@ -555,14 +510,14 @@ static int xfer_find(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_location *location;
-	struct rddma_xfer_param params;
+	struct rddma_desc_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
 
-	if ( (location = find_rddma_location(&params.xfer)) ) {
+	if ( (location = find_rddma_location(&params)) ) {
 		ret = -EINVAL;
 		if (location->desc.ops && location->desc.ops->xfer_find)
 			ret = ((xfer = location->desc.ops->xfer_find(location,&params)) == NULL);
@@ -577,12 +532,12 @@ out:
 				       xfer->desc.xfer.name, xfer->desc.xfer.offset, xfer->desc.xfer.extent,
 				       xfer->desc.bind.dst.name, xfer->desc.bind.dst.offset, xfer->desc.bind.dst.extent,
 				       xfer->desc.bind.src.name, xfer->desc.bind.src.offset, xfer->desc.bind.src.extent,
-				       ret,rddma_get_option(&params.xfer,"request"));
+				       ret,rddma_get_option(&params,"request"));
 		else 
-				ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
+				ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret,rddma_get_option(&params,"request"));
 	}
 
-	rddma_clean_xfer(&params);
+	rddma_clean_desc(&params);
 
 	return ret;
 }
