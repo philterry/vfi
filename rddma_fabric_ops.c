@@ -234,6 +234,16 @@ static struct rddma_location *rddma_fabric_location_create(struct rddma_location
 	return newloc;
 }
 
+/**
+* rddma_fabric_smb_create - create SMB at remote location
+* @loc
+* @desc
+*
+* This function implements "smb_create" when the specified location
+* for the buffer is some other node on the RDDMA network, reachable
+* through the interconnect fabric.
+*
+**/
 static struct rddma_smb *rddma_fabric_smb_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;

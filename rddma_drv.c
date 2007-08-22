@@ -26,6 +26,7 @@
 #include <linux/rddma_bus.h>
 #include <linux/rddma_cdev.h>
 #include <linux/rddma_fabric.h>
+#include <linux/rddma_mmap.h>
 
 int rddma_major = 0;
 int rddma_minor = 0;
@@ -65,6 +66,8 @@ static int  __init rddma_init(void)
 
 	if ( (ret = rddma_cdev_register(rddma_subsys)) )
 		goto cdev_fail;
+	
+	rddma_mmap_tickets_init ();
 
 	return 0;
 

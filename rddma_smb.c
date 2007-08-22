@@ -181,6 +181,19 @@ struct rddma_smb *find_rddma_smb(struct rddma_desc_param *desc)
 	return smb;
 }
 
+/**
+* rddma_smb_create : Create RDDMA SMB kobject and isntall it in sysfs
+*
+* @loc:  pointer to rddma_location that specifies where the SMB is located
+*        in the RDDMA network
+* @desc: pointer to command string descriptor for the command we are 
+*        servicing.
+*
+* This function creates a kobject to represent a new RDDMA shared-memory 
+* buffer (SMB) and installs it in the RDDMA sysfs tree. It does NOT create
+* the SMB itself.
+*
+**/
 struct rddma_smb *rddma_smb_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_smb *smb = new_rddma_smb(loc,desc);

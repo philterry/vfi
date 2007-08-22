@@ -20,9 +20,11 @@
 #include <linux/list.h>
 #include <linux/kobject.h>
 #include <linux/sched.h>
+#include <linux/mm.h>
 
 #include <linux/rddma_drv.h>
 #include <linux/rddma_ops.h>
+#include <linux/rddma_mmap.h>
 #include <linux/version.h>
 
 struct mybuffers {
@@ -122,7 +124,7 @@ static ssize_t rddma_aio_read(struct kiocb * iocb, const struct iovec *iovs, uns
 static ssize_t rddma_real_write(struct mybuffers *mybuf, size_t count, loff_t *offset)
 {
 	int ret;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered count=%d\n",__FUNCTION__, count);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered count=%d\n",__FUNCTION__, (int)count);
 	ret = do_operation(mybuf->buf, mybuf->reply, 1024-sizeof(struct mybuffers));
 
 	if ( ret < 0 ) {
@@ -358,6 +360,123 @@ static unsigned int rddma_poll(struct file *filep, struct poll_table_struct *pol
 	return 0;
 }
 
+/**
+* rddma_mmap_nopage - lookup page table entry for virtual mapping
+* @vma     - virtual memory area descriptor
+* @address - virtual address to be mapped
+* @type    - type flags
+*
+* This function is invoked as a "nopage" op by the virtual memory 
+* mapping subsystem, typically in response to page faults on virtual
+* addresses that have been mmapped onto RDDMA SMBs. Its job is to 
+* return a page table entry that a given virtual address is mapped
+* to. 
+*
+* The @vma structure for RDDMA mappings will point to private data
+* written earlier by rddma_mmap (). That takes the form of an mmap
+* ticket that points the page table associated with this area. This
+* function uses @address to calculate a page offset within the mapping, 
+* and to return a pointer to the page table entry for that page.
+*
+**/
+static struct page* rddma_mmap_nopage (struct vm_area_struct* vma, unsigned long address, int *type)
+{
+	struct rddma_mmap_ticket* tkt = (struct rddma_mmap_ticket *)vma->vm_private_data;
+	unsigned long pg_off = (address - vma->vm_start) >> PAGE_SHIFT;
+#if 0
+	RDDMA_DEBUG (MY_DEBUG, "## rddma_mmap_nopage (%p, %lu, %p)\n", vma, address, type);
+	if (tkt) {
+		RDDMA_DEBUG (MY_DEBUG, "-- Original Ticket#%lu, %lu-pages, page table @ %p\n", tkt->t_id, tkt->n_pg, tkt->pg_tbl);
+		RDDMA_DEBUG (MY_DEBUG, "-- Map page %lu of %lu\n", pg_off+1, tkt->n_pg);
+	}
+	else {
+		RDDMA_DEBUG (MY_DEBUG, "xx Invalid ticket!\n");
+	}
+#endif
+	return ((!tkt || pg_off >= tkt->n_pg) ? NULL : tkt->pg_tbl[pg_off]);
+	
+}
+
+static struct vm_operations_struct vm_ops = {
+	.nopage = rddma_mmap_nopage, 
+};
+
+/**
+* rddma_mmap - map RDDMA resources into user virtual memory.
+*
+* @filep: device file pointer
+* @vma:   virtual memory area descriptor for pages to be mapped
+*
+* This function implements the "mmap" service for RDDMA. Its job
+* is to map all of part of a subsidiary RDDMA memory construct into 
+* user virtual address space. The @vma structure describes what is
+* to be mapped, and where in virtual memory it is to be mapped to.
+*
+* Well, sort of.
+*
+* Hack Attack
+* -----------
+* RDDMA does not sit well with the traditional model of device-file
+* that mmap expects: it does not possess a unified page table but, 
+* rather, manages a disjoint and dynamic collection of local and 
+* remote memory objects that each have their own. What that means 
+* is that page offsets quoted in mmap calls, which arrive here as
+* @vma->vm_pgoff, can not, in fact, be page offsets at all, but 
+* must instead be "ticket" identifiers obtained from "smb_mmap" or
+* other "_mmap" requests issued to the driver beforehand. Those 
+* requests identify page tables and validate mapping requests in
+* advance, and leave the results cued in a ticket table that this
+* mmap handler can use afterwards. 
+*
+**/
+static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
+{
+	struct privdata* priv = (struct privdata*)filep->private_data;
+	struct rddma_mmap_ticket* tkt;
+	u32 req_size;
+	RDDMA_DEBUG (MY_DEBUG, "** RDDMA_MMAP *******\n");
+	
+	/*
+	* Use mmap page offset to locate a ticket created earlier.
+	* This ticket tells us what we really need to map to.
+	*/
+	tkt = rddma_mmap_find_ticket (vma->vm_pgoff);
+	if (!tkt) {
+		RDDMA_DEBUG (MY_DEBUG, "xx Could not locate suitable mmap ticket!\n");
+		return -EINVAL;
+	}
+	
+	/*
+	* Check that the virtual address range fits inside
+	* our target area.
+	*/
+	req_size = vma->vm_end - vma->vm_start; 
+	if ((req_size >> PAGE_SHIFT) > tkt->n_pg) {
+		RDDMA_DEBUG (MY_DEBUG, "xx Required area too big! (%lu > %lu)\n", 
+			(req_size >> PAGE_SHIFT), tkt->n_pg);
+		return (-EINVAL);
+	}
+	
+	if (vma->vm_private_data) {
+		RDDMA_DEBUG (MY_DEBUG, KERN_WARNING "xx Rddma mmap: vma has private data already!\n");
+		return (-EINVAL);
+	}
+	
+	/*
+	* Copy the ticket into the vma as private data, and
+	* erase the original.
+	*/
+	vma->vm_private_data = kmalloc (sizeof (struct rddma_mmap_ticket), GFP_KERNEL);
+	memcpy (vma->vm_private_data, tkt, sizeof (struct rddma_mmap_ticket));
+	rddma_mmap_stamp_ticket (vma->vm_pgoff);
+	vma->vm_pgoff = 0;
+	vma->vm_ops = &vm_ops;
+	tkt = (struct rddma_mmap_ticket*)vma->vm_private_data;
+	RDDMA_DEBUG (MY_DEBUG, "-- Set-up ticket for nopage, t_id#%lu, %lu pages, page table @ %p\n", 
+		     tkt->t_id, tkt->n_pg, tkt->pg_tbl);
+	return 0;
+}
+
 static int rddma_open(struct inode *inode, struct file *filep)
 {
 	struct privdata *priv = kzalloc(sizeof(struct privdata), GFP_KERNEL);
@@ -403,6 +522,7 @@ struct file_operations rddma_file_ops = {
 /* 	.aio_fsync = rddma_aio_fsync, */
 /* 	.fasync = rddma_fasync, */
 	.poll = rddma_poll,
+	.mmap = rddma_mmap, 
 	.open = rddma_open,
 	.release = rddma_release,
 };

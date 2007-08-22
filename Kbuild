@@ -25,6 +25,7 @@ rddma-objs := \
                                             rddma_dsts.o \
                                                  rddma_dst.o \
                                                       rddma_srcs.o \
-                                                           rddma_src.o 
+                                                           rddma_src.o \
+		rddma_mmap.o
 
 

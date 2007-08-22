@@ -221,6 +221,20 @@ struct rddma_location *find_rddma_name(struct rddma_desc_param *params)
 	return to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name));
 }
 
+/**
+* find_rddma_location - find, or create, a named location on the RDDMA network.
+*
+* @params: pointer to command string descriptor for the command we are 
+*          currently servicing.
+* 
+* This function attempts to find an RDDMA kobject that represents a specified
+* network location - whose name is cited in the @params command string - and 
+* returns the address of an rddma_location structure that describes that location.
+* 
+* If no such kobject can be found, the function will create one, with all 
+* necessary accoutrements, using rddma_location_create ().
+*
+**/
 struct rddma_location *find_rddma_location(struct rddma_desc_param *params)
 {
 	struct rddma_location *loc;

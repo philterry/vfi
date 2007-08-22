@@ -20,6 +20,7 @@
 #include <linux/rddma_dst.h>
 #include <linux/rddma_xfer.h>
 #include <linux/rddma_bind.h>
+#include <linux/rddma_mmap.h>
 
 #include <linux/device.h>
 
@@ -323,6 +324,80 @@ static int valid_extents(struct rddma_xfer_param *x)
 		return 0;
 
 	return 1;
+}
+
+/**
+ * smb_mmap - Create mapping descriptor for mmap
+ *
+ * @desc:   Null-terminated string with parameters of operation
+ * @result: Pointer to buffer to contain result string
+ * @size:   Maximum size of result buffer
+ *
+ * This function services "smb_mmap" requests, whose job is to prepare
+ * an mmap ticket that can be used to map user virtual memory to
+ * all or part of a specified SMB. Ticketing is a scheme that allows
+ * SMBs to be mmaped using indirect references to pre-stored "tickets"
+ * that have identified the SMB and its page table in advance: something
+ * an mmap call can't do. 
+ *
+ * Offset and extent fields in the command string will be taken 
+ * into account when constructing the ticket - although extent
+ * is only advisory. Any offset value will resolve to a page offset,
+ * and will affect the page table address and table size values
+ * written in the ticket. 
+ *
+ * The function writes the ticket number into the reply string as
+ * "reply=<ticket>". Users should use that number as the offset argument
+ * in an mmap call to the rddma device. See rddma_cdev.c::rddma_mmap()
+ * for what happens next.
+ *
+ */
+static int smb_mmap (const char* desc, char* result, int size)
+{
+	int ret = -ENOMEM;
+	struct rddma_smb *smb = NULL;
+	struct rddma_location *loc;
+	struct rddma_desc_param params;
+	unsigned long ticket_id = 0;
+	
+	if ( (ret = rddma_parse_desc(&params, desc)) )
+		goto out;
+
+	if (params.offset % PAGE_SIZE) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = -ENODEV;
+
+	if ( (loc = find_rddma_location(&params)) ) {
+		ret = -EINVAL;
+		
+		if (loc->desc.ops && loc->desc.ops->smb_find) {
+			ret = ((smb = loc->desc.ops->smb_find(loc,&params)) == NULL);
+			if (smb) {
+				ticket_id = rddma_mmap_create (smb->pages, smb->num_pages, params.offset, params.extent);
+				ret = (!ticket_id);
+			}
+		}
+	}
+
+	rddma_location_put(loc);
+
+out:		
+	if (result) {
+		if (smb) {
+			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%ld\n",
+					smb->desc.name, smb->desc.offset, smb->desc.extent, ret, ticket_id);
+		}
+		else {
+			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
+		}
+	}
+	
+	rddma_clean_desc(&params);
+
+	return ret;
 }
 
 /**
@@ -1004,6 +1079,7 @@ static struct ops {
 	{"smb_create", smb_create},
 	{"smb_delete", smb_delete},
 	{"smb_find", smb_find},
+	{"smb_mmap", smb_mmap}, 
 	{"xfer_create", xfer_create},
 	{"xfer_delete", xfer_delete},
 	{"xfer_find", xfer_find},
