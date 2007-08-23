@@ -119,6 +119,8 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_xfer_p
 
     new->kobj.kset = &parent->binds->kset;
     new->desc.dst.ops = parent->desc.xfer.ops;
+    new->desc.dst.rde = parent->desc.xfer.rde;
+    new->desc.src.rde = parent->desc.xfer.rde;
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
     return new;
@@ -172,7 +174,7 @@ void rddma_bind_load_dsts(struct rddma_bind *bind)
 			continue;
 		}
 		dst2 = to_rddma_dst(to_kobj(entry));
-		dst1->desc.dst.dma_ops->link_dst(dst1,dst2);
+		dst1->desc.dst.rde->ops->link_dst(dst1,dst2);
 	}
 	spin_unlock(&bind->dsts->kset.list_lock);
 	bind->head_dst = dst1;
