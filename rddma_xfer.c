@@ -172,6 +172,7 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_xf
 
 	new->kobj.kset = &parent->xfers->kset;
 	new->desc.xfer.ops = parent->desc.ops;
+	new->desc.xfer.address = parent->desc.address;
 	new->desc.xfer.rde = parent->desc.rde;
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
@@ -219,7 +220,7 @@ struct rddma_xfer *find_rddma_xfer(struct rddma_xfer_param *desc)
 	loc = find_rddma_location(&desc->xfer);
 
 	if (loc) 
-		xfer = loc->desc.ops->xfer_find(loc,&desc->xfer);
+		xfer = loc->desc.ops->xfer_find(loc,desc);
 
 	rddma_location_put(loc);
 
@@ -256,6 +257,7 @@ void rddma_xfer_delete(struct rddma_xfer *xfer)
 
 void rddma_xfer_load_binds(struct rddma_xfer *xfer, struct rddma_bind *bind)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,xfer,bind);
 	if (xfer->head_bind) {
 		xfer->desc.xfer.rde-> ops->link_bind(xfer->head_bind, bind);
 	}

@@ -79,7 +79,13 @@ static struct sysfs_ops rddma_smb_sysfs_ops = {
 
 static ssize_t rddma_smb_default_show(struct rddma_smb *rddma_smb, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_smb_default");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("Smb %p is %s \n",rddma_smb,rddma_smb ? rddma_smb->desc.name : NULL);
+	if (rddma_smb) {
+		ATTR_PRINTF("ops is %p rde is %p address is %p\n",rddma_smb->desc.ops,rddma_smb->desc.rde,rddma_smb->desc.address);
+	}
+	return size;
 }
 
 static ssize_t rddma_smb_default_store(struct rddma_smb *rddma_smb, const char *buffer, size_t size)

@@ -426,13 +426,13 @@ static void rddma_fabric_smb_delete(struct rddma_location *loc, struct rddma_des
 	}
 }
 
-static void rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_xfer_param *desc)
+static int rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_xfer_param *desc)
 {
 	struct sk_buff  *skb;
 	struct rddma_xfer *xfer;
 
 	if (NULL == (xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->xfer.name))) )
-		return;
+		return -EINVAL;
 
 	skb = rddma_fabric_call(loc, 5, "xfer_delete://%s/%s=%s", desc->xfer.name,desc->bind.dst.name,desc->bind.src.name);
 	if (skb) {
@@ -445,6 +445,7 @@ static void rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_xf
 			kfree(reply.xfer.name);
 		}
 	}
+	return 0;
 }
 
 static void rddma_fabric_dst_delete(struct rddma_bind *parent, struct rddma_xfer_param *desc)

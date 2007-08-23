@@ -80,9 +80,24 @@ static struct sysfs_ops rddma_bind_sysfs_ops = {
 };
 
 
+static ssize_t rddma_bind_default_show(struct rddma_bind *rddma_bind, char *buffer)
+{
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("Bind %p is %s = %s \n",rddma_bind,rddma_bind->desc.dst.name, rddma_bind->desc.src.name);
+	if (rddma_bind) {
+		ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",rddma_bind->desc.dst.ops,rddma_bind->desc.dst.rde,rddma_bind->desc.dst.address);
+		ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",rddma_bind->desc.src.ops,rddma_bind->desc.src.rde,rddma_bind->desc.src.address);
+	}
+	return size;
+
+}
+
+RDDMA_BIND_ATTR(default, 0644, rddma_bind_default_show, 0);
+
 static ssize_t rddma_bind_offset_show(struct rddma_bind *rddma_bind, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_bind->desc.dst.offset);
+	return snprintf(buffer, PAGE_SIZE, "%llx\n",rddma_bind->desc.dst.offset);
 }
 
 RDDMA_BIND_ATTR(offset, 0644, rddma_bind_offset_show, 0);
@@ -97,6 +112,7 @@ RDDMA_BIND_ATTR(extent, 0644, rddma_bind_extent_show, 0);
 static struct attribute *rddma_bind_default_attrs[] = {
     &rddma_bind_attr_offset.attr,
     &rddma_bind_attr_extent.attr,
+    &rddma_bind_attr_default.attr,
     0,
 };
 
@@ -114,13 +130,10 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_xfer_p
 	return new;
 
     rddma_clone_bind(&new->desc, &desc->bind);
-    kobject_set_name(&new->kobj,"%s#%x:%x", desc->xfer.name, desc->xfer.offset,desc->xfer.extent);
+    kobject_set_name(&new->kobj,"%s#%llx:%x", desc->xfer.name, desc->xfer.offset,desc->xfer.extent);
     new->kobj.ktype = &rddma_bind_type;
 
     new->kobj.kset = &parent->binds->kset;
-    new->desc.dst.ops = parent->desc.xfer.ops;
-    new->desc.dst.rde = parent->desc.xfer.rde;
-    new->desc.src.rde = parent->desc.xfer.rde;
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
     return new;
@@ -167,15 +180,23 @@ void rddma_bind_load_dsts(struct rddma_bind *bind)
 
 	struct rddma_dst * dst1 = NULL; 
 	struct rddma_dst * dst2 = NULL; 
-	spin_lock(&bind->dsts->kset.list_lock);
-	list_for_each(entry,&bind->dsts->kset.list) {
-		if (NULL == dst1) {
-			dst1 = to_rddma_dst(to_kobj(entry));
-			continue;
+	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,bind);
+	if (bind->dsts) {
+		spin_lock(&bind->dsts->kset.list_lock);
+		if (!list_empty(&bind->dsts->kset.list)) {
+			list_for_each(entry,&bind->dsts->kset.list) {
+				if (NULL == dst1) {
+					dst1 = to_rddma_dst(to_kobj(entry));
+					RDDMA_DEBUG(MY_DEBUG,"%s dst1 %p\n",__FUNCTION__,dst1);
+					continue;
+				}
+				dst2 = to_rddma_dst(to_kobj(entry));
+				RDDMA_DEBUG(MY_DEBUG,"%s dst2 %p\n",__FUNCTION__,dst1);
+				dst1->desc.dst.rde->ops->link_dst(dst1,dst2);
+			}
 		}
-		dst2 = to_rddma_dst(to_kobj(entry));
-		dst1->desc.dst.rde->ops->link_dst(dst1,dst2);
+		spin_unlock(&bind->dsts->kset.list_lock);
 	}
-	spin_unlock(&bind->dsts->kset.list_lock);
+	RDDMA_DEBUG(MY_DEBUG,"%s head_dst %p\n",__FUNCTION__,dst1);
 	bind->head_dst = dst1;
 }

@@ -47,9 +47,9 @@ static struct rddma_smb *rddma_local_smb_find(struct rddma_location *parent, str
 	return smb;
 }
 
-static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, struct rddma_desc_param *desc)
+static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, struct rddma_xfer_param *desc)
 {
-	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&parent->xfers->kset,desc->name));
+	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&parent->xfers->kset,desc->xfer.name));
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,xfer);
 	return xfer;
 }
@@ -62,7 +62,7 @@ static struct rddma_bind *rddma_local_bind_find(struct rddma_xfer *parent, struc
 	if (NULL == buf)
 		goto out;
 
-	if ( 2048 <= snprintf(buf,2048,"%s#%x:%x",desc->xfer.name, desc->xfer.offset, desc->xfer.extent) )
+	if ( 2048 <= snprintf(buf,2048,"%s#%llx:%x",desc->xfer.name, desc->xfer.offset, desc->xfer.extent) )
 		goto fail_printf;
 
 	bind = to_rddma_bind(kset_find_obj(&parent->binds->kset,buf));
@@ -135,30 +135,6 @@ static struct rddma_smb *rddma_local_smb_create(struct rddma_location *loc, stru
 	return NULL;
 }
 
-static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, struct rddma_xfer_param *desc)
-{
-	struct rddma_dsts *dsts;
-	struct rddma_xfer *xfer;
-	struct rddma_bind *bind;
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-
-	if ( (xfer = rddma_xfer_create(loc,desc)) ) {
-		if ( (bind = rddma_bind_create(xfer, desc))) {
-			if ( (dsts = bind->desc.dst.ops->dsts_create(bind,desc,"%s#%x:%x=%s#%x:%x",
-						      desc->bind.dst.name,desc->bind.dst.offset,desc->bind.dst.extent,
-						      desc->bind.src.name,desc->bind.src.offset,desc->bind.src.extent)) )
-				rddma_xfer_load_binds(xfer,bind);
-				return xfer;
-
-			rddma_bind_delete(bind);
-		}
-		
-		rddma_xfer_delete(xfer);
-	}
-
-	return xfer;
-}
-
 static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struct rddma_xfer_param *desc)
 {
 	int page, first_page, last_page;
@@ -183,13 +159,15 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 		goto fail_sdesc;
 
 	sloc = find_rddma_location(&desc->bind.src);
+	rddma_inherit(&parent->desc.src,&ssmb->desc);
+	rddma_inherit(&parent->desc.dst,&dsmb->desc);
 
 	first_page = START_PAGE(&dsmb->desc,&desc->bind.dst);
 	last_page = first_page + NUM_DMA2(&dsmb->desc,&desc->bind.dst);
 
 	params.bind.dst.offset = START_OFFSET((&dsmb->desc), (&desc->bind.dst));
 	/* Calculate last transfer params */
-	RDDMA_DEBUG(MY_DEBUG,"%s Destination:  first_page=%x last_page=%x offset=%x total_length=%x\n",__FUNCTION__,first_page,last_page,params.bind.dst.offset,params.bind.dst.extent);
+	RDDMA_DEBUG(MY_DEBUG,"%s Destination:  first_page=%x last_page=%x offset=%llx total_length=%x\n",__FUNCTION__,first_page,last_page,params.bind.dst.offset,params.bind.dst.extent);
 
 	last_len = (params.bind.dst.offset + desc->bind.dst.extent) & ~PAGE_MASK;
 printk("last len = 0x%x\n", last_len);
@@ -197,7 +175,7 @@ printk("last len = 0x%x\n", last_len);
 	page = first_page;
 	do {
 		params.bind.dst.offset += (unsigned long)page_address(dsmb->pages[page]);
-		RDDMA_DEBUG(MY_DEBUG,"%s Subdestination:  address=%x length=%x\n",
+		RDDMA_DEBUG(MY_DEBUG,"%s Subdestination:  address=%llx length=%x\n",
 			__FUNCTION__,params.bind.dst.offset,params.bind.dst.extent);
 		new = rddma_dst_create(parent,&params);
 		sloc->desc.ops->srcs_create(new,&params);
@@ -212,7 +190,7 @@ printk("last len = 0x%x\n", last_len);
 		params.bind.dst.offset += (unsigned long)page_address(dsmb->pages[page]);
 		params.bind.dst.extent = last_len;
 		params.bind.src.extent = last_len;
-		RDDMA_DEBUG(MY_DEBUG,"%s Subdestination:  address=%x length=%x\n",
+		RDDMA_DEBUG(MY_DEBUG,"%s Subdestination:  address=%llx length=%x\n",
 			__FUNCTION__,params.bind.dst.offset,params.bind.dst.extent);
 		new = rddma_dst_create(parent,&params);
 		sloc->desc.ops->srcs_create(new,&params);
@@ -260,6 +238,30 @@ out:
 	return NULL;
 }
 
+static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, struct rddma_xfer_param *desc)
+{
+	struct rddma_dsts *dsts;
+	struct rddma_xfer *xfer;
+	struct rddma_bind *bind;
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
+	if ( (xfer = rddma_xfer_create(loc,desc)) ) {
+		if ( (bind = rddma_bind_create(xfer, desc))) {
+			if ( (dsts = rddma_local_dsts_create(bind,desc,"%s#%llx:%x=%s#%llx:%x",
+						      desc->bind.dst.name,desc->bind.dst.offset,desc->bind.dst.extent,
+						      desc->bind.src.name,desc->bind.src.offset,desc->bind.src.extent)) )
+				rddma_xfer_load_binds(xfer,bind);
+				return xfer;
+
+			rddma_bind_delete(bind);
+		}
+		
+		rddma_xfer_delete(xfer);
+	}
+
+	return xfer;
+}
+
 static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, struct rddma_xfer_param *desc)
 {
 /* 	srcs_create://tp.x:2000/d.p#uuuuu000:1000=s.r#c000:1000 */
@@ -278,20 +280,14 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	first_page = START_PAGE(&smb->desc,&desc->bind.src);
 	last_page = first_page + NUM_DMA2(&smb->desc,&desc->bind.src);
 
-
-printk("JIMMY JIMMY JIMMY JIMMY\n");
-printk("SMB offset = 0x%x, Bind offset = 0x%x\n", smb->desc.offset, desc->bind.src.offset);
-printk("Bind extent = 0x%x, PAGE_SHIFT = 0x%x\n", desc->bind.src.extent, PAGE_SHIFT);
-printk("JIMMY JIMMY JIMMY JIMMY\n");
-
 	params.bind.src.offset = START_OFFSET(&smb->desc, &desc->bind.src);
 	last_len = (params.bind.src.offset + params.bind.src.extent) & ~PAGE_MASK;
 	params.bind.src.extent = START_SIZE(&smb->desc, &desc->bind.src);
-	RDDMA_DEBUG(MY_DEBUG,"%s Source: first page=%x last_page=%x offset=%x size=%x\n",__FUNCTION__,first_page,last_page,params.bind.src.offset,params.bind.src.extent);
+	RDDMA_DEBUG(MY_DEBUG,"%s Source: first page=%x last_page=%x offset=%llx size=%x\n",__FUNCTION__,first_page,last_page,params.bind.src.offset,params.bind.src.extent);
 	page = first_page;
 	do {
 		params.bind.src.offset += (unsigned long)page_address(smb->pages[page]);
-		RDDMA_DEBUG(MY_DEBUG,"%s Subsource: address=%x size=%x\n",__FUNCTION__,
+		RDDMA_DEBUG(MY_DEBUG,"%s Subsource: address=%llx size=%x\n",__FUNCTION__,
 			params.bind.src.offset,params.bind.src.extent);
 		/* if offset + extent causes a page boundary crossing, do a split */
 		src = parent->desc.dst.ops->src_create(parent,&params);
@@ -302,7 +298,7 @@ printk("JIMMY JIMMY JIMMY JIMMY\n");
 
 	if (last_page != first_page) {
 		params.bind.src.extent = last_len;
-		RDDMA_DEBUG(MY_DEBUG,"%s Subsource: address=%x size=%x\n",__FUNCTION__,
+		RDDMA_DEBUG(MY_DEBUG,"%s Subsource: address=%llx size=%x\n",__FUNCTION__,
 			params.bind.src.offset,params.bind.src.extent);
 		src = parent->desc.dst.ops->src_create(parent,&params);
 	}
@@ -314,7 +310,7 @@ static struct rddma_src *rddma_local_src_create(struct rddma_dst *parent, struct
 {
 /* 	src_create://tp.x:2000/d.p#uuuuu000:800=s.r#xxxxx800:800 */
 	struct rddma_src *src;
-	RDDMA_DEBUG(MY_DEBUG,"%s %s#%x:%x\n",__FUNCTION__,desc->bind.src.name, desc->bind.src.offset,desc->bind.src.extent);
+	RDDMA_DEBUG(MY_DEBUG,"%s %s#%llx:%x\n",__FUNCTION__,desc->bind.src.name, desc->bind.src.offset,desc->bind.src.extent);
 
 	src = rddma_src_create(parent,desc);
 
@@ -341,7 +337,7 @@ static void rddma_local_smb_delete(struct rddma_location *loc, struct rddma_desc
 	}
 }
 
-static int rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
+static int rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_xfer_param *desc)
 {
 	struct rddma_xfer *xfer;
 	int ret = -EINVAL;

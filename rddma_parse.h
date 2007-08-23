@@ -48,7 +48,7 @@
 struct rddma_desc_param {
 	char *name;
 	char *location;
-	/* u64 */ int offset;
+	u64  offset;
 	unsigned int extent;
 #define RDDMA_MAX_QUERY_STRINGS 5
 /* DO NOT SEPERATE THE FOLLOWING TWO LINES */
@@ -95,6 +95,13 @@ struct rddma_xfer_param {
 	struct rddma_desc_param xfer;
 	struct rddma_bind_param bind;
 };
+
+static inline void rddma_inherit(struct rddma_desc_param *c, struct rddma_desc_param *p)
+{
+	c->address = p->address;
+	c->rde = p->rde;
+	c->ops = p->ops;
+}
 
 extern int __must_check rddma_parse_xfer( struct rddma_xfer_param *, const char *);
 extern int __must_check rddma_parse_desc( struct rddma_desc_param *, const char *);

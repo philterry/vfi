@@ -238,7 +238,9 @@ int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
 	RDDMA_DEBUG((RDDMA_DBG_PARSE | RDDMA_DBG_DEBUG),"%s \n",__FUNCTION__);
 	*new = *old;
 	if ( (new->name = rddma_str_dup(old->name)) ) {
-		new->location = strchr(new->name, '.') + 1;
+		new->location = strchr(new->name, '.');
+		if (new->location)
+			new->location++;
 		return 0;
 	}
 	return ret;
