@@ -8,7 +8,10 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
+#define MY_DEBUG      RDDMA_DBG_DMA | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_DMA | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
+#include <linux/rddma.h>
 #include <linux/rddma_dma.h>
 #include <linux/rio.h>
 #include <linux/rio_ids.h>
@@ -68,15 +71,21 @@ int rddma_dma_register(struct rddma_dma_engine *rde)
 	int ret = -EEXIST;
 	int i;
 
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
 	for (i = 0; i < RDDMA_MAX_DMA_ENGINES && dma_engines[i] ; i++)
-		if (!strcmp(rde->name, dma_engines[i]->name) )
+		if (!strcmp(rde->name, dma_engines[i]->name) ) {
+			RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p -> %d\n",__FUNCTION__,rde,ret);
 			return ret;
+		}
 
-	if ( i == RDDMA_MAX_DMA_ENGINES)
+	if ( i == RDDMA_MAX_DMA_ENGINES) {
+		RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p -> %d\n",__FUNCTION__,rde,-ENOMEM);
 		return -ENOMEM;
+	}
 
 	dma_engines[i] = rde;
 
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p -> %d = %p\n",__FUNCTION__,rde,i,rde);
 	return 0;
 }
 
@@ -84,6 +93,7 @@ void rddma_dma_unregister(const char *name)
 {
 	int i;
 
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %s\n",__FUNCTION__,name);
 	for (i = 0; i < RDDMA_MAX_DMA_ENGINES && dma_engines[i] ; i++)
 		if (dma_engines[i])
 			if (!strcmp(name,dma_engines[i]->name) ) {
@@ -102,14 +112,17 @@ struct rddma_dma_engine *rddma_dma_find(const char *name)
 			if (!strcmp(name,rdp->name) ) {
 				if (try_module_get(rdp->owner)) {
 					rdp->ops->get(rdp);
+					RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %s -> %p\n",__FUNCTION__,name,rdp);
 					return rdp;
 				}
 			}
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %s -> %p\n",__FUNCTION__,name,NULL);
 	return NULL;
 }
 
 struct rddma_dma_engine *rddma_dma_get(struct rddma_dma_engine *rde)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
 	if (try_module_get(rde->owner)) {
 		rde->ops->get(rde);
 		return rde;
@@ -119,8 +132,11 @@ struct rddma_dma_engine *rddma_dma_get(struct rddma_dma_engine *rde)
 
 void rddma_dma_put(struct rddma_dma_engine *rde)
 {
-	rde->ops->put(rde);
-	module_put(rde->owner);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
+	if (rde) {
+		rde->ops->put(rde);
+		module_put(rde->owner);
+	}
 }
 
 EXPORT_SYMBOL(rddma_dma_register);
