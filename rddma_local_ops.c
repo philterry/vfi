@@ -170,7 +170,8 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	RDDMA_DEBUG(MY_DEBUG,"%s Destination:  first_page=%x last_page=%x offset=%llx total_length=%x\n",__FUNCTION__,first_page,last_page,params.bind.dst.offset,params.bind.dst.extent);
 
 	last_len = (params.bind.dst.offset + desc->bind.dst.extent) & ~PAGE_MASK;
-printk("last len = 0x%x\n", last_len);
+	if (last_len == 0 && last_page != first_page)
+		last_len = PAGE_SIZE;
 	params.bind.src.extent = params.bind.dst.extent = START_SIZE(&dsmb->desc, &desc->bind.dst);
 	page = first_page;
 	do {
