@@ -80,7 +80,13 @@ static struct sysfs_ops rddma_xfer_sysfs_ops = {
 
 static ssize_t rddma_xfer_default_show(struct rddma_xfer *rddma_xfer, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_xfer_default");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("Xfer %p is %s \n",rddma_xfer,rddma_xfer ? rddma_xfer->desc.xfer.name : NULL);
+	if (rddma_xfer) {
+		ATTR_PRINTF("ops is %p rde is %p address is %p\n",rddma_xfer->desc.xfer.ops,rddma_xfer->desc.xfer.rde,rddma_xfer->desc.xfer.address);
+	}
+	return size;
 }
 
 static ssize_t rddma_xfer_default_store(struct rddma_xfer *rddma_xfer, const char *buffer, size_t size)
@@ -166,6 +172,7 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_xf
 
 	new->kobj.kset = &parent->xfers->kset;
 	new->desc.xfer.ops = parent->desc.ops;
+	new->desc.xfer.rde = parent->desc.rde;
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
@@ -250,7 +257,7 @@ void rddma_xfer_delete(struct rddma_xfer *xfer)
 void rddma_xfer_load_binds(struct rddma_xfer *xfer, struct rddma_bind *bind)
 {
 	if (xfer->head_bind) {
-		xfer->desc.xfer.dma_ops->link_bind(xfer->head_bind, bind);
+		xfer->desc.xfer.rde-> ops->link_bind(xfer->head_bind, bind);
 	}
 	else
 		xfer->head_bind = bind;
