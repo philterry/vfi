@@ -203,7 +203,7 @@ static struct rddma_location *rddma_fabric_location_create(struct rddma_location
 		newloc = loc;
 	else {
 		char *fabric_name;
-		if ( (fabric_name =rddma_get_option(desc,"fabric")) ) {
+		if ( (fabric_name = rddma_get_option(desc,"fabric")) ) {
 			struct rddma_fabric_address *rfa = rddma_fabric_find(fabric_name);
 			if ( rfa ) {
 				newloc = new_rddma_location(NULL,desc);
