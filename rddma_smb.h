@@ -21,14 +21,13 @@
 #define DIRTY_START(b,d) ((((b)->offset +(d)->offset) & ~PAGE_MASK) ? 1 : 0)
 #define DIRTY_END(b,d) ((((b)->offset + (d)->offset + (d)->extent) & ~PAGE_MASK) ? 1 : 0)
 #define DIRTY_SHIFT(b,d) (DIRTY_START((b),(d)) ? 1 : 0)
-#define NUM_DMA(b,d) ((((d)->extent >> PAGE_SHIFT) << DIRTY_SHIFT((b),(d))) \
-		      + DIRTY_START((b),(d)) + DIRTY_END((b),(d)))
 
 #define START_PAGE(b,d) (((b)->offset + (d)->offset)>>PAGE_SHIFT)
 #define START_OFFSET(b,d) (((b)->offset + (d)->offset) & ~PAGE_MASK)
 #define START_SIZE(b,d) ({int _avail = (PAGE_SIZE - START_OFFSET((b),(d))); _avail > (d)->extent ? (d)->extent : _avail;})
-
+#define END_SIZE(b,d) (((d)->extent - START_SIZE((b),(d))) & ~PAGE_MASK)
 #define DESC_VALID(b,d) (((d)->offset + (d)->extent) <= (b)->extent)
+#define NUM_DMA(b,d) ((START_SIZE((b),(d)) ? 1 : 0) + (END_SIZE((b),(d)) ? 1 : 0) + (((d)->extent - START_SIZE((b),(d)) - END_SIZE((b),(d))) >> PAGE_SHIFT) )
 
 struct rddma_smb {
 	struct rddma_desc_param desc;

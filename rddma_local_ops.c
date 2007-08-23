@@ -93,8 +93,27 @@ static struct rddma_src *rddma_local_src_find(struct rddma_dst *parent, struct r
  */
 static struct rddma_location *rddma_local_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	return rddma_location_create(loc,desc);
+	char *dma_engine_name;
+	struct rddma_location *newloc = rddma_location_create(loc,desc);
+
+	if ( (dma_engine_name = rddma_get_option(desc,"dma_name")) ) {
+		struct rddma_dma_engine *rde = rddma_dma_find(dma_engine_name);
+		if ( rde && newloc ) {
+			rddma_dma_put(newloc->desc.rde);
+			newloc->desc.rde = rde;
+		}
+		else if (rde)
+			rddma_dma_put(rde);
+	}
+
+	if (!newloc->desc.rde) {
+		rddma_location_put(newloc);
+		newloc = NULL;
+	}
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,loc,desc,newloc);
+
+	return newloc;
 }
 
 static struct rddma_smb *rddma_local_smb_create(struct rddma_location *loc, struct rddma_desc_param *desc)
@@ -177,8 +196,11 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 		new = rddma_dst_create(parent,&params);
 		sloc->desc.ops->srcs_create(new,&params);
 		params.bind.dst.offset = 0;
-		params.bind.dst.extent = PAGE_SIZE;
-		params.bind.src.extent += PAGE_SIZE;
+		if (page + 1 == last_page)
+			params.bind.dst.extent = params.bind.src.extent = END_SIZE(&dsmb->desc, &desc->bind.dst);
+		else 
+			params.bind.dst.extent = params.bind.src.extent = PAGE_SIZE;
+		params.bind.src.offset += PAGE_SIZE;
 	}
 	
 	rddma_location_put(sloc);
@@ -248,9 +270,12 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 		params.bind.src.offset += (unsigned long)page_address(smb->pages[page]);
 		src = parent->desc.dst.ops->src_create(parent,&params);
 		params.bind.src.offset = 0;
-		params.bind.src.extent = PAGE_SIZE;
+		if ( page + 1 == last_page)
+			params.bind.src.extent = END_SIZE(&smb->desc, &desc->bind.src);
+		else
+			params.bind.src.extent = PAGE_SIZE;
 	}
-	/*rddma_dst_load_srcs(parent);*/
+	rddma_dst_load_srcs(parent);
 	return srcs;
 }
 
