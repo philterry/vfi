@@ -20,6 +20,7 @@
 #include <linux/rddma_smbs.h>
 #include <linux/rddma_xfer.h>
 #include <linux/rddma_xfers.h>
+#include <linux/rddma_dma.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -74,7 +75,13 @@ static struct sysfs_ops rddma_location_sysfs_ops = {
 
 static ssize_t rddma_location_default_show(struct rddma_location *rddma_location, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_location_default");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("Location %p is %s \n",rddma_location,rddma_location ? rddma_location->desc.name : NULL);
+	if (rddma_location) {
+		ATTR_PRINTF("ops is %p rde is %p address is %p\n",rddma_location->desc.ops,rddma_location->desc.rde,rddma_location->desc.address);
+	}
+	return size;
 }
 
 static ssize_t rddma_location_default_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
@@ -86,7 +93,10 @@ RDDMA_LOCATION_ATTR(default, 0644, rddma_location_default_show, rddma_location_d
 
 static ssize_t rddma_location_location_show(struct rddma_location *rddma_location, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%s\n",rddma_location->desc.location);
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("%s\n",rddma_location->desc.location);
+	return size;
 }
 
 static ssize_t rddma_location_location_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
@@ -98,7 +108,10 @@ RDDMA_LOCATION_ATTR(location, 0644, rddma_location_location_show, rddma_location
 
 static ssize_t rddma_location_name_show(struct rddma_location *rddma_location, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%s\n",rddma_location->desc.name);
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("%s\n",rddma_location->desc.name);
+	return size;
 }
 
 static ssize_t rddma_location_name_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
@@ -110,7 +123,10 @@ RDDMA_LOCATION_ATTR(name, 0644, rddma_location_name_show, rddma_location_name_st
 
 static ssize_t rddma_location_id_show(struct rddma_location *rddma_location, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_location_id");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("%llx/%x\n",rddma_location->desc.offset,rddma_location->desc.extent);
+	return size;
 }
 
 static ssize_t rddma_location_id_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
@@ -122,7 +138,10 @@ RDDMA_LOCATION_ATTR(id, 0644, rddma_location_id_show, rddma_location_id_store);
 
 static ssize_t rddma_location_type_show(struct rddma_location *rddma_location, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%s\n", rddma_location->desc.ops == &rddma_fabric_ops ? "public" : rddma_location->desc.ops == &rddma_local_ops ? "private" : "NULL");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("%s\n", rddma_location->desc.ops == &rddma_fabric_ops ? "public" : rddma_location->desc.ops == &rddma_local_ops ? "private" : "NULL");
+	return size;
 }
 
 static ssize_t rddma_location_type_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
@@ -164,6 +183,12 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 		else
 			new->desc.ops = &rddma_fabric_ops;
 	}
+
+	if (!new->desc.rde) {
+		if (loc && loc->desc.rde)
+			new->desc.rde = rddma_dma_get(loc->desc.rde);
+	}
+
 	kobject_init(&new->kobj);
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
