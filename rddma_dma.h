@@ -55,7 +55,7 @@ struct rddma_dma_ops {
 	void (*put)(struct rddma_dma_engine *);
 };
 #define RDDMA_MAX_DMA_ENGINES  5
-#define RDDMA_MAX_DMA_NAME_LEN 15
+#define RDDMA_MAX_DMA_NAME_LEN 31
 
 struct rddma_dma_engine {
 	struct module *owner;
