@@ -431,7 +431,6 @@ static struct vm_operations_struct vm_ops = {
 **/
 static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
 {
-	struct privdata* priv = (struct privdata*)filep->private_data;
 	struct rddma_mmap_ticket* tkt;
 	u32 req_size;
 	RDDMA_DEBUG (MY_DEBUG, "** RDDMA_MMAP *******\n");
@@ -452,7 +451,7 @@ static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
 	*/
 	req_size = vma->vm_end - vma->vm_start; 
 	if ((req_size >> PAGE_SHIFT) > tkt->n_pg) {
-		RDDMA_DEBUG (MY_DEBUG, "xx Required area too big! (%lu > %lu)\n", 
+		RDDMA_DEBUG (MY_DEBUG, "xx Required area too big! (%u > %lu)\n", 
 			(req_size >> PAGE_SHIFT), tkt->n_pg);
 		return (-EINVAL);
 	}
