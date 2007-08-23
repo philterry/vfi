@@ -57,7 +57,7 @@ struct rddma_desc_param {
 /* rest is aliased as query[RDDMA_MAX_QUERY_STRINGS] in the parse routine! Naughty code! */
 /* private: */
 	struct rddma_ops *ops;
-	struct rddma_dma_ops *dma_ops;
+	struct rddma_dma_engine *rde;
 	struct rddma_fabric_address *address;
 };
 /**
