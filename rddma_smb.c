@@ -91,7 +91,13 @@ RDDMA_SMB_ATTR(default, 0644, rddma_smb_default_show, rddma_smb_default_store);
 
 static ssize_t rddma_smb_location_show(struct rddma_smb *rddma_smb, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%s\n", rddma_smb->desc.location);
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("Smb %p is %s \n",rddma_smb,rddma_smb ? rddma_smb->desc.name : NULL);
+	if (rddma_smb) {
+		ATTR_PRINTF("ops is %p rde is %p address is %p\n",rddma_smb->desc.ops,rddma_smb->desc.rde,rddma_smb->desc.address);
+	}
+	return size;
 }
 
 static ssize_t rddma_smb_location_store(struct rddma_smb *rddma_smb, const char *buffer, size_t size)
@@ -144,6 +150,7 @@ struct rddma_smb *new_rddma_smb(struct rddma_location *loc, struct rddma_desc_pa
 
 	new->kobj.kset = &loc->smbs->kset;
 	new->desc.ops = loc->desc.ops;
+	new->desc.rde = loc->desc.rde;
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
