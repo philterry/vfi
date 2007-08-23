@@ -87,6 +87,10 @@ static void rddma_debug(char *format, ...)
 #define RDDMA_DEBUG_SAFE(l,c,f,arg...) do {} while (0)
 #endif
 
+/* Helper for printing sysfs attributes... define your show function (...char *buffer...) with {int left = PAGE_SIZE;int size = 0; .... return size;} */
+/* then ... can include ATTR_PRINTF("format string",...); */
+#define ATTR_PRINTF(f,arg...) size += snprintf(buffer+size,left,f, ## arg); left -=size
+
 static inline struct kobject *to_kobj(struct list_head *entry)
 {
     return entry ? container_of(entry, struct kobject, entry) : NULL;
