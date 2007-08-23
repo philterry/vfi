@@ -35,6 +35,7 @@ static struct dma_engine *new_dma_engine(void)
 		new->rde.owner = THIS_MODULE;
 		new->rde.ops = &dma_rio_ops;
 	}
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
 }
 
@@ -81,11 +82,13 @@ static void dma_rio_link_bind(struct rddma_bind *first, struct rddma_bind *secon
 
 static struct rddma_dma_engine *dma_rio_get(struct rddma_dma_engine *rde)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
 	return rde;
 }
 
 static void dma_rio_put(struct rddma_dma_engine *rde)
 {
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
 }
 
 static struct rddma_dma_ops dma_rio_ops = {
@@ -105,7 +108,7 @@ static int __init dma_rio_init(void)
 	if ( (de = new_dma_engine()) ) {
 		rde = &de->rde;
 		snprintf(rde->name, RDDMA_MAX_DMA_NAME_LEN, "%s", "rddma_rio_dma");
-		rddma_dma_register(rde);
+		return rddma_dma_register(rde);
 	}
 	return -ENOMEM;
 }
