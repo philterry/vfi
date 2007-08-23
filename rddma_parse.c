@@ -134,7 +134,7 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	d->query[0] = NULL;
 	d->rest = NULL;
 	d->ops = NULL;
-	d->dma_ops = NULL;
+	d->rde = NULL;
 	d->name = desc;
 
 	name_remainder(d->name,     '?', &d->query[0]);
@@ -170,21 +170,8 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 			d->ops = &rddma_local_ops;
 		else if (!strncmp(ops,"public",6)) {
 			d->ops = &rddma_fabric_ops;
-#if 0	
-			if ( (ops = rddma_get_option(d, "fabric")) ) {
-				d->address = rddma_fabric_find(ops);
-			}
-#endif
 		}
 	}
-#if 0
-	if ( (ops = rddma_get_option(d,"dma_ops")) ) {
-		if (!strncmp(ops,"fabric",7))
-			d->dma_ops = NULL; /* FIX ME */
-		else if (!strncmp(ops,"debug",6))
-			d->dma_ops = NULL; /* FIX ME */
-	}
-#endif
 	return ret;
 }
 
