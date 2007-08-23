@@ -139,9 +139,8 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 {
 	int page, first_page, last_page;
 	struct rddma_xfer_param params = *desc;
-	struct rddma_smb *ssmb = NULL;
-	struct rddma_smb *dsmb = NULL;
 	struct rddma_location *sloc = NULL;
+	struct rddma_smb *dsmb = NULL;
 	struct rddma_dst *new = NULL;
 	int last_len;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
@@ -152,15 +151,7 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	if (!DESC_VALID(&dsmb->desc,&desc->bind.dst))
 		goto fail_ddesc;
 
-	if ( NULL == (ssmb = find_rddma_smb(&desc->bind.src)) )
-		goto fail_ddesc;
-
-	if (!DESC_VALID(&ssmb->desc,&desc->bind.src))
-		goto fail_sdesc;
-
 	sloc = find_rddma_location(&desc->bind.src);
-	rddma_inherit(&parent->desc.src,&ssmb->desc);
-	rddma_inherit(&parent->desc.dst,&dsmb->desc);
 
 	first_page = START_PAGE(&dsmb->desc,&desc->bind.dst);
 	last_page = first_page + NUM_DMA2(&dsmb->desc,&desc->bind.dst);
@@ -199,8 +190,6 @@ printk("last len = 0x%x\n", last_len);
 	rddma_location_put(sloc);
 	return new;
 
-fail_sdesc:
-	rddma_smb_put(ssmb);
 fail_ddesc:
 	rddma_smb_put(dsmb);
 fail_dsmb:
@@ -210,6 +199,8 @@ fail_dsmb:
 static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, struct rddma_xfer_param *desc, char *name, ...)
 {
 	struct rddma_dsts *dsts = NULL;
+	struct rddma_smb *ssmb = NULL;
+	struct rddma_smb *dsmb = NULL;
 	va_list ap;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	
@@ -224,15 +215,34 @@ static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, str
 		parent->dsts = dsts;
 	}
 
-	if ( NULL == rddma_local_dst_create(parent,desc))
+	if ( NULL == (dsmb = find_rddma_smb(&desc->bind.dst)) )
+		goto fail_dsmb;
+
+	if (!DESC_VALID(&dsmb->desc,&desc->bind.dst))
+		goto fail_ddesc;
+
+	if ( NULL == (ssmb = find_rddma_smb(&desc->bind.src)) )
+		goto fail_ddesc;
+
+	if (!DESC_VALID(&ssmb->desc,&desc->bind.src))
+		goto fail_sdesc;
+
+	rddma_inherit(&parent->desc.src,&ssmb->desc);
+	rddma_inherit(&parent->desc.dst,&dsmb->desc);
+
+	if ( NULL == parent->desc.dst.ops->dst_create(parent,desc))
 		goto fail_dst;
 
-printk("Read for bind_load! \n");
 	rddma_bind_load_dsts(parent);
 
 	return parent->dsts;
 
 fail_dst:
+fail_sdesc:
+	rddma_smb_put(ssmb);
+fail_ddesc:
+	rddma_smb_put(dsmb);
+fail_dsmb:
 	rddma_dsts_delete(dsts);
 out:
 	return NULL;
