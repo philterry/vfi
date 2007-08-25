@@ -381,7 +381,7 @@ static unsigned int rddma_poll(struct file *filep, struct poll_table_struct *pol
 **/
 static struct page* rddma_mmap_nopage (struct vm_area_struct* vma, unsigned long address, int *type)
 {
-	struct rddma_mmap_ticket* tkt = (struct rddma_mmap_ticket *)vma->vm_private_data;
+	struct rddma_mmap* tkt = (struct rddma_mmap *)vma->vm_private_data;
 	unsigned long pg_off = (address - vma->vm_start) >> PAGE_SHIFT;
 #if 0
 	RDDMA_DEBUG (MY_DEBUG, "## rddma_mmap_nopage (%p, %lu, %p)\n", vma, address, type);
@@ -431,7 +431,7 @@ static struct vm_operations_struct vm_ops = {
 **/
 static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
 {
-	struct rddma_mmap_ticket* tkt;
+	struct rddma_mmap *tkt;
 	u32 req_size;
 	RDDMA_DEBUG (MY_DEBUG, "** RDDMA_MMAP *******\n");
 	
@@ -439,7 +439,7 @@ static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
 	* Use mmap page offset to locate a ticket created earlier.
 	* This ticket tells us what we really need to map to.
 	*/
-	tkt = rddma_mmap_find_ticket (vma->vm_pgoff);
+	tkt = find_rddma_mmap_by_id(vma->vm_pgoff<<PAGE_SHIFT);
 	if (!tkt) {
 		RDDMA_DEBUG (MY_DEBUG, "xx Could not locate suitable mmap ticket!\n");
 		return -EINVAL;
@@ -465,12 +465,14 @@ static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
 	* Copy the ticket into the vma as private data, and
 	* erase the original.
 	*/
+#ifdef FIXED
 	vma->vm_private_data = kmalloc (sizeof (struct rddma_mmap_ticket), GFP_KERNEL);
 	memcpy (vma->vm_private_data, tkt, sizeof (struct rddma_mmap_ticket));
 	rddma_mmap_stamp_ticket (vma->vm_pgoff);
+#endif
 	vma->vm_pgoff = 0;
 	vma->vm_ops = &vm_ops;
-	tkt = (struct rddma_mmap_ticket*)vma->vm_private_data;
+	tkt = (struct rddma_mmap *)vma->vm_private_data;
 	RDDMA_DEBUG (MY_DEBUG, "-- Set-up ticket for nopage, t_id#%lu, %lu pages, page table @ %p\n", 
 		     tkt->t_id, tkt->n_pg, tkt->pg_tbl);
 	return 0;

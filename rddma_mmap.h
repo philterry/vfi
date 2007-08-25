@@ -1,57 +1,52 @@
-/**************************************************************************
-* Title     : rddma_mmap.h
-* Author    : Trevor Anderson
-* Copyright : (c) Micro Memory, 2007 - All Rights Reserved
-*--------------------------------------------------------------------------
-* Description : Definitions for mmap ticketing subsystem
-*--------------------------------------------------------------------------
-* 
-* 
-* This program is free software; you can redistribute  it and/or modify it
-* under  the terms of  the GNU General  Public License as published by the
-* Free Software Foundation;  either version 2 of the  License, or (at your
-* option) any later version.
-* 
-* fcanzac
-**************************************************************************/
-#ifndef _RDDMA_MMAP_H_
-#define _RDDMA_MMAP_H_
-#include <asm/semaphore.h>
+#ifndef RDDMA_MMAP_H
+#define RDDMA_MMAP_H
 
-#define RDDMA_MMAP_TICKETS	16
+#include <linux/rddma.h>
+#include <linux/rddma_smb.h>
+#include <linux/rddma_parse.h>
 
-struct rddma_mmap_ticket {
+struct rddma_mmap {
+	struct rddma_desc_param desc;
 	unsigned long		t_id;		/* Ticket number, for verification */
 	struct page		**pg_tbl;	/* Page table pointer to start of block */
 	unsigned long		n_pg;		/* Number of pages in block */
+	struct kobject kobj;
 };
 
+static inline unsigned int mmap_to_ticket(struct rddma_mmap *m)
+{
+	unsigned int t = (unsigned int)m;
+	t = (t & ~0xffff) ^ (t << 16);
+	return t;
+}
 
-struct rddma_mmap_book {
-	struct semaphore 	 sem;		/* Mutex governing counters */
-	unsigned long		 issued;	/* Number of tickets ever issued */
-	unsigned long		 stamped;	/* Number of tickets serviced */
-	struct rddma_mmap_ticket ticket[RDDMA_MMAP_TICKETS];
-};
+static inline int is_mmap_ticket(struct rddma_mmap *m, unsigned int t)
+{
+	unsigned int s = (unsigned int)m;
+	return (((s & ~0xffff) ^ t) >> 16) == (s & 0xffff);
+}
 
+static inline struct rddma_mmap *to_rddma_mmap(struct kobject *kobj)
+{
+    return kobj ? container_of(kobj, struct rddma_mmap,kobj) : NULL;
+}
 
-void rddma_mmap_tickets_init (void);
-unsigned long rddma_mmap_create (struct page **pg_tbl, unsigned long n_pg, 
-				 unsigned long offset, unsigned long extent);
+static inline struct rddma_mmap *rddma_mmap_get(struct rddma_mmap *rddma_mmap)
+{
+    return to_rddma_mmap(kobject_get(&rddma_mmap->kobj));
+}
 
-struct rddma_mmap_ticket* rddma_mmap_find_ticket (unsigned long tid);
-void rddma_mmap_stamp_ticket (unsigned long tid);
+static inline void rddma_mmap_put(struct rddma_mmap *rddma_mmap)
+{
+    kobject_put(&rddma_mmap->kobj);
+}
 
-
-
-
-
-
-
-
-
-
-
-
-#endif
-
+extern struct rddma_mmap *new_rddma_mmap(struct rddma_smb *, struct rddma_desc_param *);
+extern int rddma_mmap_register(struct rddma_mmap *);
+extern void rddma_mmap_unregister(struct rddma_mmap *);
+extern struct rddma_mmap *find_rddma_mmap_by_id(unsigned int);
+extern struct rddma_mmap *find_rddma_mmap(struct rddma_smb *, struct rddma_desc_param *);
+extern struct rddma_mmap *rddma_mmap_create(struct rddma_smb *, struct rddma_desc_param *);
+extern void rddma_mmap_delete(struct rddma_smb *, struct rddma_desc_param *);
+extern struct kobj_type rddma_mmap_type;
+#endif /* RDDMA_MMAP_H */
