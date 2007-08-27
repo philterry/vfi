@@ -142,7 +142,6 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	struct rddma_location *sloc = NULL;
 	struct rddma_smb *dsmb = NULL;
 	struct rddma_dst *new = NULL;
-	int last_len;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	if ( NULL == (dsmb = find_rddma_smb(&desc->bind.dst)) )
@@ -154,39 +153,22 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	sloc = find_rddma_location(&desc->bind.src);
 
 	first_page = START_PAGE(&dsmb->desc,&desc->bind.dst);
-	last_page = first_page + NUM_DMA2(&dsmb->desc,&desc->bind.dst);
+	last_page = first_page + NUM_DMA(&dsmb->desc,&desc->bind.dst);
 
 	params.bind.dst.offset = START_OFFSET((&dsmb->desc), (&desc->bind.dst));
-	/* Calculate last transfer params */
-	RDDMA_DEBUG(MY_DEBUG,"%s Destination:  first_page=%x last_page=%x offset=%llx total_length=%x\n",__FUNCTION__,first_page,last_page,params.bind.dst.offset,params.bind.dst.extent);
-
-	last_len = (params.bind.dst.offset + desc->bind.dst.extent) & ~PAGE_MASK;
-printk("last len = 0x%x\n", last_len);
 	params.bind.src.extent = params.bind.dst.extent = START_SIZE(&dsmb->desc, &desc->bind.dst);
-	page = first_page;
-	do {
+	for (page = first_page; page < last_page; page++) {
 		params.bind.dst.offset += (unsigned long)page_address(dsmb->pages[page]);
-		RDDMA_DEBUG(MY_DEBUG,"%s Subdestination:  address=%llx length=%x\n",
-			__FUNCTION__,params.bind.dst.offset,params.bind.dst.extent);
 		new = rddma_dst_create(parent,&params);
 		sloc->desc.ops->srcs_create(new,&params);
 		params.bind.dst.offset = 0;
-		params.bind.dst.extent = PAGE_SIZE;
-		params.bind.src.extent = PAGE_SIZE;
+		if ( page + 2 >= last_page)
+			params.bind.dst.extent = params.bind.src.extent = END_SIZE(&dsmb->desc,&desc->bind.dst);
+		else
+			params.bind.dst.extent = params.bind.src.extent = PAGE_SIZE;
 		params.bind.src.offset += PAGE_SIZE; /* Jimmy */
-		page++;
-	} while (page < last_page);
+	} 
 
-	if (last_page != first_page) {
-		params.bind.dst.offset += (unsigned long)page_address(dsmb->pages[page]);
-		params.bind.dst.extent = last_len;
-		params.bind.src.extent = last_len;
-		RDDMA_DEBUG(MY_DEBUG,"%s Subdestination:  address=%llx length=%x\n",
-			__FUNCTION__,params.bind.dst.offset,params.bind.dst.extent);
-		new = rddma_dst_create(parent,&params);
-		sloc->desc.ops->srcs_create(new,&params);
-	}
-	
 	rddma_location_put(sloc);
 	return new;
 
@@ -277,7 +259,6 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 /* 	srcs_create://tp.x:2000/d.p#uuuuu000:1000=s.r#c000:1000 */
 
 	int page, first_page, last_page;
-	int last_len;
 	struct rddma_srcs *srcs;
 	struct rddma_smb *smb;
 	struct rddma_src *src;
@@ -288,30 +269,21 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	smb = find_rddma_smb(&desc->bind.src);
 
 	first_page = START_PAGE(&smb->desc,&desc->bind.src);
-	last_page = first_page + NUM_DMA2(&smb->desc,&desc->bind.src);
+	last_page = first_page + NUM_DMA(&smb->desc,&desc->bind.src);
 
 	params.bind.src.offset = START_OFFSET(&smb->desc, &desc->bind.src);
-	last_len = (params.bind.src.offset + params.bind.src.extent) & ~PAGE_MASK;
 	params.bind.src.extent = START_SIZE(&smb->desc, &desc->bind.src);
-	RDDMA_DEBUG(MY_DEBUG,"%s Source: first page=%x last_page=%x offset=%llx size=%x\n",__FUNCTION__,first_page,last_page,params.bind.src.offset,params.bind.src.extent);
-	page = first_page;
-	do {
+	for ( page = first_page; page < last_page ; page++ ) {
 		params.bind.src.offset += (unsigned long)page_address(smb->pages[page]);
-		RDDMA_DEBUG(MY_DEBUG,"%s Subsource: address=%llx size=%x\n",__FUNCTION__,
-			params.bind.src.offset,params.bind.src.extent);
-		/* if offset + extent causes a page boundary crossing, do a split */
 		src = parent->desc.dst.ops->src_create(parent,&params);
-		params.bind.src.offset += params.bind.src.extent;
+		params.bind.src.offset = 0;
 		params.bind.src.extent = PAGE_SIZE;
-		page++;
-	} while (page < last_page);
+		if (page + 2 >= last_page)
+			params.bind.src.extent = END_SIZE(&smb->desc,&desc->bind.src);
+		else
+			params.bind.src.extent = PAGE_SIZE;
+	} 
 
-	if (last_page != first_page) {
-		params.bind.src.extent = last_len;
-		RDDMA_DEBUG(MY_DEBUG,"%s Subsource: address=%llx size=%x\n",__FUNCTION__,
-			params.bind.src.offset,params.bind.src.extent);
-		src = parent->desc.dst.ops->src_create(parent,&params);
-	}
 	rddma_dst_load_srcs(parent);
 	return srcs;
 }
