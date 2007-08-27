@@ -145,18 +145,18 @@ struct rddma_mmaps *new_rddma_mmaps(struct rddma_smb *parent, char *name)
     if (NULL == new)
 	return new;
 
-    kobject_set_name(&new->kset.kobj,name);
+    kobject_set_name(&new->kset.kobj,"%s",name);
     new->kset.kobj.ktype = &rddma_mmaps_type;
     new->kset.uevent_ops = &rddma_mmaps_uevent_ops;
     new->kset.kobj.parent = &parent->kobj;
-
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p %s %p\n",__FUNCTION__,new, kobject_name(&new->kset.kobj),parent);
     return new;
 }
 
 int rddma_mmaps_register(struct rddma_mmaps *rddma_mmaps)
 {
     int ret = 0;
-
+    RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,rddma_mmaps,rddma_mmaps->kset.kobj.parent);
     if ( (ret = kset_register(&rddma_mmaps->kset) ) )
 	goto out;
 
