@@ -136,8 +136,12 @@ struct rddma_mmap *find_rddma_mmap_by_id(unsigned int tid)
 		list_for_each_entry(smb,&loc->smbs->kset.list,kobj.entry) {
 			spin_lock(&smb->mmaps->kset.list_lock);
 			list_for_each_entry(mmap,&smb->mmaps->kset.list,kobj.entry) {
-				if (is_mmap_ticket(mmap,tid))
+				if (is_mmap_ticket(mmap,tid)) {
+					spin_unlock(&smb->mmaps->kset.list_lock);
+					spin_unlock(&loc->smbs->kset.list_lock);
+					spin_unlock(&rddma_subsys->kset.list_lock);
 					return mmap;
+				}
 			}
 			spin_unlock(&smb->mmaps->kset.list_lock);
 		}
