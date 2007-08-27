@@ -120,18 +120,26 @@ static ssize_t rddma_smb_name_show(struct rddma_smb *rddma_smb, char *buffer)
 
 RDDMA_SMB_ATTR(name, 0444, rddma_smb_name_show, 0);
 
-static ssize_t rddma_smb_size_show(struct rddma_smb *rddma_smb, char *buffer)
+static ssize_t rddma_smb_offset_show(struct rddma_smb *rddma_smb, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%d\n", (int)rddma_smb->size);
+	return snprintf(buffer, PAGE_SIZE, "%llx\n", rddma_smb->desc.offset);
 }
 
-RDDMA_SMB_ATTR(size, 0444, rddma_smb_size_show, 0);
+RDDMA_SMB_ATTR(offset, 0444, rddma_smb_offset_show, 0);
+
+static ssize_t rddma_smb_extent_show(struct rddma_smb *rddma_smb, char *buffer)
+{
+	return snprintf(buffer, PAGE_SIZE, "%x\n", rddma_smb->desc.extent);
+}
+
+RDDMA_SMB_ATTR(extent, 0444, rddma_smb_extent_show, 0);
 
 static struct attribute *rddma_smb_default_attrs[] = {
     &rddma_smb_attr_default.attr,
     &rddma_smb_attr_location.attr,
     &rddma_smb_attr_name.attr,
-    &rddma_smb_attr_size.attr,
+    &rddma_smb_attr_offset.attr,
+    &rddma_smb_attr_extent.attr,
     0,
 };
 
