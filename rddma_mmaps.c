@@ -98,7 +98,6 @@ RDDMA_MMAPS_ATTR(pid, 0644, rddma_mmaps_pid_show, rddma_mmaps_pid_store);
 
 static struct attribute *rddma_mmaps_default_attrs[] = {
     &rddma_mmaps_attr_default.attr,
-    &rddma_mmaps_attr_default.attr,
     &rddma_mmaps_attr_offset.attr,
     &rddma_mmaps_attr_extent.attr,
     &rddma_mmaps_attr_pid.attr,
