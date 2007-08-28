@@ -163,7 +163,7 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 		sloc->desc.ops->srcs_create(new,&params);
 		params.bind.dst.offset = 0;
 		params.bind.src.offset += params.bind.src.extent;
-		if ( page + 2 >= last_page)
+		if ( page + 2 == last_page && END_SIZE(&dsmb->desc,&desc->bind.dst))
 			params.bind.dst.extent = params.bind.src.extent = END_SIZE(&dsmb->desc,&desc->bind.dst);
 		else
 			params.bind.dst.extent = params.bind.src.extent = PAGE_SIZE;
@@ -277,7 +277,7 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 		params.bind.src.offset += (unsigned long)page_address(smb->pages[page]);
 		src = parent->desc.dst.ops->src_create(parent,&params);
 		params.bind.src.offset = 0;
-		if (page + 2 >= last_page)
+		if (page + 2 >= last_page && END_SIZE(&smb->desc,&desc->bind.src))
 			params.bind.src.extent = END_SIZE(&smb->desc,&desc->bind.src);
 		else
 			params.bind.src.extent = PAGE_SIZE;
