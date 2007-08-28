@@ -159,6 +159,18 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	params.bind.src.extent = params.bind.dst.extent = START_SIZE(&dsmb->desc, &desc->bind.dst);
 	for (page = first_page; page < last_page; page++) {
 		params.bind.dst.offset += (unsigned long)page_address(dsmb->pages[page]);
+join:
+		if (page + 2 <= last_page) {
+			if (dsmb->pages[page] + 1 == dsmb->pages[page+1]) {
+				if (page + 2 == last_page && END_SIZE(&dsmb->desc,&desc->bind.dst))
+					params.bind.dst.extent += END_SIZE(&dsmb->desc, &desc->bind.dst);
+				else
+					params.bind.dst.extent += PAGE_SIZE;
+				params.bind.src.extent = params.bind.dst.extent;
+				++page;
+				goto join;
+			}
+		}
 		new = rddma_dst_create(parent,&params);
 		sloc->desc.ops->srcs_create(new,&params);
 		params.bind.dst.offset = 0;
@@ -275,6 +287,17 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	params.bind.src.extent = START_SIZE(&smb->desc, &desc->bind.src);
 	for ( page = first_page; page < last_page ; page++ ) {
 		params.bind.src.offset += (unsigned long)page_address(smb->pages[page]);
+join2:
+		if (page + 2 <= last_page) {
+			if (smb->pages[page] + 1 == smb->pages[page+1]) {
+				if (page + 2 == last_page && END_SIZE(&smb->desc,&desc->bind.src))
+					params.bind.src.extent += END_SIZE(&smb->desc, &desc->bind.src);
+				else
+					params.bind.src.extent += PAGE_SIZE;
+				++page;
+				goto join2;
+			}
+		}
 		src = parent->desc.dst.ops->src_create(parent,&params);
 		params.bind.src.offset = 0;
 		if (page + 2 >= last_page && END_SIZE(&smb->desc,&desc->bind.src))
