@@ -28,13 +28,13 @@ static void rddma_bind_release(struct kobject *kobj)
 {
     struct rddma_bind *p = to_rddma_bind(kobj);
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-    if (p->desc.src.name) {
-	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free src %p\n",__FUNCTION__,p->desc.src.name);
-	    kfree(p->desc.src.name);
+    if (p->desc.bind.src.name) {
+	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free src %p\n",__FUNCTION__,p->desc.bind.src.name);
+	    kfree(p->desc.bind.src.name);
     }
-    if (p->desc.dst.name) {
-	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free dst %p\n",__FUNCTION__,p->desc.dst.name);
-	    kfree(p->desc.dst.name);
+    if (p->desc.bind.dst.name) {
+	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free dst %p\n",__FUNCTION__,p->desc.bind.dst.name);
+	    kfree(p->desc.bind.dst.name);
     }
     kfree(p);
 }
@@ -84,10 +84,10 @@ static ssize_t rddma_bind_default_show(struct rddma_bind *rddma_bind, char *buff
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("Bind %p is %s = %s \n",rddma_bind,rddma_bind->desc.dst.name, rddma_bind->desc.src.name);
+	ATTR_PRINTF("Bind %p is %s = %s \n",rddma_bind,rddma_bind->desc.bind.dst.name, rddma_bind->desc.bind.src.name);
 	if (rddma_bind) {
-		ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",rddma_bind->desc.dst.ops,rddma_bind->desc.dst.rde,rddma_bind->desc.dst.address);
-		ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",rddma_bind->desc.src.ops,rddma_bind->desc.src.rde,rddma_bind->desc.src.address);
+		ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",rddma_bind->desc.bind.dst.ops,rddma_bind->desc.bind.dst.rde,rddma_bind->desc.bind.dst.address);
+		ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",rddma_bind->desc.bind.src.ops,rddma_bind->desc.bind.src.rde,rddma_bind->desc.bind.src.address);
 	}
 	return size;
 
@@ -97,14 +97,14 @@ RDDMA_BIND_ATTR(default, 0644, rddma_bind_default_show, 0);
 
 static ssize_t rddma_bind_offset_show(struct rddma_bind *rddma_bind, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%llx\n",rddma_bind->desc.dst.offset);
+	return snprintf(buffer, PAGE_SIZE, "%llx\n",rddma_bind->desc.bind.dst.offset);
 }
 
 RDDMA_BIND_ATTR(offset, 0644, rddma_bind_offset_show, 0);
 
 static ssize_t rddma_bind_extent_show(struct rddma_bind *rddma_bind, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_bind->desc.dst.extent);
+	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_bind->desc.bind.dst.extent);
 }
 
 RDDMA_BIND_ATTR(extent, 0644, rddma_bind_extent_show, 0);
@@ -129,7 +129,7 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_xfer_p
     if (NULL == new)
 	return new;
 
-    rddma_clone_bind(&new->desc, &desc->bind);
+    rddma_clone_bind(&new->desc.bind, &desc->bind);
     kobject_set_name(&new->kobj,"%s#%llx:%x", desc->xfer.name, desc->xfer.offset,desc->xfer.extent);
     new->kobj.ktype = &rddma_bind_type;
 

@@ -19,7 +19,7 @@
 struct rddma_dst;
 
 struct rddma_bind {
-	struct rddma_bind_param desc;
+	struct rddma_xfer_param desc;
 	struct kobject kobj;
 	struct rddma_dsts *dsts;
 	struct rddma_dst *head_dst;

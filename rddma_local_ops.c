@@ -209,10 +209,10 @@ static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, str
 	if (!DESC_VALID(&ssmb->desc,&desc->bind.src))
 		goto fail_sdesc;
 
-	rddma_inherit(&parent->desc.src,&ssmb->desc);
-	rddma_inherit(&parent->desc.dst,&dsmb->desc);
+	rddma_inherit(&parent->desc.bind.src,&ssmb->desc);
+	rddma_inherit(&parent->desc.bind.dst,&dsmb->desc);
 
-	if ( NULL == parent->desc.dst.ops->dst_create(parent,desc))
+	if ( NULL == parent->desc.bind.dst.ops->dst_create(parent,desc))
 		goto fail_dst;
 
 	rddma_bind_load_dsts(parent);
