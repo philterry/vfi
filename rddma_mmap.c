@@ -102,7 +102,7 @@ static ssize_t rddma_mmap_pid_store(struct rddma_mmap *rddma_mmap, const char *b
 RDDMA_MMAP_ATTR(pid, 0644, rddma_mmap_pid_show, rddma_mmap_pid_store);
 
 static struct attribute *rddma_mmap_default_attrs[] = {
-/*    &rddma_mmap_attr_default.attr,	Removed duplicate, but also remaining "default" */
+    &rddma_mmap_attr_default.attr,
     &rddma_mmap_attr_offset.attr,
     &rddma_mmap_attr_extent.attr,
     &rddma_mmap_attr_pid.attr,

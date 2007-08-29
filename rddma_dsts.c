@@ -106,7 +106,7 @@ static struct kset_uevent_ops rddma_dsts_uevent_ops = {
  	.uevent = rddma_dsts_uevent, 
 };
 
-struct rddma_dsts *new_rddma_dsts(struct rddma_xfer_param *params, struct rddma_bind *parent, char *name, va_list args)
+struct rddma_dsts *new_rddma_dsts(struct rddma_bind_param *params, struct rddma_bind *parent, char *name, va_list args)
 {
 	char *buf;
 	int size;
@@ -156,7 +156,7 @@ void rddma_dsts_unregister(struct rddma_dsts *rddma_dsts)
      kset_unregister(&rddma_dsts->kset);
 }
 
-struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_xfer_param *desc, char *name, ...)
+struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc, char *name, ...)
 {
 	struct rddma_dsts  *dsts = NULL;
 	va_list ap;
@@ -166,7 +166,7 @@ struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_xfe
 	return dsts;
 }
 
-struct rddma_dsts *rddma_dsts_create_ap(struct rddma_bind *parent, struct rddma_xfer_param *desc, char *name, va_list ap)
+struct rddma_dsts *rddma_dsts_create_ap(struct rddma_bind *parent, struct rddma_bind_param *desc, char *name, va_list ap)
 {
 	struct rddma_dsts *new;
 

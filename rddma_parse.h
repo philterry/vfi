@@ -60,26 +60,7 @@ struct rddma_desc_param {
 	struct rddma_dma_engine *rde;
 	struct rddma_fabric_address *address;
 };
-/**
- * struct rddma_bind_param - A bind is simply dest_desc_param=source_desc_param
- *@dst: the destination rddma_desc_param component of the bind
- *@src: the source rddma_desc_param component of the bind
- *
- * When defining a DMA transfer object a portion of one smb is "bound"
- * to a portion of another smb, one being the source of the dma
- * transfer and the other the destination. These binds are defined by
- * naming the smbs and their locations plus the offsets and extent in
- * each.
- *Example Bind String
- * dst.proc.fabric#4000:1000=src.radar.fabric#8000:1000
- *
- *where #x is the offset and :x is the extent. The extents of the
- *binds on each smb must be equal.
- */
-struct rddma_bind_param {
-	struct rddma_desc_param dst;
-	struct rddma_desc_param src;
-};
+
 /**
  * struct rddma_xfer_param - An xfer names the DMA engine and the bind it is to transfer
  *@xfer: An rddma_desc_param describing the name and location of the dma engine to perform the transfer.
@@ -91,9 +72,10 @@ struct rddma_bind_param {
  *
  * plus any offsets and extents and query option strings required.
  */
-struct rddma_xfer_param {
+struct rddma_bind_param {
 	struct rddma_desc_param xfer;
-	struct rddma_bind_param bind;
+	struct rddma_desc_param dst;
+	struct rddma_desc_param src;
 };
 
 static inline void rddma_inherit(struct rddma_desc_param *c, struct rddma_desc_param *p)
@@ -103,14 +85,13 @@ static inline void rddma_inherit(struct rddma_desc_param *c, struct rddma_desc_p
 	c->ops = p->ops;
 }
 
-extern int __must_check rddma_parse_xfer( struct rddma_xfer_param *, const char *);
+extern int __must_check rddma_parse_bind( struct rddma_bind_param *, const char *);
 extern int __must_check rddma_parse_desc( struct rddma_desc_param *, const char *);
 extern char *rddma_get_option( struct rddma_desc_param *, const char *);
 
 extern int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old);
 extern int rddma_clone_bind(struct rddma_bind_param *new, struct rddma_bind_param *old);
-extern int rddma_clone_xfer(struct rddma_xfer_param *new, struct rddma_xfer_param *old);
 extern void rddma_clean_desc(struct rddma_desc_param *);
-extern void rddma_clean_xfer(struct rddma_xfer_param *);
+extern void rddma_clean_bind(struct rddma_bind_param *);
 
 #endif	/* RDDMA_PARSE_H */

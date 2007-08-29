@@ -106,14 +106,14 @@ static struct kset_uevent_ops rddma_srcs_uevent_ops = {
  	.uevent = rddma_srcs_uevent, 
 };
 
-struct rddma_srcs *new_rddma_srcs(struct rddma_xfer_param *desc, struct rddma_dst *parent)
+struct rddma_srcs *new_rddma_srcs(struct rddma_bind_param *desc, struct rddma_dst *parent)
 {
     struct rddma_srcs *new = kzalloc(sizeof(struct rddma_srcs), GFP_KERNEL);
     
     if (NULL == new)
 	return new;
 
-    kobject_set_name(&new->kset.kobj,"%s#%llx:%x",desc->bind.src.name,desc->bind.src.offset,desc->bind.src.extent);
+    kobject_set_name(&new->kset.kobj,"%s#%llx:%x",desc->src.name,desc->src.offset,desc->src.extent);
     new->kset.kobj.ktype = &rddma_srcs_type;
     new->kset.uevent_ops = &rddma_srcs_uevent_ops;
     new->kset.kobj.parent = &parent->kobj;
@@ -141,7 +141,7 @@ void rddma_srcs_unregister(struct rddma_srcs *rddma_srcs)
      kset_unregister(&rddma_srcs->kset);
 }
 
-struct rddma_srcs *rddma_srcs_create(struct rddma_dst *parent, struct rddma_xfer_param *desc)
+struct rddma_srcs *rddma_srcs_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_srcs *new = new_rddma_srcs(desc,parent);
 

@@ -48,69 +48,10 @@ static struct sysfs_ops rddma_mmaps_sysfs_ops = {
 };
 
 
-static ssize_t rddma_mmaps_default_show(struct rddma_mmaps *rddma_mmaps, char *buffer)
-{
-    return snprintf(buffer, PAGE_SIZE, "rddma_mmaps_default");
-}
-
-static ssize_t rddma_mmaps_default_store(struct rddma_mmaps *rddma_mmaps, const char *buffer, size_t size)
-{
-    return size;
-}
-
-RDDMA_MMAPS_ATTR(default, 0644, rddma_mmaps_default_show, rddma_mmaps_default_store);
-
-static ssize_t rddma_mmaps_offset_show(struct rddma_mmaps *rddma_mmaps, char *buffer)
-{
-    return snprintf(buffer, PAGE_SIZE, "rddma_mmaps_offset");
-}
-
-static ssize_t rddma_mmaps_offset_store(struct rddma_mmaps *rddma_mmaps, const char *buffer, size_t size)
-{
-    return size;
-}
-
-RDDMA_MMAPS_ATTR(offset, 0644, rddma_mmaps_offset_show, rddma_mmaps_offset_store);
-
-static ssize_t rddma_mmaps_extent_show(struct rddma_mmaps *rddma_mmaps, char *buffer)
-{
-    return snprintf(buffer, PAGE_SIZE, "rddma_mmaps_extent");
-}
-
-static ssize_t rddma_mmaps_extent_store(struct rddma_mmaps *rddma_mmaps, const char *buffer, size_t size)
-{
-    return size;
-}
-
-RDDMA_MMAPS_ATTR(extent, 0644, rddma_mmaps_extent_show, rddma_mmaps_extent_store);
-
-static ssize_t rddma_mmaps_pid_show(struct rddma_mmaps *rddma_mmaps, char *buffer)
-{
-    return snprintf(buffer, PAGE_SIZE, "rddma_mmaps_pid");
-}
-
-static ssize_t rddma_mmaps_pid_store(struct rddma_mmaps *rddma_mmaps, const char *buffer, size_t size)
-{
-    return size;
-}
-
-RDDMA_MMAPS_ATTR(pid, 0644, rddma_mmaps_pid_show, rddma_mmaps_pid_store);
-
-static struct attribute *rddma_mmaps_default_attrs[] = {
-#if 0
-    /* Don't need any of these in "mmaps" directories */
-    &rddma_mmaps_attr_default.attr,
-    &rddma_mmaps_attr_offset.attr,
-    &rddma_mmaps_attr_extent.attr,
-    &rddma_mmaps_attr_pid.attr,
-#endif
-    0,
-};
 
 struct kobj_type rddma_mmaps_type = {
     .release = rddma_mmaps_release,
     .sysfs_ops = &rddma_mmaps_sysfs_ops,
-    .default_attrs = rddma_mmaps_default_attrs,
 };
 
 struct rddma_mmaps *find_rddma_mmaps(char *name)

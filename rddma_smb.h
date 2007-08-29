@@ -21,14 +21,15 @@
 #define DESC_VALID(b,d) (((d)->offset + (d)->extent) <= (b)->extent)
 
 #define START_PAGE(b,d) (((b)->offset + (d)->offset)>>PAGE_SHIFT)
+#define END_PAGE(b,d) (((b)->offset + (d)->offset + (d)->extent -1) >> PAGE_SHIFT)
 
 #define START_OFFSET(b,d) (((b)->offset + (d)->offset) & ~PAGE_MASK)
 
-#define START_SIZE(b,d) ({int _avail = (PAGE_SIZE - START_OFFSET((b),(d))); _avail > (d)->extent ? (d)->extent : _avail;})
+#define START_SIZE(b,d) ({unsigned int _avail = (PAGE_SIZE - START_OFFSET((b),(d))); _avail > (d)->extent ? (d)->extent : _avail;})
 
-#define END_SIZE(b,d) ({ int apsize = (((b)->offset + (d)->offset + (d)->extent) & ~PAGE_MASK); apsize > (d)->extent ? 0 : apsize;})
-
-#define NUM_DMA(b,d) ((START_SIZE((b),(d)) ? 1 : 0) + (END_SIZE((b),(d)) ? 1 : 0) + (((d)->extent - START_SIZE((b),(d)) - END_SIZE((b),(d))) >> PAGE_SHIFT) )
+#define END_SIZE(b,d) ({ unsigned int apsize = (((b)->offset + (d)->offset + (d)->extent) & ~PAGE_MASK); apsize > (d)->extent ? 0 : apsize;})
+#define NUM_DMA(b,d) (END_PAGE((b),(d)) - START_PAGE((b),(d)) + 1)
+/* #define NUM_DMA(b,d) ((START_SIZE((b),(d)) ? 1 : 0) + (END_SIZE((b),(d)) ? 1 : 0) + ((((d)->extent - START_SIZE((b),(d))) - END_SIZE((b),(d))) >> PAGE_SHIFT) ) */
 
 
 struct rddma_smb {

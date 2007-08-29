@@ -36,10 +36,10 @@ static inline void rddma_srcs_put(struct rddma_srcs *rddma_srcs)
 	if (rddma_srcs) kset_put(&rddma_srcs->kset);
 }
 
-extern struct rddma_srcs *new_rddma_srcs(struct rddma_xfer_param *, struct rddma_dst *);
+extern struct rddma_srcs *new_rddma_srcs(struct rddma_bind_param *, struct rddma_dst *);
 extern int rddma_srcs_register(struct rddma_srcs *);
 extern void rddma_srcs_unregister(struct rddma_srcs *);
-extern struct rddma_srcs *rddma_srcs_create(struct rddma_dst *,struct rddma_xfer_param *);
+extern struct rddma_srcs *rddma_srcs_create(struct rddma_dst *,struct rddma_bind_param *);
 extern void rddma_srcs_delete(struct rddma_srcs *srcs);
 extern struct kobj_type rddma_srcs_type;
 #endif /* RDDMA_SRCS_H */

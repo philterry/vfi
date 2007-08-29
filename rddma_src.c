@@ -133,14 +133,14 @@ struct kobj_type rddma_src_type = {
     .default_attrs = rddma_src_default_attrs,
 };
 
-struct rddma_src *new_rddma_src(struct rddma_dst *parent, struct rddma_xfer_param *desc)
+struct rddma_src *new_rddma_src(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_src *new = kzalloc(sizeof(struct rddma_src), GFP_KERNEL);
     
 	if (NULL == new)
 		goto out;
 
-	rddma_clone_bind(&new->desc, &desc->bind);
+	rddma_clone_bind(&new->desc, desc);
 	new->kobj.ktype = &rddma_src_type;
 	kobject_set_name(&new->kobj,"%s#%llx:%x",new->desc.src.name, new->desc.src.offset, new->desc.src.extent);
 
@@ -178,7 +178,7 @@ struct rddma_src *find_rddma_src(struct rddma_desc_param *desc, struct rddma_dst
 	return to_rddma_src(kset_find_obj(&parent->srcs->kset, name));
 }
 
-struct rddma_src *rddma_src_create(struct rddma_dst *parent, struct rddma_xfer_param *desc)
+struct rddma_src *rddma_src_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_src *new = new_rddma_src(parent,desc);
 	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,new);

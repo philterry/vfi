@@ -36,6 +36,10 @@ static void rddma_bind_release(struct kobject *kobj)
 	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free dst %p\n",__FUNCTION__,p->desc.dst.name);
 	    kfree(p->desc.dst.name);
     }
+    if (p->desc.xfer.name) {
+	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free xfer %p\n",__FUNCTION__,p->desc.xfer.name);
+	    kfree(p->desc.xfer.name);
+    }
     kfree(p);
 }
 
@@ -122,14 +126,15 @@ struct kobj_type rddma_bind_type = {
     .default_attrs = rddma_bind_default_attrs,
 };
 
-struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_xfer_param *desc)
+struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_param *desc)
 {
     struct rddma_bind *new = kzalloc(sizeof(struct rddma_bind), GFP_KERNEL);
     
     if (NULL == new)
 	return new;
 
-    rddma_clone_bind(&new->desc, &desc->bind);
+    rddma_clone_bind(&new->desc, desc);
+
     kobject_set_name(&new->kobj,"%s#%llx:%x", desc->xfer.name, desc->xfer.offset,desc->xfer.extent);
     new->kobj.ktype = &rddma_bind_type;
 
@@ -150,20 +155,24 @@ void rddma_bind_unregister(struct rddma_bind *rddma_bind)
      kobject_unregister(&rddma_bind->kobj);
 }
 
-struct rddma_bind *find_rddma_bind(struct rddma_xfer_param *desc)
+struct rddma_bind *find_rddma_bind(struct rddma_bind_param *desc)
 {
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_bind *bind = NULL;
-	xfer = find_rddma_xfer(desc);
-	bind = xfer->desc.xfer.ops->bind_find(xfer,desc);
+
+	if ( (xfer = find_rddma_xfer(&desc->xfer)) )
+		bind = xfer->desc.ops->bind_find(xfer,desc);
 	rddma_xfer_put(xfer);
 	return bind;
 }
 
-struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_xfer_param *desc)
+struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_param *desc)
 {
-	struct rddma_bind *new = new_rddma_bind(xfer,desc);
-	if (new)
+	struct rddma_bind *new;
+	if ( (new = find_rddma_bind(desc)) )
+		return new;
+
+	if ( (new = new_rddma_bind(xfer,desc)) )
 		if (rddma_bind_register(new))
 			return NULL;
 	return new;
@@ -171,7 +180,8 @@ struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_xfer_
 
 void rddma_bind_delete(struct rddma_bind *bind)
 {
-	rddma_bind_unregister(bind);
+	if (bind) 
+		rddma_bind_unregister(bind);
 }
 
 void rddma_bind_load_dsts(struct rddma_bind *bind)
