@@ -38,6 +38,8 @@ struct rddma_smb {
 	struct page **pages;
 	int num_pages;
 
+	struct rddma_mmaps *mmaps;
+
 	struct kobject kobj;
 };
 

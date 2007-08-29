@@ -356,9 +356,8 @@ static int smb_mmap (const char* desc, char* result, int size)
 {
 	int ret = -ENOMEM;
 	struct rddma_smb *smb = NULL;
-	struct rddma_location *loc;
 	struct rddma_desc_param params;
-	unsigned long ticket_id = 0;
+	struct rddma_mmap *mmap = NULL;
 	
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
@@ -370,29 +369,65 @@ static int smb_mmap (const char* desc, char* result, int size)
 
 	ret = -ENODEV;
 
-	if ( (loc = find_rddma_location(&params)) ) {
+	if ( (smb = find_rddma_smb(&params)) ) {
 		ret = -EINVAL;
 		
-		if (loc->desc.ops && loc->desc.ops->smb_find) {
-			ret = ((smb = loc->desc.ops->smb_find(loc,&params)) == NULL);
-			if (smb) {
-				ticket_id = rddma_mmap_create (smb->pages, smb->num_pages, params.offset, params.extent);
-				ret = (!ticket_id);
-			}
-		}
+		if (smb->desc.ops && smb->desc.ops->mmap_create)
+			ret = ((mmap = smb->desc.ops->mmap_create (smb, &params)) == NULL);
 	}
 
-	rddma_location_put(loc);
+	rddma_smb_put(smb);
 
 out:		
 	if (result) {
-		if (smb) {
-			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%ld\n",
-					smb->desc.name, smb->desc.offset, smb->desc.extent, ret, ticket_id);
+		if (mmap) {
+			/*
+			* Note that because mmap identifiers are huge numbers, write
+			* them as hex digits in the response.
+			*/
+			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%s,mmap_offset=\n",
+				       mmap->desc.name, mmap->desc.offset, mmap->desc.extent, ret, rddma_get_option(&params,"request"),(unsigned long)mmap_to_ticket(mmap));
 		}
 		else {
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
 		}
+	}
+	
+	rddma_clean_desc(&params);
+
+	return ret;
+}
+
+static int smb_unmmap (const char* desc, char* result, int size)
+{
+	int ret = -ENOMEM;
+	struct rddma_smb *smb = NULL;
+	struct rddma_desc_param params;
+	
+	if ( (ret = rddma_parse_desc(&params, desc)) )
+		goto out;
+
+	if (params.offset % PAGE_SIZE) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = -ENODEV;
+
+	if ( (smb = find_rddma_smb(&params)) ) {
+		ret = -EINVAL;
+		
+		if (smb->desc.ops && smb->desc.ops->mmap_delete) {
+			ret = 0;
+			smb->desc.ops->mmap_delete(smb,&params);
+		}
+	}
+
+	rddma_smb_put(smb);
+
+out:		
+	if (result) {
+		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
 	}
 	
 	rddma_clean_desc(&params);
@@ -1079,6 +1114,7 @@ static struct ops {
 	{"smb_delete", smb_delete},
 	{"smb_find", smb_find},
 	{"smb_mmap", smb_mmap}, 
+	{"smb_unmmap",smb_unmmap},
 	{"xfer_create", xfer_create},
 	{"xfer_delete", xfer_delete},
 	{"xfer_find", xfer_find},

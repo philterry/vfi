@@ -18,6 +18,8 @@ rddma-objs := \
                    rddma_location.o \
                         rddma_smbs.o \
                              rddma_smb.o \
+				rddma_mmaps.o \
+					rddma_mmap.o \
                         rddma_xfers.o \
                              rddma_xfer.o \
                                   rddma_binds.o \
@@ -25,7 +27,6 @@ rddma-objs := \
                                             rddma_dsts.o \
                                                  rddma_dst.o \
                                                       rddma_srcs.o \
-                                                           rddma_src.o \
-		rddma_mmap.o
+                                                           rddma_src.o
 
 
