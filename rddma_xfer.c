@@ -91,7 +91,7 @@ RDDMA_XFER_ATTR(default, 0644, rddma_xfer_default_show, rddma_xfer_default_store
 
 static ssize_t rddma_xfer_location_show(struct rddma_xfer *rddma_xfer, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_xfer_location");
+	return snprintf(buffer, PAGE_SIZE, "%s\n",rddma_xfer->desc.location);
 }
 
 static ssize_t rddma_xfer_location_store(struct rddma_xfer *rddma_xfer, const char *buffer, size_t size)
@@ -103,7 +103,7 @@ RDDMA_XFER_ATTR(location, 0644, rddma_xfer_location_show, rddma_xfer_location_st
 
 static ssize_t rddma_xfer_name_show(struct rddma_xfer *rddma_xfer, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_xfer_name");
+	return snprintf(buffer, PAGE_SIZE, "%s\n", rddma_xfer->desc.name);
 }
 
 static ssize_t rddma_xfer_name_store(struct rddma_xfer *rddma_xfer, const char *buffer, size_t size)
@@ -115,7 +115,7 @@ RDDMA_XFER_ATTR(name, 0644, rddma_xfer_name_show, rddma_xfer_name_store);
 
 static ssize_t rddma_xfer_extent_show(struct rddma_xfer *rddma_xfer, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_xfer_extent");
+	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_xfer->desc.extent);
 }
 
 static ssize_t rddma_xfer_extent_store(struct rddma_xfer *rddma_xfer, const char *buffer, size_t size)
@@ -127,7 +127,7 @@ RDDMA_XFER_ATTR(extent, 0644, rddma_xfer_extent_show, rddma_xfer_extent_store);
 
 static ssize_t rddma_xfer_offset_show(struct rddma_xfer *rddma_xfer, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_xfer_offset");
+	return snprintf(buffer, PAGE_SIZE, "%llx\n",rddma_xfer->desc.offset);
 }
 
 static ssize_t rddma_xfer_offset_store(struct rddma_xfer *rddma_xfer, const char *buffer, size_t size)
@@ -137,7 +137,7 @@ static ssize_t rddma_xfer_offset_store(struct rddma_xfer *rddma_xfer, const char
 
 RDDMA_XFER_ATTR(offset, 0644, rddma_xfer_offset_show, rddma_xfer_offset_store);
 
-static struct attribute *rddma_xfer_default_attrs[] = {
+static struct attribute *rddma_xfer_default_attrs[] = { 
     &rddma_xfer_attr_default.attr,
     &rddma_xfer_attr_location.attr,
     &rddma_xfer_attr_name.attr,
