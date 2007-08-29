@@ -21,7 +21,7 @@
 #include <linux/rddma_src.h>
 #include <linux/rddma_dst.h>
 #include <linux/rddma_ops.h>
-
+#include <linux/rddma_mmaps.h>
 
 
 static void rddma_smb_release(struct kobject *kobj)
@@ -177,14 +177,20 @@ int rddma_smb_register(struct rddma_smb *rddma_smb)
 	if ( (ret = kobject_register(&rddma_smb->kobj) ) )
 		goto out;
 
+	if ( (rddma_smb->mmaps = new_rddma_mmaps(rddma_smb, "mmaps")) )
+		if ( (ret = rddma_mmaps_register(rddma_smb->mmaps)) )
+			goto mmaps;
 	return ret;
+mmaps:
+	rddma_smb_unregister(rddma_smb);
 out:
 	return ret;
 }
 
 void rddma_smb_unregister(struct rddma_smb *rddma_smb)
 {
-     kobject_unregister(&rddma_smb->kobj);
+	rddma_mmaps_unregister(rddma_smb->mmaps);
+	kobject_unregister(&rddma_smb->kobj);
 }
 
 struct rddma_smb *find_rddma_smb(struct rddma_desc_param *desc)

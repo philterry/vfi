@@ -67,8 +67,6 @@ static int  __init rddma_init(void)
 	if ( (ret = rddma_cdev_register(rddma_subsys)) )
 		goto cdev_fail;
 	
-	rddma_mmap_tickets_init ();
-
 	return 0;
 
 cdev_fail:

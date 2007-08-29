@@ -26,6 +26,7 @@
 #include <linux/rddma_dsts.h>
 #include <linux/rddma_parse.h>
 #include <linux/rddma_drv.h>
+#include <linux/rddma_mmap.h>
 
 #include <linux/device.h>
 #include <linux/mm.h>
@@ -349,6 +350,16 @@ static void rddma_local_src_delete(struct rddma_dst *parent, struct rddma_bind_p
 	rddma_src_delete(rddma_local_src_find(parent,desc));
 }
 
+static struct rddma_mmap *rddma_local_mmap_create(struct rddma_smb *smb, struct rddma_desc_param *desc)
+{
+	return rddma_mmap_create(smb,desc);
+}
+
+static void rddma_local_mmap_delete(struct rddma_smb *smb, struct rddma_desc_param *desc)
+{
+	rddma_mmap_delete(smb,desc);
+}
+
 struct rddma_ops rddma_local_ops = {
 	.location_create = rddma_local_location_create,
 	.location_delete = rddma_local_location_delete,
@@ -356,6 +367,8 @@ struct rddma_ops rddma_local_ops = {
 	.smb_create = rddma_local_smb_create,
 	.smb_delete = rddma_local_smb_delete,
 	.smb_find = rddma_local_smb_find,
+	.mmap_create = rddma_local_mmap_create,
+	.mmap_delete = rddma_local_mmap_delete,
 	.xfer_create = rddma_local_xfer_create,
 	.xfer_delete = rddma_local_xfer_delete,
 	.xfer_find = rddma_local_xfer_find,

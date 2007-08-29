@@ -1,86 +1,219 @@
-/**************************************************************************
-* Title     : rddma_mmap.c
-* Author    : Trevor Anderson
-* Copyright : (c) Micro Memory, 2007 - All Rights Reserved
-*--------------------------------------------------------------------------
-* Description : mmap ticketing subsystem for RDDMA
-*--------------------------------------------------------------------------
-* This file provides support for mmap ticketing within the RDDMA
-* driver. This is a scheme in which the ability to mmap a named
-* RDDMA construct - an SMB or a transfer, say - into user virtual
-* memory can be offered despite the fact that RDDMA does not possess
-* nor operate a unified page table. 
-*
-* 
-* This program is free software; you can redistribute  it and/or modify it
-* under  the terms of  the GNU General  Public License as published by the
-* Free Software Foundation;  either version 2 of the  License, or (at your
-* option) any later version.
-* 
-* fcanzac
-**************************************************************************/
-#include <linux/rddma.h>
+#define MY_DEBUG      RDDMA_DBG_MMAP | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_MMAP | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
 #include <linux/rddma_mmap.h>
-#define MY_DEBUG      RDDMA_DBG_OPS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#include <linux/rddma_smb.h>
+#include <linux/rddma_smbs.h>
+#include <linux/rddma_mmaps.h>
+#include <linux/rddma_drv.h>
+#include <linux/rddma_location.h>
 
-static int ready = 0;
-static struct rddma_mmap_book book;
+#include <linux/slab.h>
+#include <linux/module.h>
 
-/**
-* rddma_mmap_tickets_init - Initialize mmap ticketing.
-* 
-* 
-**/
-void rddma_mmap_tickets_init (void)
+static void rddma_mmap_release(struct kobject *kobj)
 {
-	if (!ready) {
-		memset (&book, 0, sizeof (struct rddma_mmap_book));
-		sema_init (&book.sem, 1);
+    struct rddma_mmap *p = to_rddma_mmap(kobj);
+    kfree(p);
+}
+
+struct rddma_mmap_attribute {
+    struct attribute attr;
+    ssize_t (*show)(struct rddma_mmap*, char *buffer);
+    ssize_t (*store)(struct rddma_mmap*, const char *buffer, size_t size);
+};
+
+#define RDDMA_MMAP_ATTR(_name,_mode,_show,_store) struct rddma_mmap_attribute rddma_mmap_attr_##_name = {     .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },     .show = _show,     .store = _store };
+
+static ssize_t rddma_mmap_show(struct kobject *kobj, struct attribute *attr, char *buffer)
+{
+    struct rddma_mmap_attribute *pattr = container_of(attr, struct rddma_mmap_attribute, attr);
+    struct rddma_mmap *p = to_rddma_mmap(kobj);
+
+    if (pattr && pattr->show)
+	return pattr->show(p,buffer);
+
+    return 0;
+}
+
+static ssize_t rddma_mmap_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
+{
+    struct rddma_mmap_attribute *pattr = container_of(attr, struct rddma_mmap_attribute, attr);
+    struct rddma_mmap *p = to_rddma_mmap(kobj);
+
+    if (pattr && pattr->store)
+	return pattr->store(p, buffer, size);
+
+    return 0;
+}
+
+static struct sysfs_ops rddma_mmap_sysfs_ops = {
+    .show = rddma_mmap_show,
+    .store = rddma_mmap_store,
+};
+
+
+static ssize_t rddma_mmap_default_show(struct rddma_mmap *rddma_mmap, char *buffer)
+{
+    return snprintf(buffer, PAGE_SIZE, "rddma_mmap_default");
+}
+
+static ssize_t rddma_mmap_default_store(struct rddma_mmap *rddma_mmap, const char *buffer, size_t size)
+{
+    return size;
+}
+
+RDDMA_MMAP_ATTR(default, 0644, rddma_mmap_default_show, rddma_mmap_default_store);
+
+static ssize_t rddma_mmap_offset_show(struct rddma_mmap *rddma_mmap, char *buffer)
+{
+    return snprintf(buffer, PAGE_SIZE, "rddma_mmap_offset");
+}
+
+static ssize_t rddma_mmap_offset_store(struct rddma_mmap *rddma_mmap, const char *buffer, size_t size)
+{
+    return size;
+}
+
+RDDMA_MMAP_ATTR(offset, 0644, rddma_mmap_offset_show, rddma_mmap_offset_store);
+
+static ssize_t rddma_mmap_extent_show(struct rddma_mmap *rddma_mmap, char *buffer)
+{
+    return snprintf(buffer, PAGE_SIZE, "rddma_mmap_extent");
+}
+
+static ssize_t rddma_mmap_extent_store(struct rddma_mmap *rddma_mmap, const char *buffer, size_t size)
+{
+    return size;
+}
+
+RDDMA_MMAP_ATTR(extent, 0644, rddma_mmap_extent_show, rddma_mmap_extent_store);
+
+static ssize_t rddma_mmap_pid_show(struct rddma_mmap *rddma_mmap, char *buffer)
+{
+    return snprintf(buffer, PAGE_SIZE, "rddma_mmap_pid");
+}
+
+static ssize_t rddma_mmap_pid_store(struct rddma_mmap *rddma_mmap, const char *buffer, size_t size)
+{
+    return size;
+}
+
+RDDMA_MMAP_ATTR(pid, 0644, rddma_mmap_pid_show, rddma_mmap_pid_store);
+
+static struct attribute *rddma_mmap_default_attrs[] = {
+    &rddma_mmap_attr_default.attr,
+    &rddma_mmap_attr_default.attr,
+    &rddma_mmap_attr_offset.attr,
+    &rddma_mmap_attr_extent.attr,
+    &rddma_mmap_attr_pid.attr,
+    0,
+};
+
+struct kobj_type rddma_mmap_type = {
+    .release = rddma_mmap_release,
+    .sysfs_ops = &rddma_mmap_sysfs_ops,
+    .default_attrs = rddma_mmap_default_attrs,
+};
+
+struct rddma_mmap *find_rddma_mmap(struct rddma_smb *smb, struct rddma_desc_param *desc)
+{
+	char buf[512];
+	struct rddma_mmap *mmap;
+	snprintf(buf,512,"%d#%llx:%x",current->pid,desc->offset,desc->extent);
+	mmap = to_rddma_mmap(kset_find_obj(&smb->mmaps->kset,buf));
+	return mmap;
+}
+
+struct rddma_mmap *find_rddma_mmap_by_id(unsigned int tid)
+{
+	struct rddma_location *loc;
+	struct rddma_smb *smb;
+	struct rddma_mmap *mmap;
+	spin_lock(&rddma_subsys->kset.list_lock);
+	list_for_each_entry(loc, &rddma_subsys->kset.list, kobj.entry) {
+		spin_lock(&loc->smbs->kset.list_lock);
+		list_for_each_entry(smb,&loc->smbs->kset.list,kobj.entry) {
+			spin_lock(&smb->mmaps->kset.list_lock);
+			list_for_each_entry(mmap,&smb->mmaps->kset.list,kobj.entry) {
+				if (is_mmap_ticket(mmap,tid)) {
+					spin_unlock(&smb->mmaps->kset.list_lock);
+					spin_unlock(&loc->smbs->kset.list_lock);
+					spin_unlock(&rddma_subsys->kset.list_lock);
+					return mmap;
+				}
+			}
+			spin_unlock(&smb->mmaps->kset.list_lock);
+		}
+		spin_unlock(&loc->smbs->kset.list_lock);
 	}
-	ready = 1;
+	spin_unlock(&rddma_subsys->kset.list_lock);
+	return NULL;
+}
+
+static int rddma_mmap_uevent_filter(struct kset *kset, struct kobject *kobj)
+{
+	return 0; /* Do not generate event */
+}
+
+static const char *rddma_mmap_uevent_name(struct kset *kset, struct kobject *kobj)
+{
+	return "dunno";
+}
+
+static int rddma_mmap_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
+{
+	return 0; /* Do not generate event */
 }
 
 
-/**
-* rddma_mmap_create - validate mapping and create mmap ticket
-*
-* @pg_tbl:	Address of target page table
-* @pg_len:	Number of pages in target area
-* @offset:	Offset to map start, bytes
-* @extent:	Extent of mapping, bytes
-*
-* This function validates a map request and creates a ticket to describe it.
-*
-* The @pg_tbl and @pg_len arguments identify the target memory area by its
-* page table. They refer to the entire target page table, not some smaller
-* part of it.
-*
-* The @offset and @extent arguments specify the region within the target area
-* that is to be mapped, in terms of a byte offset and a byte extent.
-*
-* @offset and @extent are converted from bytes to pages, and are checked against
-* the table dimensions. If the region fits, the function will acquire the next 
-* free ticket in @book and fill-in the details. Both may be zero. The @extent
-* argument is meaningless, really, and only included here for consistency: the
-* plain fact is that the user specifies the true extent in the mmap call
-* itself, and we cannot pre-empt that aspect of mmap here.
-*
-* The function will return a ticket identifier to be used in a forthcoming 
-* mmap call, where it would substitute for "offset". 
-*
-* The function returns zero if it could not create a ticket.
-*
-* If it happens that the ticket book is full on entry, the function will INVALIDATE
-* one of its current entries. Bad luck on whoever held it before - should have been
-* quicker.
-* 
-**/
-unsigned long rddma_mmap_create (struct page **pg_tbl, unsigned long n_pg, 
-				 unsigned long offset, unsigned long extent)
+static struct kset_uevent_ops rddma_mmap_uevent_ops = {
+	.filter = rddma_mmap_uevent_filter,
+	.name = rddma_mmap_uevent_name,
+	.uevent = rddma_mmap_uevent,
+};
+
+struct rddma_mmap *new_rddma_mmap(struct rddma_smb *parent, struct rddma_desc_param *desc)
 {
-	unsigned long tid;
-	struct rddma_mmap_ticket* tkt;
-	if (!ready) rddma_mmap_tickets_init ();
+    struct rddma_mmap *new = kzalloc(sizeof(struct rddma_mmap), GFP_KERNEL);
+    
+    if (NULL == new)
+	return new;
+
+    kobject_set_name(&new->kobj,"%d#%llx:%x",current->pid, desc->offset,desc->extent);
+    new->kobj.ktype = &rddma_mmap_type;
+    new->kobj.kset = &parent->mmaps->kset;
+
+    return new;
+}
+
+int rddma_mmap_register(struct rddma_mmap *rddma_mmap)
+{
+    int ret = 0;
+
+    if ( (ret = kobject_register(&rddma_mmap->kobj) ) )
+	goto out;
+
+      return ret;
+
+out:
+    return ret;
+}
+
+void rddma_mmap_unregister(struct rddma_mmap *rddma_mmap)
+{
+    
+     kobject_unregister(&rddma_mmap->kobj);
+}
+
+struct rddma_mmap *rddma_mmap_create(struct rddma_smb *smb, struct rddma_desc_param *desc)
+{
+	struct page **pg_tbl = smb->pages;
+	unsigned long n_pg = smb->num_pages;
+	unsigned long offset = desc->offset;
+	unsigned long extent = desc->extent;
+	struct rddma_mmap* mmap = NULL;
+
 	RDDMA_DEBUG (MY_DEBUG, "rddma_mmap_create: %lu-bytes at offset %lu of %lu-page table %p\n", 
 		extent, offset, n_pg, pg_tbl);
 	offset >>= PAGE_SHIFT;
@@ -90,82 +223,24 @@ unsigned long rddma_mmap_create (struct page **pg_tbl, unsigned long n_pg,
 		return 0;
 	}
 	
-	down (&book.sem);
-	tid = ++book.issued;
-	tkt = &book.ticket[tid % RDDMA_MMAP_TICKETS];
-	if (tkt->t_id) {
-		RDDMA_DEBUG (MY_DEBUG, "-- Revoking unused ticket#%lu!\n", tkt->t_id);
+	if ( (mmap = new_rddma_mmap(smb,desc)) ) {
+		if ( !rddma_mmap_register(mmap) ) {
+			mmap->pg_tbl = &pg_tbl[offset];
+			mmap->n_pg = n_pg - offset;
+		}
+		else {
+			rddma_mmap_put(mmap);
+			mmap = NULL;
+		}
 	}
-	tkt->t_id = tid;
-	tkt->pg_tbl = &pg_tbl[offset];
-	tkt->n_pg = n_pg - offset;
-	up (&book.sem);
-	
-	RDDMA_DEBUG (MY_DEBUG, "-- Assigned ticket#%lu to %lu pages at %p\n", tid, tkt->n_pg, tkt->pg_tbl);
-	return (tid << PAGE_SHIFT);
+	RDDMA_DEBUG_SAFE (MY_DEBUG, mmap, "-- Assigned %lu pages at %p\n",mmap->n_pg, mmap->pg_tbl);
+	return mmap;
 }
 
-/**
-* rddma_mmap_find_ticket - find ticket with specified number
-*
-* @tid - ticket number to look up.
-*
-* This function tries to find a ticket with the specified identifier, 
-* and returns a pointer to the ticket structure if successful. Or NULL
-* if it can't find it.
-*
-* For the time-being we use a very simple ticketing scheme that uses
-* a fixed-size ticket book. The low-order bits of a ticket identifier
-* (id modulo book size) tell us which entry it ought to occupy. The
-* stored identifier within that entry tells us whether it does, or 
-* whether it has been cancelled and superceded by another.
-*
-**/
-struct rddma_mmap_ticket* rddma_mmap_find_ticket (unsigned long tid)
+void rddma_mmap_delete(struct rddma_smb *smb, struct rddma_desc_param *desc)
 {
-	struct rddma_mmap_ticket* tkt;
+	struct rddma_mmap *mmap = find_rddma_mmap(smb,desc);
 	
-	if (!ready) rddma_mmap_tickets_init ();
-	RDDMA_DEBUG (MY_DEBUG, "-- Find mmap ticket %lu\n", tid);
-	tkt = &book.ticket[tid % RDDMA_MMAP_TICKETS];
-	return (tkt->t_id == tid) ? tkt : (struct rddma_mmap_ticket*)NULL;
-}
-
-
-/**
-* rddma_mmap_stamp_ticket - stamp a ticket and free its slot
-*
-* @tid - ticket number
-*
-* This function stamps a ticket, renders it meaningless, and
-* increments the stamped ticket counter that helps us determine
-* how many live tickets are pending.
-*
-**/
-void rddma_mmap_stamp_ticket (unsigned long tid)
-{
-	struct rddma_mmap_ticket* tkt;
 	
-	if (!ready) rddma_mmap_tickets_init ();
-	down (&book.sem);
-	tkt = &book.ticket[tid % RDDMA_MMAP_TICKETS];
-	if (tkt->t_id == tid) {
-		tkt->t_id = 0;
-		book.stamped++;
-	}
-	up (&book.sem);
+	rddma_mmap_unregister(mmap);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
