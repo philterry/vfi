@@ -16,7 +16,7 @@ struct rddma_mmap {
 static inline unsigned long mmap_to_ticket(struct rddma_mmap *m)
 {
 	unsigned long t = (unsigned long)((u64)m & 0xffffffff);
-	t = (t & ~0xffff) ^ (t << 16);
+	t = ((t & ~0xffff) ^ (t << 16)) & 0xffffffff;
 	return t;
 }
 

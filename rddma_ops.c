@@ -385,7 +385,7 @@ out:
 			* Note that because mmap identifiers are huge numbers, write
 			* them as hex digits in the response.
 			*/
-			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%s,mmap_offset=\n",
+			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%s,mmap_offset=%08lx\n",
 				       mmap->desc.name, mmap->desc.offset, mmap->desc.extent, ret, rddma_get_option(&params,"request"),(unsigned long)mmap_to_ticket(mmap));
 		}
 		else {
