@@ -135,21 +135,21 @@ struct kobj_type rddma_dst_type = {
     .default_attrs = rddma_dst_default_attrs,
 };
 
-struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_xfer_param *desc)
+struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_dst *new = kzalloc(sizeof(struct rddma_dst), GFP_KERNEL);
     
 	if (NULL == new)
 		goto out;
 
-	rddma_clone_bind(&new->desc, &desc->bind);
+	rddma_clone_bind(&new->desc, desc);
 	new->kobj.ktype = &rddma_dst_type;
 	kobject_set_name(&new->kobj,"%s#%llx:%x", new->desc.dst.name,new->desc.dst.offset, new->desc.dst.extent);
 
 	new->kobj.kset = &parent->dsts->kset;
-	new->desc.dst.ops = parent->desc.bind.dst.ops;
-	new->desc.dst.rde = parent->desc.bind.dst.rde;
-	new->desc.src.rde = parent->desc.bind.src.rde;
+	new->desc.dst.ops = parent->desc.dst.ops;
+	new->desc.dst.rde = parent->desc.dst.rde;
+	new->desc.src.rde = parent->desc.src.rde;
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
@@ -174,18 +174,18 @@ void rddma_dst_unregister(struct rddma_dst *rddma_dst)
      kobject_unregister(&rddma_dst->kobj);
 }
 
-struct rddma_dst *find_rddma_dst(struct rddma_xfer_param *desc)
+struct rddma_dst *find_rddma_dst(struct rddma_bind_param *desc)
 {
 	struct rddma_bind *bind = NULL;
 	struct rddma_dst *dst = NULL;
 
 	bind = find_rddma_bind(desc);
 	
-	dst = bind->desc.bind.dst.ops->dst_find(bind,desc);
+	dst = bind->desc.dst.ops->dst_find(bind,desc);
 	return dst;
 }
 
-struct rddma_dst *rddma_dst_create(struct rddma_bind *bind, struct rddma_xfer_param *desc)
+struct rddma_dst *rddma_dst_create(struct rddma_bind *bind, struct rddma_bind_param *desc)
 {
 	struct rddma_dst *new = new_rddma_dst(bind,desc);
 

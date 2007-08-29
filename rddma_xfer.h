@@ -17,7 +17,7 @@
 #include <linux/rddma_location.h>
 
 struct rddma_xfer {
-	struct rddma_xfer_param desc;
+	struct rddma_desc_param desc;
 	struct kobject kobj;
 	struct rddma_bind *head_bind;
 	struct rddma_binds *binds;
@@ -40,11 +40,11 @@ static inline void rddma_xfer_put(struct rddma_xfer *rddma_xfer)
 	if (rddma_xfer) kobject_put(&rddma_xfer->kobj);
 }
 
-extern struct rddma_xfer *new_rddma_xfer(struct rddma_location *, struct rddma_xfer_param *);
+extern struct rddma_xfer *new_rddma_xfer(struct rddma_location *, struct rddma_desc_param *);
 extern int rddma_xfer_register(struct rddma_xfer *);
 extern void rddma_xfer_unregister(struct rddma_xfer *);
-extern struct rddma_xfer *find_rddma_xfer(struct rddma_xfer_param *);
-extern struct rddma_xfer *rddma_xfer_create(struct rddma_location *, struct rddma_xfer_param *);
+extern struct rddma_xfer *find_rddma_xfer(struct rddma_desc_param *);
+extern struct rddma_xfer *rddma_xfer_create(struct rddma_location *, struct rddma_desc_param *);
 extern void rddma_xfer_delete(struct rddma_xfer *);
 extern void rddma_xfer_load_binds(struct rddma_xfer *, struct rddma_bind *);
 extern struct kobj_type rddma_xfer_type;

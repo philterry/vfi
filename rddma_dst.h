@@ -40,11 +40,11 @@ static inline void rddma_dst_put(struct rddma_dst *rddma_dst)
 	kobject_put(&rddma_dst->kobj);
 }
 
-extern struct rddma_dst *new_rddma_dst(struct rddma_bind *, struct rddma_xfer_param *);
+extern struct rddma_dst *new_rddma_dst(struct rddma_bind *, struct rddma_bind_param *);
 extern int rddma_dst_register(struct rddma_dst *);
 extern void rddma_dst_unregister(struct rddma_dst *);
-extern struct rddma_dst *find_rddma_dst(struct rddma_xfer_param *);
-extern struct rddma_dst *rddma_dst_create(struct rddma_bind *, struct rddma_xfer_param *);
+extern struct rddma_dst *find_rddma_dst(struct rddma_bind_param *);
+extern struct rddma_dst *rddma_dst_create(struct rddma_bind *, struct rddma_bind_param *);
 extern void rddma_dst_delete(struct rddma_dst *);
 extern void rddma_dst_load_srcs(struct rddma_dst *);
 extern struct kobj_type rddma_dst_type;

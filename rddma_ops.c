@@ -301,26 +301,26 @@ out:
 	return ret;
 }
 
-static int valid_extents(struct rddma_xfer_param *x)
+static int valid_extents(struct rddma_bind_param *x)
 {
-	if ( x->xfer.extent == 0 && x->bind.dst.extent == 0 && x->bind.src.extent == 0 )
+	if ( x->xfer.extent == 0 && x->dst.extent == 0 && x->src.extent == 0 )
 		return 0;
 
-	if (x->bind.dst.extent == 0 && x->bind.src.extent == 0) {
-		x->bind.dst.extent = x->bind.src.extent = x->xfer.extent;
+	if (x->dst.extent == 0 && x->src.extent == 0) {
+		x->dst.extent = x->src.extent = x->xfer.extent;
 		return 1;
 	}
 	
-	if (x->bind.dst.extent == 0)
-		x->bind.dst.extent = x->bind.src.extent;
+	if (x->dst.extent == 0)
+		x->dst.extent = x->src.extent;
 
-	if (x->bind.src.extent == 0)
-		x->bind.src.extent = x->bind.dst.extent;
+	if (x->src.extent == 0)
+		x->src.extent = x->dst.extent;
 
 	if (x->xfer.extent == 0)
-		x->xfer.extent = x->bind.dst.extent;
+		x->xfer.extent = x->dst.extent;
 
-	if (x->xfer.extent != x->bind.dst.extent || x->xfer.extent != x->bind.src.extent || x->bind.dst.extent != x->bind.src.extent)
+	if (x->xfer.extent != x->dst.extent || x->xfer.extent != x->src.extent || x->dst.extent != x->src.extent)
 		return 0;
 
 	return 1;
@@ -416,19 +416,14 @@ static int xfer_create(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_location *location;
-	struct rddma_xfer_param params;
+	struct rddma_desc_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
-		goto out;
-
-	ret = -EINVAL;
-
-	if ( !valid_extents(&params) )
+	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
 
-	if ( (location = find_rddma_location(&params.xfer) ) ) {
+	if ( (location = find_rddma_location(&params) ) ) {
 		ret = -EINVAL;
 		
 		if (location->desc.ops && location->desc.ops->xfer_create)
@@ -440,16 +435,13 @@ static int xfer_create(const char *desc, char *result, int size)
 out:		
 	if (result) {
 		if (xfer)
-			ret = snprintf(result,size,"%s#%llx:%x/%s#%llx:%x=%s#%llx:%x?result=%d,reply=%s\n",
-				       xfer->desc.xfer.name, xfer->desc.xfer.offset, xfer->desc.xfer.extent,
-				       xfer->desc.bind.dst.name, xfer->desc.bind.dst.offset, xfer->desc.bind.dst.extent,
-				       xfer->desc.bind.src.name, xfer->desc.bind.src.offset, xfer->desc.bind.src.extent,
-				       ret,rddma_get_option(&params.xfer,"request"));
+			ret = snprintf(result,size,"%s?result=%d,reply=%s\n",
+				       xfer->desc.name, ret,rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret, rddma_get_option(&params.xfer,"request"));
+			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
 	}
 
-	rddma_clean_xfer(&params);
+	rddma_clean_desc(&params);
 
 	return ret;
 }
@@ -469,14 +461,14 @@ static int xfer_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
 	struct rddma_location *loc;
-	struct rddma_xfer_param params;
+	struct rddma_desc_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
 
-	if ( (loc = find_rddma_location(&params.xfer) ) ) {
+	if ( (loc = find_rddma_location(&params) ) ) {
 		ret = -EINVAL;
 		if ( loc->desc.ops && loc->desc.ops->xfer_delete ) {
 			ret = loc->desc.ops->xfer_delete(loc, &params);
@@ -487,9 +479,9 @@ static int xfer_delete(const char *desc, char *result, int size)
 
 out:
 	if (result) 
-		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret, rddma_get_option(&params.xfer,"request"));
+		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
 
-	rddma_clean_xfer(&params);
+	rddma_clean_desc(&params);
 
 	return ret;
 }
@@ -510,14 +502,14 @@ static int xfer_find(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_location *location;
-	struct rddma_xfer_param params;
+	struct rddma_desc_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
 
-	if ( (location = find_rddma_location(&params.xfer)) ) {
+	if ( (location = find_rddma_location(&params)) ) {
 		ret = -EINVAL;
 		if (location->desc.ops && location->desc.ops->xfer_find)
 			ret = ((xfer = location->desc.ops->xfer_find(location,&params)) == NULL);
@@ -528,16 +520,13 @@ static int xfer_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (xfer)
-			ret = snprintf(result,size,"%s#%llx:%x/%s#%llx:%x=%s#%llx:%x?result=%d,reply=%s\n",
-				       xfer->desc.xfer.name, xfer->desc.xfer.offset, xfer->desc.xfer.extent,
-				       xfer->desc.bind.dst.name, xfer->desc.bind.dst.offset, xfer->desc.bind.dst.extent,
-				       xfer->desc.bind.src.name, xfer->desc.bind.src.offset, xfer->desc.bind.src.extent,
-				       ret,rddma_get_option(&params.xfer,"request"));
+			ret = snprintf(result,size,"%s?result=%d,reply=%s\n",
+				       xfer->desc.name, ret,rddma_get_option(&params,"request"));
 		else 
-				ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
+				ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret,rddma_get_option(&params,"request"));
 	}
 
-	rddma_clean_xfer(&params);
+	rddma_clean_desc(&params);
 
 	return ret;
 }
@@ -558,17 +547,22 @@ static int bind_create(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_bind *bind = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
+		goto out;
+
+	ret = -EINVAL;
+
+	if ( !valid_extents(&params) )
 		goto out;
 
 	ret = -ENODEV;
 
-	if ( (xfer = find_rddma_xfer(&params) ) ) {
+	if ( (xfer = find_rddma_xfer(&params.xfer) ) ) {
 		ret = -EINVAL;
-		if (xfer->desc.xfer.ops && xfer->desc.xfer.ops->bind_create)
-			ret = ((bind = xfer->desc.xfer.ops->bind_create(xfer, &params)) == NULL);
+		if (xfer->desc.ops && xfer->desc.ops->bind_create)
+			ret = ((bind = xfer->desc.ops->bind_create(xfer, &params)) == NULL);
 	}
 
 	rddma_xfer_put(xfer);
@@ -577,15 +571,15 @@ out:
 	if (result) {
 		if (xfer)
 			ret = snprintf(result,size,"%s#%llx:%x/%s#%llx:%x=%s#%llx:%x?result=%d,reply=%s\n",
-				       xfer->desc.xfer.name, xfer->desc.xfer.offset, xfer->desc.xfer.extent,
-				       bind->desc.bind.dst.name, bind->desc.bind.dst.offset, bind->desc.bind.dst.extent,
-				       bind->desc.bind.src.name, bind->desc.bind.src.offset, bind->desc.bind.src.extent,
+				       xfer->desc.name, xfer->desc.offset, xfer->desc.extent,
+				       bind->desc.dst.name, bind->desc.dst.offset, bind->desc.dst.extent,
+				       bind->desc.src.name, bind->desc.src.offset, bind->desc.src.extent,
 				       ret,rddma_get_option(&params.xfer,"request"));
 		else
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
@@ -605,18 +599,18 @@ static int bind_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
 
-	if ( (xfer = find_rddma_xfer(&params) ) ) {
+	if ( (xfer = find_rddma_xfer(&params.xfer) ) ) {
 		ret = -EINVAL;
-		if ( xfer->desc.xfer.ops && xfer->desc.xfer.ops->bind_delete ) {
+		if ( xfer->desc.ops && xfer->desc.ops->bind_delete ) {
 			ret = 0;
-			xfer->desc.xfer.ops->bind_delete(xfer, &params);
+			xfer->desc.ops->bind_delete(xfer, &params);
 		}
 	}
 
@@ -624,9 +618,13 @@ static int bind_delete(const char *desc, char *result, int size)
 
 out:
 	if (result) 
-		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.xfer.name,ret,rddma_get_option(&params.xfer,"request"));
+		ret = snprintf(result,size,"%s#%llx:%x/%s#%llx:%x=%s#%llx:%x?result=%d,reply=%s\n",
+			       params.xfer.name, params.xfer.offset, params.xfer.extent,
+			       params.dst.name, params.dst.offset, params.dst.extent,
+			       params.src.name, params.src.offset, params.src.extent,
+			       ret,rddma_get_option(&params.xfer,"request"));
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
@@ -647,34 +645,31 @@ static int bind_find(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_bind *bind = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
 
-	if ( (xfer = find_rddma_xfer(&params)) ) {
+	if ( (xfer = find_rddma_xfer(&params.xfer)) ) {
 		ret = -EINVAL;
-		if (xfer->desc.xfer.ops && xfer->desc.xfer.ops->bind_find)
-			ret = ((bind = xfer->desc.xfer.ops->bind_find(xfer,&params)) == NULL);
+		if (xfer->desc.ops && xfer->desc.ops->bind_find)
+			ret = ((bind = xfer->desc.ops->bind_find(xfer,&params)) == NULL);
 	}
 
 	rddma_xfer_put(xfer);
 
 out:
 	if (result) {
-		if (xfer)
-			ret = snprintf(result,size,"%s#%llx:%x/%s#%llx:%x=%s#%llx:%x?result=%d,reply=%s\n",
-				       xfer->desc.xfer.name, xfer->desc.xfer.offset, xfer->desc.xfer.extent,
-				       bind->desc.bind.dst.name, bind->desc.bind.dst.offset, bind->desc.bind.dst.extent,
-				       bind->desc.bind.src.name, bind->desc.bind.src.offset, bind->desc.bind.src.extent,
-				       ret,rddma_get_option(&params.xfer,"request"));
-		else 
-			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
+		ret = snprintf(result,size,"%s#%llx:%x/%s#%llx:%x=%s#%llx:%x?result=%d,reply=%s\n",
+			       params.xfer.name, params.xfer.offset, params.xfer.extent,
+			       params.dst.name, params.dst.offset, params.dst.extent,
+			       params.src.name, params.src.offset, params.src.extent,
+			       ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
@@ -695,17 +690,17 @@ static int dst_create(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_dst *dst = NULL;
 	struct rddma_bind *bind = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
 
 	if ( (bind = find_rddma_bind(&params) ) ) {
 		ret = -EINVAL;
-		if (bind->desc.bind.dst.ops && bind->desc.bind.dst.ops->dst_create)
-			ret = ((dst = bind->desc.bind.dst.ops->dst_create(bind, &params)) == NULL);
+		if (bind->desc.dst.ops && bind->desc.dst.ops->dst_create)
+			ret = ((dst = bind->desc.dst.ops->dst_create(bind, &params)) == NULL);
 	}
 
 	rddma_bind_put(bind);
@@ -714,14 +709,14 @@ out:
 	if (result) {
 		if (bind)
 			ret = snprintf(result,size,"%s#%llx:%x=%s#%llx:%x?result=%d,reply=%s\n",
-				       bind->desc.bind.dst.name, bind->desc.bind.dst.offset, bind->desc.bind.dst.extent,
-				       bind->desc.bind.src.name, bind->desc.bind.src.offset, bind->desc.bind.src.extent,
+				       bind->desc.dst.name, bind->desc.dst.offset, bind->desc.dst.extent,
+				       bind->desc.src.name, bind->desc.src.offset, bind->desc.src.extent,
 				       ret,rddma_get_option(&params.xfer,"request"));
 		else 
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
@@ -741,18 +736,18 @@ static int dst_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
 	struct rddma_bind *bind = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
 
 	if ( (bind = find_rddma_bind(&params) ) ) {
 		ret = -EINVAL;
-		if ( bind->desc.bind.dst.ops && bind->desc.bind.dst.ops->dst_delete ) {
+		if ( bind->desc.dst.ops && bind->desc.dst.ops->dst_delete ) {
 			ret = 0;
-			bind->desc.bind.dst.ops->dst_delete(bind, &params);
+			bind->desc.dst.ops->dst_delete(bind, &params);
 		}
 	}
 
@@ -762,7 +757,7 @@ out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.xfer.name,ret,rddma_get_option(&params.xfer,"request"));
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
@@ -783,17 +778,17 @@ static int dst_find(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_dst *dst = NULL;
 	struct rddma_bind *bind = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
 
 	if ( (bind = find_rddma_bind(&params)) ) {
 		ret = -EINVAL;
-		if (bind->desc.bind.dst.ops && bind->desc.bind.dst.ops->dst_find)
-			ret = ((dst = bind->desc.bind.dst.ops->dst_find(bind,&params)) == NULL);
+		if (bind->desc.dst.ops && bind->desc.dst.ops->dst_find)
+			ret = ((dst = bind->desc.dst.ops->dst_find(bind,&params)) == NULL);
 	}
 
 	rddma_bind_put(bind);
@@ -802,14 +797,14 @@ out:
 	if (result) {
 		if (bind)
 			ret = snprintf(result,size,"%s#%llx:%x=%s#%llx:%x?result=%d,reply=%s\n",
-				       bind->desc.bind.dst.name, bind->desc.bind.dst.offset, bind->desc.bind.dst.extent,
-				       bind->desc.bind.src.name, bind->desc.bind.src.offset, bind->desc.bind.src.extent,
+				       bind->desc.dst.name, bind->desc.dst.offset, bind->desc.dst.extent,
+				       bind->desc.src.name, bind->desc.src.offset, bind->desc.src.extent,
 				       ret,rddma_get_option(&params.xfer,"request"));
 		else
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
@@ -830,9 +825,9 @@ static int src_create(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_src *src = NULL;
 	struct rddma_dst *dst = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -856,7 +851,7 @@ out:
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
@@ -876,9 +871,9 @@ static int src_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
 	struct rddma_dst *dst = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -897,7 +892,7 @@ out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
@@ -918,9 +913,9 @@ static int src_find(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_src *src = NULL;
 	struct rddma_dst *dst = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -944,7 +939,7 @@ out:
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 	}
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
@@ -965,9 +960,9 @@ static int srcs_create(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_srcs *srcs = NULL;
 	struct rddma_dst *dst = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -984,7 +979,7 @@ out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.xfer,"request"));
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
@@ -1004,9 +999,9 @@ static int srcs_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
 	struct rddma_dst *dst = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
@@ -1024,7 +1019,7 @@ out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.xfer.name,ret,rddma_get_option(&params.xfer,"request"));
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
@@ -1045,9 +1040,9 @@ static int srcs_find(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_srcs *srcs = NULL;
 	struct rddma_dst *dst = NULL;
-	struct rddma_xfer_param params;
+	struct rddma_bind_param params;
 
-	if ( (ret = rddma_parse_xfer(&params, desc)) )
+	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	if ( (dst = find_rddma_dst(&params)) ) {
@@ -1062,7 +1057,7 @@ out:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.xfer.name,ret,rddma_get_option(&params.xfer,"request"));
 
-	rddma_clean_xfer(&params);
+	rddma_clean_bind(&params);
 
 	return ret;
 }
