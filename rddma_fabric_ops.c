@@ -94,6 +94,11 @@ static struct rddma_smb *rddma_fabric_smb_find(struct rddma_location *parent, st
 	return smb;
 }
 
+static struct rddma_mmap *rddma_fabric_mmap_find(struct rddma_smb *parent, struct rddma_desc_param *desc)
+{
+	return NULL;
+}
+
 static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *parent, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
@@ -264,6 +269,16 @@ static struct rddma_smb *rddma_fabric_smb_create(struct rddma_location *loc, str
 	return smb;
 }
 
+static struct rddma_mmap *rddma_fabric_mmap_create(struct rddma_smb *smb, struct rddma_desc_param *desc)
+{
+	return NULL;
+}
+
+static struct rddma_bind *rddma_fabric_bind_create(struct rddma_xfer *parent, struct rddma_bind_param *desc)
+{
+	return NULL;
+}
+
 static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
@@ -426,13 +441,21 @@ static void rddma_fabric_smb_delete(struct rddma_location *loc, struct rddma_des
 	}
 }
 
-static int rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
+static void rddma_fabric_mmap_delete(struct rddma_smb *smb, struct rddma_desc_param *desc)
+{
+}
+
+static void rddma_fabric_bind_delete(struct rddma_xfer *parent, struct rddma_bind_param *desc)
+{
+}
+
+static void rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
 	struct rddma_xfer *xfer;
 
 	if (NULL == (xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->name))) )
-		return -EINVAL;
+		return;
 
 	skb = rddma_fabric_call(loc, 5, "xfer_delete://%s", desc->name);
 	if (skb) {
@@ -445,7 +468,6 @@ static int rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_des
 			kfree(reply.name);
 		}
 	}
-	return 0;
 }
 
 static void rddma_fabric_dst_delete(struct rddma_bind *parent, struct rddma_bind_param *desc)
@@ -506,6 +528,9 @@ struct rddma_ops rddma_fabric_ops = {
 	.smb_create = rddma_fabric_smb_create,
 	.smb_delete = rddma_fabric_smb_delete,
 	.smb_find = rddma_fabric_smb_find,
+	.mmap_create = rddma_fabric_mmap_create,
+	.mmap_delete = rddma_fabric_mmap_delete,
+	.mmap_find = rddma_fabric_mmap_find,
 	.xfer_create = rddma_fabric_xfer_create,
 	.xfer_delete = rddma_fabric_xfer_delete,
 	.xfer_find = rddma_fabric_xfer_find,
@@ -520,5 +545,7 @@ struct rddma_ops rddma_fabric_ops = {
 	.bind_find = rddma_fabric_bind_find,
 /*	.bind_dst_ready = NOTHING - local op only 
 	.bind_src_ready = NOTHING - local op only */
+	.bind_create = rddma_fabric_bind_create,
+	.bind_delete = rddma_fabric_bind_delete,
 };
 

@@ -161,6 +161,11 @@ static struct rddma_smb *rddma_local_smb_create(struct rddma_location *loc, stru
 	return NULL;
 }
 
+static struct rddma_mmap *rddma_local_mmap_create(struct rddma_smb *smb, struct rddma_desc_param *desc)
+{
+	return rddma_mmap_create(smb,desc);
+}
+
 static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	int page, first_page, last_page;
@@ -431,19 +436,24 @@ static int rddma_local_xfer_start(struct rddma_location *loc, struct rddma_desc_
 	}
 	return ret;
 }
+static void rddma_local_mmap_delete(struct rddma_smb *smb, struct rddma_desc_param *desc)
+{
+	rddma_mmap_delete(smb,desc);
+}
 
-static int rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
+static void rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *xfer;
-	int ret = -EINVAL;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	xfer = rddma_local_xfer_find(loc,desc);
 	if (xfer) {
 		kobject_put(&xfer->kobj);
 		rddma_xfer_delete(xfer);
-		ret = 0;
 	}
-	return ret;
+}
+
+static void rddma_local_bind_delete(struct rddma_xfer *parent, struct rddma_bind_param *desc)
+{
 }
 
 
@@ -870,8 +880,6 @@ void rddma_local_bind_vote (struct rddma_xfer *xfer, struct rddma_bind_param *de
 }
 
 
-
-
 struct rddma_ops rddma_local_ops = {
 	.location_create = rddma_local_location_create,
 	.location_delete = rddma_local_location_delete,
@@ -900,5 +908,6 @@ struct rddma_ops rddma_local_ops = {
 	.bind_dst_ready = rddma_local_bind_dst_ready, 
 	.bind_src_ready = rddma_local_bind_src_ready, 
 	.bind_vote = rddma_local_bind_vote, 
+	.bind_delete = rddma_local_bind_delete,
 };
 

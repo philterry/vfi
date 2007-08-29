@@ -508,7 +508,8 @@ static int xfer_delete(const char *desc, char *result, int size)
 	if ( (loc = find_rddma_location(&params) ) ) {
 		ret = -EINVAL;
 		if ( loc->desc.ops && loc->desc.ops->xfer_delete ) {
-			ret = loc->desc.ops->xfer_delete(loc, &params);
+			ret = 0;
+			loc->desc.ops->xfer_delete(loc, &params);
 		}
 	}
 
