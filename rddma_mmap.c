@@ -1,3 +1,14 @@
+/* 
+ * 
+ * Copyright 2007 MicroMemory, LLC. 
+ * Trevor Anderson <tanderson@micromemory.com> 
+ * 
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or  (at your
+ * option) any later version.
+ */
+
 #define MY_DEBUG      RDDMA_DBG_MMAP | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_MMAP | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
