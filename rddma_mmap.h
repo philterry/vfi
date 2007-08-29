@@ -15,14 +15,14 @@ struct rddma_mmap {
 
 static inline unsigned long mmap_to_ticket(struct rddma_mmap *m)
 {
-	unsigned long t = (unsigned long)((u64)m & 0xffffffff);
+	unsigned long t = (unsigned long)m & 0xffffffffUL;
 	t = (t & ~0xffff) ^ (t << 16);
 	return t;
 }
 
 static inline int is_mmap_ticket(struct rddma_mmap *m, unsigned long t)
 {
-	unsigned long s = (unsigned long)((u64)m & 0xffffffff);
+	unsigned long s = (unsigned long)m & 0xffffffffUL;
 	return (((s & ~0xffff) ^ t) >> 16) == (s & 0xffff);
 }
 
