@@ -13,16 +13,16 @@ struct rddma_mmap {
 	struct kobject kobj;
 };
 
-static inline unsigned int mmap_to_ticket(struct rddma_mmap *m)
+static inline unsigned long mmap_to_ticket(struct rddma_mmap *m)
 {
-	unsigned int t = (unsigned int)m;
+	unsigned long t = (unsigned long)((u64)m & 0xffffffff);
 	t = (t & ~0xffff) ^ (t << 16);
 	return t;
 }
 
-static inline int is_mmap_ticket(struct rddma_mmap *m, unsigned int t)
+static inline int is_mmap_ticket(struct rddma_mmap *m, unsigned long t)
 {
-	unsigned int s = (unsigned int)m;
+	unsigned long s = (unsigned long)((u64)m & 0xffffffff);
 	return (((s & ~0xffff) ^ t) >> 16) == (s & 0xffff);
 }
 
@@ -44,7 +44,7 @@ static inline void rddma_mmap_put(struct rddma_mmap *rddma_mmap)
 extern struct rddma_mmap *new_rddma_mmap(struct rddma_smb *, struct rddma_desc_param *);
 extern int rddma_mmap_register(struct rddma_mmap *);
 extern void rddma_mmap_unregister(struct rddma_mmap *);
-extern struct rddma_mmap *find_rddma_mmap_by_id(unsigned int);
+extern struct rddma_mmap *find_rddma_mmap_by_id(unsigned long);
 extern struct rddma_mmap *find_rddma_mmap(struct rddma_smb *, struct rddma_desc_param *);
 extern struct rddma_mmap *rddma_mmap_create(struct rddma_smb *, struct rddma_desc_param *);
 extern void rddma_mmap_delete(struct rddma_smb *, struct rddma_desc_param *);

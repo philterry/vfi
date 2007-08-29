@@ -16,6 +16,16 @@
 #include <linux/rio.h>
 #include <linux/rio_ids.h>
 #include <linux/rio_drv.h>
+#include <linux/mm_types.h>
+
+int order(int x) {
+	int ord = 0;
+	while (x > 1) {
+		x >>= 1;
+		ord++;
+	}
+	return (ord);
+}
 
 void rddma_dealloc_pages( struct page **pages, int num_pages)
 {
@@ -24,9 +34,10 @@ void rddma_dealloc_pages( struct page **pages, int num_pages)
 	kfree(pages);
 }
 
+#define CONTIGUOUS_PAGES
 int rddma_alloc_pages( size_t size, int offset, struct page **pages[], int *num_pages)
 {
-	int page;
+	int page = 0;
 	struct page **page_ary;
 	if (pages)
 		*pages = 0;
@@ -43,11 +54,54 @@ int rddma_alloc_pages( size_t size, int offset, struct page **pages[], int *num_
 	if (NULL == page_ary)
 		return -ENOMEM;
 
+#ifndef CONTIGUOUS_PAGES
 	for (page=0; page < *num_pages; page++) {
 		if ( (page_ary[page] = alloc_page(GFP_KERNEL)) )
 			continue;
 		break;
 	}
+#else
+	{
+	struct page *p;
+	int npages;
+	int i;
+	int remainder = *num_pages;
+	int ord;
+
+	ord = order(remainder);
+
+	/* Allocate pages in largest possible contiguous groups */
+
+	while(ord) {
+		p = alloc_pages(GFP_KERNEL, ord);
+		if (p == NULL) { 
+			/* Alloc failed, try a smaller size */
+			ord--;
+			continue;
+		}
+		else {
+			/* Copy pointers to page_array */
+			npages = 1 << ord;
+			remainder -= npages;
+
+			for (i = 0; i < npages; i++) 
+				page_ary[page++] = (p + i);
+
+			if (remainder) 
+				ord = order(remainder);
+			else
+				break;
+		}
+	}
+
+	while (remainder--) {
+		if ( (page_ary[page++] = alloc_page(GFP_KERNEL)) )
+			continue;
+		else
+			break;
+	}
+	}
+#endif
        
 	if ( page == *num_pages ) {
 		*pages = page_ary;

@@ -103,7 +103,6 @@ RDDMA_MMAP_ATTR(pid, 0644, rddma_mmap_pid_show, rddma_mmap_pid_store);
 
 static struct attribute *rddma_mmap_default_attrs[] = {
     &rddma_mmap_attr_default.attr,
-    &rddma_mmap_attr_default.attr,
     &rddma_mmap_attr_offset.attr,
     &rddma_mmap_attr_extent.attr,
     &rddma_mmap_attr_pid.attr,
@@ -125,7 +124,7 @@ struct rddma_mmap *find_rddma_mmap(struct rddma_smb *smb, struct rddma_desc_para
 	return mmap;
 }
 
-struct rddma_mmap *find_rddma_mmap_by_id(unsigned int tid)
+struct rddma_mmap *find_rddma_mmap_by_id(unsigned long tid)
 {
 	struct rddma_location *loc;
 	struct rddma_smb *smb;

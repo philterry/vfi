@@ -434,7 +434,7 @@ static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
 	struct rddma_mmap *tkt;
 	u32 req_size;
 	RDDMA_DEBUG (MY_DEBUG, "** RDDMA_MMAP *******\n");
-	
+	RDDMA_DEBUG (MY_DEBUG, "Pg: %08lx, Id: %08lx\n", vma->vm_pgoff, (vma->vm_pgoff << PAGE_SHIFT));
 	/*
 	* Use mmap page offset to locate a ticket created earlier.
 	* This ticket tells us what we really need to map to.
@@ -469,6 +469,8 @@ static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
 	vma->vm_private_data = kmalloc (sizeof (struct rddma_mmap_ticket), GFP_KERNEL);
 	memcpy (vma->vm_private_data, tkt, sizeof (struct rddma_mmap_ticket));
 	rddma_mmap_stamp_ticket (vma->vm_pgoff);
+#else
+	vma->vm_private_data = (void*)tkt;
 #endif
 	vma->vm_pgoff = 0;
 	vma->vm_ops = &vm_ops;
