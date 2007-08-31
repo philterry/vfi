@@ -236,9 +236,16 @@ void rddma_xfer_delete(struct rddma_xfer *xfer)
 void rddma_xfer_load_binds(struct rddma_xfer *xfer, struct rddma_bind *bind)
 {
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,xfer,bind);
-	if (xfer->head_bind) {
-		xfer->desc.rde-> ops->link_bind(xfer->head_bind, bind);
+	if (xfer->head_bind) { 
+		/* Added test, and diagnostics: this call sometimes fails, and Oops the kernel */
+		if (xfer->desc.rde && xfer->desc.rde->ops && xfer->desc.rde->ops->link_bind) {
+			xfer->desc.rde-> ops->link_bind(xfer->head_bind, bind);
+			return;
+		}
+		RDDMA_DEBUG (MY_DEBUG, "xx %s: Xfer %s has incomplete operations set.\n", __FUNCTION__, kobject_name (&xfer->kobj));
+		RDDMA_DEBUG (MY_DEBUG, "   rde: %s\n", (xfer->desc.rde) ? "Present" : "Missing!");
+		RDDMA_DEBUG (MY_DEBUG, "   rde ops: %s\n", (xfer->desc.rde && xfer->desc.rde->ops) ? "Present" : "Missing!");
+		RDDMA_DEBUG (MY_DEBUG, "   rde link_bind op: %s\n", (xfer->desc.rde && xfer->desc.rde->ops && xfer->desc.rde->ops->link_bind) ? "Present" : "Missing!");
 	}
-	else
-		xfer->head_bind = bind;
+	xfer->head_bind = bind;
 }
