@@ -117,6 +117,7 @@ struct rddma_srcs *new_rddma_srcs(struct rddma_bind_param *desc, struct rddma_ds
     new->kset.kobj.ktype = &rddma_srcs_type;
     new->kset.uevent_ops = &rddma_srcs_uevent_ops;
     new->kset.kobj.parent = &parent->kobj;
+    INIT_LIST_HEAD(&new->dma_chain);
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
     return new;

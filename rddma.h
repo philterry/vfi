@@ -56,6 +56,7 @@ extern unsigned int rddma_debug_level;
 /* The bottom bits of who_what select a functional area, what to debug */
 #define RDDMA_DBG_FUNCALL  0x00000010
 #define RDDMA_DBG_LIFE     0x00000020
+#define RDDMA_DBG_DMA_CHAIN   0x00000040
 
 #define RDDMA_DBG_WHAT     (~RDDMA_DBG_WHO & RDDMA_DBG_WHO_WHAT)
 

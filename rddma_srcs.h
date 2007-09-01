@@ -17,6 +17,7 @@
 
 struct rddma_srcs {
 	struct kset kset;
+	struct list_head dma_chain;
 };
 
 static inline struct rddma_srcs *to_rddma_srcs(struct kobject *kobj)
