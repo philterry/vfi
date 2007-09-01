@@ -126,6 +126,7 @@ struct rddma_dsts *new_rddma_dsts(struct rddma_bind_param *params, struct rddma_
 	new->kset.kobj.ktype = &rddma_dsts_type;
 	new->kset.uevent_ops = &rddma_dsts_uevent_ops;
 	new->kset.kobj.parent = &parent->kobj;
+	INIT_LIST_HEAD(&new->dma_chain);
 
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;

@@ -31,6 +31,7 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 
+extern void rddma_dma_chain_dump(struct list_head *h);
 /*
  * F I N D    O P E R A T I O N S
  */
@@ -172,6 +173,7 @@ join:
 				goto join;
 			}
 		}
+
 		new = rddma_dst_create(parent,&params);
 		sloc->desc.ops->srcs_create(new,&params);
 		params.dst.offset = 0;
@@ -229,6 +231,9 @@ static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, str
 		goto fail_dst;
 
 	rddma_bind_load_dsts(parent);
+
+	if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
+		rddma_dma_chain_dump(&parent->dma_chain);
 
 	return parent->dsts;
 
@@ -290,7 +295,7 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	last_page = first_page + NUM_DMA(&smb->desc,&desc->src);
 
 	params.src.offset = START_OFFSET(&smb->desc, &desc->src);
-	params.src.extent = START_SIZE(&smb->desc, &desc->src);
+	params.dst.extent = params.src.extent = START_SIZE(&smb->desc, &desc->src);
 	for ( page = first_page; page < last_page ; page++ ) {
 		params.src.offset += (unsigned long)page_address(smb->pages[page]);
 join2:
@@ -304,8 +309,11 @@ join2:
 				goto join2;
 			}
 		}
+
+		params.dst.extent = params.src.extent;
 		src = parent->desc.dst.ops->src_create(parent,&params);
 		params.src.offset = 0;
+		params.dst.offset += params.src.extent;
 		if (page + 2 >= last_page && END_SIZE(&smb->desc,&desc->src))
 			params.src.extent = END_SIZE(&smb->desc,&desc->src);
 		else

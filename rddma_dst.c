@@ -212,29 +212,20 @@ void rddma_dst_delete(struct rddma_dst *dst)
 void rddma_dst_load_srcs(struct rddma_dst *dst)
 {
 	struct list_head * entry;
-	struct rddma_src * src1 = NULL; 
 	struct rddma_src * src2 = NULL; 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,dst->srcs);
 	if (dst->srcs) {
 		spin_lock(&dst->srcs->kset.list_lock);
 		if (!list_empty(&dst->srcs->kset.list)) {
 			list_for_each(entry,&dst->srcs->kset.list) {
-				if (NULL == src1) {
-					src1 = to_rddma_src(to_kobj(entry));
-					RDDMA_DEBUG(MY_DEBUG,"%s src1 %p\n",__FUNCTION__,src1->desc.src.rde);
-					if (src1->desc.src.rde)
-						src1->desc.src.rde->ops->load(src1);
-					continue;
-				}
 				src2 = to_rddma_src(to_kobj(entry));
-				RDDMA_DEBUG(MY_DEBUG,"%s src2 %p\n",__FUNCTION__,src2->desc.src.rde);
-				if (src2->desc.src.rde) 
+				RDDMA_DEBUG(MY_DEBUG,"%s src2 %p, name = %s\n",__FUNCTION__,src2->desc.src.rde, &src2->kobj.name[0]);
+				if (src2->desc.src.rde) {
 					src2->desc.src.rde->ops->load(src2);
-				src1->desc.src.rde->ops->link_src(src1,src2);
+					src2->desc.src.rde->ops->link_src(&dst->srcs->dma_chain, src2);
+				}
 			}
 		}
 		spin_unlock(&dst->srcs->kset.list_lock);
 	}
-	RDDMA_DEBUG(MY_DEBUG,"%s head_src %p\n",__FUNCTION__,src1);
-	dst->head_src = src1;
 }

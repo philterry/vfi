@@ -48,8 +48,8 @@ struct rddma_dma_engine;
 
 struct rddma_dma_ops {
 	void (*load)(struct rddma_src *);
-	void (*link_src)(struct rddma_src *, struct rddma_src *);
-	void (*link_dst)(struct rddma_dst *, struct rddma_dst *);
+	void (*link_src)(struct list_head *, struct rddma_src *);
+	void (*link_dst)(struct list_head *, struct rddma_dst *);
 	void (*link_bind)(struct rddma_bind *, struct rddma_bind *);
 	struct rddma_dma_engine *(*get)(struct rddma_dma_engine *);
 	void (*put)(struct rddma_dma_engine *);

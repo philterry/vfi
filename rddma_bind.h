@@ -23,6 +23,7 @@ struct rddma_bind {
 	struct kobject kobj;
 	struct rddma_dsts *dsts;
 	struct rddma_dst *head_dst;
+	struct list_head dma_chain;
 };
 
 static inline struct rddma_bind *to_rddma_bind(struct kobject *kobj)

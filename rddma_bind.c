@@ -139,6 +139,7 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_p
     new->kobj.ktype = &rddma_bind_type;
 
     new->kobj.kset = &parent->binds->kset;
+    INIT_LIST_HEAD(&new->dma_chain);
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
     return new;
@@ -187,26 +188,19 @@ void rddma_bind_delete(struct rddma_bind *bind)
 void rddma_bind_load_dsts(struct rddma_bind *bind)
 {
 	struct list_head * entry;
-
-	struct rddma_dst * dst1 = NULL; 
 	struct rddma_dst * dst2 = NULL; 
+
 	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,bind);
 	if (bind->dsts) {
 		spin_lock(&bind->dsts->kset.list_lock);
 		if (!list_empty(&bind->dsts->kset.list)) {
 			list_for_each(entry,&bind->dsts->kset.list) {
-				if (NULL == dst1) {
-					dst1 = to_rddma_dst(to_kobj(entry));
-					RDDMA_DEBUG(MY_DEBUG,"%s dst1 %p\n",__FUNCTION__,dst1);
-					continue;
-				}
 				dst2 = to_rddma_dst(to_kobj(entry));
-				RDDMA_DEBUG(MY_DEBUG,"%s dst2 %p\n",__FUNCTION__,dst1);
-				dst1->desc.dst.rde->ops->link_dst(dst1,dst2);
+				RDDMA_DEBUG(MY_DEBUG,"%s dst2 %p name=%s\n",__FUNCTION__,dst2, &dst2->kobj.name[0]);
+				dst2->desc.dst.rde->ops->link_dst(&bind->dsts->dma_chain,dst2);
 			}
 		}
 		spin_unlock(&bind->dsts->kset.list_lock);
 	}
-	RDDMA_DEBUG(MY_DEBUG,"%s head_dst %p\n",__FUNCTION__,dst1);
-	bind->head_dst = dst1;
+	list_splice(&bind->dsts->dma_chain, &bind->dma_chain);
 }
