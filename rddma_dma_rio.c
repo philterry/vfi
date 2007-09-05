@@ -88,6 +88,25 @@ static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second
 	list_splice(&second->dma_chain, first->prev);
 }
 
+/* Unlink the DMA chain in the "second" bind from the "first" DMA chain */
+static void dma_rio_unlink_bind(struct list_head *first, struct rddma_bind *second)
+{
+	struct seg_desc *rioend = NULL;
+	struct seg_desc *rioprev = NULL;
+	struct list_head *start = second->dma_chain.next;
+	struct list_head *end = second->end_of_chain;
+	/* link start->prev to end->next */
+	start->prev->next = end->next;
+	end->next->prev = start->prev;
+	rioend = to_sdesc(end);
+	if (start->prev != first) {
+		rioprev = to_sdesc(start->prev);
+		rioprev->hw.next = rioend->hw.next;
+		rioprev->hw.next_ext = rioend->hw.next_ext;
+	}
+	rioend->hw.next = 1;
+}
+
 static struct rddma_dma_engine *dma_rio_get(struct rddma_dma_engine *rde)
 {
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
@@ -104,6 +123,7 @@ static struct rddma_dma_ops dma_rio_ops = {
 	.link_src  = dma_rio_link_src,
 	.link_dst  = dma_rio_link_dst,
 	.link_bind = dma_rio_link_bind,
+	.unlink_bind = dma_rio_unlink_bind,
 	.get       = dma_rio_get,
 	.put       = dma_rio_put,
 };

@@ -51,6 +51,7 @@ struct rddma_dma_ops {
 	void (*link_src)(struct list_head *, struct rddma_src *);
 	void (*link_dst)(struct list_head *, struct rddma_dst *);
 	void (*link_bind)(struct list_head *, struct rddma_bind *);
+	void (*unlink_bind)(struct list_head *, struct rddma_bind *);
 	struct rddma_dma_engine *(*get)(struct rddma_dma_engine *);
 	void (*put)(struct rddma_dma_engine *);
 };
