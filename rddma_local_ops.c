@@ -235,6 +235,8 @@ static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, str
 	if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
 		rddma_dma_chain_dump(&parent->dma_chain);
 
+	parent->end_of_chain = parent->dma_chain.prev;
+
 	return parent->dsts;
 
 fail_dst:
@@ -269,6 +271,8 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 						     desc->dst.name,desc->dst.offset,desc->dst.extent,
 						     desc->src.name,desc->src.offset,desc->src.extent)) ) {
 			rddma_xfer_load_binds(xfer,bind);
+			if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
+				rddma_dma_chain_dump(&xfer->dma_chain);
 			return bind;
 		}
 		rddma_bind_delete(bind);

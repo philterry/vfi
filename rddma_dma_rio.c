@@ -75,13 +75,17 @@ static void dma_rio_link_dst(struct list_head *first, struct rddma_dst *second)
 	list_splice(&second->srcs->dma_chain, first->prev);
 }
 
-static void dma_rio_link_bind(struct rddma_bind *first, struct rddma_bind *second)
+/* Link the DMA chain in the "second" bind to the tail of "first" DMA chain */
+static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second)
 {
-	struct seg_desc *rio1 = (struct seg_desc *)&first->head_dst->head_src->descriptor;
-	struct seg_desc *rio2 = (struct seg_desc *)&second->head_dst->head_src->descriptor;
-	struct seg_desc *riolast = to_sdesc(rio1->node.prev);
-	list_add_tail(&rio1->node, &rio2->node);
-	riolast->hw.next = rio2->paddr &0xffffffe0;
+	struct seg_desc *rio2;
+	struct seg_desc *riolast;
+	if (!list_empty(first)) {
+		riolast = to_sdesc(first->prev);
+		rio2 = to_sdesc(second->dma_chain.next);
+		riolast->hw.next = rio2->paddr &0xffffffe0;
+	}
+	list_splice(&second->dma_chain, first->prev);
 }
 
 static struct rddma_dma_engine *dma_rio_get(struct rddma_dma_engine *rde)

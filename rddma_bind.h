@@ -22,8 +22,8 @@ struct rddma_bind {
 	struct rddma_bind_param desc;
 	struct kobject kobj;
 	struct rddma_dsts *dsts;
-	struct rddma_dst *head_dst;
 	struct list_head dma_chain;
+	struct list_head *end_of_chain;
 };
 
 static inline struct rddma_bind *to_rddma_bind(struct kobject *kobj)

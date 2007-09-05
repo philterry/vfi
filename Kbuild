@@ -1,4 +1,4 @@
-obj-m += rddma_dma_rio.o
+obj-$(CONFIG_RDDMA_DMA_RIO) += rddma_dma_rio.o
 
 obj-$(CONFIG_RDDMA_FABRIC_NET) += rddma_fabric_net.o
 

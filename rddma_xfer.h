@@ -13,14 +13,17 @@
 #define RDDMA_XFER_H
 
 #include <linux/rddma.h>
+#include <linux/rddma_dma.h>
 #include <linux/rddma_parse.h>
 #include <linux/rddma_location.h>
 
 struct rddma_xfer {
+	struct rddma_dma_descriptor descriptor __attribute__ ((aligned(RDDMA_DESC_ALIGN)));
 	struct rddma_desc_param desc;
 	struct kobject kobj;
 	struct rddma_bind *head_bind;
 	struct rddma_binds *binds;
+	struct list_head dma_chain;
 };
 
 static inline struct rddma_xfer *to_rddma_xfer(struct kobject *kobj)
