@@ -19,8 +19,8 @@
 #include <linux/rddma_ops.h>
 
 struct rddma_src {
+	struct rddma_dma_descriptor descriptor __attribute__ ((aligned(RDDMA_DESC_ALIGN)));
 	struct rddma_bind_param desc;
-	struct rddma_dma_descriptor descriptor;
 	struct kobject kobj;
 };
 

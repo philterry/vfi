@@ -39,7 +39,7 @@
 
 struct rddma_dma_descriptor {
 	u32 words[16];
-} __attribute__((aligned(32)));
+} __attribute__((aligned(RDDMA_DESC_ALIGN)));
 
 struct rddma_src;
 struct rddma_dst;

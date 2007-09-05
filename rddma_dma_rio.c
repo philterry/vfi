@@ -58,7 +58,7 @@ static void dma_rio_link_src(struct list_head *first, struct rddma_src *second)
 	struct seg_desc *riolast; 
 	if (!list_empty(first)) {
 		riolast = to_sdesc(first->prev);
-		riolast->hw.next = rio2->paddr &0xffffffe0;
+		riolast->hw.next = rio2->paddr & 0xffffffe0;
 	}
 	list_add_tail(&rio2->node, first);
 }
