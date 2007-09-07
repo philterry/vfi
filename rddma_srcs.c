@@ -18,10 +18,20 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
+/**
+* rddma_srcs_release - Release (free) an rddma_srcs cleanly.
+*
+* @kobj - pointer to rddma_srcs-type kobject
+*
+* This function is invoked by the kernel kobject manager when an 
+* rddma_srcs object has finally expired. Its job is to release any
+* memory resources bound to the kobject. 
+*
+**/
 static void rddma_srcs_release(struct kobject *kobj)
 {
     struct rddma_srcs *p = to_rddma_srcs(kobj);
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
     kfree(p);
 }
 

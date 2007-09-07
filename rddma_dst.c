@@ -21,19 +21,22 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
+/**
+* rddma_dst_release - release (free) an rddma_dst cleanly.
+*
+* @kobj - pointer to an rddma_dst-type kobject to be released.
+*
+* This function is invoked by the kernel kobject manager when an 
+* rddma_dst object has finally expired. Its job is to release any
+* memory resources bound to the kobject.
+*
+**/
 static void rddma_dst_release(struct kobject *kobj)
 {
     struct rddma_dst *p = to_rddma_dst(kobj);
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-    if (p->desc.src.name) {
-	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free src %p\n",__FUNCTION__,p->desc.src.name);
-	    kfree(p->desc.src.name);
-    }
-    if (p->desc.dst.name) {
-	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free dst %p\n",__FUNCTION__,p->desc.dst.name);
-	    kfree(p->desc.dst.name);
-    }
-    kfree(p);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
+    rddma_clean_bind (&p->desc);
+    kfree (p);
 }
 
 struct rddma_dst_attribute {
@@ -220,9 +223,13 @@ void rddma_dst_load_srcs(struct rddma_dst *dst)
 			list_for_each(entry,&dst->srcs->kset.list) {
 				src2 = to_rddma_src(to_kobj(entry));
 				RDDMA_DEBUG(MY_DEBUG,"%s src2 %p, name = %s\n",__FUNCTION__,src2->desc.src.rde, &src2->kobj.name[0]);
-				if (src2->desc.src.rde) {
+				if (src2->desc.src.rde && src2->desc.src.rde->ops && src2->desc.src.rde->ops->load && src2->desc.src.rde->ops->link_src) {
 					src2->desc.src.rde->ops->load(src2);
 					src2->desc.src.rde->ops->link_src(&dst->srcs->dma_chain, src2);
+				}
+				else {
+					RDDMA_DEBUG (MY_DEBUG, "xx %s failed: src \"%s\" is missing RDE ops\n", 
+							__FUNCTION__, src2->desc.src.name);
 				}
 			}
 		}

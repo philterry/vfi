@@ -24,22 +24,21 @@
 #include <linux/module.h>
 
 
+/**
+* rddma_bind_release - release (free) an rddma_bind cleanly.
+*
+* @kobj - pointer to an rddma_bind-type kobject to be released.
+*
+* This function is invoked by the kernel kobject manager when an 
+* rddma_bind object has finally expired. Its job is to release any
+* memory resources bound to the kobject.
+*
+**/
 static void rddma_bind_release(struct kobject *kobj)
 {
     struct rddma_bind *p = to_rddma_bind(kobj);
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-    if (p->desc.src.name) {
-	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free src %p\n",__FUNCTION__,p->desc.src.name);
-	    kfree(p->desc.src.name);
-    }
-    if (p->desc.dst.name) {
-	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free dst %p\n",__FUNCTION__,p->desc.dst.name);
-	    kfree(p->desc.dst.name);
-    }
-    if (p->desc.xfer.name) {
-	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free xfer %p\n",__FUNCTION__,p->desc.xfer.name);
-	    kfree(p->desc.xfer.name);
-    }
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
+    rddma_clean_bind (&p->desc);
     kfree(p);
 }
 
@@ -197,7 +196,13 @@ void rddma_bind_load_dsts(struct rddma_bind *bind)
 			list_for_each(entry,&bind->dsts->kset.list) {
 				dst2 = to_rddma_dst(to_kobj(entry));
 				RDDMA_DEBUG(MY_DEBUG,"%s dst2 %p name=%s\n",__FUNCTION__,dst2, &dst2->kobj.name[0]);
-				dst2->desc.dst.rde->ops->link_dst(&bind->dsts->dma_chain,dst2);
+				if (dst2->desc.dst.rde && dst2->desc.dst.rde->ops && dst2->desc.dst.rde->ops->link_dst) {
+					dst2->desc.dst.rde->ops->link_dst(&bind->dsts->dma_chain,dst2);
+				}
+				else {
+					RDDMA_DEBUG (MY_DEBUG, "xx %s failed: Dst \"%s\" is missing RDE ops!\n", 
+							__FUNCTION__, dst2->desc.dst.name);
+				}
 			}
 		}
 		spin_unlock(&bind->dsts->kset.list_lock);

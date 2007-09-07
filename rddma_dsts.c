@@ -18,10 +18,20 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
+/**
+* rddma_dsts_release - Release (free) an rddma_dsts cleanly.
+*
+* @kobj - pointer to rddma_dsts-type kobject
+*
+* This function is invoked by the kernel kobject manager when an 
+* rddma_dsts object has finally expired. Its job is to release any
+* memory resources bound to the kobject. 
+*
+**/
 static void rddma_dsts_release(struct kobject *kobj)
 {
     struct rddma_dsts *p = to_rddma_dsts(kobj);
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
     kfree(p);
 }
 

@@ -26,7 +26,7 @@
 static void rddma_xfer_release(struct kobject *kobj)
 {
     struct rddma_xfer *p = to_rddma_xfer(kobj);
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
     if (p->desc.name) {
 	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free xfer %p\n",__FUNCTION__,p->desc.name);
 	    kfree(p->desc.name);
@@ -210,9 +210,10 @@ struct rddma_xfer *find_rddma_xfer(struct rddma_desc_param *desc)
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_location *loc;
 
-	if ( (loc = find_rddma_location(desc)) )
-		xfer = loc->desc.ops->xfer_find(loc,desc);
-	rddma_location_put(loc);
+	if ( (loc = find_rddma_location(desc)) ) {
+		xfer = (loc->desc.ops && loc->desc.ops->xfer_find) ? loc->desc.ops->xfer_find (loc,desc) : NULL;
+		rddma_location_put(loc);
+	}
 	return xfer;
 }
 
