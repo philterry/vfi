@@ -78,14 +78,38 @@ out:
 
 static struct rddma_dst *rddma_local_dst_find(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
-	struct rddma_dst *dst = to_rddma_dst(kset_find_obj(&parent->dsts->kset,desc->dst.name));
+	struct rddma_dst *dst = NULL;
+	char *buf = kzalloc (2048, GFP_KERNEL);
+	if (!buf) goto out;
+	
+	if (snprintf (buf, 2048, "%s#%llx:%x", desc->dst.name, desc->dst.offset, desc->dst.extent) >= 2048) {
+		goto fail_printf;
+	}
+	
+	dst = to_rddma_dst (kset_find_obj (&parent->dsts->kset, buf));
+	
+fail_printf:
+	kfree (buf);
+out:
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,dst);
 	return dst;
 }
 
 static struct rddma_src *rddma_local_src_find(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
-	struct rddma_src *src = to_rddma_src(kset_find_obj(&parent->srcs->kset,desc->src.name));
+	struct rddma_src *src = NULL;
+	char *buf = kzalloc (2048, GFP_KERNEL);
+	if (!buf) goto out;
+	
+	if (snprintf (buf, 2048, "%s#%llx:%x", desc->src.name, desc->src.offset, desc->src.extent) >= 2048) {
+		goto fail_printf;
+	}
+	
+	src = to_rddma_src (kset_find_obj (&parent->srcs->kset, buf));
+	
+fail_printf:
+	kfree (buf);
+out:
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,src);
 	return src;
 }
@@ -373,18 +397,197 @@ static int rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_desc
 	return ret;
 }
 
-static void rddma_local_dst_delete(struct rddma_bind *parent, struct rddma_bind_param *desc)
+
+/**
+ * rddma_local_src_delete - delete a bind source
+ *
+ * @parent - points to the parent dst
+ * @desc   - points to the bind descriptor
+ *
+ * This function deletes the source element of a bind or sub-bind. It sits at
+ * the very bottom of the bind_delete stack, and is responsible for disengaging
+ * the DMA engine that performs this part of the transfer.
+ *
+ * This function would typically run on the Source Agent of the bind - at the 
+ * location where the source SMB resides, and therefore where DMA transactions
+ * are queued. It can be called either in response to src_delete requests or 
+ * as part of dst_delete or bind_delete requests.
+ *
+ **/
+static int rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	rddma_dst_delete(rddma_local_dst_find(parent,desc));
+	struct rddma_src *src;
+	int ret = -EINVAL;
+	
+	RDDMA_DEBUG(MY_DEBUG,"%s: %s#%llx:%x/%s#%llx:%x=%s#%llx:%x\n", __FUNCTION__, 
+		    desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
+		    desc->dst.name, desc->dst.offset, desc->dst.extent, 
+		    desc->src.name, desc->src.offset, desc->src.extent);
+	
+	if (!(src = rddma_local_src_find (parent, desc))) {
+		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx Failed: cannot find the src!\n");
+		goto out;;
+	}
+	
+/*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- xfer: %s#%llx:%x\n", src->desc.xfer.name, src->desc.xfer.offset, src->desc.xfer.extent);
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  dst: %s#%llx:%x\n", src->desc.dst.name, src->desc.dst.offset, src->desc.dst.extent);
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  src: %s#%llx:%x\n", src->desc.src.name, src->desc.src.offset, src->desc.src.extent);
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Src Count: %lx\n", (unsigned long)src->kobj.kref.refcount.counter); */
+	
+	rddma_src_put (src);		/* Put, to counteract the find... */
+	rddma_src_delete (src);		/* And show we're ready to delete the kobject */
+	ret = 0;
+out:
+	if (ret) RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed.\n", __FUNCTION__);
+	return (ret);
 }
 
-static void rddma_local_src_delete(struct rddma_dst *parent, struct rddma_bind_param *desc)
+/**
+ * rddma_local_srcs_delete
+ *
+ *
+ **/
+static int rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	rddma_src_delete(rddma_local_src_find(parent,desc));
+	struct list_head *entry, *safety;
+	struct rddma_srcs *srcs = parent->srcs;
+	
+	int ret = -EINVAL;
+	int subs = 0;
+	
+	RDDMA_DEBUG (MY_DEBUG,"%s for %s#%llx:%x\n",__FUNCTION__, 
+		     parent->desc.xfer.name, parent->desc.xfer.offset, parent->desc.xfer.extent);
+	if (srcs) {
+		RDDMA_DEBUG (MY_DEBUG, "-- Srcs \"%s\"\n", kobject_name (&srcs->kset.kobj));
+		if (!list_empty (&srcs->kset.list)) {
+			list_for_each_safe (entry, safety, &srcs->kset.list) {
+				struct rddma_src      *src;
+				struct rddma_location *loc;
+				src = to_rddma_src (to_kobj (entry));
+				RDDMA_DEBUG(MY_DEBUG,"-- Delete src %s (kobj %s)...\n", src->desc.src.name, kobject_name (&src->kobj));
+				if ((loc = find_rddma_location (&src->desc.src))) {
+					if (loc->desc.ops && loc->desc.ops->src_delete) {
+						subs = loc->desc.ops->src_delete (parent, &src->desc);
+						if (subs) break;
+					}
+					else {
+						RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: \"src_delete\" operation undefined!\n");
+					}					
+				}
+				else {
+					RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: src location cannot be identified!\n");
+				}
+			}
+		}
+		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Srcs Count: %lx\n", (unsigned long)srcs->kset.kobj.kref.refcount.counter);
+		rddma_srcs_delete (srcs);
+		ret = subs;
+	}
+	
+	if (ret) RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed.\n", __FUNCTION__);
+	return (ret);
 }
 
+
+/**
+* rddma_local_dst_delete - delete destination side of a bind or sub-bind
+* 
+* @parent - points to the rddma_bind of the binding to which the target belongs.
+* @desc   - points to complete bind descriptor in which the transfer, destination, 
+*           and source are correctly identified.
+*
+* This function is typically invoked as part of a larger bind_delete operation, 
+* but specifically in response to dst_delete, which is an operation in its own
+* right. It's job is to delete the destination side of a bind or sub-bind, but 
+* only after causing the source side of the bind to delete first.
+*
+* Individual binds, which transfer n bytes from a source SMB to a destination SMB, 
+* can be broken down into smaller sub-binds in order to make more efficient use
+* of DMA engines. An rddma_bind descriptor will include a list of destination
+* sub-binds; and each of those - which we are deleting here - includes a further 
+* list of source sub-binds. Our task here is to delete a single destination sub-bind, 
+* but only after explicitly deleting and source sub-binds that may be slung beneath
+* it.
+* 
+**/
+static int rddma_local_dst_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
+{
+	struct rddma_dst *dst;
+	int ret = -EINVAL;
+	
+	RDDMA_DEBUG(MY_DEBUG,"%s: %s#%llx:%x/%s#%llx:%x\n", __FUNCTION__, 
+		   desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
+		   desc->dst.name, desc->dst.offset, desc->dst.extent);
+	
+	if (!(dst = rddma_local_dst_find (parent, desc))) {
+		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx Failed: cannot find the dst!\n");
+		goto out;;
+	}
+/*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- xfer: %s#%llx:%x\n", dst->desc.xfer.name, dst->desc.xfer.offset, dst->desc.xfer.extent);
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  dst: %s#%llx:%x\n", dst->desc.dst.name, dst->desc.dst.offset, dst->desc.dst.extent);
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  src: %s#%llx:%x\n", dst->desc.src.name, dst->desc.src.offset, dst->desc.src.extent); */
+	
+	ret = rddma_local_srcs_delete (dst, desc);
+/*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Dst Count: %lx\n", (unsigned long)dst->kobj.kref.refcount.counter);	*/
+	rddma_dst_put (dst);		/* Put, to counteract the find... */
+	rddma_dst_delete (dst);		/* And remove the kobject from the tree. */
+out:
+	if (ret) RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed.\n", __FUNCTION__);
+	return (ret);
+}
+
+/**
+* rddma_local_dsts_delete - Delete bind destinations
+*
+* This function is invoked as part of rddma_local_bind_delete with the express
+* intent of running through the list of sub-bind destinations associated with
+* a given bind and issuing "dst_delete" requests for each sub-bind encountered.
+*
+* This function should be run the the Transfer Agent that owns the transfer to
+* which the bind belongs. The "dst_delete" requests, on the other hand, must
+* be executed by the Destination Agent.
+*
+**/
+static int rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
+{
+	struct list_head *entry, *safety;
+	struct rddma_dsts *dsts = parent->dsts;
+	
+	int ret = -EINVAL;
+	int subs = 0;
+	
+	RDDMA_DEBUG (MY_DEBUG,"%s for %s#%llx:%x\n",__FUNCTION__, 
+		     parent->desc.xfer.name, parent->desc.xfer.offset, parent->desc.xfer.extent);
+	if (dsts) {
+		RDDMA_DEBUG (MY_DEBUG, "-- Dsts \"%s\"\n", kobject_name (&dsts->kset.kobj));
+		if (!list_empty (&dsts->kset.list)) {
+			list_for_each_safe (entry, safety, &dsts->kset.list) {
+				struct rddma_dst      *dst;
+				struct rddma_location *loc;
+				dst = to_rddma_dst (to_kobj (entry));
+				RDDMA_DEBUG(MY_DEBUG,"-- Delete dst %s (kobj %s)...\n", dst->desc.dst.name, kobject_name (&dst->kobj));
+				if ((loc = find_rddma_location (&dst->desc.dst))) {
+					if (loc->desc.ops && loc->desc.ops->dst_delete) {
+						subs = loc->desc.ops->dst_delete (parent, &dst->desc);
+						if (subs) break;
+					}
+					else {
+						RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: \"dst_delete\" operation undefined!\n");
+					}					
+				}
+				else {
+					RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: dst location cannot be identified!\n");
+				}
+			}
+		}
+		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Dsts Count: %lx\n", (unsigned long)dsts->kset.kobj.kref.refcount.counter);
+		rddma_dsts_delete (dsts);
+		ret = subs;
+	}
+	
+	if (ret) RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed.\n", __FUNCTION__);
+	return (ret);
+}
 static struct rddma_mmap *rddma_local_mmap_create(struct rddma_smb *smb, struct rddma_desc_param *desc)
 {
 	return rddma_mmap_create(smb,desc);
@@ -394,6 +597,91 @@ static void rddma_local_mmap_delete(struct rddma_smb *smb, struct rddma_desc_par
 {
 	rddma_mmap_delete(smb,desc);
 }
+
+/**
+* rddma_local_bind_delete - manage deletion of all components of a bind
+*
+* This function initiates and co-ordinates the deletion of a bind - a sequence 
+* of DMA transfers (sub-binds) between specified source and destination SMBs.
+*
+* It is intended to be run by the TRANSFER AGENT in the bind - the party that manages
+* (owns) the transfer that the bind belongs to (a transfer - xfer - being a sequence
+* of one or more bindings between SMBs that execute as a unit).
+*
+* A bind is defined by the triplet:
+*
+*          [xfer]      /      [dst]      =      [src]
+*    [<xfer>#<xo>:<be>]/[<dst>#<do>:<be>]=[<src>#<so>:<be>]
+*
+* This says that, as part of transfer <xfer>, copy <be> bytes from offset <so>
+* of source SMB <src> to offset <do> of destination SMB <dst>. It is, in this form, 
+* a high-level specification of one part of a larger transfer specification. In practise
+* a bind of this type may be split into several smaller components - sub-binds - so
+* that the overall goal of the bind can be performed more efficiently by DMA engines.
+*
+* The transfer agent owns a list of all high-level bindings that constitute the transfer, 
+* and a subsidiary list of sub-binds associated with each. A bind must be deleted from the 
+* bottom-up - bottom of a bind being its "src" component - but with instructions coming 
+* from the top. What that means, here, is that the transfer agent locates the bind, and with
+* it a list of sub-bind destinations. For each of those it issues a "dst_delete" request to
+* the destination agent. Once dst_delete has been issued for all sub-binds, the function may
+* remove the bind's kobject tree.
+*
+*
+**/
+static int rddma_local_bind_delete (struct rddma_xfer *parent, struct rddma_bind_param *desc)
+{
+	struct rddma_bind* bind;
+	int ret = -EINVAL;
+	RDDMA_DEBUG (MY_DEBUG,"%s %s#%llx:%x/%s#%llx:%x=%s#%llx:%x\n", 
+		     __FUNCTION__, 
+		     desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
+		     desc->dst.name, desc->dst.offset, desc->dst.extent, 
+		     desc->src.name, desc->src.offset, desc->src.extent);
+	
+	/*
+	* First we need to find the bind within the parent xfer that we are
+	* required to delete. 
+	*
+	*/
+	if ((bind = rddma_local_bind_find (parent, desc))) {
+		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Found bind \"%s\"\n", kobject_name (&bind->kobj));
+		
+		/*
+		* Before we dismantle the bind and its subtree, unlink its DMA chain.
+		* This is a function of its governing xfer.
+		*/
+		if (parent->desc.rde && parent->desc.rde->ops && parent->desc.rde->ops->unlink_bind) {
+			parent->desc.rde-> ops->unlink_bind(&parent->dma_chain, bind);
+		}
+		else {
+			RDDMA_DEBUG (MY_DEBUG, "xx Xfer %s DMA engine has no unlink_bind op.\n", 
+				     kobject_name (&parent->kobj));
+		}
+		/*
+		* A bind heads up a tree of subsidiary elements, whose apex
+		* is an rddma_dsts type - a kset of bind destinations.
+		*
+		* Everything in the subtree needs to be removed.
+		*/
+		if ((ret = rddma_local_dsts_delete (bind, desc))) goto out;
+		
+		/*
+		* Remove the bind's sysfs tree.
+		*
+		*/
+		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Bind Count: %lx\n", (unsigned long)bind->kobj.kref.refcount.counter);
+		rddma_bind_delete (bind);
+		ret = 0;
+	}
+	else {
+		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx Unable to find binding.\n");
+	}
+out:
+	if (ret) RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed.\n", __FUNCTION__);
+	return (ret);
+}
+
 
 struct rddma_ops rddma_local_ops = {
 	.location_create = rddma_local_location_create,
@@ -412,10 +700,12 @@ struct rddma_ops rddma_local_ops = {
 	.src_delete = rddma_local_src_delete,
 	.src_find = rddma_local_src_find,
 	.dsts_create = rddma_local_dsts_create,
+	.dsts_delete = rddma_local_dsts_delete, 
 	.dst_create = rddma_local_dst_create,
 	.dst_delete = rddma_local_dst_delete,
 	.dst_find = rddma_local_dst_find,
 	.bind_find = rddma_local_bind_find,
 	.bind_create = rddma_local_bind_create,
+	.bind_delete = rddma_local_bind_delete, 
 };
 

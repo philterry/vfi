@@ -385,8 +385,10 @@ out:
 			* Note that because mmap identifiers are huge numbers, write
 			* them as hex digits in the response.
 			*/
-			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%s,mmap_offset=%lx\n",
-				       mmap->desc.name, mmap->desc.offset, mmap->desc.extent, ret, rddma_get_option(&params,"request"),(unsigned long)mmap_to_ticket(mmap));
+			ret = snprintf(result,size,"%s?result=%d,reply=%s,mmap_offset=%lx\n",
+				       kobject_name (&mmap->kobj) ? : "<NULL>", ret, 
+				       rddma_get_option(&params,"request"),
+				       (unsigned long)mmap_to_ticket(mmap));
 		}
 		else {
 			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
@@ -625,36 +627,76 @@ out:
 }
 
 /**
- * bind_delete - Deletes named bind component.
+ * bind_delete - Deletes a named bind component.
  *
  * @desc: Null terminated string with parameters of operation
  * @result:Pointer to buffer to hold result string
  * @size: Maximum size of result buffer.
- * returns the number of characters written into result (not including
+ *
+ * Returns the number of characters written into result (not including
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * This function handles commands of the form:
+ *
+ *    bind_delete://<xfer>#<xo>:<be>/<dst>#<do>:<be>=<src>#<so>:<be>
+ *
+ * Where the [xfer]/[dst]=[src] triplet specifies a bind uniquely:
+ *
+ *	<xfer> - name of transfer the binding belongs to
+ *	<xo>   - Offset to the start of the bind within the transfer
+ *	<be>   - Extent of the bind, in bytes
+ *	<dst>  - Destination SMB that data will be copied to
+ *	<do>   - Offset within Destination SMB where data will be copied to
+ *	<src>  - Source SMB that data will be copied from
+ *	<so>   - Offset within Source SMB where data will be copied from
+ *
+ * Deleting a bind involves four distinct agents: the requesting agent, who
+ * receives the original command and who is running this function; the transfer 
+ * agent that owns the transfer to which the bind belongs; and the source and 
+ * destination agents who manage the SMBs that the bind ties together. 
+ *
+ * It is the TRANSFER AGENT who must co-ordinate the deletion. 
+ *
+ * The purpose of this function is to parse the original request into its 
+ * xfer/dst/src components, and forward it to the transfer agent for execution.
+ * Should the transfer agent be situated locally, command execution will commence.
+ *
  */
 static int bind_delete(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_bind_param params;
-
-	if ( (ret = rddma_parse_bind(&params, desc)) )
+	
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "%s: \"%s\"\n", __FUNCTION__, desc);
+	if ( (ret = rddma_parse_bind(&params, desc)) ) {
+		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed to parse bind correctly\n", __FUNCTION__);
 		goto out;
-
-	ret = -ENODEV;
-
-	if ( (xfer = find_rddma_xfer(&params.xfer) ) ) {
-		ret = -EINVAL;
-		if ( xfer->desc.ops && xfer->desc.ops->bind_delete ) {
-			ret = 0;
-			xfer->desc.ops->bind_delete(xfer, &params);
-		}
 	}
 
-	rddma_xfer_put(xfer);
+	ret = -ENODEV;
+	
+	/*
+	* Identify the xfer agent and instruct it to perform the bind_delete.
+	*/
+	if ( (xfer = find_rddma_xfer (&params.xfer) ) ) {
+		ret = -EINVAL;
+		if ( xfer->desc.ops && xfer->desc.ops->bind_delete ) {
+			ret = xfer->desc.ops->bind_delete (xfer, &params);
+		}
+		else {
+			RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s xfer %s has no bind_delete support\n", 
+					__FUNCTION__, xfer->desc.name);
+		}
+		rddma_xfer_put (xfer);
+	}
+	else {
+		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s could not locate xfer %s\n", 
+			     __FUNCTION__, params.xfer.name);
+	}
+
 
 out:
 	if (result) 
@@ -1153,7 +1195,7 @@ int do_operation(const char *cmd, char *result, int size)
 	int toklen;
 	int found = 0;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s, result=%p, size=%d\n",__FUNCTION__,cmd,result, size);
+	RDDMA_DEBUG(MY_DEBUG,"#### %s entered with %s, result=%p, size=%d\n",__FUNCTION__,cmd,result, size);
 
 	if ( (sp1 = strstr(cmd,"://")) ) {
 		struct ops *op = &ops[0];
