@@ -136,15 +136,17 @@ struct kobj_type rddma_src_type = {
 struct rddma_src *new_rddma_src(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_src *new = kzalloc(sizeof(struct rddma_src) + RDDMA_DESC_ALIGN - 1, GFP_KERNEL);
-    
+
 	if (NULL == new)
 		goto out;
 
 	/* DMA descriptors are embedded in the rddma_src struct, so
 	 * align the struct to what the DMA hardware requires
+	 *
+	 * TJA: made 64-bit safe [use long, not int, to avoid truncating 64-bit pointers]
 	 */
-	if ((unsigned int) new & (RDDMA_DESC_ALIGN-1))
-		new = (struct rddma_src *) (((unsigned int) new + RDDMA_DESC_ALIGN) & ~(RDDMA_DESC_ALIGN - 1));
+	if ((unsigned long) new & (RDDMA_DESC_ALIGN-1))
+		new = (struct rddma_src *) (((unsigned long) new + RDDMA_DESC_ALIGN) & ~(RDDMA_DESC_ALIGN - 1));
 	rddma_clone_bind(&new->desc, desc);
 	new->kobj.ktype = &rddma_src_type;
 	kobject_set_name(&new->kobj,"%s#%llx:%x",new->desc.src.name, new->desc.src.offset, new->desc.src.extent);

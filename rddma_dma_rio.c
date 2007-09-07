@@ -58,7 +58,7 @@ static void dma_rio_link_src(struct list_head *first, struct rddma_src *second)
 	struct seg_desc *riolast; 
 	if (!list_empty(first)) {
 		riolast = to_sdesc(first->prev);
-		riolast->hw.next = rio2->paddr & 0xffffffe0;
+		riolast->hw.next = rio2->paddr & ~0x1f;	/* 64-bit safe (0xffffffe0); */
 	}
 	list_add_tail(&rio2->node, first);
 }
@@ -70,7 +70,7 @@ static void dma_rio_link_dst(struct list_head *first, struct rddma_dst *second)
 	if (!list_empty(first)) {
 		riolast = to_sdesc(first->prev);
 		rio2 = to_sdesc(second->srcs->dma_chain.next);
-		riolast->hw.next = rio2->paddr &0xffffffe0;
+		riolast->hw.next = rio2->paddr & ~0x1f;	/* 64-bit safe (0xffffffe0); */
 	}
 	list_splice(&second->srcs->dma_chain, first->prev);
 }
@@ -83,7 +83,7 @@ static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second
 	if (!list_empty(first)) {
 		riolast = to_sdesc(first->prev);
 		rio2 = to_sdesc(second->dma_chain.next);
-		riolast->hw.next = rio2->paddr &0xffffffe0;
+		riolast->hw.next = rio2->paddr & ~0x1f;	/* 64-bit safe (0xffffffe0); */
 	}
 	list_splice(&second->dma_chain, first->prev);
 }
