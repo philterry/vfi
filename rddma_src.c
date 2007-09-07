@@ -19,19 +19,35 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-static void rddma_src_release(struct kobject *kobj)
+/**
+* rddma_src_release - release (free) an rddma_src cleanly.
+*
+* @kobj - pointer to an rddma_src-type kobject to be released.
+*
+* This function is invoked by the kernel kobject manager when an 
+* rddma_src object has finally expired. Its job is to release any
+* memory resources bound to the kobject.
+*
+**/
+static void rddma_src_release (struct kobject *kobj)
 {
 	struct rddma_src *p = to_rddma_src(kobj);
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-	if (p->desc.src.name) {
-		RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free src %p\n",__FUNCTION__,p->desc.src.name);
-		kfree(p->desc.src.name);
-	}
-	if (p->desc.dst.name) {
-		RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free dst %p\n",__FUNCTION__,p->desc.dst.name);
-		kfree(p->desc.dst.name);
-	}
-	kfree(p);
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
+	
+	/*
+	* Free embedded resources - an rddma_bind_params
+	*/
+	rddma_clean_bind (&p->desc);
+	/*
+	* Free the rddma_src structure itself.
+	*
+	* Note that, due to alignment finagling, the active pointer
+	* might be different from the originally kzalloc'ed pointer.
+	* The original address - if different - is embedded within
+	* the working structure body. If the embedded pointer is NULL 
+	* then the working pointer is good.
+	*/
+	kfree ((p->free_p) ? : p);
 }
 
 struct rddma_src_attribute {
@@ -144,9 +160,13 @@ struct rddma_src *new_rddma_src(struct rddma_dst *parent, struct rddma_bind_para
 	 * align the struct to what the DMA hardware requires
 	 *
 	 * TJA: made 64-bit safe [use long, not int, to avoid truncating 64-bit pointers]
+	 * TJA: further, need to embed original kzalloc'ed address so that it can be kfree'd without breaking.
 	 */
-	if ((unsigned long) new & (RDDMA_DESC_ALIGN-1))
-		new = (struct rddma_src *) (((unsigned long) new + RDDMA_DESC_ALIGN) & ~(RDDMA_DESC_ALIGN - 1));
+	if ((unsigned long) new & (RDDMA_DESC_ALIGN-1)) {
+		struct rddma_src *alt = (struct rddma_src *) (((unsigned long) new + RDDMA_DESC_ALIGN) & ~(RDDMA_DESC_ALIGN - 1));
+		alt->free_p = new;
+		new = alt;
+	}
 	rddma_clone_bind(&new->desc, desc);
 	new->kobj.ktype = &rddma_src_type;
 	kobject_set_name(&new->kobj,"%s#%llx:%x",new->desc.src.name, new->desc.src.offset, new->desc.src.extent);

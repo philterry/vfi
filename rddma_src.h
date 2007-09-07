@@ -22,6 +22,7 @@ struct rddma_src {
 	struct rddma_dma_descriptor descriptor __attribute__ ((aligned(RDDMA_DESC_ALIGN)));
 	struct rddma_bind_param desc;
 	struct kobject kobj;
+	void* free_p;			/* Original [misaligned] address */
 };
 
 static inline struct rddma_src *to_rddma_src(struct kobject *kobj)
