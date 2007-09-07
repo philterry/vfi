@@ -448,22 +448,22 @@ static int rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_des
 	return 0;
 }
 
-static void rddma_fabric_dst_delete(struct rddma_bind *parent, struct rddma_bind_param *desc)
+static int rddma_fabric_dst_delete(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
 	struct rddma_location *loc;
 	struct rddma_dst *dst;
-
+	int ret = -EINVAL;
+	
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
-		return;
+		return (ret);
 
 	if (NULL == (dst = to_rddma_dst(kset_find_obj(&parent->dsts->kset,desc->xfer.name))) )
-		return;
+		return (ret);
 
 	skb = rddma_fabric_call(loc, 5, "dst_delete://%s/%s=%s", desc->xfer.name,desc->dst.name,desc->src.name);
 	if (skb) {
 		struct rddma_bind_param reply;
-		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
@@ -471,24 +471,25 @@ static void rddma_fabric_dst_delete(struct rddma_bind *parent, struct rddma_bind
 			kfree(reply.xfer.name);
 		}
 	}
+	return (ret);
 }
 
-static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_param *desc)
+static int rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
 	struct rddma_location *loc;
 	struct rddma_src *src;
+	int ret = -EINVAL;
 
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
-		return;
+		return (ret);
 
 	if (NULL == (src = to_rddma_src(kset_find_obj(&parent->srcs->kset,desc->xfer.name))) )
-		return;
+		return (ret);
 
 	skb = rddma_fabric_call(loc, 5, "src_delete://%s/%s=%s", desc->xfer.name,desc->dst.name,desc->src.name);
 	if (skb) {
 		struct rddma_bind_param reply;
-		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
@@ -496,6 +497,8 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 			kfree(reply.xfer.name);
 		}
 	}
+	return (ret);
+	
 }
 
 struct rddma_ops rddma_fabric_ops = {
