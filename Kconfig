@@ -20,7 +20,7 @@ config RDDMA_FABRIC_NET
 
 config RDDMA_DMA_RIO
 	tristate "Rincon DMA driver -- RIO via PPC8641 DMA hardware"
-	depends on RDDMA
+	depends on RDDMA && RAPIDIO
 	default m
 	---help---
 	  Enable support for Rincon DMA over Rapid I/O.
