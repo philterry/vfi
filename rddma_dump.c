@@ -33,7 +33,7 @@ void desc_param_dump(struct rddma_desc_param *d)
 		printk("NULL desc_param!\n");
 		return;
 	} else
-		printk("desc_param @ 0x%x\n", (unsigned int) d);
+		printk("desc_param @ %p\n", d);
 
 	if (d->name)
 		printk("name = %s\n", d->name);
@@ -51,7 +51,7 @@ void desc_param_dump(struct rddma_desc_param *d)
 		q = d->query[i];
 		if (q == NULL)
 			break;
-		printk("query str @ 0x%x", (unsigned int) d->query[i]);
+		printk("query str @ %p", d->query[i]);
 		printk(" = %s\n", d->query[i]);
 	}
 
@@ -96,8 +96,8 @@ void rddma_dma_chain_dump(struct list_head *h)
 
 	list_for_each(entry, h) {
 		dma_desc = to_sdesc(entry);
-		printk("Descriptor %d @ 0x%x, 0x%llx (phys)\n", ++i,
-		       (unsigned int) dma_desc, dma_desc->paddr);
+		printk("Descriptor %d @ %p, 0x%llx (phys)\n", ++i,
+		       dma_desc, dma_desc->paddr);
 		printk("	Src = 0x%x, Dest = 0x%x, len = 0x%x\n",
 		       dma_desc->hw.saddr, dma_desc->hw.daddr,
 		       dma_desc->hw.nbytes);
