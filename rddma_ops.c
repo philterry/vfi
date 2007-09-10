@@ -611,7 +611,7 @@ static int bind_create(const char *desc, char *result, int size)
 
 out:		
 	if (result) {
-		if (xfer)
+		if (xfer && bind)
 			ret = snprintf(result,size,"%s#%llx:%x/%s#%llx:%x=%s#%llx:%x?result=%d,reply=%s\n",
 				       xfer->desc.name, xfer->desc.offset, xfer->desc.extent,
 				       bind->desc.dst.name, bind->desc.dst.offset, bind->desc.dst.extent,

@@ -288,7 +288,11 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 {
 	struct rddma_dsts *dsts;
 	struct rddma_bind *bind;
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG (MY_DEBUG,"%s: %s#%llx:%x/%s#%llx:%x=%s#%llx:%x\n",
+		    __FUNCTION__, 
+		    desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
+		    desc->dst.name, desc->dst.offset, desc->dst.extent, 
+		    desc->src.name, desc->src.offset, desc->src.extent);
 
 	if ( (bind = rddma_bind_create(xfer, desc))) {
 		if ( (dsts = rddma_local_dsts_create(bind,desc,"%s#%llx:%x=%s#%llx:%x",
@@ -299,7 +303,9 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 				rddma_dma_chain_dump(&xfer->dma_chain);
 			return bind;
 		}
+		RDDMA_DEBUG (MY_DEBUG, "xxx Failed to create bind %s - deleting\n", kobject_name (&bind->kobj));
 		rddma_bind_delete(bind);
+		bind = NULL;
 	}
 		
 	return bind;
