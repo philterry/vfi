@@ -414,10 +414,9 @@ static int rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_desc
  * as part of dst_delete or bind_delete requests.
  *
  **/
-static int rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
+static void rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_src *src;
-	int ret = -EINVAL;
 	
 	RDDMA_DEBUG(MY_DEBUG,"%s: %s#%llx:%x/%s#%llx:%x=%s#%llx:%x\n", __FUNCTION__, 
 		    desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
@@ -426,7 +425,7 @@ static int rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_p
 	
 	if (!(src = rddma_local_src_find (parent, desc))) {
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx Failed: cannot find the src!\n");
-		goto out;;
+		return;
 	}
 	
 /*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- xfer: %s#%llx:%x\n", src->desc.xfer.name, src->desc.xfer.offset, src->desc.xfer.extent);
@@ -436,10 +435,6 @@ static int rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_p
 	
 	rddma_src_put (src);		/* Put, to counteract the find... */
 	rddma_src_delete (src);		/* And show we're ready to delete the kobject */
-	ret = 0;
-out:
-	if (ret) RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed.\n", __FUNCTION__);
-	return (ret);
 }
 
 /**
@@ -447,13 +442,10 @@ out:
  *
  *
  **/
-static int rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
+static void rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct list_head *entry, *safety;
 	struct rddma_srcs *srcs = parent->srcs;
-	
-	int ret = -EINVAL;
-	int subs = 0;
 	
 	RDDMA_DEBUG (MY_DEBUG,"%s for %s#%llx:%x\n",__FUNCTION__, 
 		     parent->desc.xfer.name, parent->desc.xfer.offset, parent->desc.xfer.extent);
@@ -467,8 +459,7 @@ static int rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind_
 				RDDMA_DEBUG(MY_DEBUG,"-- Delete src %s (kobj %s)...\n", src->desc.src.name, kobject_name (&src->kobj));
 				if ((loc = find_rddma_location (&src->desc.src))) {
 					if (loc->desc.ops && loc->desc.ops->src_delete) {
-						subs = loc->desc.ops->src_delete (parent, &src->desc);
-						if (subs) break;
+						loc->desc.ops->src_delete (parent, &src->desc);
 					}
 					else {
 						RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: \"src_delete\" operation undefined!\n");
@@ -481,11 +472,7 @@ static int rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind_
 		}
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Srcs Count: %lx\n", (unsigned long)srcs->kset.kobj.kref.refcount.counter);
 		rddma_srcs_delete (srcs);
-		ret = subs;
 	}
-	
-	if (ret) RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed.\n", __FUNCTION__);
-	return (ret);
 }
 
 
@@ -510,10 +497,9 @@ static int rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind_
 * it.
 * 
 **/
-static int rddma_local_dst_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
+static void rddma_local_dst_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_dst *dst;
-	int ret = -EINVAL;
 	
 	RDDMA_DEBUG(MY_DEBUG,"%s: %s#%llx:%x/%s#%llx:%x\n", __FUNCTION__, 
 		   desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
@@ -521,19 +507,16 @@ static int rddma_local_dst_delete (struct rddma_bind *parent, struct rddma_bind_
 	
 	if (!(dst = rddma_local_dst_find (parent, desc))) {
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx Failed: cannot find the dst!\n");
-		goto out;;
+		return;
 	}
 /*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- xfer: %s#%llx:%x\n", dst->desc.xfer.name, dst->desc.xfer.offset, dst->desc.xfer.extent);
 	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  dst: %s#%llx:%x\n", dst->desc.dst.name, dst->desc.dst.offset, dst->desc.dst.extent);
 	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  src: %s#%llx:%x\n", dst->desc.src.name, dst->desc.src.offset, dst->desc.src.extent); */
 	
-	ret = rddma_local_srcs_delete (dst, desc);
+	rddma_local_srcs_delete (dst, desc);
 /*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Dst Count: %lx\n", (unsigned long)dst->kobj.kref.refcount.counter);	*/
 	rddma_dst_put (dst);		/* Put, to counteract the find... */
 	rddma_dst_delete (dst);		/* And remove the kobject from the tree. */
-out:
-	if (ret) RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed.\n", __FUNCTION__);
-	return (ret);
 }
 
 /**
@@ -548,13 +531,10 @@ out:
 * be executed by the Destination Agent.
 *
 **/
-static int rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
+static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct list_head *entry, *safety;
 	struct rddma_dsts *dsts = parent->dsts;
-	
-	int ret = -EINVAL;
-	int subs = 0;
 	
 	RDDMA_DEBUG (MY_DEBUG,"%s for %s#%llx:%x\n",__FUNCTION__, 
 		     parent->desc.xfer.name, parent->desc.xfer.offset, parent->desc.xfer.extent);
@@ -568,8 +548,7 @@ static int rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bind
 				RDDMA_DEBUG(MY_DEBUG,"-- Delete dst %s (kobj %s)...\n", dst->desc.dst.name, kobject_name (&dst->kobj));
 				if ((loc = find_rddma_location (&dst->desc.dst))) {
 					if (loc->desc.ops && loc->desc.ops->dst_delete) {
-						subs = loc->desc.ops->dst_delete (parent, &dst->desc);
-						if (subs) break;
+						loc->desc.ops->dst_delete (parent, &dst->desc);
 					}
 					else {
 						RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: \"dst_delete\" operation undefined!\n");
@@ -582,11 +561,8 @@ static int rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bind
 		}
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Dsts Count: %lx\n", (unsigned long)dsts->kset.kobj.kref.refcount.counter);
 		rddma_dsts_delete (dsts);
-		ret = subs;
 	}
 	
-	if (ret) RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed.\n", __FUNCTION__);
-	return (ret);
 }
 static struct rddma_mmap *rddma_local_mmap_create(struct rddma_smb *smb, struct rddma_desc_param *desc)
 {
@@ -664,7 +640,7 @@ static int rddma_local_bind_delete (struct rddma_xfer *parent, struct rddma_bind
 		*
 		* Everything in the subtree needs to be removed.
 		*/
-		if ((ret = rddma_local_dsts_delete (bind, desc))) goto out;
+		rddma_local_dsts_delete (bind, desc);
 		
 		/*
 		* Remove the bind's sysfs tree.
@@ -677,8 +653,6 @@ static int rddma_local_bind_delete (struct rddma_xfer *parent, struct rddma_bind
 	else {
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx Unable to find binding.\n");
 	}
-out:
-	if (ret) RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed.\n", __FUNCTION__);
 	return (ret);
 }
 
