@@ -18,6 +18,7 @@
 #include <linux/rddma_xfers.h>
 #include <linux/rddma_ops.h>
 #include <linux/rddma_binds.h>
+#include <linux/rddma_bind.h>
 #include <linux/rddma_dma.h>
 
 #include <linux/slab.h>
@@ -248,3 +249,90 @@ void rddma_xfer_load_binds(struct rddma_xfer *xfer, struct rddma_bind *bind)
 	RDDMA_DEBUG (MY_DEBUG, "   rde ops: %s\n", (xfer->desc.rde && xfer->desc.rde->ops) ? "Present" : "Missing!");
 	RDDMA_DEBUG (MY_DEBUG, "   rde link_bind op: %s\n", (xfer->desc.rde && xfer->desc.rde->ops && xfer->desc.rde->ops->link_bind) ? "Present" : "Missing!");
 }
+
+
+/**
+* rddma_xfer_start - initiate transfer of bindings
+*
+* @xfer - transfer to be started
+*
+* This function implements an xfer_start, in which all of the DMA transfers
+* defined as bindings will - at some point hence - be activated, and all that
+* data will be moved from one side of the binds to the other.
+*
+* But not until all of the sources and all of the destinations have notified
+* the central authority - the xfer agent - that they are ready for a transfer.
+*
+* What happens here: we run through the list of binds invoking src ready
+* and dst ready functions for those we find. But only local src/dst will have
+* provided us an operation to call, so that, in effect, we are telling the xfer
+* agent that all of the source and destination fragments at *this* location are
+* now ready to transfer. The xfer agent will take the final step of triggering
+* DMA transfers when *all* of the binds are ready at both ends.
+* 
+**/
+void rddma_xfer_start (struct rddma_xfer* xfer)
+{
+	struct list_head *entry, *safety;
+	struct rddma_location *xloc;
+	RDDMA_DEBUG (MY_DEBUG, "## %s \"%s\" (\"%s\")\n", __FUNCTION__, xfer->desc.name, kobject_name (&xfer->kobj));
+	if (!xfer->binds) {
+		RDDMA_DEBUG (MY_DEBUG, "xx Xfer has no binds at this location.\n");
+		return;
+	}
+	
+	if (!(xloc = find_rddma_location (&xfer->desc))) {
+		RDDMA_DEBUG (MY_DEBUG, "xx Xfer agent \"%s\" can not be located.\n", xfer->desc.name );
+		return;
+	}
+	
+	list_for_each_safe (entry, safety, &xfer->binds->kset.list) {
+		struct rddma_bind *bind = to_rddma_bind (to_kobj (entry));
+		struct rddma_location *sloc, *dloc;
+		if (!bind) continue;
+		RDDMA_DEBUG (MY_DEBUG, "-- bind \"%s\"\n", kobject_name (&bind->kobj));
+		dloc = find_rddma_location (&bind->desc.dst);
+		sloc = find_rddma_location (&bind->desc.src);
+		
+		if (dloc) {
+			RDDMA_DEBUG (MY_DEBUG, "--- Dst \"%s#%llx:%x\"\n", 
+				     bind->desc.dst.name, bind->desc.dst.offset, bind->desc.dst.extent);
+			if (dloc->desc.ops && dloc->desc.ops->bind_dst_ready) {
+				dloc->desc.ops->bind_dst_ready (xfer, &bind->desc);
+			}
+			else {
+				RDDMA_DEBUG (MY_DEBUG, "xxx No \"bind_dst_ready ()\" op for that location.\n");
+			}
+		}
+		else {
+			RDDMA_DEBUG (MY_DEBUG, "xx Dst agent \"%s\" cannot be located.\n", bind->desc.dst.name);
+		}
+		
+		if (sloc) {
+			RDDMA_DEBUG (MY_DEBUG, "--- Src \"%s#%llx:%x\"\n", 
+				     bind->desc.src.name, bind->desc.src.offset, bind->desc.src.extent);
+			if (sloc->desc.ops && sloc->desc.ops->bind_src_ready) {
+				sloc->desc.ops->bind_src_ready (xfer, &bind->desc);
+			}
+			else {
+				RDDMA_DEBUG (MY_DEBUG, "xxx No \"bind_src_ready ()\" op for that location.\n");
+			}
+		}
+		else {
+			RDDMA_DEBUG (MY_DEBUG, "xx Src agent \"%s\" cannot be located.\n", bind->desc.src.name);
+		}
+	}
+	
+}
+
+
+
+
+
+
+
+
+
+
+
+

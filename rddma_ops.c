@@ -569,6 +569,61 @@ out:
 }
 
 /**
+* xfer_start - initiate transfer
+*
+* @desc:   Null-terminated command string
+* @result: Pointer to result string buffer
+* @size:   Maximum size of result buffer
+*
+* This function executes an xfer_start request to initiate a transfer.
+* It is a LOCAL operation that it is required to work on the local 
+* instance of the named xfer. 
+*
+* Although the ultimate purpose of xfer_start is to initiate DMA
+* transfers between source and destination buffers cited in the
+* xfer bindings, that can only be accomplished indirectly. The
+* immediate goal, here, is to notify the xfer agent (which may
+* be remote) that all of the bind sources and destinations
+* situated here, at the local site, are ready for a transfer to
+* occur. The xfer agent will subsequently start actual transfers
+* once all of its bind buffers are ready.
+*
+* We do this by traversing the bind tree of the local instance
+* of the xfer, and for each bind invoking its src/dst notification
+* routines. 
+*
+**/
+static int xfer_start (const char*desc, char *result, int size)
+{
+	static int ret;
+	struct rddma_xfer *xfer = NULL;
+	struct rddma_location *location;
+	struct rddma_desc_param params;
+
+	if ((ret = rddma_parse_desc (&params, desc)))
+		goto out;
+
+	ret = -ENODEV;
+
+	if ((xfer = find_rddma_xfer (&params))) {
+		rddma_xfer_start (xfer);
+		ret = 0;
+	}
+out:
+	if (result) {
+		if (xfer) 
+			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", 
+				       xfer->desc.name, ret,rddma_get_option(&params,"request"));
+		else 
+			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret,rddma_get_option(&params,"request"));
+	}
+
+	rddma_clean_desc(&params);
+
+	return ret;
+}
+
+/**
  * bind_create - Creates a bind component.
  *
  * @desc: Null terminated string with parameters of operation
@@ -1160,6 +1215,7 @@ static struct ops {
 	{"xfer_create", xfer_create},
 	{"xfer_delete", xfer_delete},
 	{"xfer_find", xfer_find},
+	{"xfer_start", xfer_start}, 
 	{"bind_create", bind_create},
 	{"bind_delete", bind_delete},
 	{"bind_find", bind_find},

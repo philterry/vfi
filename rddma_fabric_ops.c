@@ -518,5 +518,7 @@ struct rddma_ops rddma_fabric_ops = {
 	.dst_delete = rddma_fabric_dst_delete,
 	.dst_find = rddma_fabric_dst_find,
 	.bind_find = rddma_fabric_bind_find,
+/*	.bind_dst_ready = NOTHING - local op only 
+	.bind_src_ready = NOTHING - local op only */
 };
 
