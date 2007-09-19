@@ -125,23 +125,34 @@ struct kobj_type rddma_bind_type = {
     .default_attrs = rddma_bind_default_attrs,
 };
 
+/**
+* new_rddma_bind - create a new rddma_bind kobject and attach it to parent xfer
+* 
+* @xfer: pointer to parent xfer, to which new bind should be attached.
+* @desc: pointer to bind parameter descriptor, identifying participants and
+*        other bind attributes.
+*
+* This function creates a new rddma_bind kobject and attaches it to its parent
+* xfer. 
+*
+**/
 struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_param *desc)
 {
-    struct rddma_bind *new = kzalloc(sizeof(struct rddma_bind), GFP_KERNEL);
-    
-    if (NULL == new)
+	struct rddma_bind *new = kzalloc(sizeof(struct rddma_bind), GFP_KERNEL);
+	
+	if (NULL == new)
 	return new;
+	
+	rddma_clone_bind(&new->desc, desc);
+	
+	kobject_set_name(&new->kobj,"%s#%llx:%x", desc->xfer.name, desc->xfer.offset,desc->xfer.extent);
+	new->kobj.ktype = &rddma_bind_type;
+	
+	new->kobj.kset = &parent->binds->kset;
+	INIT_LIST_HEAD(&new->dma_chain);
 
-    rddma_clone_bind(&new->desc, desc);
-
-    kobject_set_name(&new->kobj,"%s#%llx:%x", desc->xfer.name, desc->xfer.offset,desc->xfer.extent);
-    new->kobj.ktype = &rddma_bind_type;
-
-    new->kobj.kset = &parent->binds->kset;
-    INIT_LIST_HEAD(&new->dma_chain);
-
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return new;
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	return new;
 }
 
 int rddma_bind_register(struct rddma_bind *rddma_bind)
@@ -166,6 +177,20 @@ struct rddma_bind *find_rddma_bind(struct rddma_bind_param *desc)
 	return bind;
 }
 
+/**
+* rddma_bind_create - create a new rddma_bind kobject and attach it to parent xfer
+* 
+* @xfer: pointer to parent xfer, to which new bind should be attached.
+* @desc: pointer to bind parameter descriptor, identifying participants and
+*        other bind attributes.
+*
+* This function is a front-end wrapper for bind creation that will create a new
+* bind only if no other bind currently exists for the same <xfer>/<dst>=<src> triplet.
+* 
+* The function will return a pointer either to a pre-existing bind for the triplet, 
+* or a new bind created by new_rddma_bind ().
+*
+**/
 struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_param *desc)
 {
 	struct rddma_bind *new;
@@ -181,7 +206,7 @@ struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_
 void rddma_bind_delete(struct rddma_bind *bind)
 {
 	if (bind) 
-		rddma_bind_unregister(bind);
+		rddma_bind_unregister (bind);
 }
 
 void rddma_bind_load_dsts(struct rddma_bind *bind)

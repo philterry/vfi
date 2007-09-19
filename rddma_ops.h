@@ -32,13 +32,16 @@ struct rddma_ops {
 	struct rddma_mmap *             (*mmap_find)(struct rddma_smb *, struct rddma_desc_param *);
 
 	struct rddma_xfer *         (*xfer_create)(struct rddma_location *, struct rddma_desc_param *);
-	int                        (*xfer_delete)(struct rddma_location *, struct rddma_desc_param *);
+	int                         (*xfer_delete)(struct rddma_location *, struct rddma_desc_param *);
 	struct rddma_xfer *           (*xfer_find)(struct rddma_location *, struct rddma_desc_param *);
 
 	struct rddma_bind *         (*bind_create)(struct rddma_xfer *, struct rddma_bind_param *);
-	int                        (*bind_delete)(struct rddma_xfer *, struct rddma_bind_param *);
+	int                         (*bind_delete)(struct rddma_xfer *, struct rddma_bind_param *);
 	struct rddma_bind *           (*bind_find)(struct rddma_xfer *, struct rddma_bind_param *);
-
+	void			 (*bind_dst_ready)(struct rddma_xfer *, struct rddma_bind_param *);		/* Signal bind dst ready for xfer_start */
+	void			 (*bind_src_ready)(struct rddma_xfer *, struct rddma_bind_param *);		/* Signal bind src ready for xfer_start */
+	void			      (*bind_vote)(struct rddma_xfer *, struct rddma_bind_param *, int, int);	/* Add votes to bind readiness for xfer_start */
+	
 	struct rddma_dsts *          (*dsts_create)(struct rddma_bind *,      struct rddma_bind_param *, char *, ...) __attribute__((format(printf, 3,4)));
 	void                         (*dsts_delete)(struct rddma_bind *,      struct rddma_bind_param *);
 	struct rddma_dsts *            (*dsts_find)(struct rddma_bind *,      struct rddma_bind_param *);

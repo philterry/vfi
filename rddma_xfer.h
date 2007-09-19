@@ -24,6 +24,17 @@ struct rddma_xfer {
 	struct rddma_bind *head_bind;
 	struct rddma_binds *binds;
 	struct list_head dma_chain;
+	
+	/*
+	* Xfer start synchronization controls.
+	*
+	* The following fields are used to control xfer start.
+	* Before an xfer start may begin, all bind sources and 
+	* all bind destinations must declare themselves "ready".
+	*/
+	atomic_t	bind_count;		/* Xfer start reference */
+	atomic_t	start_votes;		/* binds ready for xfer_start */
+	
 };
 
 static inline struct rddma_xfer *to_rddma_xfer(struct kobject *kobj)
