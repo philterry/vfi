@@ -153,8 +153,13 @@ static int location_find(const char *desc, char *result, int size)
 			ret = (new_loc = params.ops->location_find(&params)) == NULL;
 	}
 out:
-	if (result)
-		ret = snprintf(result,size,"%s?result=%d,reply=%s\n",params.name, ret, rddma_get_option(&params,"request"));
+	if (result) {
+		if (ret)
+			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%s\n",params.name,params.offset,params.extent, ret, rddma_get_option(&params,"request"));
+		else
+			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%s\n",new_loc->desc.name,new_loc->desc.offset,new_loc->desc.extent,
+				       ret, rddma_get_option(&params,"request"));
+	}
 	rddma_clean_desc(&params);
 
 	return ret;

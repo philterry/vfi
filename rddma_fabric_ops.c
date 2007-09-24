@@ -60,8 +60,12 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_desc_param
 		int ret = -EINVAL;
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
-				 loc = find_rddma_location(&reply);
+			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0 && reply.extent) {
+				unsigned long tmp = reply.offset;
+				reply.offset = reply.extent;
+				reply.extent = tmp;
+				loc = find_rddma_location(&reply);
+			}
 			kfree(reply.name);
 		}
 	}
@@ -202,39 +206,44 @@ static struct rddma_location *rddma_fabric_location_create(struct rddma_location
 {
 	struct sk_buff  *skb = NULL;
 	struct rddma_location *newloc = NULL;
+	struct rddma_location *myloc = NULL;
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	if (loc)
-		newloc = loc;
+		myloc = loc;
 	else {
 		char *fabric_name;
 		if ( (fabric_name = rddma_get_option(desc,"fabric")) ) {
 			struct rddma_fabric_address *rfa = rddma_fabric_find(fabric_name);
 			if ( rfa ) {
-				newloc = new_rddma_location(NULL,desc);
-				newloc->desc.address = rfa;
+				myloc = new_rddma_location(NULL,desc);
+				myloc->desc.address = rfa;
 			}
 		}   
 	}
 
-	if (newloc)
-		skb = rddma_fabric_call(newloc, 5, "location_create://%s", desc->name);
-
-	if (!loc)
-		rddma_location_put(newloc);
-
-	newloc = NULL;
+	if (myloc)
+		skb = rddma_fabric_call(myloc, 5, "location_create://%s#%x:%x?default_ops=public",
+					desc->name, desc->extent, (u32)(myloc->desc.offset & 0xffffffffULL));
 
 	if (skb) {
 		struct rddma_desc_param reply;
 		int ret = -EINVAL;
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0) {
+				reply.extent = desc->extent;
+				reply.ops = &rddma_local_ops;
 				newloc = rddma_location_create(loc,&reply);
+				newloc->desc.address = myloc->desc.address;
+				myloc->desc.address->ops->register_location(newloc);
+			}
 			kfree(reply.name);
 		}
 	}
+
+	if (!loc)
+		rddma_location_put(myloc);
 
 	return newloc;
 }
@@ -445,8 +454,9 @@ static void rddma_fabric_mmap_delete(struct rddma_smb *smb, struct rddma_desc_pa
 {
 }
 
-static void rddma_fabric_bind_delete(struct rddma_xfer *parent, struct rddma_bind_param *desc)
+static int rddma_fabric_bind_delete(struct rddma_xfer *parent, struct rddma_bind_param *desc)
 {
+	return 0;
 }
 
 static void rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)

@@ -139,11 +139,16 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 
 	name_remainder(d->name,     '?', &d->query[0]);
 	name_remainder(d->name,     '.', &d->location);
-	name_remainder(d->location, ':', &sextent);
-	name_remainder(d->location, '#', &soffset);
 
-	if (d->location)
+	if (d->location) {
+		name_remainder(d->location, ':', &sextent);
+		name_remainder(d->location, '#', &soffset);
 		*(d->location - 1) = '.';
+	}
+	else {
+		name_remainder(d->name, ':', &sextent);
+		name_remainder(d->name, '#', &soffset);
+	}
 
 	if (NULL == sextent)
 		name_remainder(soffset, ':', &sextent);
