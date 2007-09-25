@@ -149,6 +149,7 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_p
 	new->kobj.ktype = &rddma_bind_type;
 	
 	new->kobj.kset = &parent->binds->kset;
+	new->xfer = parent;
 	INIT_LIST_HEAD(&new->dma_chain);
 
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);

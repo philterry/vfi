@@ -18,7 +18,11 @@
 #include <linux/rddma_ops.h>
 #include <linux/rddma_fabric.h>
 #include <linux/rddma_bind.h>
+#ifdef CONFIG_MPC10X_BRIDGE
+#include "mpc10xdma.h"
+#else
 #include <linux/rddma_dma_rio.h>
+#endif
 #include <linux/rddma_dst.h>
 #include <linux/rddma_src.h>
 #include <linux/rddma_dma.h>
@@ -96,6 +100,7 @@ void rddma_dma_chain_dump(struct list_head *h)
 
 	list_for_each(entry, h) {
 		dma_desc = to_sdesc(entry);
+#ifndef CONFIG_MPC10X_BRIDGE
 		printk("Descriptor %d @ %p, 0x%llx (phys)\n", ++i,
 		       dma_desc, dma_desc->paddr);
 		printk("	Src = 0x%x, Dest = 0x%x, len = 0x%x\n",
@@ -106,5 +111,25 @@ void rddma_dma_chain_dump(struct list_head *h)
 			printk("	<end-of-chain>\n");
 		else
 			printk("	Next = 0x%x\n", dma_desc->hw.next);
+
+#else
+		printk("Descriptor %d @ 0x%x, 0x%llx (phys)\n", ++i,
+		       (unsigned int) dma_desc, dma_desc->paddr);
+		printk("	Src = 0x%x, Dest = 0x%x, len = 0x%x\n",
+		       readl(&dma_desc->hw.saddr), readl(&dma_desc->hw.daddr),
+		       readl(&dma_desc->hw.nbytes));
+
+		if (readl(&dma_desc->hw.next) == 1)
+			printk("	<end-of-chain>\n");
+		else
+			printk("	Next = 0x%x\n", readl(&dma_desc->hw.next));
+		printk("raw dump:\n");
+		{
+			int i;
+			unsigned int *p = dma_desc;
+			for (i = 0; i < 16; i++)
+				printk("i = %d, val = 0x%x\n",i, *p++);
+		}
+#endif
 	}
 }

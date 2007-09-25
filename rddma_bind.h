@@ -19,9 +19,11 @@
 struct rddma_dst;
 
 struct rddma_bind {
+	struct rddma_dma_descriptor descriptor __attribute__ ((aligned(RDDMA_DESC_ALIGN)));
 	struct rddma_bind_param desc;
 	struct kobject kobj;
 	struct rddma_dsts *dsts;
+	struct rddma_xfer *xfer;
 	struct list_head dma_chain;
 	struct list_head *end_of_chain;
 	atomic_t src_votes;

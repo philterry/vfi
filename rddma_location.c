@@ -267,6 +267,10 @@ struct rddma_location *find_rddma_location(struct rddma_desc_param *params)
 	if ( (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name))) )
 		return loc;
 
+	/* Jimmy: this stops SIGSEGV when trying to find smb.unknown */
+	if (!params->location)
+		return NULL;
+
 	if ( (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->location))) )
 		return loc;
 

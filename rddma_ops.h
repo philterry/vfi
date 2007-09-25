@@ -32,7 +32,8 @@ struct rddma_ops {
 	struct rddma_mmap *             (*mmap_find)(struct rddma_smb *, struct rddma_desc_param *);
 
 	struct rddma_xfer *         (*xfer_create)(struct rddma_location *, struct rddma_desc_param *);
-	int                         (*xfer_delete)(struct rddma_location *, struct rddma_desc_param *);
+	int                        (*xfer_start)(struct rddma_location *, struct rddma_desc_param *);
+	int                        (*xfer_delete)(struct rddma_location *, struct rddma_desc_param *);
 	struct rddma_xfer *           (*xfer_find)(struct rddma_location *, struct rddma_desc_param *);
 
 	struct rddma_bind *         (*bind_create)(struct rddma_xfer *, struct rddma_bind_param *);

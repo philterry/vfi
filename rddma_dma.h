@@ -12,7 +12,9 @@
 #ifndef RDDMA_DMA_H
 #define RDDMA_DMA_H
 #include <linux/rddma.h>
+#if 0 /* Jimmy hacking! */
 #include <linux/rddma_dma_rio.h>
+#endif
 
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -37,14 +39,58 @@
  * the respective rddma_dma_{mem rio net}.h files.
  */
 
+#define RDDMA_XFER_UNINIT 0
+#define RDDMA_XFER_BINDING 1
+#define RDDMA_XFER_READY 2
+#define RDDMA_XFER_QUEUED 3
+#define RDDMA_XFER_BUSY 4
+#define RDDMA_XFER_DONE 5
+
+#define RDDMA_BIND_UNINIT 0
+#define RDDMA_BIND_BINDING 1
+#define RDDMA_BIND_READY 2
+#define RDDMA_BIND_QUEUED 3
+#define RDDMA_BIND_BUSY 4
+#define RDDMA_BIND_DMA_RUNNING 5
+#define RDDMA_BIND_DMA_DONE_OK 6
+#define RDDMA_BIND_DMA_DONE_ERROR 7
+
+#define RDDMA_DESC_ALIGN 32
+
+#if 0
 struct rddma_dma_descriptor {
-	u32 words[16];
+	u32 words[8]; /* reserved for DMA h/w */
+	u32 words2[2]; /* reserved for DMA h/w driver */
+	u64 paddr;
+	u32 flags;
+	u32 state;  /* state machine for xfer tracking */
+	u32 reserved[2];
 } __attribute__((aligned(RDDMA_DESC_ALIGN)));
+#else
+
+struct rddma_dma_descriptor;
+
+/* Transport-independent part of RDDMA transfer object */
+struct rddma_xf {
+	struct list_head node; 	     /* For queuing DMA's and completions */
+	void (*cb)(struct rddma_dma_descriptor *);	/* rddma callback */
+	u32 flags; /* xfer flags, rc */
+	u32 len;  /* TBD */
+	u32 rc;
+};
+
+struct rddma_dma_descriptor {
+	u32 words[8]; /* reserved for DMA engine (using 8641 "list" descriptor") */
+	u32 words2[2]; /* reserved for DMA driver */
+	struct rddma_xf xf;
+} __attribute__((aligned(RDDMA_DESC_ALIGN)));
+#endif
 
 struct rddma_src;
 struct rddma_dst;
 struct rddma_bind;
 struct rddma_dma_engine;
+struct rddma_xfer;
 
 struct rddma_dma_ops {
 	void (*load)(struct rddma_src *);
@@ -52,6 +98,10 @@ struct rddma_dma_ops {
 	void (*link_dst)(struct list_head *, struct rddma_dst *);
 	void (*link_bind)(struct list_head *, struct rddma_bind *);
 	void (*unlink_bind)(struct list_head *, struct rddma_bind *);
+	void (*load_transfer)(struct rddma_xfer *);
+	void (*queue_transfer)(struct rddma_dma_descriptor *);
+	void (*cancel_transfer)(struct rddma_dma_descriptor *);
+	struct rddma_dma_chan *(*alloc_chan)(void);
 	struct rddma_dma_engine *(*get)(struct rddma_dma_engine *);
 	void (*put)(struct rddma_dma_engine *);
 };

@@ -484,7 +484,7 @@ out:
 }
 
 /**
- * xfer_delete - Deletes the named transfer bind component
+ * xfer_delete - Deletes the named transfer
  *
  * @desc: Null terminated string with parameters of operation
  * @result:Pointer to buffer to hold result string
@@ -1232,13 +1232,13 @@ static struct ops {
 };
 
 /**
- *do_operation - Interprests and executes a descriptor string
+ *do_operation - Interprets and executes a descriptor string
  *@cmd: A string of the form op_name://name.loc...
  *@result: Pointer to a buffer to hold a string result description
  *@size: The size of the result buffer available for use
  *
  * Looks up the function corresponding to op_name and calls it with the
- * reset of the string, name.loc... and the result buffer and
+ * rest of the string, name.loc... and the result buffer and
  * size. Return value is the number of characters written into result
  * or negative if there is an error.
  */

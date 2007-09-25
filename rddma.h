@@ -16,6 +16,11 @@
 #include <stdarg.h>
 
 #define CONFIG_RDDMA_DEBUG
+#if 0
+#define PARALLELIZE_BIND_PROCESSING
+#else
+#define SERIALIZE_BIND_PROCESSING
+#endif
 
 extern unsigned int rddma_debug_level;
 /* Debug level is treated as a four-bit level integer, when, and a 28-bit mask, who_what */

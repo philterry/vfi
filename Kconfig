@@ -18,9 +18,18 @@ config RDDMA_FABRIC_NET
 	  Enable support for using the ethernet for RDDMA as if
 	  it were a switch fabric.
 
+# also depends on RAPIDIO, but removed for now
+
 config RDDMA_DMA_RIO
 	tristate "Rincon DMA driver -- RIO via PPC8641 DMA hardware"
-	depends on RDDMA && RAPIDIO
+	depends on RDDMA 
+	default m
+	---help---
+	  Enable support for Rincon DMA over Rapid I/O.
+
+config RDDMA_DMA_6460
+	tristate "Rincon DMA driver -- RDDMA on MPC8245 (MPC10x DMA controller)"
+	depends on RDDMA && MPC10X_BRIDGE
 	default m
 	---help---
 	  Enable support for Rincon DMA over Rapid I/O.

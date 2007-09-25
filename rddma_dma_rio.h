@@ -16,7 +16,9 @@
 
 #define PPC8641_DESC_ALIGN 32
 
+#if 0
 #define RDDMA_DESC_ALIGN PPC8641_DESC_ALIGN
+#endif
 
 /* Memory format of DMA list descriptor 
  * (must be 32-byte aligned)

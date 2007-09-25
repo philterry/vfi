@@ -167,7 +167,13 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_de
 	new->desc.ops = parent->desc.ops;
 	new->desc.address = parent->desc.address;
 	new->desc.rde = parent->desc.rde;
+	new->state = RDDMA_XFER_UNINIT;
+#ifdef SERIALIZE_BIND_PROCESSING  
+	/* dma chain headed at transfer level, as all binds are linked
+	 * into one continuous chain 
+	 * */
 	INIT_LIST_HEAD(&new->dma_chain);
+#endif
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
@@ -230,6 +236,51 @@ struct rddma_xfer *rddma_xfer_create(struct rddma_location *loc, struct rddma_de
 	return new;
 }
 
+#if 0
+void rddma_xfer_start(struct rddma_xfer *xfer)
+{
+#ifdef PARALLELIZE_BIND_PROCESSING
+	struct rddma_bind *bind;
+	struct list_head *entry;
+#endif
+	/* Check status of xfer.  Must be in READY state */
+	/* All binds have been linked into a single transfer for
+	 * now.  At some point we may loop over the binds and
+	 * start them individually.   Actually, that time would 
+	 * be now. :)  
+	 *
+	 * No return value....huh??
+	 */
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %i\n",__FUNCTION__,xfer,xfer->state);
+
+	if (xfer->state != RDDMA_XFER_READY) {
+		return;
+	}
+
+	xfer->state = RDDMA_XFER_BUSY;
+
+	if (xfer->desc.rde->ops && xfer->desc.rde->ops->queue_transfer) {
+#ifdef SERIALIZE_BIND_PROCESSING
+		xfer->desc.rde->ops->load_transfer(xfer);
+		xfer->desc.rde->ops->queue_transfer(&xfer->descriptor);
+#else
+	/* Loop over binds */
+		list_for_each(entry,&xfer->binds->kset.list) {
+			bind = to_rddma_bind(to_kobj(entry));
+			xfer->desc.rde->ops->queue_transfer(&bind->descriptor);
+		}
+#endif
+		return;
+	}
+	else
+		RDDMA_DEBUG (MY_DEBUG, "   rde ops: %s\n", (xfer->desc.rde->ops) ? "Present" : "Missing!");
+
+#if 0 /* Let callback deal with state */
+	xfer->state = RDDMA_XFER_READY;  /* Blocking (synchronous DMA) */
+#endif
+}
+#endif
+
 void rddma_xfer_delete(struct rddma_xfer *xfer)
 {
 	if (xfer)
@@ -241,7 +292,12 @@ void rddma_xfer_load_binds(struct rddma_xfer *xfer, struct rddma_bind *bind)
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,xfer,bind);
 	/* Added test, and diagnostics: this call sometimes fails, and Oops the kernel */
 	if (xfer->desc.rde && xfer->desc.rde->ops && xfer->desc.rde->ops->link_bind) {
-		xfer->desc.rde-> ops->link_bind(&xfer->dma_chain, bind);
+#ifdef SERIALIZE_BIND_PROCESSING
+		xfer->desc.rde->ops->link_bind(&xfer->dma_chain, bind);
+#else
+		xfer->desc.rde->ops->link_bind(NULL, bind);
+#endif
+
 		return;
 	}
 	RDDMA_DEBUG (MY_DEBUG, "xx %s: Xfer %s has incomplete operations set.\n", __FUNCTION__, kobject_name (&xfer->kobj));

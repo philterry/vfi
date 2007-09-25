@@ -185,6 +185,7 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	params.src.extent = params.dst.extent = START_SIZE(&dsmb->desc, &desc->dst);
 	for (page = first_page; page < last_page; page++) {
 		params.dst.offset += (unsigned long)page_address(dsmb->pages[page]);
+#if 0
 join:
 		if (page + 2 <= last_page) {
 			if (dsmb->pages[page] + 1 == dsmb->pages[page+1]) {
@@ -197,6 +198,7 @@ join:
 				goto join;
 			}
 		}
+#endif
 
 		new = rddma_dst_create(parent,&params);
 		sloc->desc.ops->srcs_create(new,&params);
@@ -304,6 +306,7 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 		    desc->dst.name, desc->dst.offset, desc->dst.extent, 
 		    desc->src.name, desc->src.offset, desc->src.extent);
 
+	xfer->state = RDDMA_XFER_BINDING;
 	if ( (bind = rddma_bind_create(xfer, desc))) {
 		if ( (dsts = rddma_local_dsts_create(bind,desc,"%s#%llx:%x=%s#%llx:%x",
 						     desc->dst.name,desc->dst.offset,desc->dst.extent,
@@ -317,7 +320,14 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 			atomic_inc (&xfer->bind_count);
 	
 			if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
+#ifdef SERIALIZE_BIND_PROCESSING
 				rddma_dma_chain_dump(&xfer->dma_chain);
+#else
+				/* Jimmy, "bind" was "xfer" */
+				rddma_dma_chain_dump(&bind->dma_chain);
+#endif
+
+			xfer->state = RDDMA_XFER_READY;
 			return bind;
 		}
 		RDDMA_DEBUG (MY_DEBUG, "xxx Failed to create bind %s - deleting\n", kobject_name (&bind->kobj));
@@ -349,6 +359,7 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	params.dst.extent = params.src.extent = START_SIZE(&smb->desc, &desc->src);
 	for ( page = first_page; page < last_page ; page++ ) {
 		params.src.offset += (unsigned long)page_address(smb->pages[page]);
+#if 0
 join2:
 		if (page + 2 <= last_page) {
 			if (smb->pages[page] + 1 == smb->pages[page+1]) {
@@ -360,6 +371,7 @@ join2:
 				goto join2;
 			}
 		}
+#endif
 
 		params.dst.extent = params.src.extent;
 		src = parent->desc.dst.ops->src_create(parent,&params);
@@ -404,6 +416,20 @@ static void rddma_local_smb_delete(struct rddma_location *loc, struct rddma_desc
 		rddma_smb_put(smb);
 		rddma_smb_delete(smb);
 	}
+}
+
+static int rddma_local_xfer_start(struct rddma_location *loc, struct rddma_desc_param *desc)
+{
+	struct rddma_xfer *xfer;
+	int ret = -EINVAL;
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	xfer = rddma_local_xfer_find(loc,desc);
+	if (xfer) {
+		kobject_put(&xfer->kobj);
+		rddma_xfer_start(xfer);
+		ret = 0;
+	}
+	return ret;
 }
 
 static int rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
@@ -651,7 +677,11 @@ static int rddma_local_bind_delete (struct rddma_xfer *parent, struct rddma_bind
 		* This is a function of its governing xfer.
 		*/
 		if (parent->desc.rde && parent->desc.rde->ops && parent->desc.rde->ops->unlink_bind) {
-			parent->desc.rde-> ops->unlink_bind(&parent->dma_chain, bind);
+#ifdef SERIALIZE_BIND_PROCESSING
+			parent->desc.rde->ops->unlink_bind(&parent->dma_chain, bind);
+#else
+			parent->desc.rde->ops->unlink_bind(NULL, bind);
+#endif
 		}
 		else {
 			RDDMA_DEBUG (MY_DEBUG, "xx Xfer %s DMA engine has no unlink_bind op.\n", 
@@ -795,6 +825,9 @@ void rddma_local_bind_vote (struct rddma_xfer *xfer, struct rddma_bind_param *de
 {
 	struct rddma_bind *bind;
 	int d, s;
+#ifdef PARALLELIZE_BIND_PROCESSING
+	struct list_head *entry;
+#endif
 	
 	RDDMA_DEBUG (MY_DEBUG, "## %s for %s#%llx:%x/%s#%llx:%x[%+d]=%s#%llx:%x[%+d]\n", 
 		     __FUNCTION__, 
@@ -815,6 +848,17 @@ void rddma_local_bind_vote (struct rddma_xfer *xfer, struct rddma_bind_param *de
 		int x = atomic_inc_return (&xfer->start_votes);
 		if (x == atomic_read (&xfer->bind_count)) {
 			RDDMA_DEBUG (MY_DEBUG, ">>>>> BLAM BLAM BLAM BLAM! >>>>>\n");
+#ifdef SERIALIZE_BIND_PROCESSING
+			xfer->desc.rde->ops->load_transfer(xfer);
+			xfer->desc.rde->ops->queue_transfer(&xfer->descriptor);
+#else
+			/* Loop over binds */
+			list_for_each(entry,&xfer->binds->kset.list) {
+				bind = to_rddma_bind(to_kobj(entry));
+				xfer->desc.rde->ops->queue_transfer(&bind->descriptor);
+			}
+#endif
+			return;
 		}
 		else {
 			RDDMA_DEBUG (MY_DEBUG, "Xfer ---> %d of %d\n", x, atomic_read (&xfer->bind_count));
@@ -839,6 +883,7 @@ struct rddma_ops rddma_local_ops = {
 	.mmap_delete = rddma_local_mmap_delete,
 	.xfer_create = rddma_local_xfer_create,
 	.xfer_delete = rddma_local_xfer_delete,
+	.xfer_start = rddma_local_xfer_start,
 	.xfer_find = rddma_local_xfer_find,
 	.srcs_create = rddma_local_srcs_create,
 	.src_create = rddma_local_src_create,

@@ -21,11 +21,14 @@
 #include <linux/kobject.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/proc_fs.h>
 
 #include <linux/rddma_drv.h>
 #include <linux/rddma_ops.h>
 #include <linux/rddma_mmap.h>
 #include <linux/version.h>
+
+struct proc_dir_entry *proc_root_rddma = NULL;
 
 struct mybuffers {
 	struct list_head list;
@@ -555,6 +558,11 @@ int rddma_cdev_register(struct rddma_subsys *rddma_dev)
 		goto cdev_fail;
 	}
 
+#ifdef CONFIG_PROC_FS
+	if (!proc_root_rddma)
+		proc_root_rddma = proc_mkdir("rddma", proc_root_driver);
+#endif
+
 	return result;
 
 cdev_fail:
@@ -567,3 +575,5 @@ void rddma_cdev_unregister(struct rddma_subsys *rddma_dev)
 	cdev_del(&rddma_dev->cdev);
 	unregister_chrdev_region(rddma_dev->dev, rddma_nr_minor);
 }
+
+EXPORT_SYMBOL(proc_root_rddma);
