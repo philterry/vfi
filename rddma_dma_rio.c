@@ -15,7 +15,6 @@
 #include <linux/rddma_dma_rio.h>
 #include <linux/rddma_src.h>
 #include <linux/rddma_srcs.h>
-#include <linux/platform_device.h>
 #include <asm/io.h>
 
 struct dma_engine {
@@ -129,25 +128,10 @@ static struct rddma_dma_ops dma_rio_ops = {
 	.put       = dma_rio_put,
 };
 
-/* Jimmy!  Temporary hack to test platform probe! */
-static int __devinit bark_bark(struct platform_device *pdev);
-static int __devinit piggy(struct platform_device *pdev);
-
-static struct platform_driver dummy = {
-	.probe = bark_bark,
-	.remove = piggy,
-	.driver = {
-		.name = "fsl-dma",
-		.owner = THIS_MODULE,
-	},
-};
-
 static int __init dma_rio_init(void)
 {
 	struct dma_engine *de;
 	struct rddma_dma_engine *rde;
-
-platform_driver_register (&dummy);
 
 	if ( (de = new_dma_engine()) ) {
 		rde = &de->rde;
@@ -155,24 +139,6 @@ platform_driver_register (&dummy);
 		return rddma_dma_register(rde);
 	}
 	return -ENOMEM;
-}
-
-static int __devinit bark_bark (struct platform_device *pdev)
-{
-	struct resource *res;
-	printk("BARK! BARK!\n");
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	printk("start = 0x%x\n", res->start);
-	printk("end = 0x%x\n", res->end);
-	printk("size = 0x%x\n", res->end - res->start);
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	return 0;
-}
-
-static int __devinit piggy (struct platform_device *pdev)
-{
-	printk("PIGGY! PIGGY!\n");
-	printk("start = 0x%x\n", pdev->resource[0].start);
 }
 
 static void __exit dma_rio_close(void)
