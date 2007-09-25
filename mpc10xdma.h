@@ -101,7 +101,7 @@ struct my_xfer_object {
 	struct seg_desc *desc;	/* ptr to first descriptor in DMA chain */
 	u32 driver1;
 	struct rddma_xf xf;	/* RDDMA */
-} __attribute__((aligned(RDDMA_DESC_ALIGN)));
+};
 
 /* Mode Register bits 
  *

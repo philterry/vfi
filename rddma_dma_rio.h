@@ -14,12 +14,6 @@
 
 #include <linux/rddma.h>
 
-#define PPC8641_DESC_ALIGN 32
-
-#if 0
-#define RDDMA_DESC_ALIGN PPC8641_DESC_ALIGN
-#endif
-
 /* Memory format of DMA list descriptor 
  * (must be 32-byte aligned)
  * A list is a DMA chain, consisting of 1 or more segments (links)
@@ -33,7 +27,7 @@ struct dma_list {
 	u32 dest_stride;
 	u32 dummy;
 	u32 dummy2;
-}__attribute__((aligned(RDDMA_DESC_ALIGN)));
+};
 
 /*  Note:  The last 8 bytes of the H/W descriptor are reserved,
  *  so we could move "struct list_head" there and use a full
@@ -61,10 +55,10 @@ struct dma_link {
 	u32 next;
 	u32 nbytes;
 	int dummy;
-}__attribute__((aligned(RDDMA_DESC_ALIGN)));
+};
 
 struct seg_desc {
-	struct dma_link hw 	__attribute__ ((aligned(RDDMA_DESC_ALIGN)));	/* 32 bytes, h/w descriptor */
+	struct dma_link hw;	/* 32 bytes, h/w descriptor */
 	struct list_head node;  /* 8 bytes */
 	u64 paddr;              /* 8 bytes */
 	u32 user1;		/* 16 extra bytes */
