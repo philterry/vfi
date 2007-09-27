@@ -16,9 +16,24 @@
 #include <stdarg.h>
 
 #define CONFIG_RDDMA_DEBUG
+
+/* Merge DMA descriptors for adjacent pages.
+ * This should always be on, unless you're trying
+ * to generate long DMA chains for testing.
+ */
+#define OPTIMIZE_DESCRIPTORS
+
 #if 0
+/* Individually queue binds to DMA engine.
+ * This allows multi-channel DMA controllers to
+ * run binds in parallel.
+ */
 #define PARALLELIZE_BIND_PROCESSING
 #else
+/* Link all binds in a transfer into a single
+ * DMA chain. DMA is parallelized on multi-channel
+ * controllers, but at the transfer level.
+ */
 #define SERIALIZE_BIND_PROCESSING
 #endif
 

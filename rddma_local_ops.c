@@ -185,7 +185,7 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	params.src.extent = params.dst.extent = START_SIZE(&dsmb->desc, &desc->dst);
 	for (page = first_page; page < last_page; page++) {
 		params.dst.offset += (unsigned long)page_address(dsmb->pages[page]);
-#if 0
+#ifdef OPTIMIZE_DESCRIPTORS
 join:
 		if (page + 2 <= last_page) {
 			if (dsmb->pages[page] + 1 == dsmb->pages[page+1]) {
@@ -359,7 +359,7 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	params.dst.extent = params.src.extent = START_SIZE(&smb->desc, &desc->src);
 	for ( page = first_page; page < last_page ; page++ ) {
 		params.src.offset += (unsigned long)page_address(smb->pages[page]);
-#if 0
+#ifdef OPTIMIZE_DESCRIPTORS
 join2:
 		if (page + 2 <= last_page) {
 			if (smb->pages[page] + 1 == smb->pages[page+1]) {
