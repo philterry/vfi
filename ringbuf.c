@@ -1,52 +1,48 @@
 /*****************************************************************************
 *  ringbuf.c -- Ring buffer routines 
 *
-*  Author: Jimmy Blair, Upcall Software Consulting
+*  Author: Jimmy Blair
 *  
 *****************************************************************************/
 
 #include "linux/stddef.h"
 #include "ringbuf.h"
 
-void
-ringbuf_init (RINGBUF * pRing, void ** ppArray, int len, int full)
-    {
-    pRing->ppArray = ppArray;
-    pRing->iRead = 0;
-    pRing->iLen = len;
-    if (full)
-        pRing->iWrite = pRing->iLen - 1;
-    else
-        pRing->iWrite = 0;
-    }
+void ringbuf_init(RINGBUF * pRing, void **ppArray, int len, int full)
+{
+	pRing->ppArray = ppArray;
+	pRing->iRead = 0;
+	pRing->iLen = len;
+	if (full)
+		pRing->iWrite = pRing->iLen - 1;
+	else
+		pRing->iWrite = 0;
+}
 
-void *
-ringbuf_get (RINGBUF * pRing)
-    {
-    int next;
-    void * pData;
+void *ringbuf_get(RINGBUF * pRing)
+{
+	int next;
+	void *pData;
 
-    if (pRing->iRead == pRing->iWrite)
-        return (NULL);    /* Ring empty */
+	if (pRing->iRead == pRing->iWrite)
+		return (NULL);	/* Ring empty */
 
-    pData = pRing->ppArray[pRing->iRead];
+	pData = pRing->ppArray[pRing->iRead];
 
-    pRing->iRead = (pRing->iRead + 1) % pRing->iLen;
+	pRing->iRead = (pRing->iRead + 1) % pRing->iLen;
 
-    return (pData);
-    }
-    
-void *
-ringbuf_put (RINGBUF * pRing, void * pData)
-    {
-    int next = (pRing->iWrite + 1) % pRing->iLen;
+	return (pData);
+}
 
-    if (next == pRing->iRead)
-        return (NULL);  /* Ring full */
+void *ringbuf_put(RINGBUF * pRing, void *pData)
+{
+	int next = (pRing->iWrite + 1) % pRing->iLen;
 
-    pRing->ppArray[pRing->iWrite] = pData;
-    pRing->iWrite = next;
+	if (next == pRing->iRead)
+		return (NULL);	/* Ring full */
 
-    return (pData);
-    }
+	pRing->ppArray[pRing->iWrite] = pData;
+	pRing->iWrite = next;
 
+	return (pData);
+}
