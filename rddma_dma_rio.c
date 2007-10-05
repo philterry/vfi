@@ -12,6 +12,7 @@
 #define MY_LIFE_DEBUG RDDMA_DBG_DMARIO | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
 #include <linux/rddma.h>
+#include <linux/rddma_dma.h>
 #include <linux/rddma_dma_rio.h>
 #include <linux/rddma_src.h>
 #include <linux/rddma_srcs.h>
@@ -24,22 +25,35 @@
 #include <asm/io.h>
 #include "./ringbuf.h"
 
+#define SPOOL_AND_KICK
+
 struct dma_engine {
 	struct rddma_dma_engine rde;
 	struct completion dma_callback_sem;
 	struct ppc_dma_chan ppc8641_dma_chans[PPC8641_DMA_NCHANS];
 	struct task_struct *callback_thread;
+	void *regbase;
 	int nchans;
 	int next_channel;
 };
 
+#ifdef CONFIG_FSL_SOC
+extern phys_addr_t get_immrbase(void); /* defined in sysdev/fsl_soc.c */
+#else
+/* A stub to allow us to compile on other platforms */
+static inline phys_addr_t get_immrbase(void) {
+	return 0; 
+}
+#endif
 static struct dma_engine *de;
 static struct proc_dir_entry *proc_dev_dir;
 static struct proc_dir_entry *proc_root_rddma;
+static void start_dma(struct ppc_dma_chan *chan, struct dma_list *dma_desc);
+static struct ppc_dma_chan *load_balance(struct my_xfer_object *xfo);
 
 /* Default module param values */
-static int first_chan = 0;
-static int last_chan = PPC8641_DMA_NCHANS - 1;
+static unsigned int first_chan = 0;
+static unsigned int last_chan = PPC8641_DMA_NCHANS - 1;
 
 #define NEVENTS 100
 static int nevents = NEVENTS;
@@ -58,7 +72,7 @@ static inline struct dma_engine *to_dma_engine(struct rddma_dma_engine *rde)
 }
 
 static struct rddma_dma_ops dma_rio_ops;
-static void dma_rio_queue_transfer;
+static void dma_rio_queue_transfer(struct rddma_dma_descriptor *desc);
 
 static inline void dma_set_reg(struct ppc_dma_chan *chan,
 			       unsigned int offset, u32 value)
@@ -72,8 +86,9 @@ static inline u32 dma_get_reg(struct ppc_dma_chan *chan,
 	return in_be32(chan->regbase + offset);
 }
 
-static inline dma_addr_t ldesc_virt_to_phys(struct list_desc *va)
+static inline dma_addr_t ldesc_virt_to_phys(struct dma_list *d)
 {
+	struct my_xfer_object *va = (struct my_xfer_object *) d;
 	return (u32) va->paddr;
 }
 
@@ -96,7 +111,11 @@ static int dma_completion_thread(void *data)
 			xfo = pevent->desc;
 			/* Jimmy, take semaphore here */
 			chan->bytes_queued -= xfo->xf.len;
-			xfo->xf.rc = pevent->status;
+			if (pevent->status == DMA_OK)
+				xfo->xf.flags = RDDMA_XFO_COMPLETE_OK;
+			else
+				xfo->xf.flags = RDDMA_XFO_COMPLETE_ERROR;
+			xfo->xf.flags |= pevent->chan_num < 8;
 			/* Jimmy, give semaphore here */
 			/* Invoke callback */
 			if (xfo->xf.cb) {
@@ -189,8 +208,8 @@ static void dma_rio_load(struct rddma_src *src)
 		rio->hw.saddr = phys & 0xffffffff;
 		rio->hw.src_attr = (phys >> 32) & HIGH_RIO_ADDR_MASK;
 		rio->hw.src_attr |= (DMA_ATTR_BYPASS_ATMU | DMA_ATTR_RIO | 
-			DMA_ATTR_NREAD | DMA_ATTR_HI_FLO);
-		rio->hw.src_attr |= DMA_ATTR_TID((rddma_rio_id(&src->desc.src));
+			DMA_ATTR_NREAD | DMA_ATTR_HI_FLOW);
+		rio->hw.src_attr |= DMA_ATTR_TID(rddma_rio_id(&src->desc.src));
 	}
 	else {
 		/* Stash upper 4 bits of 36-bit OCN address and
@@ -216,7 +235,7 @@ static void dma_rio_load(struct rddma_src *src)
 		rio->hw.dest_attr = (phys >> 32) & HIGH_RIO_ADDR_MASK;
 		rio->hw.dest_attr |= DMA_ATTR_LOCAL_NOSNOOP;
 		rio->hw.dest_attr |= (DMA_ATTR_BYPASS_ATMU | DMA_ATTR_RIO | 
-			DMA_ATTR_NWRITE | DMA_ATTR_HI_FLO);
+			DMA_ATTR_NWRITE | DMA_ATTR_HI_FLOW);
 		rio->hw.dest_attr |= DMA_ATTR_TID(rddma_rio_id(&src->desc.dst));
 	}
 	else {
@@ -262,6 +281,7 @@ static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second
 {
 	struct seg_desc *rio2;
 	struct seg_desc *riolast;
+	unsigned int val;
 	if (!list_empty(first)) {
 		riolast = to_sdesc(first->prev);
 		rio2 = to_sdesc(second->dma_chain.next);
@@ -295,19 +315,20 @@ static void dma_rio_unlink_bind(struct list_head *first, struct rddma_bind *seco
 static void dma_rio_load_transfer(struct rddma_xfer *xfer)
 {
 	struct my_xfer_object *xfo = (struct my_xfer_object *) &xfer->descriptor;
+	struct seg_desc *seg;
 	/* Fill out a "transfer object" */
 #ifdef LOCAL_DMA_ADDRESS_TEST
 	xfo->xf.cb = address_test_completion;
 #else
 	xfo->xf.cb = NULL;
 #endif
-	xfo->xf.flags = RDDMA_XFER_READY;
-	xfo->xf.len = second->desc.src.extent;
+	xfo->xf.flags = RDDMA_XFO_READY;
+	xfo->xf.len = xfer->desc.extent;
 
 	/* Fill out list descriptor! */
 
 	xfo->hw.next = DMA_END_OF_CHAIN;
-	seg = to_sdesc(second->dma_chain.next);
+	seg = to_sdesc(xfer->dma_chain.next);
 	xfo->hw.link = seg->paddr;
 	/* list and link descriptors in low memory */
 	xfo->hw.next_ext = xfo->hw.link_ext = 0;
@@ -331,7 +352,7 @@ static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second
 #else
 	xfo->xf.cb = NULL;
 #endif
-	xfo->xf.flags = RDDMA_BIND_READY;
+	xfo->xf.flags = RDDMA_XFO_READY;
 	xfo->xf.len = second->desc.src.extent;
 
 	/* Fill out list descriptor! */
@@ -383,13 +404,12 @@ static irqreturn_t do_interrupt(int irq, void *data)
 {
 	struct ppc_dma_chan *chan = (struct ppc_dma_chan *) data;
 	unsigned int status;
-	unsigned int cb, te;
+	unsigned int cb, te, pe;
 	struct list_head *desc_node;
 	struct my_xfer_object *pdesc;
 
 	status = dma_get_reg(chan, DMA_SR);
 printk("DMA interrupt, status = 0x%x\n", status);
-printk("CDAR =  0x%x\n", dma_get_reg(chan, DMA_CDAR));
 
 	/* Clear interrupts */
 	dma_set_reg(chan, DMA_SR, status);
@@ -458,24 +478,21 @@ printk("DMA interrupt, empty list\n");
 	list_del(desc_node); 	/* De-queue the completed chain */
 
 	/* Wake up completion callback thread and launch the next DMA */
-	if (chan->state == DMA_ERROR || chan->state == DMA_ERR_STOP) {
+	if (chan->state == DMA_ERR_STOP) {
+		pdesc->xf.extra = (te | pe);
 		send_completion(chan, pdesc, DMA_ERROR);
 	} else {
 		chan->bytes_tx += pdesc->xf.len;
 		send_completion(chan, pdesc, DMA_OK);
 		if (!list_empty(&chan->dma_q)) {
 			pdesc = to_xfer_object(chan->dma_q.next);
-#ifdef PARALLELIZE_BIND_PROCESSING
-			pdesc->xf.flags = RDDMA_BIND_DMA_RUNNING;
-#else
-			pdesc->xf.flags = RDDMA_XFER_DMA_RUNNING;
-#endif
-			start_dma(chan, (struct list_desc *) pdesc);
+			pdesc->xf.flags = RDDMA_XFO_RUNNING;
+			start_dma(chan, &pdesc->hw);
 		}
 	}
 	return (IRQ_HANDLED);
 }
-static void start_dma(struct ppc_dma_chan *chan, struct list_desc *dma_desc)
+static void start_dma(struct ppc_dma_chan *chan, struct dma_list *dma_desc)
 {
 	chan->state = DMA_RUNNING;
 	/* Extended mode, Single write start */
@@ -483,7 +500,8 @@ static void start_dma(struct ppc_dma_chan *chan, struct list_desc *dma_desc)
 	return;
 }
 
-int ppcdma_queue_chain(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
+static int  ppcdma_queue_chain(struct ppc_dma_chan *chan, 
+	struct my_xfer_object *xfo)
 {
 	unsigned long flags;
 
@@ -497,7 +515,7 @@ int ppcdma_queue_chain(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
 
 	/* Spool the DMA chain */
 	list_add_tail(&xfo->xf.node, &chan->dma_q);
-	xfo->xf.flags = RDDMA_BIND_QUEUED;
+        chan->bytes_queued += xfo->xf.len;
 
 	/* Launch if DMA engine idle */
 	if (chan->state == DMA_IDLE) {
@@ -508,12 +526,117 @@ int ppcdma_queue_chain(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
 			     chan->num);
 		}
 #endif
-	        chan->bytes_queued += xfo->xf.len;
-	        xfo->xf.flags = RDDMA_BIND_DMA_RUNNING;
-		start_dma(chan, (struct list_desc *) xfo);
+	        xfo->xf.flags = (chan->num << 8) | RDDMA_XFO_RUNNING;
+		start_dma(chan, &xfo->hw);
 	}
+	else
+		xfo->xf.flags = (chan->num << 8) | RDDMA_XFO_QUEUED;
+
 	spin_unlock_irqrestore(&chan->queuelock, flags);
 	return 0;
+}
+
+int find_in_queue(struct list_head *q, struct my_xfer_object *target)
+{
+	struct list_head *desc_node;
+	struct list_head *temp_node;
+	struct my_xfer_object *curr;
+	int i = 0;
+	list_for_each_safe(desc_node, temp_node, q) {
+		i++;
+		curr = list_entry(desc_node, struct my_xfer_object, xf.node);
+		if (curr == target) {
+			return i;
+		}
+	}
+	return 0;
+}
+/*
+*   Remove 'desc' from the transfer queue
+*   If 'desc' is running in the DMA engine, abort the transfer
+*   return 0 if node deleted
+*   return -EINVAL  if node not found in queue
+*   return -EBUSY if internal error
+*/
+int dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc)
+{
+	struct my_xfer_object *xfo = (struct my_xfer_object *) desc;
+	struct list_head *node;
+	unsigned long flags;
+	unsigned long status;
+	struct ppc_dma_chan *chan;
+	int match;
+	int num;
+
+	/* Get channel number */
+	num = XFO_CHAN(xfo);
+	if (num < first_chan || num > last_chan) 
+		return -EINVAL;
+
+	chan = &de->ppc8641_dma_chans[num];
+	spin_lock_irqsave(&chan->queuelock, flags);
+	match = find_in_queue(&chan->dma_q, xfo);
+	if (match == 0) {	/* Descriptor not found in queue */
+		spin_unlock_irqrestore(&chan->queuelock, flags);
+		return -EINVAL;
+	}
+
+	/* Descriptor not at head of queue */
+	if (match != 1) {
+		list_del(&xfo->xf.node);
+		spin_unlock_irqrestore(&chan->queuelock, flags);
+		return 0;
+	}
+
+	/* Descriptor at head of queue */
+	if (chan->state != DMA_RUNNING) {
+		list_del(&xfo->xf.node);
+		spin_unlock_irqrestore(&chan->queuelock, flags);
+		return 0;
+	}
+
+	/* DMA in flight!  Abort the transer */
+	dma_set_reg(chan, DMA_MR, dma_get_reg(chan, DMA_MR) | DMA_MODE_ABORT);
+	isync();
+	chan->state = DMA_IDLE;
+	/* Ack away interrupts */
+	dma_set_reg(chan, DMA_SR, dma_get_reg(chan, DMA_SR));
+
+	list_del(&xfo->xf.node);
+
+	/* If queue head was deleted, launch next transfer */
+	if (!list_empty(&chan->dma_q)) {
+		status = dma_get_reg(chan, DMA_SR);
+		if (status & DMA_STAT_CHAN_BUSY) {
+			printk
+			    ("DMA-%i Error: channel abort failed\n",
+			     chan->num);
+			chan->state = DMA_ERR_STOP;
+			spin_unlock_irqrestore(&chan->queuelock, flags);
+			return -EBUSY;
+#if  0
+			BUG_ON();
+#endif
+		}
+		node = chan->dma_q.next;
+		xfo = to_xfer_object(node);
+		start_dma(chan, &xfo->hw);
+	}
+
+	spin_unlock_irqrestore(&chan->queuelock, flags);
+	return 0;
+}
+
+static void dma_rio_queue_transfer(struct rddma_dma_descriptor *list)
+{
+	struct ppc_dma_chan *chan;
+	struct my_xfer_object *xfo = (struct my_xfer_object *) list;
+	if (de->nchans == 1) {
+		ppcdma_queue_chain(&de->ppc8641_dma_chans[first_chan], xfo);
+		return;
+	}
+	chan = load_balance(xfo);
+	ppcdma_queue_chain(chan, xfo);
 }
 
 static struct rddma_dma_engine *dma_rio_get(struct rddma_dma_engine *rde)
@@ -533,17 +656,123 @@ static struct rddma_dma_ops dma_rio_ops = {
 	.link_dst  = dma_rio_link_dst,
 	.link_bind = dma_rio_link_bind,
 	.unlink_bind = dma_rio_unlink_bind,
-	.load_transfer = dma_rio_load_transfer;
-	.queue_transfer = dma_rio_queue_transfer;
-	.cancel_transfer = dma_rio_cancel_transfer;
+	.load_transfer = dma_rio_load_transfer,
+	.queue_transfer = dma_rio_queue_transfer,
+	.cancel_transfer = dma_rio_cancel_transfer,
 	.get       = dma_rio_get,
 	.put       = dma_rio_put,
 };
 
+#ifdef CONFIG_PROC_FS
+static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
+	int count, int *eof, void *data)
+{
+	int len = 0;
+	int index = (int) data;
+	struct ppc_dma_chan *chan = &de->ppc8641_dma_chans[index];
+
+	len += sprintf(buf + len, " Number of DMA list complete interrupts = %d\n", 
+			chan->list_int);
+	len += sprintf(buf + len, " Number of bytes transmitted = %lld, (0x%llx)\n",
+			chan->bytes_tx, chan->bytes_tx);
+	len += sprintf(buf + len, " Number of unknown interrupts = %d\n", 
+			chan->bogus_int);
+	len += sprintf(buf + len, " Number of errors = %d\n", 
+			chan->err_int);
+	return len;
+}
+#endif
+
+/* Initialize per-channel data structures and h/w.
+ * Return number of channels.
+ */
+static int setup_dma_channels(struct dma_engine *device)
+{
+	u32 xfercap;
+	int i;
+	int err;
+	struct ppc_dma_chan *chan;
+
+	/* 8641 -- (2**26 - 1) */
+	xfercap = ~0xfc000000;
+
+	for (i = first_chan; i <= last_chan; i++) {
+		chan = &de->ppc8641_dma_chans[i];
+		memset(chan, 0, sizeof(struct ppc_dma_chan));
+		chan->device = device;
+		chan->regbase = device->regbase + (0x80 * (i + 1));
+		chan->xfercap = xfercap;
+		chan->num = i;
+
+		/* using chained list descriptors */
+#ifdef SPOOL_AND_KICK
+		/* 
+		 * Using chained list descriptors.
+		 * Write to CLSDAR register starts channel
+		 */
+		chan->op_mode = DMA_MODE_EXTENDED | DMA_MODE_QUICKSTART;
+#else
+		/* Using chained list descriptors. */
+		chan->op_mode = DMA_MODE_EXTENDED;
+#endif
+		chan->op_mode |= DMA_MODE_ERR_INT_EN;
+#ifdef SPOOL_AND_KICK
+		chan->op_mode |= DMA_MODE_LIST_INT_EN;
+#else
+		chan->op_mode |= DMA_MODE_CHAIN_INT_EN;
+#endif
+
+		/* Might move this!! Jimmy */
+		dma_set_reg(chan, DMA_MR, chan->op_mode);
+
+		/* Using 32-bit descriptors */
+		dma_set_reg(chan, DMA_ECLSDAR, 0);
+
+		/* Hack!  Since we're not going through dts/platform
+		 * stuff for DMA controller, the IRQ number is 
+		 * hardwired.  The 0x10 appears because the 
+		 * first internal interrupt source is offset by 0x10.
+		 */
+		sprintf(chan->name, "rddma-chan%d", i);
+		chan->irq = 0x10 + DMA_INTERNAL_INT_NUMBER + i;
+		err = request_irq(chan->irq, &do_interrupt, 0, chan->name, chan);
+		if (err)
+			goto err_irq;
+		spin_lock_init(&chan->cleanup_lock);
+		spin_lock_init(&chan->queuelock);
+		INIT_LIST_HEAD(&chan->dma_q);
+		chan->state = DMA_IDLE;
+		de->nchans++;
+#ifdef CONFIG_PROC_FS
+		chan->proc_dir = proc_mkdir(chan->name, proc_dev_dir);
+		chan->proc_entry = create_proc_read_entry("stats", 0, 
+			chan->proc_dir, proc_dump_dma_stats, (void *) chan->num);
+#else
+		chan->proc_dir = NULL;
+#endif
+	}
+	return de->nchans;
+err_irq:
+	chan->state = DMA_UNINIT;
+	return (0);
+}
 static int __init dma_rio_init(void)
 {
 	struct dma_engine *de;
 	struct rddma_dma_engine *rde;
+	int i;
+	int err;
+
+	/* check module params */
+	if (last_chan >= PPC8641_DMA_NCHANS) {
+		printk("Error, max value of last_chan is %d\n",
+		       PPC8641_DMA_NCHANS - 1);
+		return (-EINVAL);
+	}
+	if (first_chan > last_chan ) {
+		printk("Error, first DMA channel number invalid\n");
+		return (-EINVAL);
+	}
 
 	if ( (de = new_dma_engine()) ) {
 		rde = &de->rde;
@@ -553,6 +782,12 @@ static int __init dma_rio_init(void)
 	else
 		return -ENOMEM;
 
+	de->regbase = ioremap(get_immrbase() + MPC86XX_DMA_OFFSET,
+			   MPC86XX_DMA_REG_SIZE);
+
+	if (!de->regbase) {
+		return (-ENOMEM);
+	}
 #ifdef CONFIG_PROC_FS
 	if (!proc_root_rddma) 
 		proc_root_rddma = proc_mkdir ("rddma", proc_root_driver);
@@ -618,6 +853,8 @@ err_event_out:
 err_event_in: 
 	kfree (event_array);
 err_event_array: 
+	iounmap(de->regbase);
+	kfree(de);
 
 	return err;
 }
@@ -640,7 +877,7 @@ static struct ppc_dma_chan *load_balance(struct my_xfer_object *xfo)
 	/* Select shortest queue */
 	queue_len = chan->bytes_queued;
 	for (i = first_chan; i <= last_chan; i++) {
-		if (de->mpc10x_dma_chans[i].bytes_queued < queue_len) {
+		if (de->ppc8641_dma_chans[i].bytes_queued < queue_len) {
 			chan = &de->ppc8641_dma_chans[i];
 			avail = i;
 			queue_len = chan->bytes_queued;
@@ -674,7 +911,10 @@ static void __exit dma_rio_close(void)
 		kfree (event_in);
 	if (event_array)
 		kfree (event_array);
+
 	rddma_dma_unregister("rddma_rio_dma");
+	iounmap(de->regbase);
+	kfree(de);
 }
 
 module_init(dma_rio_init);

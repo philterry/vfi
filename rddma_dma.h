@@ -55,6 +55,14 @@
 #define RDDMA_BIND_DMA_DONE_OK 6
 #define RDDMA_BIND_DMA_DONE_ERROR 7
 
+#define RDDMA_XFO_UNINIT 0
+#define RDDMA_XFO_READY 2
+#define RDDMA_XFO_QUEUED 3
+#define RDDMA_XFO_RUNNING 5
+#define RDDMA_XFO_COMPLETE_OK 5
+#define RDDMA_XFO_COMPLETE_ERROR 5
+#define RDDMA_XFO_CANCELLED 5
+
 #define RDDMA_DESC_ALIGN 32
 
 #if 0
@@ -76,8 +84,13 @@ struct rddma_xf {
 	void (*cb)(struct rddma_dma_descriptor *);	/* rddma callback */
 	u32 flags; /* xfer flags, rc */
 	u32 len;  /* TBD */
-	u32 rc;
+	u32 extra;
 };
+
+#define XFO_STAT_MASK 0x000000ff
+#define XFO_CHAN_MASK 0x0000ff00
+#define XFO_STATUS(xfo) (xfo->xf.flags & XFO_STAT_MASK)
+#define XFO_CHAN(xfo) (xfo->xf.flags & XFO_CHAN_MASK >> 8)
 
 struct rddma_dma_descriptor {
 	u32 words[8]; /* reserved for DMA engine (using 8641 "list" descriptor") */
