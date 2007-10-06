@@ -104,7 +104,7 @@ static int dma_completion_thread(void *data)
 			xfo = pevent->desc;
 			/* Jimmy, take semaphore here */
 			chan->bytes_queued -= xfo->xf.len;
-			xfo->xf.rc = pevent->status;
+			xfo->xf.flags = pevent->status;
 			/* Jimmy, give semaphore here */
 			if (xfo->xf.cb) {
 				xfo->xf.cb((struct rddma_dma_descriptor *) xfo);
@@ -240,7 +240,7 @@ static void dma_6460_unlink_bind(struct list_head *first, struct rddma_bind *sec
 	}
 	val = readl(&rioend->hw.next);
 	val |= DMA_END_OF_CHAIN;
-	writel(val, rioend->hw.next);
+	writel(val, &rioend->hw.next);
 }
 
 static void dma_6460_load_transfer(struct rddma_xfer *xfer)
@@ -354,7 +354,7 @@ void address_test_completion (struct rddma_dma_descriptor *dma_desc)
 	int *p2;
 	int i;
 	int len;
-	printk("DMA complete, status = 0x%x\n", xfo->xf.rc);
+	printk("DMA complete, status = 0x%x\n", xfo->xf.flags);
 	/* Address test, make sure all vals in destination equal corresponding
 	 * source addresses
 	 */

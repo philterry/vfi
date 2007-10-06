@@ -184,6 +184,9 @@ struct my_xfer_object {
 #define DMA_ATTR_NREAD		0x00040000
 #define DMA_ATTR_TID(x)		(x<<2)
 
+#define HIGH_LOCAL_ADDR_MASK 0xf
+#define HIGH_RIO_ADDR_MASK 0x3
+
 /* Descriptor flags -- so far just 1 */
 #define DMA_NO_CALLBACK 0x1
 
