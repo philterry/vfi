@@ -865,7 +865,6 @@ err_irq:
 
 static int __init dma_rio_init(void)
 {
-	struct dma_engine *de;
 	struct rddma_dma_engine *rde;
 	int i;
 	int err;

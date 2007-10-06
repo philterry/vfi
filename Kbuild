@@ -1,8 +1,7 @@
 
 obj-$(CONFIG_RDDMA_DMA_6460) += rddma_6460.o
 rddma_6460-objs := \
-	rddma_dma_6460.o \
-	ringbuf.o
+	rddma_dma_6460.o 
 
 obj-$(CONFIG_RDDMA_DMA_RIO) += rddma_dma_rio.o
 
@@ -12,13 +11,13 @@ obj-$(CONFIG_RDDMA) += rddma.o
 rddma-objs := \
               rddma_drv.o \
               rddma_bus.o \
+              ringbuf.o \
               rddma_class.o \
                  rddma_fabric.o \
                  rddma_dma.o \
                  rddma_cdev.o \
               rddma_parse.o \
               rddma_dump.o \
-              ringbuf.o \
               rddma_ops.o \
                    rddma_fabric_ops.o \
                    rddma_local_ops.o \
