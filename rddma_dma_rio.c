@@ -26,7 +26,7 @@
 #include "./ringbuf.h"
 
 #define SPOOL_AND_KICK
-#define LOCAL_DMA_ADDRESS_TEST
+#undef LOCAL_DMA_ADDRESS_TEST
 
 struct dma_engine {
 	struct rddma_dma_engine rde;
@@ -81,12 +81,12 @@ static inline struct dma_engine *to_dma_engine(struct rddma_dma_engine *rde)
 }
 
 static struct rddma_dma_ops dma_rio_ops;
-static void dma_rio_queue_transfer(struct rddma_dma_descriptor *desc);
-static void dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc);
+static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
+       	struct my_xfer_object *xfo);
 
 #ifndef CONFIG_FSL_SOC 	/* So we can build for x86 */
-#define outbe_32(x,y) x
-#define inbe_32(x,y) x
+#define outbe_32(x,y) (x)
+#define inbe_32(x,y) (x)
 #endif
 
 static inline void dma_set_reg(struct ppc_dma_chan *chan,
@@ -126,7 +126,7 @@ static int dma_completion_thread(void *data)
 			xfo = pevent->desc;
 			/* Jimmy, take semaphore here */
 			chan->bytes_queued -= xfo->xf.len;
-			if (pevent->status == DMA_OK)
+			if (pevent->status == PPCDMA_OK)
 				xfo->xf.flags = RDDMA_XFO_COMPLETE_OK;
 			else
 				xfo->xf.flags = RDDMA_XFO_COMPLETE_ERROR;
@@ -403,6 +403,114 @@ static void dma_rio_load_transfer(struct rddma_xfer *xfer)
 }
 #endif
 
+/*
+*   Remove 'desc' from the transfer queue
+*   If 'desc' is running in the DMA engine, abort the transfer
+*   return 0 if node deleted
+*   return -EINVAL  if node not found in queue
+*   return -EBUSY if internal error
+*/
+static void dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc)
+{
+	struct my_xfer_object *xfo = (struct my_xfer_object *) desc;
+	struct list_head *node;
+	unsigned long flags;
+	unsigned long status;
+	struct ppc_dma_chan *chan;
+	int match;
+	int num;
+
+	/* Get channel number */
+	num = XFO_CHAN(xfo);
+
+	if (num < first_chan || num > last_chan) 
+		return /* -EINVAL */;
+
+	chan = &de->ppc8641_dma_chans[num];
+	spin_lock_irqsave(&chan->queuelock, flags);
+	match = find_in_queue(&chan->dma_q, xfo);
+	if (match == 0) {	/* Descriptor not found in queue */
+		spin_unlock_irqrestore(&chan->queuelock, flags);
+		return /* -EINVAL */;
+	}
+
+	/* Descriptor not at head of queue */
+	if (match != 1) {
+		list_del(&xfo->xf.node);
+		xfo->xf.flags &= ~XFO_STAT_MASK;
+		xfo->xf.flags |= RDDMA_XFO_CANCELLED;
+		spin_unlock_irqrestore(&chan->queuelock, flags);
+		return;
+	}
+
+	/* Descriptor at head of queue */
+	if (chan->state != DMA_RUNNING) {
+		list_del(&xfo->xf.node);
+		xfo->xf.flags &= ~XFO_STAT_MASK;
+		xfo->xf.flags |= RDDMA_XFO_CANCELLED;
+		spin_unlock_irqrestore(&chan->queuelock, flags);
+		return;
+	}
+
+	/* DMA in flight!  Abort the transer */
+	dma_set_reg(chan, DMA_MR, dma_get_reg(chan, DMA_MR) | DMA_MODE_ABORT);
+#ifdef CONFIG_FSL_SOC /* More x86 */
+	isync();
+#endif
+	chan->state = DMA_IDLE;
+	/* Ack away interrupts */
+	dma_set_reg(chan, DMA_SR, dma_get_reg(chan, DMA_SR));
+
+	list_del(&xfo->xf.node);
+	xfo->xf.flags &= ~XFO_STAT_MASK;
+	xfo->xf.flags |= RDDMA_XFO_CANCELLED;
+
+	/* If queue head was deleted, launch next transfer */
+	if (!list_empty(&chan->dma_q)) {
+		status = dma_get_reg(chan, DMA_SR);
+		if (status & DMA_STAT_CHAN_BUSY) {
+			printk
+			    ("DMA-%i Error: channel abort failed\n",
+			     chan->num);
+			chan->state = DMA_ERR_STOP;
+			spin_unlock_irqrestore(&chan->queuelock, flags);
+			return /* -EBUSY */;
+#if  0
+			BUG_ON();
+#endif
+		}
+		node = chan->dma_q.next;
+		xfo = to_xfer_object(node);
+		start_dma(chan, xfo);
+	}
+
+	spin_unlock_irqrestore(&chan->queuelock, flags);
+	return;
+}
+
+static void dma_rio_queue_transfer(struct rddma_dma_descriptor *list)
+{
+	struct ppc_dma_chan *chan;
+	struct my_xfer_object *xfo = (struct my_xfer_object *) list;
+	if (de->nchans == 1) {
+		ppcdma_queue_chain(&de->ppc8641_dma_chans[first_chan], xfo);
+		return;
+	}
+	chan = load_balance(xfo);
+	ppcdma_queue_chain(chan, xfo);
+}
+
+static struct rddma_dma_engine *dma_rio_get(struct rddma_dma_engine *rde)
+{
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
+	return rde;
+}
+
+static void dma_rio_put(struct rddma_dma_engine *rde)
+{
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
+}
+
 #ifdef LOCAL_DMA_ADDRESS_TEST
 /* This is the original test code, before completion thread */
 static void address_test_completion (struct rddma_dma_descriptor *dma_desc)
@@ -567,26 +675,15 @@ printk("DMA interrupt, empty list\n");
 
 	desc_node = chan->dma_q.next;
 	pdesc = to_xfer_object(desc_node);
-#if 0
-	/* Jimmy test: dump start of destination array */
-	{
-		int i;
-		int *p = phys_to_virt(readl(&pdesc->desc->hw.daddr));
-		int *p2 = phys_to_virt(readl(&pdesc->desc->hw.saddr));
-		printk("src = 0x%x,  dest 0x%x\n",p2,p);
-		for (i = 0; i < (readl(&pdesc->desc->hw.nbytes))/4; i++)
-			printk("val %d,%d\n",*p2++, *p++);
-	}
-#endif
 	list_del(desc_node); 	/* De-queue the completed chain */
 
 	/* Wake up completion callback thread and launch the next DMA */
 	if (chan->state == DMA_ERR_STOP) {
 		pdesc->xf.extra = (te | pe);
-		send_completion(chan, pdesc, DMA_ERROR);
+		send_completion(chan, pdesc, PPCDMA_ERROR);
 	} else {
 		chan->bytes_tx += pdesc->xf.len;
-		send_completion(chan, pdesc, DMA_OK);
+		send_completion(chan, pdesc, PPCDMA_OK);
 		if (!list_empty(&chan->dma_q)) {
 			pdesc = to_xfer_object(chan->dma_q.next);
 			start_dma(chan, pdesc);
@@ -652,113 +749,6 @@ int find_in_queue(struct list_head *q, struct my_xfer_object *target)
 		}
 	}
 	return 0;
-}
-/*
-*   Remove 'desc' from the transfer queue
-*   If 'desc' is running in the DMA engine, abort the transfer
-*   return 0 if node deleted
-*   return -EINVAL  if node not found in queue
-*   return -EBUSY if internal error
-*/
-static void dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc)
-{
-	struct my_xfer_object *xfo = (struct my_xfer_object *) desc;
-	struct list_head *node;
-	unsigned long flags;
-	unsigned long status;
-	struct ppc_dma_chan *chan;
-	int match;
-	int num;
-
-	/* Get channel number */
-	num = XFO_CHAN(xfo);
-
-	if (num < first_chan || num > last_chan) 
-		return /* -EINVAL */;
-
-	chan = &de->ppc8641_dma_chans[num];
-	spin_lock_irqsave(&chan->queuelock, flags);
-	match = find_in_queue(&chan->dma_q, xfo);
-	if (match == 0) {	/* Descriptor not found in queue */
-		spin_unlock_irqrestore(&chan->queuelock, flags);
-		return /* -EINVAL */;
-	}
-
-	/* Descriptor not at head of queue */
-	if (match != 1) {
-		list_del(&xfo->xf.node);
-		xfo->xf.flags &= ~XFO_STAT_MASK;
-		xfo->xf.flags |= RDDMA_XFO_CANCELLED;
-		spin_unlock_irqrestore(&chan->queuelock, flags);
-		return;
-	}
-
-	/* Descriptor at head of queue */
-	if (chan->state != DMA_RUNNING) {
-		list_del(&xfo->xf.node);
-		xfo->xf.flags &= ~XFO_STAT_MASK;
-		xfo->xf.flags |= RDDMA_XFO_CANCELLED;
-		spin_unlock_irqrestore(&chan->queuelock, flags);
-		return;
-	}
-
-	/* DMA in flight!  Abort the transer */
-	dma_set_reg(chan, DMA_MR, dma_get_reg(chan, DMA_MR) | DMA_MODE_ABORT);
-#ifdef CONFIG_FSL_SOC /* More x86 */
-	isync();
-#endif
-	chan->state = DMA_IDLE;
-	/* Ack away interrupts */
-	dma_set_reg(chan, DMA_SR, dma_get_reg(chan, DMA_SR));
-
-	list_del(&xfo->xf.node);
-	xfo->xf.flags &= ~XFO_STAT_MASK;
-	xfo->xf.flags |= RDDMA_XFO_CANCELLED;
-
-	/* If queue head was deleted, launch next transfer */
-	if (!list_empty(&chan->dma_q)) {
-		status = dma_get_reg(chan, DMA_SR);
-		if (status & DMA_STAT_CHAN_BUSY) {
-			printk
-			    ("DMA-%i Error: channel abort failed\n",
-			     chan->num);
-			chan->state = DMA_ERR_STOP;
-			spin_unlock_irqrestore(&chan->queuelock, flags);
-			return /* -EBUSY */;
-#if  0
-			BUG_ON();
-#endif
-		}
-		node = chan->dma_q.next;
-		xfo = to_xfer_object(node);
-		start_dma(chan, xfo);
-	}
-
-	spin_unlock_irqrestore(&chan->queuelock, flags);
-	return;
-}
-
-static void dma_rio_queue_transfer(struct rddma_dma_descriptor *list)
-{
-	struct ppc_dma_chan *chan;
-	struct my_xfer_object *xfo = (struct my_xfer_object *) list;
-	if (de->nchans == 1) {
-		ppcdma_queue_chain(&de->ppc8641_dma_chans[first_chan], xfo);
-		return;
-	}
-	chan = load_balance(xfo);
-	ppcdma_queue_chain(chan, xfo);
-}
-
-static struct rddma_dma_engine *dma_rio_get(struct rddma_dma_engine *rde)
-{
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
-	return rde;
-}
-
-static void dma_rio_put(struct rddma_dma_engine *rde)
-{
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
 }
 
 static struct rddma_dma_ops dma_rio_ops = {
@@ -1015,10 +1005,11 @@ static void __exit dma_rio_close(void)
 	int i;
 	struct ppc_dma_chan *chan;
 	/* Stop all DMA channels */
-	for (i = first_chan; i <= last_chan; i++)
+	for (i = first_chan; i <= last_chan; i++) {
 		chan = &de->ppc8641_dma_chans[i];
 		if (chan->state != DMA_UNINIT)
 			dma_set_reg(chan, DMA_MR, chan->op_mode | DMA_MODE_ABORT);
+	}
 	
 	/* Stop the completion queue */
 	if (de->callback_thread && !IS_ERR(de->callback_thread))

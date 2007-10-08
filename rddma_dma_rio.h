@@ -165,8 +165,8 @@ struct my_xfer_object {
 #define DMA_SHUTDOWN 	5
 
 /* Status of completed descriptors */
-#define DMA_OK 0x1
-#define DMA_ERROR  0x2
+#define PPCDMA_OK 0x1
+#define PPCDMA_ERROR  0x2
 #define DMA_CHANNEL_DOWN  0x8
 
 #define DMA_ATTR_LOCAL_SNOOP 	0x00040000
