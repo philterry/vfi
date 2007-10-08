@@ -42,7 +42,7 @@ struct dma_engine {
 extern phys_addr_t get_immrbase(void); /* defined in sysdev/fsl_soc.c */
 #else
 /* A stub to allow us to compile on other platforms */
-static inline phys_addr_t get_immrbase(void) {
+static inline void *get_immrbase(void) {
 	return 0; 
 }
 #endif
@@ -83,6 +83,11 @@ static inline struct dma_engine *to_dma_engine(struct rddma_dma_engine *rde)
 static struct rddma_dma_ops dma_rio_ops;
 static void dma_rio_queue_transfer(struct rddma_dma_descriptor *desc);
 static void dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc);
+
+#ifndef CONFIG_FSL_SOC 	/* So we can build for x86 */
+#define outbe_32(x,y) x
+#define inbe_32(x,y) x
+#endif
 
 static inline void dma_set_reg(struct ppc_dma_chan *chan,
 			       unsigned int offset, u32 value)
@@ -699,7 +704,9 @@ static void dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc)
 
 	/* DMA in flight!  Abort the transer */
 	dma_set_reg(chan, DMA_MR, dma_get_reg(chan, DMA_MR) | DMA_MODE_ABORT);
+#ifdef CONFIG_FSL_SOC /* More x86 */
 	isync();
+#endif
 	chan->state = DMA_IDLE;
 	/* Ack away interrupts */
 	dma_set_reg(chan, DMA_SR, dma_get_reg(chan, DMA_SR));
