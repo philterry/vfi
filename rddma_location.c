@@ -28,8 +28,7 @@
 static void rddma_location_release(struct kobject *kobj)
 {
     struct rddma_location *p = to_rddma_location(kobj);
-    if (p->desc.name)
-	    kfree(p->desc.name);
+    rddma_clean_desc(&p->desc);
     if (p->desc.address)
 	    rddma_fabric_put(p->desc.address);
 
@@ -175,7 +174,14 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 		goto out;
 	rddma_clone_desc(&new->desc, desc);
 	new->kobj.ktype = &rddma_location_type;
-	kobject_set_name(&new->kobj, "%s", new->desc.name);
+	if ( new->desc.name && *new->desc.name && new->desc.location && *new->desc.location)
+		kobject_set_name(&new->kobj, "%s.%s", new->desc.name, new->desc.location);
+	else if ( new->desc.name && *new->desc.name )
+		kobject_set_name(&new->kobj, "%s", new->desc.name);
+	else if (new->desc.location && *new->desc.location)
+		kobject_set_name(&new->kobj, "%s", new->desc.location);
+	else
+		kobject_set_name(&new->kobj, "%s.%s", new->desc.name, new->desc.location);
 	new->kobj.kset = &rddma_subsys->kset;
 	if (!new->desc.ops ) {
 		if (loc && loc->desc.ops)
@@ -187,6 +193,11 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 	if (!new->desc.rde) {
 		if (loc && loc->desc.rde)
 			new->desc.rde = rddma_dma_get(loc->desc.rde);
+	}
+
+	if (!new->desc.address) {
+		if (loc && loc->desc.address)
+			new->desc.address = rddma_fabric_get(loc->desc.address);
 	}
 
 	kobject_init(&new->kobj);
@@ -274,7 +285,7 @@ struct rddma_location *find_rddma_location(struct rddma_desc_param *params)
 	if ( (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->location))) )
 		return loc;
 
-	if (params->location) {
+	if (params->location && *params->location && params->name != params->location) {
 		struct rddma_desc_param tmpparams;
 		struct rddma_location *tmploc = NULL;
 
@@ -288,7 +299,10 @@ struct rddma_location *find_rddma_location(struct rddma_desc_param *params)
 		return loc;
 	}
 	
-	return rddma_location_create(loc,params);
+	if (!*params->name)
+		return rddma_location_create(NULL,params);
+
+	return NULL;
 }
 
 struct rddma_location *rddma_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)

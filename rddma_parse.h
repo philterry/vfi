@@ -46,6 +46,8 @@
  *you may specify lots of named option flags in an appended query string.
  */
 struct rddma_desc_param {
+	char *buf;
+	size_t buflen;
 	char *name;
 	char *location;
 	u64  offset;

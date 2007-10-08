@@ -87,7 +87,8 @@ static ssize_t rddma_bind_default_show(struct rddma_bind *rddma_bind, char *buff
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("Bind %p is %s = %s \n",rddma_bind,rddma_bind->desc.dst.name, rddma_bind->desc.src.name);
+	ATTR_PRINTF("Bind %p is %s.%s = %s.%s \n",rddma_bind,rddma_bind->desc.dst.name, rddma_bind->desc.dst.location,
+		    rddma_bind->desc.src.name,rddma_bind->desc.src.location);
 	if (rddma_bind) {
 		ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",rddma_bind->desc.dst.ops,rddma_bind->desc.dst.rde,rddma_bind->desc.dst.address);
 		ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",rddma_bind->desc.src.ops,rddma_bind->desc.src.rde,rddma_bind->desc.src.address);

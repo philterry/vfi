@@ -123,7 +123,7 @@ struct rddma_srcs *new_rddma_srcs(struct rddma_bind_param *desc, struct rddma_ds
     if (NULL == new)
 	return new;
 
-    kobject_set_name(&new->kset.kobj,"%s#%llx:%x",desc->src.name,desc->src.offset,desc->src.extent);
+    kobject_set_name(&new->kset.kobj,"%s.%s#%llx:%x",desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
     new->kset.kobj.ktype = &rddma_srcs_type;
     new->kset.uevent_ops = &rddma_srcs_uevent_ops;
     new->kset.kobj.parent = &parent->kobj;

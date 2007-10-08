@@ -64,7 +64,7 @@ static struct rddma_bind *rddma_local_bind_find(struct rddma_xfer *parent, struc
 	if (NULL == buf)
 		goto out;
 
-	if ( 2048 <= snprintf(buf,2048,"%s#%llx:%x",desc->xfer.name, desc->xfer.offset, desc->xfer.extent) )
+	if ( 2048 <= snprintf(buf,2048,"#%llx:%x", desc->xfer.offset, desc->xfer.extent) )
 		goto fail_printf;
 
 	bind = to_rddma_bind(kset_find_obj(&parent->binds->kset,buf));
@@ -82,7 +82,7 @@ static struct rddma_dst *rddma_local_dst_find(struct rddma_bind *parent, struct 
 	char *buf = kzalloc (2048, GFP_KERNEL);
 	if (!buf) goto out;
 	
-	if (snprintf (buf, 2048, "%s#%llx:%x", desc->dst.name, desc->dst.offset, desc->dst.extent) >= 2048) {
+	if (snprintf (buf, 2048, "%s.%s#%llx:%x", desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent) >= 2048) {
 		goto fail_printf;
 	}
 	
@@ -101,7 +101,7 @@ static struct rddma_src *rddma_local_src_find(struct rddma_dst *parent, struct r
 	char *buf = kzalloc (2048, GFP_KERNEL);
 	if (!buf) goto out;
 	
-	if (snprintf (buf, 2048, "%s#%llx:%x", desc->src.name, desc->src.offset, desc->src.extent) >= 2048) {
+	if (snprintf (buf, 2048, "%s.%s#%llx:%x", desc->src.name, desc->src.location, desc->src.offset, desc->src.extent) >= 2048) {
 		goto fail_printf;
 	}
 	
@@ -120,16 +120,18 @@ out:
 static struct rddma_location *rddma_local_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	char *dma_engine_name;
-	struct rddma_location *newloc = rddma_location_create(loc,desc);
+	struct rddma_location *newloc = NULL;
+
+	if ( desc->extent != desc->offset )
+		return NULL;
+
+	if ( !(newloc = rddma_location_create(loc,desc)) )
+		return NULL;
 
 	if ( (dma_engine_name = rddma_get_option(desc,"dma_name")) ) {
 		struct rddma_dma_engine *rde = rddma_dma_find(dma_engine_name);
-		if ( rde && newloc ) {
-			rddma_dma_put(newloc->desc.rde);
-			newloc->desc.rde = rde;
-		}
-		else if (rde)
-			rddma_dma_put(rde);
+		rddma_dma_put(newloc->desc.rde);
+		newloc->desc.rde = rde;
 	}
 
 	if (!newloc->desc.rde) {
@@ -305,17 +307,17 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 {
 	struct rddma_dsts *dsts;
 	struct rddma_bind *bind;
-	RDDMA_DEBUG (MY_DEBUG,"%s: %s#%llx:%x/%s#%llx:%x=%s#%llx:%x\n",
+	RDDMA_DEBUG (MY_DEBUG,"%s: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n",
 		    __FUNCTION__, 
-		    desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
-		    desc->dst.name, desc->dst.offset, desc->dst.extent, 
-		    desc->src.name, desc->src.offset, desc->src.extent);
+		     desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, 
+		     desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent, 
+		     desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
 
 	xfer->state = RDDMA_XFER_BINDING;
 	if ( (bind = rddma_bind_create(xfer, desc))) {
-		if ( (dsts = rddma_local_dsts_create(bind,desc,"%s#%llx:%x=%s#%llx:%x",
-						     desc->dst.name,desc->dst.offset,desc->dst.extent,
-						     desc->src.name,desc->src.offset,desc->src.extent)) ) {
+		if ( (dsts = rddma_local_dsts_create(bind,desc,"%s.%s#%llx:%x=%s.%s#%llx:%x",
+						     desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
+						     desc->src.name,desc->src.location,desc->src.offset,desc->src.extent)) ) {
 			rddma_xfer_load_binds(xfer,bind);
 			/*
 			* Increment the parent's bind counters, which it uses
@@ -396,7 +398,7 @@ static struct rddma_src *rddma_local_src_create(struct rddma_dst *parent, struct
 {
 /* 	src_create://tp.x:2000/d.p#uuuuu000:800=s.r#xxxxx800:800 */
 	struct rddma_src *src;
-	RDDMA_DEBUG(MY_DEBUG,"%s %s#%llx:%x\n",__FUNCTION__,desc->src.name, desc->src.offset,desc->src.extent);
+	RDDMA_DEBUG(MY_DEBUG,"%s %s.%s#%llx:%x\n",__FUNCTION__,desc->src.name,desc->src.location, desc->src.offset,desc->src.extent);
 
 	src = rddma_src_create(parent,desc);
 
@@ -477,19 +479,19 @@ static void rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_
 {
 	struct rddma_src *src;
 	
-	RDDMA_DEBUG(MY_DEBUG,"%s: %s#%llx:%x/%s#%llx:%x=%s#%llx:%x\n", __FUNCTION__, 
-		    desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
-		    desc->dst.name, desc->dst.offset, desc->dst.extent, 
-		    desc->src.name, desc->src.offset, desc->src.extent);
+	RDDMA_DEBUG(MY_DEBUG,"%s: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", __FUNCTION__, 
+		    desc->xfer.name, desc->xfer.location,desc->xfer.offset, desc->xfer.extent, 
+		    desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent, 
+		    desc->src.name, desc->src.location,desc->src.offset, desc->src.extent);
 	
 	if (!(src = rddma_local_src_find (parent, desc))) {
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx Failed: cannot find the src!\n");
 		return;
 	}
 	
-/*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- xfer: %s#%llx:%x\n", src->desc.xfer.name, src->desc.xfer.offset, src->desc.xfer.extent);
-	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  dst: %s#%llx:%x\n", src->desc.dst.name, src->desc.dst.offset, src->desc.dst.extent);
-	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  src: %s#%llx:%x\n", src->desc.src.name, src->desc.src.offset, src->desc.src.extent);
+/*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- xfer: %s.%s#%llx:%x\n", src->desc.xfer.name, src->desc.xfer.location,src->desc.xfer.offset, src->desc.xfer.extent);
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  dst: %s.%s#%llx:%x\n", src->desc.dst.name, src->desc.dst.location,src->desc.dst.offset, src->desc.dst.extent);
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  src: %s.%s#%llx:%x\n", src->desc.src.name, src->desc.src.location,src->desc.src.offset, src->desc.src.extent);
 	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Src Count: %lx\n", (unsigned long)src->kobj.kref.refcount.counter); */
 	
 	rddma_src_put (src);		/* Put, to counteract the find... */
@@ -506,8 +508,8 @@ static void rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind
 	struct list_head *entry, *safety;
 	struct rddma_srcs *srcs = parent->srcs;
 	
-	RDDMA_DEBUG (MY_DEBUG,"%s for %s#%llx:%x\n",__FUNCTION__, 
-		     parent->desc.xfer.name, parent->desc.xfer.offset, parent->desc.xfer.extent);
+	RDDMA_DEBUG (MY_DEBUG,"%s for %s.%s#%llx:%x\n",__FUNCTION__, 
+		     parent->desc.xfer.name, parent->desc.xfer.location,parent->desc.xfer.offset, parent->desc.xfer.extent);
 	if (srcs) {
 		RDDMA_DEBUG (MY_DEBUG, "-- Srcs \"%s\"\n", kobject_name (&srcs->kset.kobj));
 		if (!list_empty (&srcs->kset.list)) {
@@ -560,17 +562,17 @@ static void rddma_local_dst_delete (struct rddma_bind *parent, struct rddma_bind
 {
 	struct rddma_dst *dst;
 	
-	RDDMA_DEBUG(MY_DEBUG,"%s: %s#%llx:%x/%s#%llx:%x\n", __FUNCTION__, 
-		   desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
-		   desc->dst.name, desc->dst.offset, desc->dst.extent);
+	RDDMA_DEBUG(MY_DEBUG,"%s: %s.%s#%llx:%x/%s.%s#%llx:%x\n", __FUNCTION__, 
+		    desc->xfer.name, desc->xfer.location,desc->xfer.offset, desc->xfer.extent, 
+		    desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent);
 	
 	if (!(dst = rddma_local_dst_find (parent, desc))) {
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx Failed: cannot find the dst!\n");
 		return;
 	}
-/*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- xfer: %s#%llx:%x\n", dst->desc.xfer.name, dst->desc.xfer.offset, dst->desc.xfer.extent);
-	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  dst: %s#%llx:%x\n", dst->desc.dst.name, dst->desc.dst.offset, dst->desc.dst.extent);
-	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  src: %s#%llx:%x\n", dst->desc.src.name, dst->desc.src.offset, dst->desc.src.extent); */
+/*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- xfer: %s.%s#%llx:%x\n", dst->desc.xfer.name, dst->desc.xfer.location,dst->desc.xfer.offset, dst->desc.xfer.extent);
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  dst: %s.%s#%llx:%x\n", dst->desc.dst.name, dst->desc.dst.location,dst->desc.dst.offset, dst->desc.dst.extent);
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  src: %s.%s#%llx:%x\n", dst->desc.src.name, dst->desc.src.location,dst->desc.src.offset, dst->desc.src.extent); */
 	
 	rddma_local_srcs_delete (dst, desc);
 /*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Dst Count: %lx\n", (unsigned long)dst->kobj.kref.refcount.counter);	*/
@@ -595,8 +597,8 @@ static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bin
 	struct list_head *entry, *safety;
 	struct rddma_dsts *dsts = parent->dsts;
 	
-	RDDMA_DEBUG (MY_DEBUG,"%s for %s#%llx:%x\n",__FUNCTION__, 
-		     parent->desc.xfer.name, parent->desc.xfer.offset, parent->desc.xfer.extent);
+	RDDMA_DEBUG (MY_DEBUG,"%s for %s.%s#%llx:%x\n",__FUNCTION__, 
+		     parent->desc.xfer.name, parent->desc.xfer.location,parent->desc.xfer.offset, parent->desc.xfer.extent);
 	if (dsts) {
 		RDDMA_DEBUG (MY_DEBUG, "-- Dsts \"%s\"\n", kobject_name (&dsts->kset.kobj));
 		if (!list_empty (&dsts->kset.list)) {
@@ -668,11 +670,11 @@ static int rddma_local_bind_delete (struct rddma_xfer *parent, struct rddma_bind
 {
 	struct rddma_bind* bind;
 	int ret = -EINVAL;
-	RDDMA_DEBUG (MY_DEBUG,"%s %s#%llx:%x/%s#%llx:%x=%s#%llx:%x\n", 
+	RDDMA_DEBUG (MY_DEBUG,"%s %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", 
 		     __FUNCTION__, 
-		     desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
-		     desc->dst.name, desc->dst.offset, desc->dst.extent, 
-		     desc->src.name, desc->src.offset, desc->src.extent);
+		     desc->xfer.name, desc->xfer.location,desc->xfer.offset, desc->xfer.extent, 
+		     desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent, 
+		     desc->src.name, desc->src.location,desc->src.offset, desc->src.extent);
 	
 	/*
 	* First we need to find the bind within the parent xfer that we are

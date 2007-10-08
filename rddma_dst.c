@@ -84,7 +84,8 @@ static ssize_t rddma_dst_default_show(struct rddma_dst *rddma_dst, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("Dst %p is %s = %s\n",rddma_dst,rddma_dst->desc.dst.name,rddma_dst->desc.src.name);
+	ATTR_PRINTF("Dst %p is %s.%s = %s.%s\n",rddma_dst,rddma_dst->desc.dst.name,rddma_dst->desc.dst.location,
+		    rddma_dst->desc.src.name,rddma_dst->desc.src.location);
 	if (rddma_dst) {
 		ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",rddma_dst->desc.dst.ops,rddma_dst->desc.dst.rde,rddma_dst->desc.dst.address);
 		ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",rddma_dst->desc.src.ops,rddma_dst->desc.src.rde,rddma_dst->desc.src.address);
@@ -147,7 +148,7 @@ struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_bind_par
 
 	rddma_clone_bind(&new->desc, desc);
 	new->kobj.ktype = &rddma_dst_type;
-	kobject_set_name(&new->kobj,"%s#%llx:%x", new->desc.dst.name,new->desc.dst.offset, new->desc.dst.extent);
+	kobject_set_name(&new->kobj,"%s.%s#%llx:%x", new->desc.dst.name, new->desc.dst.location, new->desc.dst.offset, new->desc.dst.extent);
 
 	new->kobj.kset = &parent->dsts->kset;
 	new->desc.dst.ops = parent->desc.dst.ops;

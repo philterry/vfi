@@ -31,14 +31,20 @@
  * null terminated so the allocation is max of @name length and 4095
  * plus 1.
  */
-static char *rddma_str_dup(const char *name)
+static char *rddma_str_dup(const char *name, size_t *newsize)
 {
 	char *ret = NULL;
+	if (newsize)
+		*newsize = 0;
 	if (name) {
 		size_t size = strnlen(name,4095);
-		if ((ret = kzalloc(size+1, GFP_KERNEL)) )
+		if ((ret = kzalloc(size+1, GFP_KERNEL)) ) {
 			strncpy(ret, name, size);
+			if (newsize)
+				*newsize = size;
+		}
 	}
+
 	RDDMA_DEBUG(MY_DEBUG,"%s %p to %p\n",__FUNCTION__,name,ret);
 	return ret;
 }
@@ -126,8 +132,11 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	char *sextent=NULL;
 	char *soffset=NULL;
 	char *ops;
+	char *fabric_name;
 	int i;
+	
 	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
+
 	d->extent = 0;
 	d->offset = 0;
 	d->location = NULL;
@@ -135,6 +144,8 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	d->rest = NULL;
 	d->ops = NULL;
 	d->rde = NULL;
+	d->address = NULL;
+	d->buf = desc;
 	d->name = desc;
 
 	name_remainder(d->name,     '?', &d->query[0]);
@@ -143,7 +154,7 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	if (d->location) {
 		name_remainder(d->location, ':', &sextent);
 		name_remainder(d->location, '#', &soffset);
-		*(d->location - 1) = '.';
+/* 		*(d->location - 1) = '.'; */
 	}
 	else {
 		name_remainder(d->name, ':', &sextent);
@@ -177,6 +188,10 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 			d->ops = &rddma_fabric_ops;
 		}
 	}
+
+	if ( (fabric_name = rddma_get_option(d,"fabric")) ) 
+		d->address = rddma_fabric_find(fabric_name);
+	
 	return ret;
 }
 
@@ -186,9 +201,12 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 	char *mydesc;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
-	if ( (mydesc = rddma_str_dup(desc)) ) {
-		if ( (ret = _rddma_parse_desc(d,mydesc)) )
+	if ( (mydesc = rddma_str_dup(desc,&d->buflen)) ) {
+		if ( (ret = _rddma_parse_desc(d,mydesc)) ) {
+			d->buf = NULL;
+			d->buflen = 0;
 			kfree(mydesc);
+		}
 	}
 	return ret;
 }
@@ -207,7 +225,7 @@ int rddma_parse_bind(struct rddma_bind_param *x, const char *desc)
 	char *mydesc;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,x,desc);
-	if ( !(mydesc = rddma_str_dup(desc)) ) 
+	if ( !(mydesc = rddma_str_dup(desc,0)) ) 
 		goto dup_fail;
 	if (! name_remainder(mydesc, '/', &x->dst.name) )
 		goto xfer_fail;
@@ -225,9 +243,9 @@ int rddma_parse_bind(struct rddma_bind_param *x, const char *desc)
 	return ret;
 
 src_parse_fail:
-	kfree(x->src.name);
+	rddma_clean_desc(&x->dst);
 dst_parse_fail:
-	kfree(x->dst.name);
+	rddma_clean_desc(&x->xfer);
 xfer_parse_fail:
 bind_fail:
 xfer_fail:
@@ -242,12 +260,23 @@ dup_fail:
 int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
  {
 	int ret = -ENOMEM;
+	int i;
 	RDDMA_DEBUG((RDDMA_DBG_PARSE | RDDMA_DBG_DEBUG),"%s \n",__FUNCTION__);
 	*new = *old;
-	if ( (new->name = rddma_str_dup(old->name)) ) {
-		new->location = strchr(new->name, '.');
-		if (new->location)
-			new->location++;
+
+	if ( old->buf && old->buflen && (new->buf = kzalloc(old->buflen, GFP_KERNEL)) ) {
+		memcpy(new->buf, old->buf, old->buflen);
+		if (old->location)
+			new->location = new->buf + (old->location - old->buf);
+		new->name = new->buf + (old->name - old->buf);
+		i = 0;
+		while (i <= RDDMA_MAX_QUERY_STRINGS) {
+			if (old->query[i]) {
+				new->query[i] = new->buf + (old->query[i] - old->buf);
+			}
+			i++;
+		}
+
 		return 0;
 	}
 	return ret;
@@ -264,8 +293,8 @@ int rddma_clone_bind(struct rddma_bind_param *new, struct rddma_bind_param *old)
 
 void rddma_clean_desc(struct rddma_desc_param *p)
 {
-	if (p && p->name)
-		kfree(p->name);
+	if (p && p->buf && p->buflen)
+		kfree(p->buf);
 }
 
 void rddma_clean_bind(struct rddma_bind_param *p)

@@ -43,7 +43,7 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_desc_param
 	if ( (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->name))) )
 		return loc;
 
-	if (desc->location)
+	if (desc->location && *desc->location)
 		if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->location))) )
 			return NULL;
 	
@@ -66,7 +66,7 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_desc_param
 				reply.extent = tmp;
 				loc = find_rddma_location(&reply);
 			}
-			kfree(reply.name);
+			rddma_clean_desc(&reply);
 		}
 	}
 
@@ -91,7 +91,7 @@ static struct rddma_smb *rddma_fabric_smb_find(struct rddma_location *parent, st
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
 				smb = rddma_smb_create(loc,&reply);
-			kfree(reply.name);
+			rddma_clean_desc(&reply);
 		}
 	}
 
@@ -120,7 +120,7 @@ static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *parent, 
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
 				xfer =  rddma_xfer_create(loc,&reply);
-			kfree(reply.name);
+			rddma_clean_desc(&reply);
 		}
 	}
 
@@ -136,7 +136,9 @@ static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, stru
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
 
-	skb = rddma_fabric_call(loc, 5, "bind_find://%s/%s=%s", desc->xfer.name,desc->dst.name,desc->src.name);
+	skb = rddma_fabric_call(loc, 5, "bind_find://%s.%s/%s.%s=%s.%s", desc->xfer.name,
+				desc->xfer.location,desc->dst.name,desc->dst.location,
+				desc->src.name,desc->src.location);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -144,7 +146,7 @@ static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, stru
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
 				bind = rddma_bind_create(parent,&reply);
-			kfree(reply.xfer.name);
+			rddma_clean_bind(&reply);
 		}
 	}
 
@@ -160,7 +162,9 @@ static struct rddma_dst *rddma_fabric_dst_find(struct rddma_bind *parent, struct
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
 
-	skb = rddma_fabric_call(loc, 5, "dst_find://%s/%s=%s", desc->xfer.name,desc->dst.name,desc->src.name);
+	skb = rddma_fabric_call(loc, 5, "dst_find://%s.%s/%s.%s=%s.%s", desc->xfer.name,desc->xfer.location,
+				desc->dst.name,desc->dst.location,
+				desc->src.name,desc->src.location);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -168,7 +172,7 @@ static struct rddma_dst *rddma_fabric_dst_find(struct rddma_bind *parent, struct
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
 				dst = rddma_dst_create(parent,&reply);
-			kfree(reply.xfer.name);
+			rddma_clean_bind(&reply);
 		}
 	}
 
@@ -184,7 +188,9 @@ static struct rddma_src *rddma_fabric_src_find(struct rddma_dst *parent, struct 
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
 
-	skb = rddma_fabric_call(loc, 5, "src_find://%s/%s=%s", desc->xfer.name,desc->dst.name,desc->src.name);
+	skb = rddma_fabric_call(loc, 5, "src_find://%s.%s/%s.%s=%s.%s", desc->xfer.name,desc->xfer.location,
+				desc->dst.name,desc->dst.location,
+				desc->src.name,desc->src.location);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -192,7 +198,7 @@ static struct rddma_src *rddma_fabric_src_find(struct rddma_dst *parent, struct 
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
 				src = rddma_src_create(parent,&reply);
-			kfree(reply.xfer.name);
+			rddma_clean_bind(&reply);
 		}
 	}
 
@@ -211,20 +217,12 @@ static struct rddma_location *rddma_fabric_location_create(struct rddma_location
 
 	if (loc)
 		myloc = loc;
-	else {
-		char *fabric_name;
-		if ( (fabric_name = rddma_get_option(desc,"fabric")) ) {
-			struct rddma_fabric_address *rfa = rddma_fabric_find(fabric_name);
-			if ( rfa ) {
-				myloc = new_rddma_location(NULL,desc);
-				myloc->desc.address = rfa;
-			}
-		}   
-	}
+	else if ( desc->address )
+		myloc = new_rddma_location(NULL,desc);
 
 	if (myloc)
-		skb = rddma_fabric_call(myloc, 5, "location_create://%s#%x:%x?default_ops=public",
-					desc->name, desc->extent, (u32)(myloc->desc.offset & 0xffffffffULL));
+		skb = rddma_fabric_call(myloc, 5, "location_create://%s.%s#%x:%x?default_ops=public",
+					desc->name, desc->location, desc->extent, (u32)(myloc->desc.offset & 0xffffffffULL));
 
 	if (skb) {
 		struct rddma_desc_param reply;
@@ -238,7 +236,7 @@ static struct rddma_location *rddma_fabric_location_create(struct rddma_location
 				newloc->desc.address = myloc->desc.address;
 				myloc->desc.address->ops->register_location(newloc);
 			}
-			kfree(reply.name);
+			rddma_clean_desc(&reply);
 		}
 	}
 
@@ -271,7 +269,7 @@ static struct rddma_smb *rddma_fabric_smb_create(struct rddma_location *loc, str
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
 				smb = rddma_smb_create(loc,&reply);
-			kfree(reply.name);
+			rddma_clean_desc(&reply);
 		}
 	}
 
@@ -301,7 +299,7 @@ static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, s
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
 				xfer = rddma_xfer_create(loc,&reply);
-			kfree(reply.name);
+			rddma_clean_desc(&reply);
 		}
 	}
 
@@ -319,7 +317,9 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
 
-	skb = rddma_fabric_call(loc, 5, "dsts_create://%s/%s=%s", desc->xfer.name,desc->dst.name,desc->src.name);
+	skb = rddma_fabric_call(loc, 5, "dsts_create://%s.%s/%s.%s=%s.%s", desc->xfer.name,desc->xfer.location,
+				desc->dst.name,desc->dst.location,
+				desc->src.name,desc->src.location);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -330,7 +330,7 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 				dsts = rddma_dsts_create_ap(parent,&reply,name,ap);
 				va_end(ap);
 			}
-			kfree(reply.xfer.name);
+			rddma_clean_bind(&reply);
 		}
 	}
 
@@ -346,7 +346,9 @@ static struct rddma_dst *rddma_fabric_dst_create(struct rddma_bind *parent, stru
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
 
-	skb = rddma_fabric_call(loc, 5, "dst_create://%s/%s=%s", desc->xfer.name,desc->dst.name,desc->src.name);
+	skb = rddma_fabric_call(loc, 5, "dst_create://%s.%s/%s.%s=%s.%s", desc->xfer.name,desc->xfer.location,
+				desc->dst.name,desc->dst.location,
+				desc->src.name,desc->src.location);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -354,7 +356,7 @@ static struct rddma_dst *rddma_fabric_dst_create(struct rddma_bind *parent, stru
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
 				dst = rddma_dst_create(parent,&reply);
-			kfree(reply.xfer.name);
+			rddma_clean_bind(&reply);
 		}
 	}
 
@@ -370,7 +372,9 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
 
-	skb = rddma_fabric_call(loc, 5, "srcs_create://%s/%s=%s", desc->xfer.name,desc->dst.name,desc->src.name);
+	skb = rddma_fabric_call(loc, 5, "srcs_create://%s.%s/%s.%s=%s.%s", desc->xfer.name,desc->xfer.location,
+				desc->dst.name,desc->dst.location,
+				desc->src.name,desc->src.location);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -378,7 +382,7 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
 				srcs = rddma_srcs_create(parent,&reply);
-			kfree(reply.xfer.name);
+			rddma_clean_bind(&reply);
 		}
 	}
 
@@ -394,7 +398,9 @@ static struct rddma_src *rddma_fabric_src_create(struct rddma_dst *parent, struc
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
 
-	skb = rddma_fabric_call(loc, 5, "src_create://%s/%s=%s", desc->xfer.name,desc->dst.name,desc->src.name);
+	skb = rddma_fabric_call(loc, 5, "src_create://%s.%s/%s.%s=%s.%s", desc->xfer.name,desc->xfer.location,
+				desc->dst.name,desc->dst.location,
+				desc->src.name,desc->src.location);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -402,7 +408,7 @@ static struct rddma_src *rddma_fabric_src_create(struct rddma_dst *parent, struc
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
 				src = rddma_src_create(parent,&reply);
-			kfree(reply.xfer.name);
+			rddma_clean_bind(&reply);
 		}
 	}
 
@@ -424,7 +430,7 @@ static void rddma_fabric_location_delete(struct rddma_location *loc, struct rddm
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
 				rddma_location_delete(loc);
-			kfree(reply.name);
+			rddma_clean_desc(&reply);
 		}
 	}
 }
@@ -445,7 +451,7 @@ static void rddma_fabric_smb_delete(struct rddma_location *loc, struct rddma_des
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
 				rddma_smb_delete(smb);
-			kfree(reply.name);
+			rddma_clean_desc(&reply);
 		}
 	}
 }
@@ -475,7 +481,7 @@ static void rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_de
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
 				rddma_xfer_delete(xfer);
-			kfree(reply.name);
+			rddma_clean_desc(&reply);
 		}
 	}
 }
@@ -492,7 +498,9 @@ static void rddma_fabric_dst_delete(struct rddma_bind *parent, struct rddma_bind
 	if (NULL == (dst = to_rddma_dst(kset_find_obj(&parent->dsts->kset,desc->xfer.name))) )
 		return;
 
-	skb = rddma_fabric_call(loc, 5, "dst_delete://%s/%s=%s", desc->xfer.name,desc->dst.name,desc->src.name);
+	skb = rddma_fabric_call(loc, 5, "dst_delete://%s.%s/%s.%s=%s.%s", desc->xfer.name,desc->xfer.location,
+				desc->dst.name,desc->dst.location,
+				desc->src.name,desc->src.location);
 	if (skb) {
 		struct rddma_bind_param reply;
 		if (!rddma_parse_bind(&reply,skb->data)) {
@@ -500,7 +508,7 @@ static void rddma_fabric_dst_delete(struct rddma_bind *parent, struct rddma_bind
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
 				rddma_dst_delete(dst);
-			kfree(reply.xfer.name);
+			rddma_clean_bind(&reply);
 		}
 	}
 }
@@ -517,7 +525,9 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 	if (NULL == (src = to_rddma_src(kset_find_obj(&parent->srcs->kset,desc->xfer.name))) )
 		return;
 
-	skb = rddma_fabric_call(loc, 5, "src_delete://%s/%s=%s", desc->xfer.name,desc->dst.name,desc->src.name);
+	skb = rddma_fabric_call(loc, 5, "src_delete://%s.%s/%s.%s=%s.%s", desc->xfer.name,desc->xfer.location,
+				desc->dst.name,desc->dst.location,
+				desc->src.name,desc->src.location);
 	if (skb) {
 		struct rddma_bind_param reply;
 		if (!rddma_parse_bind(&reply,skb->data)) {
@@ -525,7 +535,7 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
 				rddma_src_delete(src);
-			kfree(reply.xfer.name);
+			rddma_clean_bind(&reply);
 		}
 	}
 	
