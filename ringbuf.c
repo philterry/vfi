@@ -4,7 +4,7 @@
 *  Author: Jimmy Blair
 *  
 *****************************************************************************/
-
+#include <linux/module.h>
 #include "linux/stddef.h"
 #include "ringbuf.h"
 
@@ -46,3 +46,7 @@ void *ringbuf_put(RINGBUF * pRing, void *pData)
 
 	return (pData);
 }
+
+EXPORT_SYMBOL (ringbuf_init);
+EXPORT_SYMBOL (ringbuf_get);
+EXPORT_SYMBOL (ringbuf_put);
