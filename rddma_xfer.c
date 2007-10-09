@@ -217,7 +217,7 @@ struct rddma_xfer *find_rddma_xfer(struct rddma_desc_param *desc)
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_location *loc;
 
-	if ( (loc = find_rddma_location(desc)) ) {
+	if ( (loc = find_rddma_location(NULL,desc)) ) {
 		xfer = (loc->desc.ops && loc->desc.ops->xfer_find) ? loc->desc.ops->xfer_find (loc,desc) : NULL;
 		rddma_location_put(loc);
 	}

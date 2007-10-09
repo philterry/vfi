@@ -115,7 +115,7 @@ struct rddma_xfers *new_rddma_xfers(char *name, struct rddma_location *parent)
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &rddma_xfers_type;
     new->kset.uevent_ops = &rddma_xfers_uevent_ops;
-    new->kset.kobj.parent = &parent->kobj;
+    new->kset.kobj.parent = &parent->kset.kobj;
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
     return new;

@@ -173,16 +173,19 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 	if (NULL == new)
 		goto out;
 	rddma_clone_desc(&new->desc, desc);
-	new->kobj.ktype = &rddma_location_type;
-	if ( new->desc.name && *new->desc.name && new->desc.location && *new->desc.location)
-		kobject_set_name(&new->kobj, "%s.%s", new->desc.name, new->desc.location);
-	else if ( new->desc.name && *new->desc.name )
-		kobject_set_name(&new->kobj, "%s", new->desc.name);
+	new->kset.kobj.ktype = &rddma_location_type;
+	if ( new->desc.name && *new->desc.name )
+		kobject_set_name(&new->kset.kobj, "%s", new->desc.name);
 	else if (new->desc.location && *new->desc.location)
-		kobject_set_name(&new->kobj, "%s", new->desc.location);
+		kobject_set_name(&new->kset.kobj, "%s", new->desc.location);
 	else
-		kobject_set_name(&new->kobj, "%s.%s", new->desc.name, new->desc.location);
-	new->kobj.kset = &rddma_subsys->kset;
+		kobject_set_name(&new->kset.kobj, "%s.%s", new->desc.name, new->desc.location);
+
+	if (loc)
+		new->kset.kobj.kset = &loc->kset;
+	else
+		new->kset.kobj.kset = &rddma_subsys->kset;
+
 	if (!new->desc.ops ) {
 		if (loc && loc->desc.ops)
 			new->desc.ops = loc->desc.ops;
@@ -200,7 +203,10 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 			new->desc.address = rddma_fabric_get(loc->desc.address);
 	}
 
-	kobject_init(&new->kobj);
+	kobject_init(&new->kset.kobj);
+	INIT_LIST_HEAD(&new->kset.list);
+	spin_lock_init(&new->kset.list_lock);
+
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
@@ -210,10 +216,10 @@ int rddma_location_register(struct rddma_location *rddma_location)
 {
 	int ret = 0;
 
-	if ( (ret = kobject_add(&rddma_location->kobj) ) )
+	if ( (ret = kobject_add(&rddma_location->kset.kobj) ) )
 		goto out;
 
-	kobject_uevent(&rddma_location->kobj, KOBJ_ADD);
+/* 	kobject_uevent(&rddma_location->kset.kobj, KOBJ_ADD); */
 
 	ret = -ENOMEM;
 
@@ -238,7 +244,7 @@ fail_smbs_reg:
 fail_xfers:
 	kset_put(&rddma_location->smbs->kset);
 fail_smbs:
-	kobject_unregister(&rddma_location->kobj);
+	kobject_unregister(&rddma_location->kset.kobj);
 out:
 	return ret;
 }
@@ -249,7 +255,7 @@ void rddma_location_unregister(struct rddma_location *rddma_location)
 
 	rddma_smbs_unregister(rddma_location->smbs);
 
-	kobject_unregister(&rddma_location->kobj);
+	kobject_unregister(&rddma_location->kset.kobj);
 }
 
 struct rddma_location *find_rddma_name(struct rddma_desc_param *params)
@@ -271,38 +277,34 @@ struct rddma_location *find_rddma_name(struct rddma_desc_param *params)
 * necessary accoutrements, using rddma_location_create ().
 *
 **/
-struct rddma_location *find_rddma_location(struct rddma_desc_param *params)
+struct rddma_location *find_rddma_location(struct rddma_location *loc, struct rddma_desc_param *params)
 {
-	struct rddma_location *loc;
+	struct rddma_location *newloc;
+	struct kset *ksetp;
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,params);
+	if (loc)
+		ksetp = &loc->kset;
+	else
+		ksetp = &rddma_subsys->kset;
 
-	if ( (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name))) )
-		return loc;
-
-	/* Jimmy: this stops SIGSEGV when trying to find smb.unknown */
-	if (!params->location)
-		return NULL;
-
-	if ( (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->location))) )
-		return loc;
-
-	if (params->location && *params->location && params->name != params->location) {
+	if (params->location && *params->location) {
 		struct rddma_desc_param tmpparams;
 		struct rddma_location *tmploc = NULL;
 
+		if ( (newloc = to_rddma_location(kset_find_obj(ksetp,params->location))) )
+			return newloc;
+
 		if ( !rddma_parse_desc(&tmpparams,params->location) ) {
-			if ( (tmploc = find_rddma_location(&tmpparams)) ) {
-				loc = tmploc->desc.ops->location_create(tmploc,params);
+			if ( (tmploc = find_rddma_location(loc,&tmpparams)) ) {
+				newloc = tmploc->desc.ops->location_find(tmploc,&tmpparams);
 				rddma_location_put(tmploc);
 			}
 			rddma_clean_desc(&tmpparams);
 		}
-		return loc;
+		return newloc;
 	}
 	
-	if (!*params->name)
-		return rddma_location_create(NULL,params);
-
-	return NULL;
+	return to_rddma_location(kset_find_obj(ksetp,params->name));
 }
 
 struct rddma_location *rddma_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)

@@ -198,7 +198,7 @@ struct rddma_smb *find_rddma_smb(struct rddma_desc_param *desc)
 	struct rddma_smb *smb = NULL;
 	struct rddma_location *loc;
 
-	loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->location));
+	loc = find_rddma_location(NULL,desc);
 	
 	if (loc)
 		smb = loc->desc.ops->smb_find(loc,desc);

@@ -21,32 +21,32 @@ struct rddma_ops;
 struct rddma_location {
 	struct rddma_desc_param desc;
 
-	struct kobject kobj;
+	struct kset kset;
 	struct rddma_smbs *smbs;
 	struct rddma_xfers *xfers;
 };
 
 static inline struct rddma_location *to_rddma_location(struct kobject *kobj)
 {
-	return kobj ? container_of(kobj, struct rddma_location, kobj) : NULL;
+	return kobj ? container_of(to_kset(kobj), struct rddma_location, kset) : NULL;
 }
 
 static inline struct rddma_location *rddma_location_get(struct rddma_location *rddma_location)
 {
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_location);
-	return to_rddma_location(kobject_get(&rddma_location->kobj));
+	return to_rddma_location(kobject_get(&rddma_location->kset.kobj));
 }
 
 static inline void rddma_location_put(struct rddma_location *rddma_location)
 {
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_location);
-	if (rddma_location) kobject_put(&rddma_location->kobj);
+	if (rddma_location) kobject_put(&rddma_location->kset.kobj);
 }
 
 extern struct rddma_location *new_rddma_location(struct rddma_location *, struct rddma_desc_param *);
 extern int rddma_location_register(struct rddma_location *);
 extern void rddma_location_unregister(struct rddma_location *);
-extern struct rddma_location *find_rddma_location(struct rddma_desc_param *);
+extern struct rddma_location *find_rddma_location(struct rddma_location *, struct rddma_desc_param *);
 extern struct rddma_location *find_rddma_name(struct rddma_desc_param *);
 extern struct rddma_location *rddma_location_create(struct rddma_location *,struct rddma_desc_param *);
 extern void rddma_location_delete(struct rddma_location *);

@@ -34,27 +34,17 @@
  * F I N D    O P E R A T I O N S
  */
 
-static struct rddma_location *rddma_fabric_location_find(struct rddma_desc_param *desc)
+static struct rddma_location *rddma_fabric_location_find(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
-	struct rddma_location *loc;
+	struct rddma_location *newloc = NULL;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	if ( (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->name))) )
-		return loc;
-
-	if (desc->location && *desc->location)
-		if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->location))) )
-			return NULL;
-	
-	if (!loc)
-		loc = new_rddma_location(NULL,desc);
+	if ( (newloc = to_rddma_location(kset_find_obj(&loc->kset,desc->name))) )
+		return newloc;
 
 	skb = rddma_fabric_call(loc, 5, "location_find://%s", desc->name);
-	rddma_location_put(loc);
 	
-	loc = NULL;
-
 	if (skb) {
 		struct rddma_desc_param reply;
 		int ret = -EINVAL;
@@ -64,13 +54,13 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_desc_param
 				unsigned long tmp = reply.offset;
 				reply.offset = reply.extent;
 				reply.extent = tmp;
-				loc = find_rddma_location(&reply);
+				newloc = rddma_location_create(loc,&reply);
 			}
 			rddma_clean_desc(&reply);
 		}
 	}
 
-	return loc;
+	return newloc;
 }
 
 static struct rddma_smb *rddma_fabric_smb_find(struct rddma_location *parent, struct rddma_desc_param *desc)

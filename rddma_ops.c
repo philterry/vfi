@@ -50,7 +50,7 @@ static int location_create(const char *desc, char *result, int size)
 	ret = -EINVAL;
 
 	if ( params.location && *params.location && *params.name  ) {
-		if ( (loc = find_rddma_location(&params))) {
+		if ( (loc = find_rddma_location(NULL,&params))) {
 			if (loc && loc->desc.ops && loc->desc.ops->location_create) 
 				ret = (new_loc = loc->desc.ops->location_create(loc,&params)) == NULL;
 			rddma_location_put(loc);
@@ -131,15 +131,15 @@ static int location_find(const char *desc, char *result, int size)
 	ret = -EINVAL;
 	
 	if (params.location && *params.location && *params.name) {
-		if ( (loc = find_rddma_location(&params)) ) {
+		if ( (loc = find_rddma_location(NULL,&params)) ) {
 			if (loc->desc.ops && loc->desc.ops->location_find)
-				ret = ((new_loc = loc->desc.ops->location_find(&params)) == NULL);
+				ret = ((new_loc = loc->desc.ops->location_find(loc,&params)) == NULL);
 			rddma_location_put(loc);
 		}
 	}
 	else {
 		if (params.ops)
-			ret = (new_loc = params.ops->location_find(&params)) == NULL;
+			ret = (new_loc = params.ops->location_find(NULL,&params)) == NULL;
 	}
 out:
 	if (result) {
@@ -182,7 +182,7 @@ static int smb_create(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (loc = find_rddma_location(&params) ) ) {
+	if ( (loc = find_rddma_location(NULL,&params) ) ) {
 		ret = -EINVAL;
 		if (loc->desc.ops && loc->desc.ops->smb_create)
 			ret = ((smb = loc->desc.ops->smb_create(loc, &params)) == NULL);
@@ -226,7 +226,7 @@ static int smb_delete(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (loc = find_rddma_location(&params) ) ) {
+	if ( (loc = find_rddma_location(NULL,&params) ) ) {
 		ret = -EINVAL;
 		if ( loc->desc.ops && loc->desc.ops->smb_delete ) {
 			ret = 0;
@@ -272,7 +272,7 @@ static int smb_find(const char *desc, char *result, int size)
 	if (!params.location)  
 		goto out;
 
-	if ( (loc = find_rddma_location(&params)) ) {
+	if ( (loc = find_rddma_location(NULL,&params)) ) {
 		ret = -EINVAL;
 		
 		if (loc->desc.ops && loc->desc.ops->smb_find)
@@ -454,7 +454,7 @@ static int xfer_create(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (location = find_rddma_location(&params) ) ) {
+	if ( (location = find_rddma_location(NULL,&params) ) ) {
 		ret = -EINVAL;
 		
 		if (location->desc.ops && location->desc.ops->xfer_create)
@@ -499,7 +499,7 @@ static int xfer_delete(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (loc = find_rddma_location(&params) ) ) {
+	if ( (loc = find_rddma_location(NULL,&params) ) ) {
 		ret = -EINVAL;
 		if ( loc->desc.ops && loc->desc.ops->xfer_delete ) {
 			ret = 0;
@@ -541,7 +541,7 @@ static int xfer_find(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (location = find_rddma_location(&params)) ) {
+	if ( (location = find_rddma_location(NULL,&params)) ) {
 		ret = -EINVAL;
 		if (location->desc.ops && location->desc.ops->xfer_find)
 			ret = ((xfer = location->desc.ops->xfer_find(location,&params)) == NULL);

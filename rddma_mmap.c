@@ -141,7 +141,7 @@ struct rddma_mmap *find_rddma_mmap_by_id(unsigned long tid)
 	struct rddma_smb *smb;
 	struct rddma_mmap *mmap;
 	spin_lock(&rddma_subsys->kset.list_lock);
-	list_for_each_entry(loc, &rddma_subsys->kset.list, kobj.entry) {
+	list_for_each_entry(loc, &rddma_subsys->kset.list, kset.kobj.entry) {
 		spin_lock(&loc->smbs->kset.list_lock);
 		list_for_each_entry(smb,&loc->smbs->kset.list,kobj.entry) {
 			spin_lock(&smb->mmaps->kset.list_lock);
