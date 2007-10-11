@@ -85,8 +85,8 @@ static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
        	struct my_xfer_object *xfo);
 
 #ifndef CONFIG_FSL_SOC 	/* So we can build for x86 */
-#define outbe_32(x,y) (x)
-#define inbe_32(x,y) (x)
+#define out_be32(x,y) return
+#define in_be32(x) 0
 #endif
 
 static inline void dma_set_reg(struct ppc_dma_chan *chan,
@@ -402,6 +402,22 @@ static void dma_rio_load_transfer(struct rddma_xfer *xfer)
 	return;
 }
 #endif
+
+int find_in_queue(struct list_head *q, struct my_xfer_object *target)
+{
+	struct list_head *desc_node;
+	struct list_head *temp_node;
+	struct my_xfer_object *curr;
+	int i = 0;
+	list_for_each_safe(desc_node, temp_node, q) {
+		i++;
+		curr = list_entry(desc_node, struct my_xfer_object, xf.node);
+		if (curr == target) {
+			return i;
+		}
+	}
+	return 0;
+}
 
 /*
 *   Remove 'desc' from the transfer queue
@@ -732,22 +748,6 @@ static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
 		xfo->xf.flags = (chan->num << 8) | RDDMA_XFO_QUEUED;
 
 	spin_unlock_irqrestore(&chan->queuelock, flags);
-	return 0;
-}
-
-int find_in_queue(struct list_head *q, struct my_xfer_object *target)
-{
-	struct list_head *desc_node;
-	struct list_head *temp_node;
-	struct my_xfer_object *curr;
-	int i = 0;
-	list_for_each_safe(desc_node, temp_node, q) {
-		i++;
-		curr = list_entry(desc_node, struct my_xfer_object, xf.node);
-		if (curr == target) {
-			return i;
-		}
-	}
 	return 0;
 }
 
