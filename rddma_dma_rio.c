@@ -884,13 +884,14 @@ static int __init dma_rio_init(void)
 	}
 	else
 		return -ENOMEM;
-
+#ifdef CONFIG_FSL_SOC
 	de->regbase = ioremap(get_immrbase() + MPC86XX_DMA_OFFSET,
 			   MPC86XX_DMA_REG_SIZE);
 
 	if (!de->regbase) {
 		return (-ENOMEM);
 	}
+#endif
 #ifdef CONFIG_PROC_FS
 	if (!proc_root_rddma) 
 		proc_root_rddma = proc_mkdir ("rddma", proc_root_driver);
