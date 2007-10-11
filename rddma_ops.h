@@ -37,7 +37,7 @@ struct rddma_ops {
 	struct rddma_xfer *           (*xfer_find)(struct rddma_location *, struct rddma_desc_param *);
 
 	struct rddma_bind *         (*bind_create)(struct rddma_xfer *, struct rddma_bind_param *);
-	int                         (*bind_delete)(struct rddma_xfer *, struct rddma_bind_param *);
+	void                         (*bind_delete)(struct rddma_xfer *, struct rddma_bind_param *);
 	struct rddma_bind *           (*bind_find)(struct rddma_xfer *, struct rddma_bind_param *);
 	void			 (*bind_dst_ready)(struct rddma_xfer *, struct rddma_bind_param *);		/* Signal bind dst ready for xfer_start */
 	void			 (*bind_src_ready)(struct rddma_xfer *, struct rddma_bind_param *);		/* Signal bind src ready for xfer_start */

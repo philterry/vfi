@@ -734,7 +734,8 @@ static int bind_delete(const char *desc, char *result, int size)
 	if ( (xfer = find_rddma_xfer (&params.xfer) ) ) {
 		ret = -EINVAL;
 		if ( xfer->desc.ops && xfer->desc.ops->bind_delete ) {
-			ret = xfer->desc.ops->bind_delete (xfer, &params);
+			ret = 0;
+			xfer->desc.ops->bind_delete (xfer, &params);
 		}
 		else {
 			RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s xfer %s has no bind_delete support\n", 

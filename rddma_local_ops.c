@@ -620,107 +620,6 @@ static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bin
 	}
 	
 }
-static struct rddma_mmap *rddma_local_mmap_create(struct rddma_smb *smb, struct rddma_desc_param *desc)
-{
-	return rddma_mmap_create(smb,desc);
-}
-
-static void rddma_local_mmap_delete(struct rddma_smb *smb, struct rddma_desc_param *desc)
-{
-	rddma_mmap_delete(smb,desc);
-}
-
-/**
-* rddma_local_bind_delete - manage deletion of all components of a bind
-*
-* This function initiates and co-ordinates the deletion of a bind - a sequence 
-* of DMA transfers (sub-binds) between specified source and destination SMBs.
-*
-* It is intended to be run by the TRANSFER AGENT in the bind - the party that manages
-* (owns) the transfer that the bind belongs to (a transfer - xfer - being a sequence
-* of one or more bindings between SMBs that execute as a unit).
-*
-* A bind is defined by the triplet:
-*
-*          [xfer]      /      [dst]      =      [src]
-*    [<xfer>#<xo>:<be>]/[<dst>#<do>:<be>]=[<src>#<so>:<be>]
-*
-* This says that, as part of transfer <xfer>, copy <be> bytes from offset <so>
-* of source SMB <src> to offset <do> of destination SMB <dst>. It is, in this form, 
-* a high-level specification of one part of a larger transfer specification. In practise
-* a bind of this type may be split into several smaller components - sub-binds - so
-* that the overall goal of the bind can be performed more efficiently by DMA engines.
-*
-* The transfer agent owns a list of all high-level bindings that constitute the transfer, 
-* and a subsidiary list of sub-binds associated with each. A bind must be deleted from the 
-* bottom-up - bottom of a bind being its "src" component - but with instructions coming 
-* from the top. What that means, here, is that the transfer agent locates the bind, and with
-* it a list of sub-bind destinations. For each of those it issues a "dst_delete" request to
-* the destination agent. Once dst_delete has been issued for all sub-binds, the function may
-* remove the bind's kobject tree.
-*
-*
-**/
-static int rddma_local_bind_delete (struct rddma_xfer *parent, struct rddma_bind_param *desc)
-{
-	struct rddma_bind* bind;
-	int ret = -EINVAL;
-	RDDMA_DEBUG (MY_DEBUG,"%s %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", 
-		     __FUNCTION__, 
-		     desc->xfer.name, desc->xfer.location,desc->xfer.offset, desc->xfer.extent, 
-		     desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent, 
-		     desc->src.name, desc->src.location,desc->src.offset, desc->src.extent);
-	
-	/*
-	* First we need to find the bind within the parent xfer that we are
-	* required to delete. 
-	*
-	*/
-	if ((bind = rddma_local_bind_find (parent, desc))) {
-		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Found bind \"%s\"\n", kobject_name (&bind->kobj));
-		
-		/*
-		* Before we dismantle the bind and its subtree, unlink its DMA chain.
-		* This is a function of its governing xfer.
-		*/
-		if (parent->desc.rde && parent->desc.rde->ops && parent->desc.rde->ops->unlink_bind) {
-#ifdef SERIALIZE_BIND_PROCESSING
-			parent->desc.rde->ops->unlink_bind(&parent->dma_chain, bind);
-#else
-			parent->desc.rde->ops->unlink_bind(NULL, bind);
-#endif
-		}
-		else {
-			RDDMA_DEBUG (MY_DEBUG, "xx Xfer %s DMA engine has no unlink_bind op.\n", 
-				     kobject_name (&parent->kobj));
-		}
-		/*
-		* Also decrement the parent's bind counter, which
-		* it uses to co-ordinate transfer execution.
-		*/
-		atomic_dec (&parent->bind_count);
-		
-		/*
-		* A bind heads up a tree of subsidiary elements, whose apex
-		* is an rddma_dsts type - a kset of bind destinations.
-		*
-		* Everything in the subtree needs to be removed.
-		*/
-		rddma_local_dsts_delete (bind, desc);
-		
-		/*
-		* Remove the bind's sysfs tree.
-		*
-		*/
-		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Bind Count: %lx\n", (unsigned long)bind->kobj.kref.refcount.counter);
-		rddma_bind_delete (bind);
-		ret = 0;
-	}
-	else {
-		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx Unable to find binding.\n");
-	}
-	return (ret);
-}
 
 /*
 *     X F E R   S T A R T   O P E R A T I O N S
@@ -905,6 +804,5 @@ struct rddma_ops rddma_local_ops = {
 	.bind_dst_ready = rddma_local_bind_dst_ready, 
 	.bind_src_ready = rddma_local_bind_src_ready, 
 	.bind_vote = rddma_local_bind_vote, 
-	.bind_delete = rddma_local_bind_delete,
 };
 

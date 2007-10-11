@@ -450,9 +450,8 @@ static void rddma_fabric_mmap_delete(struct rddma_smb *smb, struct rddma_desc_pa
 {
 }
 
-static int rddma_fabric_bind_delete(struct rddma_xfer *parent, struct rddma_bind_param *desc)
+static void rddma_fabric_bind_delete(struct rddma_xfer *parent, struct rddma_bind_param *desc)
 {
-	return 0;
 }
 
 static void rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)

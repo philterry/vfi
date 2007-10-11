@@ -337,7 +337,7 @@ void rddma_xfer_start (struct rddma_xfer* xfer)
 		return;
 	}
 	
-	if (!(xloc = find_rddma_location (&xfer->desc))) {
+	if (!(xloc = find_rddma_location (NULL,&xfer->desc))) {
 		RDDMA_DEBUG (MY_DEBUG, "xx Xfer agent \"%s\" can not be located.\n", xfer->desc.name );
 		return;
 	}
@@ -347,8 +347,8 @@ void rddma_xfer_start (struct rddma_xfer* xfer)
 		struct rddma_location *sloc, *dloc;
 		if (!bind) continue;
 		RDDMA_DEBUG (MY_DEBUG, "-- bind \"%s\"\n", kobject_name (&bind->kobj));
-		dloc = find_rddma_location (&bind->desc.dst);
-		sloc = find_rddma_location (&bind->desc.src);
+		dloc = find_rddma_location (NULL,&bind->desc.dst);
+		sloc = find_rddma_location (NULL,&bind->desc.src);
 		
 		if (dloc) {
 			RDDMA_DEBUG (MY_DEBUG, "--- Dst \"%s#%llx:%x\"\n", 
