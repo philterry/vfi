@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/if_ether.h>
 
-static char *netdev_name = "eth0"; /* "eth0" or "br0" or "bond0" "rionet0" etc */
+static char *netdev_name = "rionet"; /* "eth0" or "br0" or "bond0" "rionet0" etc */
 module_param(netdev_name, charp, 0444);
 
 static unsigned short netdev_type = 0xfeed;
@@ -363,7 +363,7 @@ static int __init fabric_net_init(void)
 {
 	struct fabric_address *fna;
 	if ( (fna = new_fabric_address(UNKNOWN_IDX,0,0)) ) {
-		snprintf(fna->rfa.name, RDDMA_MAX_FABRIC_NAME_LEN, "%s", "rddma_fabric_net");
+		snprintf(fna->rfa.name, RDDMA_MAX_FABRIC_NAME_LEN, "%s", "rddma_fabric_rionet");
 		if (netdev_name)
 			if ( (fna->ndev = dev_get_by_name(netdev_name)) ) {
 				rddma_packets.dev = fna->ndev;
@@ -378,7 +378,7 @@ static int __init fabric_net_init(void)
 static void __exit fabric_net_close(void)
 {
 	dev_remove_pack(&rddma_packets);
-	rddma_fabric_unregister("rddma_fabric_net");
+	rddma_fabric_unregister("rddma_fabric_rionet");
 }
 
 module_init(fabric_net_init);
@@ -386,6 +386,4 @@ module_exit(fabric_net_close);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Phil Terry <pterry@micromemroy.com>");
-MODULE_DESCRIPTION("Implements an ethenet frame based transport for RDDMA");
-
-
+MODULE_DESCRIPTION("Implements an ethenet frame/rio doorbell based transport for RDDMA");

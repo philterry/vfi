@@ -71,8 +71,11 @@ struct rddma_fabric_address;
 
 struct rddma_address_ops {
 	int (*transmit)  (struct rddma_fabric_address *, struct sk_buff *);
+	int (*doorbell) (struct rddma_fabric_address *, int);
 	int (*register_location)  (struct rddma_location *);
 	void(*unregister_location)(struct rddma_location *);
+	int (*register_doorbell)(void (*)(void *), void *);
+	void(*unregister_doorbell)(int);
 	struct rddma_fabric_address *(*get)(struct rddma_fabric_address *);
 	void (*put)(struct rddma_fabric_address *);
 };
@@ -84,6 +87,17 @@ struct rddma_fabric_address {
 };
 
 /*
+ * First the abstraction wrappers for the downcalls
+ */
+
+extern int __must_check rddma_fabric_tx(struct rddma_fabric_address *, struct sk_buff *);
+extern int __must_check rddma_fabric_doorbell(struct rddma_fabric_address *, int);
+extern int rddma_address_register(struct rddma_location *);
+extern void rddma_address_unregister(struct rddma_location *);
+extern int rddma_doorbell_register(struct rddma_fabric_address *, void (*)(void *), void *);
+extern void rddma_doorbell_unregister(struct rddma_fabric_address *, int);
+
+/*
  * The most common form of interaction is the rpc, to send a request
  * to a location and return with the result of that request as an
  * skb. The invocation should be blocking with a timeout.
@@ -91,19 +105,19 @@ struct rddma_fabric_address {
 extern struct sk_buff *rddma_fabric_call(struct rddma_location *, int, char *, ...) __attribute__((format(printf, 3,4)));
 
 /*
- * Next a straightforward transmit an skb
+ * Now for the upcalls
  */
 
-extern int __must_check rddma_fabric_tx(struct rddma_fabric_address *, struct sk_buff *);
-
 /*
- * Next we need to be able to receive via any of the above interfaces
- * requests and responses and direct them accordingly. For this common
- * handling we require a common interface and function to handle them
- * which all of the underlying interfaces should manufacture by calling:
+ * We need to be able to receive via any of the interfaces
+ * request and response messages, doorbells, etc, and direct them
+ * accordingly. For this common handling we require a common interface
+ * and function to handle them which all of the underlying interfaces
+ * should manufacture by calling:
  */
 
 extern int rddma_fabric_receive (struct rddma_fabric_address *,struct sk_buff * );
+extern void rddma_dbell_callback(void (*)(void *),void *);
 
 /*
  * Finally, register and unregister take care of linking everything up
@@ -113,7 +127,10 @@ extern int rddma_fabric_receive (struct rddma_fabric_address *,struct sk_buff * 
 extern int rddma_fabric_register(struct rddma_fabric_address *);
 extern void rddma_fabric_unregister(const char *);
 
-extern struct rddma_fabric_address *rddma_fabric_find(const char *);
+/*
+ * These are downcalls and a common interface for finding the fabric interface.
+ */
 extern struct rddma_fabric_address *rddma_fabric_get(struct rddma_fabric_address *);
 extern void rddma_fabric_put(struct rddma_fabric_address *);
+extern struct rddma_fabric_address *rddma_fabric_find(const char *);
 #endif	/* RDDMA_FABRIC_H */

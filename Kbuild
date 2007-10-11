@@ -7,6 +7,8 @@ obj-$(CONFIG_RDDMA_DMA_RIO) += rddma_dma_rio.o
 
 obj-$(CONFIG_RDDMA_FABRIC_NET) += rddma_fabric_net.o
 
+obj-$(CONFIG_RDDMA_FABRIC_RIONET) += rddma_fabric_rionet.o
+
 obj-$(CONFIG_RDDMA) += rddma.o
 rddma-objs := \
               rddma_drv.o \

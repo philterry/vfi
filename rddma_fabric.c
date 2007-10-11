@@ -98,6 +98,18 @@ void rddma_address_unregister(struct rddma_location *loc)
 		loc->desc.address->ops->unregister_location(loc);
 }
 
+int rddma_doorbell_register(struct rddma_fabric_address *address, void (*callback)(void *), void *var)
+{
+	if (address->ops && address->ops->register_doorbell)
+		return address->ops->register_doorbell(callback,var);
+	return -EINVAL;
+}
+
+void rddma_doorbell_unregister(struct rddma_fabric_address *address, int doorbell)
+{
+	if (address && address->ops && address->ops->unregister_doorbell)
+		return address->ops->unregister_doorbell(doorbell);
+}
 
 struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, ...)
 {
@@ -114,7 +126,7 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 			va_start(ap,f);
 			skb_put(skb,vsprintf(skb->data,f,ap));
 			va_end(ap);
-			skb_put(skb,sprintf(skb->tail, "?request=%p",cb)); 
+			skb_put(skb,sprintf(skb->tail, "%crequest=%p",strstr(skb->data,"?") ? ',' : '?', cb)); 
 			RDDMA_DEBUG(MY_DEBUG,"	%s: %s\n",__FUNCTION__, skb->data);
 			
 			if (rddma_fabric_tx(loc->desc.address, skb)) {
