@@ -91,7 +91,7 @@ static int location_delete(const char *desc, char *result, int size)
 
 	ret = -EINVAL;
 
-	if ( (loc = find_rddma_name(&params) ) ) {
+	if ( (loc = find_rddma_location(NULL,&params) ) ) {
 		if ( loc && loc->desc.ops && loc->desc.ops->location_delete ) {
 			ret = 0;
 			loc->desc.ops->location_delete(loc, &params);

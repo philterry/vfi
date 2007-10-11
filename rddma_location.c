@@ -31,6 +31,8 @@ static void rddma_location_release(struct kobject *kobj)
     rddma_clean_desc(&p->desc);
     if (p->desc.address)
 	    rddma_fabric_put(p->desc.address);
+    if (p->desc.rde)
+	    rddma_dma_put(p->desc.rde);
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
     kfree(p);
@@ -216,6 +218,7 @@ int rddma_location_register(struct rddma_location *rddma_location)
 {
 	int ret = 0;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,rddma_location);
 	if ( (ret = kobject_add(&rddma_location->kset.kobj) ) )
 		goto out;
 
@@ -251,6 +254,7 @@ out:
 
 void rddma_location_unregister(struct rddma_location *rddma_location)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,rddma_location);
 	rddma_xfers_unregister(rddma_location->xfers);
 
 	rddma_smbs_unregister(rddma_location->smbs);
@@ -258,9 +262,10 @@ void rddma_location_unregister(struct rddma_location *rddma_location)
 	kobject_unregister(&rddma_location->kset.kobj);
 }
 
-struct rddma_location *find_rddma_name(struct rddma_desc_param *params)
+struct rddma_location *find_rddma_name(struct rddma_location *loc, struct rddma_desc_param *params)
 {
-	return to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name));
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,params);
+	return to_rddma_location(kset_find_obj(&loc->kset,params->name));
 }
 
 /**
@@ -291,6 +296,9 @@ struct rddma_location *find_rddma_location(struct rddma_location *loc, struct rd
 		struct rddma_desc_param tmpparams;
 		struct rddma_location *tmploc = NULL;
 
+		if ( (newloc = to_rddma_location(kset_find_obj(ksetp,params->name))) )
+			return newloc;
+
 		if ( (newloc = to_rddma_location(kset_find_obj(ksetp,params->location))) )
 			return newloc;
 
@@ -309,7 +317,11 @@ struct rddma_location *find_rddma_location(struct rddma_location *loc, struct rd
 
 struct rddma_location *rddma_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	struct rddma_location *new = new_rddma_location(loc,desc);
+	struct rddma_location *new;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
+
+	new = new_rddma_location(loc,desc);
 
 	if (NULL == new)
 		goto out;
@@ -327,6 +339,7 @@ out:
 
 void rddma_location_delete(struct rddma_location *loc)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,loc);
 	if (loc) {
 		rddma_location_unregister(loc);
 	}

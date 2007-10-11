@@ -119,7 +119,6 @@ out:
  */
 static struct rddma_location *rddma_local_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	char *dma_engine_name;
 	struct rddma_location *newloc = NULL;
 
 	if ( desc->extent != desc->offset )
@@ -127,17 +126,6 @@ static struct rddma_location *rddma_local_location_create(struct rddma_location 
 
 	if ( !(newloc = rddma_location_create(loc,desc)) )
 		return NULL;
-
-	if ( (dma_engine_name = rddma_get_option(desc,"dma_name")) ) {
-		struct rddma_dma_engine *rde = rddma_dma_find(dma_engine_name);
-		rddma_dma_put(newloc->desc.rde);
-		newloc->desc.rde = rde;
-	}
-
-	if (!newloc->desc.rde) {
-		rddma_location_put(newloc);
-		newloc = NULL;
-	}
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,loc,desc,newloc);
 
@@ -411,8 +399,13 @@ static struct rddma_src *rddma_local_src_create(struct rddma_dst *parent, struct
  */
 static void rddma_local_location_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	rddma_location_delete(loc);
+	struct rddma_location *target = loc;
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
+	
+	if (desc->location && *desc->location)
+		target = find_rddma_name(loc,desc);
+
+	rddma_location_delete(target);
 }
 
 static void rddma_local_smb_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
@@ -524,7 +517,8 @@ static void rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind
 					}
 					else {
 						RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: \"src_delete\" operation undefined!\n");
-					}					
+					}
+					rddma_location_put(loc);
 				}
 				else {
 					RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: src location cannot be identified!\n");
@@ -613,7 +607,8 @@ static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bin
 					}
 					else {
 						RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: \"dst_delete\" operation undefined!\n");
-					}					
+					}
+					rddma_location_put(loc);
 				}
 				else {
 					RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: dst location cannot be identified!\n");

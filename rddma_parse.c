@@ -133,6 +133,7 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	char *soffset=NULL;
 	char *ops;
 	char *fabric_name;
+	char *dma_engine_name;
 	int i;
 	
 	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
@@ -192,6 +193,9 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	if ( (fabric_name = rddma_get_option(d,"fabric")) ) 
 		d->address = rddma_fabric_find(fabric_name);
 	
+	if ( (dma_engine_name = rddma_get_option(d,"dma_name")) ) 
+		d->rde = rddma_dma_find(dma_engine_name);
+
 	return ret;
 }
 
@@ -264,6 +268,12 @@ int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
 	RDDMA_DEBUG((RDDMA_DBG_PARSE | RDDMA_DBG_DEBUG),"%s \n",__FUNCTION__);
 	*new = *old;
 
+	if (new->address)
+		rddma_fabric_get(new->address);
+
+	if (new->rde)
+		rddma_dma_get(new->rde);
+
 	if ( old->buf && old->buflen && (new->buf = kzalloc(old->buflen, GFP_KERNEL)) ) {
 		memcpy(new->buf, old->buf, old->buflen);
 		if (old->location)
@@ -293,8 +303,16 @@ int rddma_clone_bind(struct rddma_bind_param *new, struct rddma_bind_param *old)
 
 void rddma_clean_desc(struct rddma_desc_param *p)
 {
-	if (p && p->buf && p->buflen)
-		kfree(p->buf);
+	if (p) {
+		if (p->buf && p->buflen)
+			kfree(p->buf);
+
+		if (p->address)
+			rddma_fabric_put(p->address);
+
+		if (p->rde)
+			rddma_dma_put(p->rde);
+	}
 }
 
 void rddma_clean_bind(struct rddma_bind_param *p)
