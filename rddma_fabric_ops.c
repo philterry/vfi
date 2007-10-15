@@ -38,12 +38,24 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 {
 	struct sk_buff  *skb;
 	struct rddma_location *newloc = NULL;
+	struct kset *ksetp;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	if ( (newloc = to_rddma_location(kset_find_obj(&loc->kset,desc->name))) )
+	if (!loc)
+		ksetp = &rddma_subsys->kset;
+	else
+		ksetp = &loc->kset;
+	if ( (newloc = to_rddma_location(kset_find_obj(ksetp,desc->name))) )
 		return newloc;
 
-	skb = rddma_fabric_call(loc, 5, "location_find://%s", desc->name);
+	if (loc) {
+		skb = rddma_fabric_call(loc, 5, "location_find://%s.%s", desc->name,desc->location);
+	}
+	else {
+		loc = new_rddma_location(NULL,desc);
+		skb = rddma_fabric_call(loc, 5, "location_find://%s", desc->name);
+		rddma_location_put(loc);
+	}
 	
 	if (skb) {
 		struct rddma_desc_param reply;
