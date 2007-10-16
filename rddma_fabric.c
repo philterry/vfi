@@ -78,6 +78,7 @@ int __must_check rddma_fabric_tx(struct rddma_fabric_address *address, struct sk
 	} else
 		dev_kfree_skb(skb);
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %d\n",__FUNCTION__,ret);
 	return ret;
 }
 
