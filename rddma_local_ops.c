@@ -119,13 +119,9 @@ out:
  */
 static struct rddma_location *rddma_local_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	struct rddma_location *newloc = NULL;
+	struct rddma_location *newloc;
 
-	if ( desc->extent != desc->offset )
-		return NULL;
-
-	if ( !(newloc = rddma_location_create(loc,desc)) )
-		return NULL;
+	newloc = rddma_location_create(loc,desc);
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,loc,desc,newloc);
 

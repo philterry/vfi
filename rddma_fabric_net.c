@@ -229,6 +229,9 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 		if (fna->reg_loc->desc.offset != dstidx)
 			goto forget;
 
+	*skb_tail_pointer(skb) = '\0';
+	skb_put(skb,1);
+
 	return rddma_fabric_receive(&fna->rfa, skb);
 
 forget:
@@ -367,6 +370,7 @@ static int __init fabric_net_init(void)
 		if (netdev_name)
 			if ( (fna->ndev = dev_get_by_name(netdev_name)) ) {
 				rddma_packets.dev = fna->ndev;
+				rddma_packets.type = htons(netdev_type);
 				dev_add_pack(&rddma_packets);
 				return rddma_fabric_register(&fna->rfa);
 			}

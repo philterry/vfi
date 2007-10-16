@@ -66,7 +66,7 @@ static void fabric_do_rqst(struct work_struct *wo)
 int __must_check rddma_fabric_tx(struct rddma_fabric_address *address, struct sk_buff *skb)
 {
 	int ret = -ENODEV;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered address=%p\n",__FUNCTION__,address);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %s\n",__FUNCTION__,address,skb->data);
 
 	RDDMA_DEBUG_SAFE(MY_DEBUG,(address),"%s: address_ops=%p\n",__FUNCTION__,address->ops);
 
