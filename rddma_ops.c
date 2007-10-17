@@ -146,6 +146,8 @@ static int location_find(const char *desc, char *result, int size)
 		else {
 			if (params.ops)
 				ret = (new_loc = params.ops->location_find(NULL,&params)) == NULL;
+			else
+				ret = (new_loc = find_rddma_location(NULL, &params)) == NULL;
 		}
 	}
 	else if (params.ops) {
