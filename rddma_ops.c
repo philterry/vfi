@@ -192,25 +192,12 @@ static int location_put(const char *desc, char *result, int size)
 
 	ret = -EINVAL;
 
-	if (*params.name) {
-		if (params.location && *params.location) {
-			if ( (loc = find_rddma_location(NULL,&params) ) ) {
-				if ( loc && loc->desc.ops && loc->desc.ops->location_put ) {
-					ret = 0;
-					loc->desc.ops->location_put(loc, &params);
-				}
-				rddma_location_put(loc);
-			}
-		}
-		else if (params.ops) {
+	if ( (loc = find_rddma_location(NULL,&params) ) ) {
+		if ( loc && loc->desc.ops && loc->desc.ops->location_put ) {
 			ret = 0;
-			params.ops->location_put(NULL,&params);
+			loc->desc.ops->location_put(loc, &params);
 		}
-	}
-	else if (params.ops) {
-		params.name++;
-		params.location = NULL;
-		params.ops->location_put(NULL,&params);
+		rddma_location_put(loc);
 	}
 out:
 	if (result)
