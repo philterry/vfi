@@ -28,13 +28,8 @@
 static void rddma_location_release(struct kobject *kobj)
 {
     struct rddma_location *p = to_rddma_location(kobj);
-    rddma_clean_desc(&p->desc);
-    if (p->desc.address)
-	    rddma_fabric_put(p->desc.address);
-    if (p->desc.rde)
-	    rddma_dma_put(p->desc.rde);
-
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+    rddma_clean_desc(&p->desc);
     kfree(p);
 }
 
