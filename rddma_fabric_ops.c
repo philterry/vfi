@@ -38,13 +38,16 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 {
 	struct sk_buff  *skb;
 	struct rddma_location *newloc = NULL;
+	struct rddma_location *myloc = NULL;
 	struct kset *ksetp;
+
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	if (!loc)
 		ksetp = &rddma_subsys->kset;
 	else
 		ksetp = &loc->kset;
+
 	if ( (newloc = to_rddma_location(kset_find_obj(ksetp,desc->name))) )
 		return newloc;
 
@@ -52,17 +55,20 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 		skb = rddma_fabric_call(loc, 5, "location_find://%s.%s", desc->name,desc->location);
 	}
 	else {
-		loc = new_rddma_location(NULL,desc);
-		skb = rddma_fabric_call(loc, 5, "location_find://%s", desc->name);
-		rddma_location_put(loc);
+		myloc = new_rddma_location(NULL,desc);
+		skb = rddma_fabric_call(myloc, 5, "location_find://%s", desc->name);
+		rddma_location_put(myloc);
 	}
 	
+	RDDMA_DEBUG(MY_DEBUG,"%s skb(%p)\n",__FUNCTION__,skb);
+
 	if (skb) {
 		struct rddma_desc_param reply;
 		int ret = -EINVAL;
+
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0 && reply.extent) {
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0 && reply.extent) {
 				unsigned long tmp = reply.offset;
 				reply.offset = reply.extent;
 				reply.extent = tmp;
@@ -71,7 +77,7 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 			rddma_clean_desc(&reply);
 		}
 	}
-
+	
 	return newloc;
 }
 
