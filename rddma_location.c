@@ -183,6 +183,12 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 	else
 		new->kset.kobj.kset = &rddma_subsys->kset;
 
+	if (!new->desc.extent && loc)
+		new->desc.extent = loc->desc.extent;
+
+	if (!new->desc.offset && loc)
+		new->desc.offset = loc->desc.offset;
+
 	if (!new->desc.ops ) {
 		if (loc && loc->desc.ops)
 			new->desc.ops = loc->desc.ops;
@@ -337,5 +343,6 @@ void rddma_location_delete(struct rddma_location *loc)
 	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,loc);
 	if (loc) {
 		rddma_location_unregister(loc);
+		rddma_location_put(loc);
 	}
 }
