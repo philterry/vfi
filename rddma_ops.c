@@ -49,17 +49,15 @@ static int location_create(const char *desc, char *result, int size)
 
 	ret = -EINVAL;
 
-	if ( *params.name ) {
-		if ( params.location && *params.location ) {
-			if ( (loc = find_rddma_location(NULL,&params))) {
-				if (loc && loc->desc.ops && loc->desc.ops->location_create) 
-					ret = (new_loc = loc->desc.ops->location_create(loc,&params)) == NULL;
-				rddma_location_put(loc);
-			}
+	if ( params.location && *params.location ) {
+		if ( (loc = find_rddma_location(NULL,&params))) {
+			if (loc && loc->desc.ops && loc->desc.ops->location_create) 
+				ret = (new_loc = loc->desc.ops->location_create(loc,&params)) == NULL;
+			rddma_location_put(loc);
 		}
-		else if (params.ops) {
-			ret = (new_loc = params.ops->location_create(NULL,&params)) == NULL;
-		}
+	}
+	else if (params.ops) {
+		ret = (new_loc = params.ops->location_create(NULL,&params)) == NULL;
 	}
 fail:
 	if (result)
@@ -130,20 +128,17 @@ static int location_find(const char *desc, char *result, int size)
 		goto out;
 
 	ret = -EINVAL;
-	if (*params.name) {
-		if (params.location && *params.location ) {
-			if ( (loc = find_rddma_location(NULL,&params)) ) {
-				if (loc->desc.ops && loc->desc.ops->location_find)
-					ret = ((new_loc = loc->desc.ops->location_find(loc,&params)) == NULL);
-				rddma_location_put(loc);
-			}
+	if (params.location && *params.location ) {
+		if ( (loc = find_rddma_location(NULL,&params)) ) {
+			ret = ((new_loc = find_rddma_name(loc,&params)) == NULL);
+			rddma_location_put(loc);
 		}
-		else {
-			if (params.ops)
-				ret = (new_loc = params.ops->location_find(NULL,&params)) == NULL;
-			else
-				ret = (new_loc = find_rddma_location(NULL, &params)) == NULL;
-		}
+	}
+	else {
+		if (params.ops)
+			ret = (new_loc = params.ops->location_find(NULL,&params)) == NULL;
+		else
+			ret = (new_loc = find_rddma_name(NULL, &params)) == NULL;
 	}
 out:
 	if (result) {
