@@ -38,18 +38,18 @@ extern void rddma_dma_chain_dump(struct list_head *h);
 static struct rddma_location *rddma_local_location_find(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_location *newloc;
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
-	newloc  = find_rddma_location(loc,desc);
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p ->%p\n",__FUNCTION__,loc,desc,newloc);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s\n",__FUNCTION__,loc,desc,desc->name);
+	newloc  = to_rddma_location(kset_find_obj(&loc->kset,desc->name));
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s ->%p\n",__FUNCTION__,loc,desc,desc->name,newloc);
 	return newloc;
 }
 
 static void rddma_local_location_put(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_location *newloc;
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
-	newloc = find_rddma_location(loc,desc);
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p ->%p\n",__FUNCTION__,loc,desc,newloc);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s\n",__FUNCTION__,loc,desc,desc->name);
+	newloc = to_rddma_location(kset_find_obj(&loc->kset,desc->name));
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s ->%p\n",__FUNCTION__,loc,desc,desc->name,newloc);
 	rddma_location_put(newloc);
 	rddma_location_put(newloc);
 }

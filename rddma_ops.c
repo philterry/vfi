@@ -61,11 +61,6 @@ static int location_create(const char *desc, char *result, int size)
 			ret = (new_loc = params.ops->location_create(NULL,&params)) == NULL;
 		}
 	}
-	else if (params.ops) {
-		params.name++;
-		params.location = NULL;
-		ret = (new_loc = params.ops->location_create(NULL,&params)) == NULL;
-	}
 fail:
 	if (result)
 		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
@@ -149,11 +144,6 @@ static int location_find(const char *desc, char *result, int size)
 			else
 				ret = (new_loc = find_rddma_location(NULL, &params)) == NULL;
 		}
-	}
-	else if (params.ops) {
-		params.name++;
-		params.location = NULL;
-		ret = (new_loc = params.ops->location_find(NULL,&params)) == NULL;
 	}
 out:
 	if (result) {
