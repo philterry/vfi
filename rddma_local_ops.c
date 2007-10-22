@@ -64,7 +64,8 @@ static struct rddma_bind *rddma_local_bind_find(struct rddma_xfer *parent, struc
 	if (NULL == buf)
 		goto out;
 
-	if ( 2048 <= snprintf(buf,2048,"#%llx:%x", desc->xfer.offset, desc->xfer.extent) )
+	if ( 2048 <= snprintf(buf,2048,"%s#%llx:%x", desc->xfer.name, 
+		desc->xfer.offset, desc->xfer.extent) )
 		goto fail_printf;
 
 	bind = to_rddma_bind(kset_find_obj(&parent->binds->kset,buf));

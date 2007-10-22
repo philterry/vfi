@@ -274,7 +274,7 @@ int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
 	if (new->rde)
 		rddma_dma_get(new->rde);
 
-	if ( old->buf && old->buflen && (new->buf = kzalloc(old->buflen, GFP_KERNEL)) ) {
+	if ( old->buf && old->buflen && (new->buf = kzalloc(old->buflen + 1, GFP_KERNEL)) ) {
 		memcpy(new->buf, old->buf, old->buflen);
 		if (old->location)
 			new->location = new->buf + (old->location - old->buf);
