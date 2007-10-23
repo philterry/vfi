@@ -37,7 +37,6 @@
 static struct rddma_location *rddma_fabric_location_find(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
-	struct rddma_location *newloc = NULL;
 	struct rddma_location *oldloc = NULL ;
 	struct rddma_location *myloc = NULL;
 
@@ -65,21 +64,28 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0 && reply.extent) {
 				desc->extent = reply.offset;
 				desc->offset = reply.extent;
-				if (oldloc)
-					if (oldloc->desc.extent == reply.offset && oldloc->desc.offset == reply.extent)
-						newloc = oldloc;
-					else {
-						rddma_location_delete(oldloc);
-						newloc = rddma_location_create(loc,desc);
-					}
-				else
-					newloc = rddma_location_create(loc,desc);
+				rddma_clean_desc(&reply);
+
+				if (oldloc && oldloc->desc.extent == desc->extent && oldloc->desc.offset == desc->offset)
+					return oldloc;
+
+				rddma_location_delete(oldloc);
+				
+				if (desc->extent == desc->offset) {
+					desc->extent = loc->desc.extent;
+				}
+				else {
+					desc->offset = desc->extent;
+					desc->ops = &rddma_local_ops;
+					loc->desc.extent = desc->extent;
+				}
+				
+				return rddma_location_create(loc,desc);
 			}
-			rddma_clean_desc(&reply);
 		}
 	}
-	
-	return newloc;
+
+	return NULL;
 }
 
 static void rddma_fabric_location_put(struct rddma_location *loc, struct rddma_desc_param *desc)
@@ -90,7 +96,7 @@ static void rddma_fabric_location_put(struct rddma_location *loc, struct rddma_d
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	oldloc = find_rddma_location(loc,desc);
+	oldloc = find_rddma_name(loc,desc);
 
 	if (!oldloc)
 		return;
@@ -125,13 +131,12 @@ static void rddma_fabric_location_put(struct rddma_location *loc, struct rddma_d
 static struct rddma_smb *rddma_fabric_smb_find(struct rddma_location *parent, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
-	struct rddma_location *loc;
 	struct rddma_smb *smb = NULL;
 
-	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->location))) )
-		return NULL;
+	if ( (smb = to_rddma_smb(kset_find_obj(&parent->smbs->kset,desc->name))) )
+		return smb;
 
-	skb = rddma_fabric_call(loc, 5, "smb_find://%s", desc->name);
+	skb = rddma_fabric_call(parent, 5, "smb_find://%s.%s", desc->name,desc->location);
 
 	if (skb) {
 		struct rddma_desc_param reply;
@@ -139,7 +144,7 @@ static struct rddma_smb *rddma_fabric_smb_find(struct rddma_location *parent, st
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
-				smb = rddma_smb_create(loc,&reply);
+				smb = rddma_smb_create(parent,&reply);
 			rddma_clean_desc(&reply);
 		}
 	}
@@ -304,7 +309,7 @@ static struct rddma_smb *rddma_fabric_smb_create(struct rddma_location *loc, str
 	struct sk_buff  *skb;
 	struct rddma_smb *smb = NULL;
 
-	skb = rddma_fabric_call(loc, 5, "smb_create://%s", desc->name);
+	skb = rddma_fabric_call(loc, 5, "smb_create://%s.%s#%llx:%x", desc->name,desc->location,desc->offset, desc->extent);
 	if (skb) {
 		struct rddma_desc_param reply;
 		int ret = -EINVAL;
@@ -465,7 +470,7 @@ static void rddma_fabric_location_delete(struct rddma_location *loc, struct rddm
 {
 	struct sk_buff  *skb;
 
-	skb = rddma_fabric_call(loc, 5, "location_delete://%s", desc->name);
+	skb = rddma_fabric_call(loc, 5, "location_delete://%s.%s", desc->name,desc->location);
 	if (skb) {
 		struct rddma_desc_param reply;
 		int ret = -EINVAL;

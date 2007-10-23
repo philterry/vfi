@@ -153,6 +153,18 @@ out:
 
 	return ret;
 }
+
+/**
+ * location_put - Unfinds the named location.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
 static int location_put(const char *desc, char *result, int size)
 {
 	int ret = -ENOMEM;
