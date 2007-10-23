@@ -77,6 +77,7 @@ static ssize_t rddma_location_default_show(struct rddma_location *rddma_location
 	if (rddma_location) {
 		ATTR_PRINTF("ops is %p rde is %p address is %p\n",rddma_location->desc.ops,rddma_location->desc.rde,rddma_location->desc.address);
 	}
+	ATTR_PRINTF("refcount %d\n",atomic_read(&rddma_location->kset.kobj.kref.refcount));
 	return size;
 }
 
