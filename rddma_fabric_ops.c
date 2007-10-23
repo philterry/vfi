@@ -72,12 +72,13 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 				rddma_location_delete(oldloc);
 				
 				if (desc->extent == desc->offset) {
-					desc->extent = loc->desc.extent;
+					desc->extent = loc ? loc->desc.extent : 0;
 				}
 				else {
 					desc->offset = desc->extent;
 					desc->ops = &rddma_local_ops;
-					loc->desc.extent = desc->extent;
+					if (loc)
+						loc->desc.extent = desc->extent;
 				}
 				
 				return rddma_location_create(loc,desc);
