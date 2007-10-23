@@ -38,24 +38,21 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 {
 	struct sk_buff  *skb;
 	struct rddma_location *newloc = NULL;
-	struct rddma_location *oldloc;
+	struct rddma_location *oldloc = NULL ;
 	struct rddma_location *myloc = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	oldloc = find_rddma_location(loc,desc);
+	oldloc = find_rddma_name(loc,desc);
 
 	if (loc) {
-		myloc = loc;
+		skb = rddma_fabric_call(loc, 5, "location_find://%s.%s", desc->name,desc->location);
 	}
 	else {
 		myloc = new_rddma_location(NULL,desc);
-	}
-
-	skb = rddma_fabric_call(loc, 5, "location_find://%s.%s", desc->name,desc->location);
-	
-	if (!loc)
+		skb = rddma_fabric_call(myloc, 5, "location_find://%s", desc->name);
 		rddma_location_put(myloc);
+	}
 
 	RDDMA_DEBUG(MY_DEBUG,"%s skb(%p)\n",__FUNCTION__,skb);
 

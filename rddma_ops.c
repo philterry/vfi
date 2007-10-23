@@ -130,7 +130,8 @@ static int location_find(const char *desc, char *result, int size)
 	ret = -EINVAL;
 	if (params.location && *params.location ) {
 		if ( (loc = find_rddma_location(NULL,&params)) ) {
-			ret = ((new_loc = find_rddma_name(loc,&params)) == NULL);
+			if (loc->desc.ops)
+				ret = ((new_loc = loc->desc.ops->location_find(loc,&params)) == NULL);
 			rddma_location_put(loc);
 		}
 	}
