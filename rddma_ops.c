@@ -47,17 +47,13 @@ static int location_create(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto fail;
 
-	if (params.location) 
-		*(params.location-1) = '.';
-	params.location = params.name;
-	params.name = NULL;
-
 	ret = -EINVAL;
 
 	if ( params.location && *params.location ) {
 		if ( (loc = find_rddma_location(NULL,&params))) {
-			if (loc && loc->desc.ops && loc->desc.ops->location_create) 
+			if (loc && loc->desc.ops && loc->desc.ops->location_create) {
 				ret = (new_loc = loc->desc.ops->location_create(loc,&params)) == NULL;
+			}
 			rddma_location_put(loc);
 		}
 	}
