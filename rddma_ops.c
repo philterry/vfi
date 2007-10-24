@@ -47,11 +47,10 @@ static int location_create(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto fail;
 
-	if (params.location) {
+	if (params.location) 
 		*(params.location-1) = '.';
-		params.location = params.name;
-		params.name = NULL;
-	}
+	params.location = params.name;
+	params.name = NULL;
 
 	ret = -EINVAL;
 
@@ -94,11 +93,10 @@ static int location_delete(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
-	if (params.location) {
+	if (params.location)
 		*(params.location-1) = '.';
-		params.location = params.name;
-		params.name = NULL;
-	}
+	params.location = params.name;
+	params.name = NULL;
 
 	ret = -EINVAL;
 
@@ -139,11 +137,10 @@ static int location_find(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
-	if (params.location) {
+	if (params.location)
 		*(params.location-1) = '.';
-		params.location = params.name;
-		params.name = NULL;
-	}
+	params.location = params.name;
+	params.name = NULL;
 
 	ret = -EINVAL;
 	if (params.location && *params.location ) {
@@ -193,11 +190,10 @@ static int location_put(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
-	if (params.location) {
+	if (params.location)
 		*(params.location-1) = '.';
-		params.location = params.name;
-		params.name = NULL;
-	}
+	params.location = params.name;
+	params.name = NULL;
 
 	ret = -EINVAL;
 
