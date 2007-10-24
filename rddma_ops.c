@@ -47,6 +47,12 @@ static int location_create(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto fail;
 
+	if (params.location) {
+		*(params.location-1) = '.';
+		params.location = params.name;
+		params.name = NULL;
+	}
+
 	ret = -EINVAL;
 
 	if ( params.location && *params.location ) {
@@ -88,6 +94,12 @@ static int location_delete(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
+	if (params.location) {
+		*(params.location-1) = '.';
+		params.location = params.name;
+		params.name = NULL;
+	}
+
 	ret = -EINVAL;
 
 	if ( (loc = find_rddma_location(NULL,&params) ) ) {
@@ -126,6 +138,12 @@ static int location_find(const char *desc, char *result, int size)
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
+
+	if (params.location) {
+		*(params.location-1) = '.';
+		params.location = params.name;
+		params.name = NULL;
+	}
 
 	ret = -EINVAL;
 	if (params.location && *params.location ) {
@@ -174,6 +192,12 @@ static int location_put(const char *desc, char *result, int size)
 	RDDMA_DEBUG(MY_DEBUG, "%s %s\n",__FUNCTION__,desc);
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
+
+	if (params.location) {
+		*(params.location-1) = '.';
+		params.location = params.name;
+		params.name = NULL;
+	}
 
 	ret = -EINVAL;
 
