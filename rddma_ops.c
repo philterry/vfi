@@ -133,8 +133,6 @@ static int location_find(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
-	if (params.location)
-
 	ret = -EINVAL;
 	if (params.location && *params.location ) {
 		*(params.location-1) = '.';

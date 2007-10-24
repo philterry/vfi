@@ -266,10 +266,14 @@ void rddma_location_unregister(struct rddma_location *rddma_location)
 
 struct rddma_location *find_rddma_name(struct rddma_location *loc, struct rddma_desc_param *params)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,params);
+	struct rddma_location *newloc;
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,params,params->name,params->location);
 	if (loc)
-		return to_rddma_location(kset_find_obj(&loc->kset,params->name));
-	return to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name));
+		newloc = to_rddma_location(kset_find_obj(&loc->kset,params->name));
+	else
+		newloc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name));
+	RDDMA_DEBUG_SAFE(MY_DEBUG,newloc,"%s -> %p %s,%s\n",__FUNCTION__,newloc,newloc->desc.name,newloc->desc.location);
+	return newloc;
 }
 
 /**
