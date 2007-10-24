@@ -38,7 +38,7 @@ extern void rddma_dma_chain_dump(struct list_head *h);
 static struct rddma_location *rddma_local_location_find(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_location *newloc;
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %s %p %s\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %s %p %s,%s\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,desc->location);
 	newloc  = to_rddma_location(kset_find_obj(&loc->kset,desc->name));
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %s %p %s ->%p\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,newloc);
 	return newloc;
