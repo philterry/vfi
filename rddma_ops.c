@@ -134,15 +134,19 @@ static int location_find(const char *desc, char *result, int size)
 		goto out;
 
 	if (params.location)
-		*(params.location-1) = '.';
-	params.location = params.name;
-	params.name = NULL;
 
 	ret = -EINVAL;
 	if (params.location && *params.location ) {
+		*(params.location-1) = '.';
+		params.location = params.name;
+		params.name = NULL;
 		if ( (loc = find_rddma_location(NULL,&params)) ) {
-			if (loc->desc.ops)
+			if (loc->desc.ops) {
+				params.name = params.location;
+				params.location = strchr(params.name,'.');
+				*params.location++ = '\0';
 				ret = ((new_loc = loc->desc.ops->location_find(loc,&params)) == NULL);
+			}
 			rddma_location_put(loc);
 		}
 	}
