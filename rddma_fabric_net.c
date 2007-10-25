@@ -229,6 +229,9 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 		if (fna->reg_loc->desc.offset != dstidx)
 			goto forget;
 
+	*skb_tail_pointer(skb) = '\0';
+	skb_put(skb,1);
+
 	return rddma_fabric_receive(&fna->rfa, skb);
 
 forget:
@@ -249,7 +252,8 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 	int ret = NET_XMIT_DROP;
 	struct fabric_address *fna = to_fabric_address(addr);
 
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %p\n",__FUNCTION__,addr,skb->data,fna);
+
 	if (fna->ndev) {
 		skb_reset_transport_header(skb);
 		skb_reset_network_header(skb);
@@ -280,6 +284,9 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 		skb->protocol = htons(netdev_type);
 		skb->ip_summed = CHECKSUM_NONE;
 		_fabric_put(fna);
+		
+		RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,skb->data);
+
 		return dev_queue_xmit(skb);
 	}
 
@@ -367,6 +374,7 @@ static int __init fabric_net_init(void)
 		if (netdev_name)
 			if ( (fna->ndev = dev_get_by_name(netdev_name)) ) {
 				rddma_packets.dev = fna->ndev;
+				rddma_packets.type = htons(netdev_type);
 				dev_add_pack(&rddma_packets);
 				return rddma_fabric_register(&fna->rfa);
 			}

@@ -66,7 +66,7 @@ static void fabric_do_rqst(struct work_struct *wo)
 int __must_check rddma_fabric_tx(struct rddma_fabric_address *address, struct sk_buff *skb)
 {
 	int ret = -ENODEV;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered address=%p\n",__FUNCTION__,address);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %s\n",__FUNCTION__,address,skb->data);
 
 	RDDMA_DEBUG_SAFE(MY_DEBUG,(address),"%s: address_ops=%p\n",__FUNCTION__,address->ops);
 
@@ -78,6 +78,7 @@ int __must_check rddma_fabric_tx(struct rddma_fabric_address *address, struct sk
 	} else
 		dev_kfree_skb(skb);
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %d\n",__FUNCTION__,ret);
 	return ret;
 }
 
@@ -143,6 +144,7 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 			}
 
 			skb = cb->rply_skb;
+			RDDMA_DEBUG(MY_DEBUG,"	%s: %s\n",__FUNCTION__, skb->data);
 			kfree(cb);
 			return skb;
 		}
@@ -156,18 +158,22 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 	char *msg = skb->data;
 	struct call_back_tag *cb = NULL;
 	char *buf;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	int ret;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %s\n",__FUNCTION__,sender,msg);
 
 	if ((buf = strstr(msg,"reply="))) {
-		if ( sscanf(buf,"reply=%p",&cb) ) {
+		RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,buf);
+		if ( (ret = sscanf(buf,"reply=%x", (unsigned int *)&cb)) ) {
+			RDDMA_DEBUG(MY_DEBUG,"%s cb(%p)\n",__FUNCTION__,cb);
 			if (cb && cb->check == cb) {
-					cb->rply_skb = skb;
-					wake_up_interruptible(&cb->wq);
-					return 0;
+				RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,cb);
+				cb->rply_skb = skb;
+				wake_up_interruptible(&cb->wq);
+				return 0;
 			}
 		}
-		sender->ops->put(sender);
-		dev_kfree_skb(skb);
+		RDDMA_DEBUG(MY_DEBUG,"%s ret(%d) %p\n",__FUNCTION__,ret,cb);
 	}
 	else if ((buf = strstr(msg,"request="))) {
 		struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
@@ -183,12 +189,11 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 			return 0;
 		}
 		else {
-			sender->ops->put(sender);
-			dev_kfree_skb(skb);
 			kfree(cb);
 		}
 	}
 	sender->ops->put(sender);
+	dev_kfree_skb(skb);
 	return -EINVAL;
 
 }

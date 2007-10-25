@@ -37,9 +37,21 @@ extern void rddma_dma_chain_dump(struct list_head *h);
  */
 static struct rddma_location *rddma_local_location_find(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	struct rddma_location *newloc = to_rddma_location(kset_find_obj(&loc->kset,desc->name));
-	RDDMA_DEBUG(MY_DEBUG,"%s %p -> %p\n",__FUNCTION__,desc,loc);
+	struct rddma_location *newloc;
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %s %p %s,%s\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,desc->location);
+	newloc  = to_rddma_location(kset_find_obj(&loc->kset,desc->name));
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %s %p %s ->%p\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,newloc);
 	return newloc;
+}
+
+static void rddma_local_location_put(struct rddma_location *loc, struct rddma_desc_param *desc)
+{
+	struct rddma_location *newloc;
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s\n",__FUNCTION__,loc,desc,desc->name);
+	newloc = to_rddma_location(kset_find_obj(&loc->kset,desc->name));
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s ->%p\n",__FUNCTION__,loc,desc,desc->name,newloc);
+	rddma_location_put(newloc);
+	rddma_location_put(newloc);
 }
 
 static struct rddma_smb *rddma_local_smb_find(struct rddma_location *parent, struct rddma_desc_param *desc)
@@ -120,13 +132,9 @@ out:
  */
 static struct rddma_location *rddma_local_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	struct rddma_location *newloc = NULL;
+	struct rddma_location *newloc;
 
-	if ( desc->extent != desc->offset )
-		return NULL;
-
-	if ( !(newloc = rddma_location_create(loc,desc)) )
-		return NULL;
+	newloc = rddma_location_create(loc,desc);
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,loc,desc,newloc);
 
@@ -172,7 +180,7 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	if (!DESC_VALID(&dsmb->desc,&desc->dst))
 		goto fail_ddesc;
 
-	sloc = find_rddma_location(NULL,&desc->src);
+	sloc = locate_rddma_location(NULL,&desc->src);
 
 	first_page = START_PAGE(&dsmb->desc,&desc->dst);
 	last_page = first_page + NUM_DMA(&dsmb->desc,&desc->dst);
@@ -512,7 +520,7 @@ static void rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind
 				struct rddma_location *loc;
 				src = to_rddma_src (to_kobj (entry));
 				RDDMA_DEBUG(MY_DEBUG,"-- Delete src %s (kobj %s)...\n", src->desc.src.name, kobject_name (&src->kobj));
-				if ((loc = find_rddma_location (NULL,&src->desc.src))) {
+				if ((loc = locate_rddma_location (NULL,&src->desc.src))) {
 					if (loc->desc.ops && loc->desc.ops->src_delete) {
 						loc->desc.ops->src_delete (parent, &src->desc);
 					}
@@ -602,7 +610,7 @@ static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bin
 				struct rddma_location *loc;
 				dst = to_rddma_dst (to_kobj (entry));
 				RDDMA_DEBUG(MY_DEBUG,"-- Delete dst %s (kobj %s)...\n", dst->desc.dst.name, kobject_name (&dst->kobj));
-				if ((loc = find_rddma_location (NULL,&dst->desc.dst))) {
+				if ((loc = locate_rddma_location (NULL,&dst->desc.dst))) {
 					if (loc->desc.ops && loc->desc.ops->dst_delete) {
 						loc->desc.ops->dst_delete (parent, &dst->desc);
 					}
@@ -781,6 +789,7 @@ struct rddma_ops rddma_local_ops = {
 	.location_create = rddma_local_location_create,
 	.location_delete = rddma_local_location_delete,
 	.location_find = rddma_local_location_find,
+	.location_put = rddma_local_location_put,
 	.smb_create = rddma_local_smb_create,
 	.smb_delete = rddma_local_smb_delete,
 	.smb_find = rddma_local_smb_find,

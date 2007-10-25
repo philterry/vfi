@@ -152,10 +152,16 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	name_remainder(d->name,     '?', &d->query[0]);
 	name_remainder(d->name,     '.', &d->location);
 
+	/* If desc name started with ., above will give a null name
+	 * value and a location pointer, so try again, while solves a string of .s */
+	while ( (*d->name == '\0') && d->location) {
+		d->name = d->location;
+		name_remainder(d->name, '.', &d->location);
+	}
+
 	if (d->location) {
 		name_remainder(d->location, ':', &sextent);
 		name_remainder(d->location, '#', &soffset);
-/* 		*(d->location - 1) = '.'; */
 	}
 	else {
 		name_remainder(d->name, ':', &sextent);

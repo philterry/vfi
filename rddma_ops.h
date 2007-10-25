@@ -22,6 +22,8 @@ struct rddma_ops {
 	struct rddma_location * (*location_create)(struct rddma_location *, struct rddma_desc_param *);
 	void                    (*location_delete)(struct rddma_location *, struct rddma_desc_param *);
 	struct rddma_location *   (*location_find)(struct rddma_location *, struct rddma_desc_param *);
+	void                       (*location_put)(struct rddma_location *, struct rddma_desc_param *);
+
 
 	struct rddma_smb *           (*smb_create)(struct rddma_location *, struct rddma_desc_param *);
 	void                         (*smb_delete)(struct rddma_location *, struct rddma_desc_param *);

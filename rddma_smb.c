@@ -85,6 +85,7 @@ static ssize_t rddma_smb_default_show(struct rddma_smb *rddma_smb, char *buffer)
 	if (rddma_smb) {
 		ATTR_PRINTF("ops is %p rde is %p address is %p\n",rddma_smb->desc.ops,rddma_smb->desc.rde,rddma_smb->desc.address);
 	}
+	ATTR_PRINTF("refcount %d\n",atomic_read(&rddma_smb->kobj.kref.refcount));
 	return size;
 }
 
@@ -198,7 +199,7 @@ struct rddma_smb *find_rddma_smb(struct rddma_desc_param *desc)
 	struct rddma_smb *smb = NULL;
 	struct rddma_location *loc;
 
-	loc = find_rddma_location(NULL,desc);
+	loc = locate_rddma_location(NULL,desc);
 	
 	if (loc)
 		smb = loc->desc.ops->smb_find(loc,desc);

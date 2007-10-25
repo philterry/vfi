@@ -49,20 +49,25 @@ static int location_create(const char *desc, char *result, int size)
 
 	ret = -EINVAL;
 
-	if ( params.location && *params.location && *params.name  ) {
-		if ( (loc = find_rddma_location(NULL,&params))) {
-			if (loc && loc->desc.ops && loc->desc.ops->location_create) 
+	if ( params.location && *params.location ) {
+		if ( (loc = locate_rddma_location(NULL,&params))) {
+			if (loc && loc->desc.ops && loc->desc.ops->location_create) {
 				ret = (new_loc = loc->desc.ops->location_create(loc,&params)) == NULL;
+			}
 			rddma_location_put(loc);
 		}
 	}
-	else {
-		if (params.ops)
-			ret = (new_loc = params.ops->location_create(NULL,&params)) == NULL;
+	else if (params.ops) {
+		ret = (new_loc = params.ops->location_create(NULL,&params)) == NULL;
 	}
 fail:
-	if (result)
-		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
+	if (result) {
+		if (ret)
+			ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
+		else
+			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%s\n", new_loc->desc.name, new_loc->desc.offset,new_loc->desc.extent, ret, rddma_get_option(&params,"request"));
+	}
+
 	rddma_clean_desc(&params);
 
 	return ret;
@@ -91,12 +96,18 @@ static int location_delete(const char *desc, char *result, int size)
 
 	ret = -EINVAL;
 
-	if ( (loc = find_rddma_location(NULL,&params) ) ) {
-		if ( loc && loc->desc.ops && loc->desc.ops->location_delete ) {
-			ret = 0;
-			loc->desc.ops->location_delete(loc, &params);
+	if ( params.location && *params.location) {
+		if ( (loc = locate_rddma_location(NULL,&params) ) ) {
+			if ( loc && loc->desc.ops && loc->desc.ops->location_delete ) {
+				ret = 0;
+				loc->desc.ops->location_delete(loc, &params);
+			}
+			rddma_location_put(loc);
 		}
-		rddma_location_put(loc);
+	}
+	else if (params.ops) {
+		ret = 0;
+		params.ops->location_delete(NULL,&params);
 	}
 out:
 	if (result)
@@ -124,35 +135,80 @@ static int location_find(const char *desc, char *result, int size)
 	struct rddma_location *loc = NULL;
 	struct rddma_desc_param params;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %s,%s\n",__FUNCTION__,params.name,params.location);
+
 	ret = -EINVAL;
-	
-	if (params.location && *params.location && *params.name) {
-		if ( (loc = find_rddma_location(NULL,&params)) ) {
-			if (loc->desc.ops && loc->desc.ops->location_find)
+	if (params.location && *params.location ) {
+		if ( (loc = locate_rddma_location(NULL,&params)) ) {
+			if (loc->desc.ops) {
 				ret = ((new_loc = loc->desc.ops->location_find(loc,&params)) == NULL);
+			}
 			rddma_location_put(loc);
 		}
 	}
 	else {
 		if (params.ops)
 			ret = (new_loc = params.ops->location_find(NULL,&params)) == NULL;
+		else
+			ret = (new_loc = find_rddma_name(NULL, &params)) == NULL;
 	}
 out:
 	if (result) {
 		if (ret)
-			ret = snprintf(result,size,"%s.%s#%llx:%x?result=%d,reply=%s\n",params.name,params.location,params.offset,params.extent, ret, rddma_get_option(&params,"request"));
+			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%s\n",params.name,params.offset,params.extent, ret, rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"%s.%s#%llx:%x?result=%d,reply=%s\n",new_loc->desc.name,new_loc->desc.location,new_loc->desc.offset,new_loc->desc.extent,
+			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%s\n",new_loc->desc.name,new_loc->desc.offset,new_loc->desc.extent,
 				       ret, rddma_get_option(&params,"request"));
 	}
 	rddma_clean_desc(&params);
 
 	return ret;
 }
+
+/**
+ * location_put - Unfinds the named location.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int location_put(const char *desc, char *result, int size)
+{
+	int ret = -ENOMEM;
+	struct rddma_location *loc = NULL;
+	struct rddma_desc_param params;
+
+	RDDMA_DEBUG(MY_DEBUG, "%s %s\n",__FUNCTION__,desc);
+	if ( (ret = rddma_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -EINVAL;
+
+	if (params.location && *params.location) {
+		if ( (loc = locate_rddma_location(NULL,&params) ) ) {
+			if ( loc && loc->desc.ops && loc->desc.ops->location_put ) {
+				ret = 0;
+				loc->desc.ops->location_put(loc, &params);
+			}
+			rddma_location_put(loc);
+		}
+	}
+out:
+	if (result)
+		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.name, ret, rddma_get_option(&params,"request"));
+	rddma_clean_desc(&params);
+
+	return ret;
+}
+
 
 /**
  * smb_create - Creates an SMB with given attributes at location.
@@ -182,7 +238,7 @@ static int smb_create(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (loc = find_rddma_location(NULL,&params) ) ) {
+	if ( (loc = locate_rddma_location(NULL,&params) ) ) {
 		ret = -EINVAL;
 		if (loc->desc.ops && loc->desc.ops->smb_create)
 			ret = ((smb = loc->desc.ops->smb_create(loc, &params)) == NULL);
@@ -226,7 +282,7 @@ static int smb_delete(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (loc = find_rddma_location(NULL,&params) ) ) {
+	if ( (loc = locate_rddma_location(NULL,&params) ) ) {
 		ret = -EINVAL;
 		if ( loc->desc.ops && loc->desc.ops->smb_delete ) {
 			ret = 0;
@@ -272,7 +328,7 @@ static int smb_find(const char *desc, char *result, int size)
 	if (!params.location)  
 		goto out;
 
-	if ( (loc = find_rddma_location(NULL,&params)) ) {
+	if ( (loc = locate_rddma_location(NULL,&params)) ) {
 		ret = -EINVAL;
 		
 		if (loc->desc.ops && loc->desc.ops->smb_find)
@@ -454,7 +510,7 @@ static int xfer_create(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (location = find_rddma_location(NULL,&params) ) ) {
+	if ( (location = locate_rddma_location(NULL,&params) ) ) {
 		ret = -EINVAL;
 		
 		if (location->desc.ops && location->desc.ops->xfer_create)
@@ -499,7 +555,7 @@ static int xfer_delete(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (loc = find_rddma_location(NULL,&params) ) ) {
+	if ( (loc = locate_rddma_location(NULL,&params) ) ) {
 		ret = -EINVAL;
 		if ( loc->desc.ops && loc->desc.ops->xfer_delete ) {
 			ret = 0;
@@ -541,7 +597,7 @@ static int xfer_find(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (location = find_rddma_location(NULL,&params)) ) {
+	if ( (location = locate_rddma_location(NULL,&params)) ) {
 		ret = -EINVAL;
 		if (location->desc.ops && location->desc.ops->xfer_find)
 			ret = ((xfer = location->desc.ops->xfer_find(location,&params)) == NULL);
@@ -592,7 +648,6 @@ static int xfer_start (const char*desc, char *result, int size)
 {
 	static int ret;
 	struct rddma_xfer *xfer = NULL;
-	struct rddma_location *location;
 	struct rddma_desc_param params;
 
 	if ((ret = rddma_parse_desc (&params, desc)))
@@ -1203,6 +1258,7 @@ static struct ops {
 	{"location_create", location_create},
 	{"location_delete", location_delete},
 	{"location_find", location_find},
+	{"location_put", location_put},
 	{"smb_create", smb_create},
 	{"smb_delete", smb_delete},
 	{"smb_find", smb_find},

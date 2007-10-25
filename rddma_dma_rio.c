@@ -961,7 +961,7 @@ err_event_out:
 	kfree (event_in);
 err_event_in: 
 	kfree (event_array);
-err_event_array: 
+/* err_event_array:  */
 	iounmap(de->regbase);
 	kfree(de);
 
