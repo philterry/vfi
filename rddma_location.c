@@ -331,11 +331,15 @@ struct rddma_location *locate_rddma_location(struct rddma_location *loc, struct 
 	struct rddma_location *new_loc;
 	char *old_locstr, *old_namestr;
 	char *new_locstr = NULL;
+	u64 offset;
+	unsigned int extent;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,desc,desc->name,desc->location);
 
 	old_locstr = desc->location;
 	old_namestr = desc->name;
+	offset = desc->offset;
+	extent = desc->extent;
 
 	if (old_locstr) {
 		new_locstr = strchr(desc->location, '.');
@@ -354,7 +358,8 @@ struct rddma_location *locate_rddma_location(struct rddma_location *loc, struct 
 
 	desc->location = old_locstr;
 	desc->name = old_namestr;
-
+	desc->offset = offset;
+	desc->extent = extent;
 	if (new_locstr)
 		*new_locstr = '.';
 

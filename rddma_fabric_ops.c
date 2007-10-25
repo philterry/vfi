@@ -69,11 +69,6 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 				desc->offset = reply.extent;
 				rddma_clean_desc(&reply);
 
-				if (oldloc && oldloc->desc.extent == desc->extent && oldloc->desc.offset == desc->offset)
-					return oldloc;
-
-				rddma_location_delete(oldloc);
-				
 				if (desc->extent == desc->offset) {
 					desc->extent = loc ? loc->desc.extent : 0;
 				}
@@ -84,6 +79,12 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 						loc->desc.extent = desc->extent;
 				}
 				
+				if (oldloc) {
+					oldloc->desc.extent = desc->extent;
+					oldloc->desc.offset = desc->offset;
+					return oldloc;
+				}
+
 				return rddma_location_create(loc,desc);
 			}
 		}
