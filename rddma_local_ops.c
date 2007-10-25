@@ -179,7 +179,7 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	if (!DESC_VALID(&dsmb->desc,&desc->dst))
 		goto fail_ddesc;
 
-	sloc = find_rddma_location(NULL,&desc->src);
+	sloc = locate_rddma_location(NULL,&desc->src);
 
 	first_page = START_PAGE(&dsmb->desc,&desc->dst);
 	last_page = first_page + NUM_DMA(&dsmb->desc,&desc->dst);
@@ -519,7 +519,7 @@ static void rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind
 				struct rddma_location *loc;
 				src = to_rddma_src (to_kobj (entry));
 				RDDMA_DEBUG(MY_DEBUG,"-- Delete src %s (kobj %s)...\n", src->desc.src.name, kobject_name (&src->kobj));
-				if ((loc = find_rddma_location (NULL,&src->desc.src))) {
+				if ((loc = locate_rddma_location (NULL,&src->desc.src))) {
 					if (loc->desc.ops && loc->desc.ops->src_delete) {
 						loc->desc.ops->src_delete (parent, &src->desc);
 					}
@@ -609,7 +609,7 @@ static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bin
 				struct rddma_location *loc;
 				dst = to_rddma_dst (to_kobj (entry));
 				RDDMA_DEBUG(MY_DEBUG,"-- Delete dst %s (kobj %s)...\n", dst->desc.dst.name, kobject_name (&dst->kobj));
-				if ((loc = find_rddma_location (NULL,&dst->desc.dst))) {
+				if ((loc = locate_rddma_location (NULL,&dst->desc.dst))) {
 					if (loc->desc.ops && loc->desc.ops->dst_delete) {
 						loc->desc.ops->dst_delete (parent, &dst->desc);
 					}

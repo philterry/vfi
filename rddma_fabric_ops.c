@@ -45,10 +45,10 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 	oldloc = find_rddma_name(loc,desc);
 
 	if (loc) {
-		if ( desc->name && *desc->name )
+/* 		if ( desc->name && *desc->name ) */
 			skb = rddma_fabric_call(loc, 5, "location_find://%s.%s", desc->name,desc->location);
-		else
-			skb = rddma_fabric_call(loc, 5, "location_find://%s", desc->location);
+/* 		else */
+/* 			skb = rddma_fabric_call(loc, 5, "location_find://%s", desc->location); */
 	}
 	else {
 		myloc = new_rddma_location(NULL,desc);

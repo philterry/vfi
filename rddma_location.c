@@ -172,12 +172,12 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 		goto out;
 	rddma_clone_desc(&new->desc, desc);
 	new->kset.kobj.ktype = &rddma_location_type;
-	if ( new->desc.name && *new->desc.name )
+/* 	if ( new->desc.name && *new->desc.name ) */
 		kobject_set_name(&new->kset.kobj, "%s", new->desc.name);
-	else if (new->desc.location && *new->desc.location)
-		kobject_set_name(&new->kset.kobj, "%s", new->desc.location);
-	else
-		kobject_set_name(&new->kset.kobj, "%s.%s", new->desc.name, new->desc.location);
+/* 	else if (new->desc.location && *new->desc.location) */
+/* 		kobject_set_name(&new->kset.kobj, "%s", new->desc.location); */
+/* 	else */
+/* 		kobject_set_name(&new->kset.kobj, "%s.%s", new->desc.name, new->desc.location); */
 
 	if (loc)
 		new->kset.kobj.kset = &loc->kset;
@@ -308,14 +308,14 @@ struct rddma_location *find_rddma_location(struct rddma_location *loc, struct rd
 
 		if ( !rddma_parse_desc(&tmpparams,params->location) ) {
 			RDDMA_DEBUG(MY_DEBUG,"%s %s,%s\n",__FUNCTION__,tmpparams.name,tmpparams.location);
-			if (tmpparams.location && *tmpparams.location) {
+/* 			if (tmpparams.location && *tmpparams.location) { */
 				if ( (tmploc = find_rddma_location(loc,&tmpparams)) ) {
 					newloc = tmploc->desc.ops->location_find(tmploc,params);
 					rddma_location_put(tmploc);
 				}
-			}
-			else
-				newloc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,tmpparams.name));		
+/* 			} */
+/* 			else */
+/* 				newloc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,tmpparams.name));		 */
 			rddma_clean_desc(&tmpparams);
 		}
 	}
@@ -324,6 +324,41 @@ struct rddma_location *find_rddma_location(struct rddma_location *loc, struct rd
 
 	RDDMA_DEBUG_SAFE(MY_DEBUG,newloc,"%s -> %p %s,%s\n",__FUNCTION__,newloc,newloc->desc.name,newloc->desc.location);
 	return newloc;
+}
+
+struct rddma_location *locate_rddma_location(struct rddma_location *loc, struct rddma_desc_param *desc)
+{
+	struct rddma_location *new_loc;
+	char *old_locstr, *old_namestr;
+	char *new_locstr = NULL;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,desc,desc->name,desc->location);
+
+	old_locstr = desc->location;
+	old_namestr = desc->name;
+
+	if (old_locstr) {
+		new_locstr = strchr(desc->location, '.');
+		desc->name = desc->location;
+
+		if (new_locstr) {
+			desc->location = new_locstr + 1;
+			*new_locstr = '\0';
+		}
+		else {
+			desc->location = NULL;
+		}
+	}
+
+	new_loc = find_rddma_location(loc,desc);
+
+	desc->location = old_locstr;
+	desc->name = old_namestr;
+
+	if (new_locstr)
+		*new_locstr = '.';
+
+	return new_loc;
 }
 
 struct rddma_location *rddma_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)
