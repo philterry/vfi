@@ -18,6 +18,80 @@ struct rddma_location;
 #include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/version.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
+{
+	return skb->end;
+}
+static inline unsigned char *skb_tail_pointer(const struct sk_buff *skb)
+{
+	return skb->tail;
+}
+
+static inline void skb_reset_tail_pointer(struct sk_buff *skb)
+{
+	skb->tail = skb->data;
+}
+
+static inline void skb_set_tail_pointer(struct sk_buff *skb, const int offset)
+{
+	skb->tail = skb->data + offset;
+}
+
+static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
+{
+	return skb->h.raw;
+}
+
+static inline void skb_reset_transport_header(struct sk_buff *skb)
+{
+	skb->h.raw = skb->data;
+}
+
+static inline void skb_set_transport_header(struct sk_buff *skb,
+					    const int offset)
+{
+	skb->h.raw = skb->data + offset;
+}
+
+static inline unsigned char *skb_network_header(const struct sk_buff *skb)
+{
+	return skb->nh.raw;
+}
+
+static inline void skb_reset_network_header(struct sk_buff *skb)
+{
+	skb->nh.raw = skb->data;
+}
+
+static inline void skb_set_network_header(struct sk_buff *skb, const int offset)
+{
+	skb->nh.raw = skb->data + offset;
+}
+
+static inline unsigned char *skb_mac_header(const struct sk_buff *skb)
+{
+	return skb->mac.raw;
+}
+
+static inline int skb_mac_header_was_set(const struct sk_buff *skb)
+{
+	return skb->mac.raw != NULL;
+}
+
+static inline void skb_reset_mac_header(struct sk_buff *skb)
+{
+	skb->mac.raw = skb->data;
+}
+
+static inline void skb_set_mac_header(struct sk_buff *skb, const int offset)
+{
+	skb->mac.raw = skb->data + offset;
+}
+#endif /* Linux < 2.6.23 */
+
 /* 
  * This module defines the interface to the bottom of the RDDMA driver
  * for its "fabric" interface. This interface can be implemented in a
