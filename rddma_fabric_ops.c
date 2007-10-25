@@ -152,7 +152,7 @@ static struct rddma_smb *rddma_fabric_smb_find(struct rddma_location *parent, st
 		int ret = -EINVAL;
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
 				smb = rddma_smb_create(parent,&reply);
 			rddma_clean_desc(&reply);
 		}
@@ -181,7 +181,7 @@ static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *parent, 
 		int ret = -EINVAL;
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
 				xfer =  rddma_xfer_create(loc,&reply);
 			rddma_clean_desc(&reply);
 		}
@@ -207,7 +207,7 @@ static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, stru
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
 				bind = rddma_bind_create(parent,&reply);
 			rddma_clean_bind(&reply);
 		}
@@ -233,7 +233,7 @@ static struct rddma_dst *rddma_fabric_dst_find(struct rddma_bind *parent, struct
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
 				dst = rddma_dst_create(parent,&reply);
 			rddma_clean_bind(&reply);
 		}
@@ -259,7 +259,7 @@ static struct rddma_src *rddma_fabric_src_find(struct rddma_dst *parent, struct 
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
 				src = rddma_src_create(parent,&reply);
 			rddma_clean_bind(&reply);
 		}
@@ -287,13 +287,11 @@ static struct rddma_location *rddma_fabric_location_create(struct rddma_location
 	if (skb) {
 		struct rddma_desc_param reply;
 		int ret = -EINVAL;
-		struct rddma_location *new_loc;
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0) {
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
 				desc->extent = reply.offset;
 				desc->offset = reply.extent;
-				rddma_clean_desc(&reply);
 
 				if (desc->extent == desc->offset) {
 					desc->extent = loc ? loc->desc.extent : 0;
@@ -305,10 +303,9 @@ static struct rddma_location *rddma_fabric_location_create(struct rddma_location
 						loc->desc.extent = desc->extent;
 				}
 				
-				new_loc = rddma_location_create(loc,desc);
-				if (loc && loc->desc.address)
-					loc->desc.address->ops->register_location(new_loc);
-				return new_loc;
+				newloc = rddma_location_create(loc,desc);
+				if (newloc && newloc->desc.address)
+					newloc->desc.address->ops->register_location(newloc);
 			}
 			rddma_clean_desc(&reply);
 		}
@@ -338,7 +335,7 @@ static struct rddma_smb *rddma_fabric_smb_create(struct rddma_location *loc, str
 		int ret = -EINVAL;
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
 				smb = rddma_smb_create(loc,&reply);
 			rddma_clean_desc(&reply);
 		}
@@ -368,7 +365,7 @@ static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, s
 		int ret = -EINVAL;
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
 				xfer = rddma_xfer_create(loc,&reply);
 			rddma_clean_desc(&reply);
 		}
@@ -396,7 +393,7 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0) {
+			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0) {
 				va_start(ap,name);
 				dsts = rddma_dsts_create_ap(parent,&reply,name,ap);
 				va_end(ap);
@@ -425,7 +422,7 @@ static struct rddma_dst *rddma_fabric_dst_create(struct rddma_bind *parent, stru
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
 				dst = rddma_dst_create(parent,&reply);
 			rddma_clean_bind(&reply);
 		}
@@ -451,7 +448,7 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
 				srcs = rddma_srcs_create(parent,&reply);
 			rddma_clean_bind(&reply);
 		}
@@ -477,7 +474,7 @@ static struct rddma_src *rddma_fabric_src_create(struct rddma_dst *parent, struc
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
 				src = rddma_src_create(parent,&reply);
 			rddma_clean_bind(&reply);
 		}
@@ -499,7 +496,7 @@ static void rddma_fabric_location_delete(struct rddma_location *loc, struct rddm
 		int ret = -EINVAL;
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
 				rddma_location_delete(loc);
 			rddma_clean_desc(&reply);
 		}
@@ -520,7 +517,7 @@ static void rddma_fabric_smb_delete(struct rddma_location *loc, struct rddma_des
 		int ret = -EINVAL;
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
 				rddma_smb_delete(smb);
 			rddma_clean_desc(&reply);
 		}
@@ -549,7 +546,7 @@ static void rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_de
 		int ret = -EINVAL;
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
 				rddma_xfer_delete(xfer);
 			rddma_clean_desc(&reply);
 		}
@@ -576,7 +573,7 @@ static void rddma_fabric_dst_delete(struct rddma_bind *parent, struct rddma_bind
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			int ret = -EINVAL;
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
 				rddma_dst_delete(dst);
 			rddma_clean_bind(&reply);
 		}
@@ -603,7 +600,7 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			int ret = -EINVAL;
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"result=%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
 				rddma_src_delete(src);
 			rddma_clean_bind(&reply);
 		}
