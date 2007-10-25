@@ -86,7 +86,8 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 				}
 
 				oldloc = rddma_location_create(loc,desc);
-				loc->desc.address->ops->register_location(oldloc);
+				if (loc && loc->desc.address)
+					loc->desc.address->ops->register_location(oldloc);
 				return oldloc;
 			}
 			rddma_clean_desc(&reply);
@@ -305,7 +306,8 @@ static struct rddma_location *rddma_fabric_location_create(struct rddma_location
 				}
 				
 				new_loc = rddma_location_create(loc,desc);
-				loc->desc.address->ops->register_location(new_loc);
+				if (loc && loc->desc.address)
+					loc->desc.address->ops->register_location(new_loc);
 				return new_loc;
 			}
 			rddma_clean_desc(&reply);
