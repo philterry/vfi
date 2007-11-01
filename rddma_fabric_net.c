@@ -133,7 +133,7 @@ static struct fabric_address *find_fabric_address(unsigned long idx, char *hwadd
 	struct fabric_address *fp = address_table[idx & 15];
 	struct fabric_address *new;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %lx\n",__FUNCTION__,idx);
+	RDDMA_DEBUG(MY_DEBUG,"%s %lx " MACADDRFMT "\n",__FUNCTION__,idx,MACADDRBYTES(hwaddr));
 	if ( idx == UNKNOWN_IDX) {
 		if ( (new = find_fabric_mac(hwaddr,ndev)) )
 			return new;

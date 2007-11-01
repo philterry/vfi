@@ -112,6 +112,8 @@ static void rddma_debug(char *format, ...)
 /* Helper for printing sysfs attributes... define your show function (...char *buffer...) with {int left = PAGE_SIZE;int size = 0; .... return size;} */
 /* then ... can include ATTR_PRINTF("format string",...); */
 #define ATTR_PRINTF(f,arg...) size += snprintf(buffer+size,left,f, ## arg); left -=size
+#define MACADDRFMT "%x:%x:%x:%x:%x:%x"
+#define MACADDRBYTES(mac) mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]
 
 static inline struct kobject *to_kobj(struct list_head *entry)
 {
