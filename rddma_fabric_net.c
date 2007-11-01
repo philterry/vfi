@@ -74,7 +74,7 @@ static struct fabric_address *address_table[256];
 static void update_fabric_address(struct fabric_address *fp, char *hwaddr, struct net_device *ndev)
 {
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s\n",__FUNCTION__,fp,hwaddr,ndev->name);
-	if (hwaddr && strncmp(fp->hw_address,hwaddr,ETH_ALEN))
+	if (hwaddr && memcmp(fp->hw_address,hwaddr,ETH_ALEN))
 		memcpy(fp->hw_address,hwaddr,ETH_ALEN);
 	
 	if (ndev && !fp->ndev )
@@ -252,7 +252,7 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 	int ret = NET_XMIT_DROP;
 	struct fabric_address *fna = to_fabric_address(addr);
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %p\n",__FUNCTION__,addr,skb->data,fna);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %p " MACADDRFMT "\n",__FUNCTION__,addr,skb->data,fna, MACADDRBYTES(fna->hw_address));
 
 	if (fna->ndev) {
 		skb_reset_transport_header(skb);

@@ -113,7 +113,7 @@ static void rddma_debug(char *format, ...)
 /* then ... can include ATTR_PRINTF("format string",...); */
 #define ATTR_PRINTF(f,arg...) size += snprintf(buffer+size,left,f, ## arg); left -=size
 #define MACADDRFMT "%x:%x:%x:%x:%x:%x"
-#define MACADDRBYTES(mac) mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]
+#define MACADDRBYTES(mac) (unsigned char)mac[0],(unsigned char)mac[1],(unsigned char)mac[2],(unsigned char)mac[3],(unsigned char)mac[4],(unsigned char)mac[5]
 
 static inline struct kobject *to_kobj(struct list_head *entry)
 {
