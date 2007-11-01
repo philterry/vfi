@@ -29,6 +29,7 @@ static void rddma_location_release(struct kobject *kobj)
 {
     struct rddma_location *p = to_rddma_location(kobj);
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+    rddma_address_unregister(p);
     rddma_clean_desc(&p->desc);
     kfree(p);
 }

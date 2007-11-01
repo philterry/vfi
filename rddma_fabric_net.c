@@ -133,7 +133,8 @@ static struct fabric_address *find_fabric_address(unsigned long idx, char *hwadd
 	struct fabric_address *fp = address_table[idx & 15];
 	struct fabric_address *new;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %lx " MACADDRFMT "\n",__FUNCTION__,idx,MACADDRBYTES(hwaddr));
+	RDDMA_DEBUG(MY_DEBUG,"%s %lx\n",__FUNCTION__,idx);
+	RDDMA_DEBUG_SAFE(MY_DEBUG,hwaddr,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
 	if ( idx == UNKNOWN_IDX) {
 		if ( (new = find_fabric_mac(hwaddr,ndev)) )
 			return new;
@@ -247,7 +248,7 @@ struct packet_type rddma_packets = {
 static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *skb)
 {
 	struct rddmahdr *mac;
-	unsigned long srcidx,dstidx;
+	unsigned long srcidx = 0, dstidx = 0;
 
 	int ret = NET_XMIT_DROP;
 	struct fabric_address *fna = to_fabric_address(addr);
@@ -274,9 +275,12 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 			srcidx = htonl(fna->reg_loc->desc.offset);
 		}
 		else {
-			dstidx = htonl(default_dest);
 			srcidx = htonl(UNKNOWN_IDX);
 		}
+
+		if (!dstidx)
+			dstidx = htonl(default_dest);
+
 		memcpy(&mac->h_srcidx, &srcidx, sizeof(mac->h_srcidx));
 		memcpy(&mac->h_dstidx, &dstidx, sizeof(mac->h_dstidx));
 
@@ -315,14 +319,14 @@ static int fabric_register(struct rddma_location *loc)
 	struct net_device *ndev = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
-	if (old->reg_loc)
+	if (old && old->reg_loc)
 		return -EEXIST;
 
 	if ( (ndev_name = rddma_get_option(&loc->desc,"netdev=")) ) {
 		if ( !(ndev = dev_get_by_name(ndev_name)) )
 			return -ENODEV;
 	}
-	else if (old->ndev)
+	else if (old && old->ndev)
 		ndev = old->ndev;
 	else if ( !(ndev = dev_get_by_name(netdev_name)) )
 		return -ENODEV;

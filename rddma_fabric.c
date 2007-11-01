@@ -130,6 +130,8 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 			skb_put(skb,sprintf(skb->tail, "%crequest=%p",strstr(skb->data,"?") ? ',' : '?', cb)); 
 			RDDMA_DEBUG(MY_DEBUG,"	%s: %s\n",__FUNCTION__, skb->data);
 			
+			rddma_address_register(loc);
+
 			if (rddma_fabric_tx(loc->desc.address, skb)) {
 				kfree(cb);
 				return NULL;
