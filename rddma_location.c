@@ -173,12 +173,7 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 		goto out;
 	rddma_clone_desc(&new->desc, desc);
 	new->kset.kobj.ktype = &rddma_location_type;
-/* 	if ( new->desc.name && *new->desc.name ) */
-		kobject_set_name(&new->kset.kobj, "%s", new->desc.name);
-/* 	else if (new->desc.location && *new->desc.location) */
-/* 		kobject_set_name(&new->kset.kobj, "%s", new->desc.location); */
-/* 	else */
-/* 		kobject_set_name(&new->kset.kobj, "%s.%s", new->desc.name, new->desc.location); */
+	kobject_set_name(&new->kset.kobj, "%s", new->desc.name);
 
 	if (loc)
 		new->kset.kobj.kset = &loc->kset;

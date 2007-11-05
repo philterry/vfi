@@ -29,8 +29,9 @@ static unsigned long default_dest = 1;
 module_param(default_dest,ulong,0444);
 
 struct fabric_address {
-	unsigned char hw_address[ETH_ALEN];
-	unsigned long idx;	/* ip address hint hint nod nod */
+	unsigned char hw_address[ETH_ALEN]; /* dest mac address */
+	unsigned long idx;	/* dest ip address hint hint nod nod */
+	unsigned long src_idx;	/* src ip address */
 	struct rddma_location *reg_loc;
 #define UNKNOWN_IDX 0UL
 	struct net_device *ndev;
@@ -71,19 +72,28 @@ static inline void _fabric_put(struct fabric_address *fna)
 
 static struct fabric_address *address_table[256];
 
-static void update_fabric_address(struct fabric_address *fp, char *hwaddr, struct net_device *ndev)
+static void update_fabric_address(struct fabric_address *fp, unsigned long src_idx, char *hwaddr, struct net_device *ndev)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s\n",__FUNCTION__,fp,hwaddr,ndev->name);
-	if (hwaddr && memcmp(fp->hw_address,hwaddr,ETH_ALEN))
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %lx %s\n",__FUNCTION__,fp,hwaddr,src_idx,ndev->name);
+	if (hwaddr) {
+		RDDMA_DEBUG(MY_DEBUG,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
 		memcpy(fp->hw_address,hwaddr,ETH_ALEN);
+	}
 	
-	if (ndev && !fp->ndev )
+	if (ndev) {
+		RDDMA_DEBUG_SAFE(MY_DEBUG,fp->ndev,"%s overwriting old ndev %p with %p\n",__FUNCTION__,fp->ndev,ndev);
 		fp->ndev = ndev;
+	}
+
+	if (src_idx) {
+		RDDMA_DEBUG_SAFE(MY_DEBUG,fp->src_idx,"%s overwriting old src_idx %lx with %lx\n",__FUNCTION__,fp->src_idx,src_idx);
+		fp->src_idx = src_idx;
+	}
 }
 
 static struct rddma_address_ops fabric_net_ops;
 
-static struct fabric_address *new_fabric_address(unsigned long idx, char *hwaddr, struct net_device *ndev)
+static struct fabric_address *new_fabric_address(unsigned long idx, unsigned long src_idx, char *hwaddr, struct net_device *ndev)
 {
 	struct fabric_address *new = kzalloc(sizeof(struct fabric_address),GFP_KERNEL);
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
@@ -95,7 +105,7 @@ static struct fabric_address *new_fabric_address(unsigned long idx, char *hwaddr
 
 	new->idx = idx;
 
-	update_fabric_address(new,hwaddr,ndev);
+	update_fabric_address(new,src_idx,hwaddr,ndev);
 
 	new->rfa.ops = &fabric_net_ops;
 	new->rfa.owner = THIS_MODULE;
@@ -128,7 +138,7 @@ static struct fabric_address *find_fabric_mac(char *hwaddr, struct net_device *n
 	return NULL;
 }
 
-static struct fabric_address *find_fabric_address(unsigned long idx, char *hwaddr, struct net_device *ndev)
+static struct fabric_address *find_fabric_address(unsigned long idx, unsigned long src_idx, char *hwaddr, struct net_device *ndev)
 {
 	struct fabric_address *fp = address_table[idx & 15];
 	struct fabric_address *new;
@@ -139,30 +149,30 @@ static struct fabric_address *find_fabric_address(unsigned long idx, char *hwadd
 		if ( (new = find_fabric_mac(hwaddr,ndev)) )
 			return new;
 		else
-			return new_fabric_address(idx,hwaddr,ndev);
+			return new_fabric_address(idx,src_idx,hwaddr,ndev);
 	}
 
 	if (fp) {
 		if (fp->idx == idx) {
-			update_fabric_address(fp,hwaddr,ndev);
+			update_fabric_address(fp,0,hwaddr,ndev);
 			return _fabric_get(fp);
 		}
 
 		if (!list_empty(&fp->list)) {
 			list_for_each_entry(new, &fp->list , list) {
 				if (new->idx == idx) {
-					update_fabric_address(new,hwaddr,ndev);
+					update_fabric_address(new,0,hwaddr,ndev);
 					return _fabric_get(new);
 				}
 			}
 		}
 
-		new = new_fabric_address(idx,hwaddr,ndev);
+		new = new_fabric_address(idx,src_idx,hwaddr,ndev);
 		list_add_tail(&new->list,&fp->list);
 		return _fabric_get(new);
 	}
 
-	address_table[idx & 15] = fp = _fabric_get(new_fabric_address(idx,hwaddr,ndev));
+	address_table[idx & 15] = fp = _fabric_get(new_fabric_address(idx,src_idx,hwaddr,ndev));
 	return fp;
 }
 
@@ -224,10 +234,10 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 	memcpy(&srcidx, &mac->h_srcidx, 4);
 	be32_to_cpus((__u32 *)&srcidx);
 
-	fna = find_fabric_address(srcidx,mac->h_source,dev);
+	fna = find_fabric_address(srcidx,dstidx,mac->h_source,dev);
 	
 	if (fna->reg_loc)
-		if (fna->reg_loc->desc.offset != dstidx)
+		if (fna->reg_loc->desc.extent != dstidx)
 			goto forget;
 
 	*skb_tail_pointer(skb) = '\0';
@@ -270,13 +280,8 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 
 		mac->h_proto = htons(netdev_type);
 
-		if (fna->reg_loc) {
-			dstidx = htonl(fna->reg_loc->desc.extent);
-			srcidx = htonl(fna->reg_loc->desc.offset);
-		}
-		else {
-			srcidx = htonl(UNKNOWN_IDX);
-		}
+		dstidx = fna->idx;
+		srcidx = fna->src_idx;
 
 		if (!dstidx)
 			dstidx = htonl(default_dest);
@@ -319,8 +324,9 @@ static int fabric_register(struct rddma_location *loc)
 	struct net_device *ndev = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
-	if (old && old->reg_loc)
-		return -EEXIST;
+
+/* 	if (old && old->reg_loc) */
+/* 		return -EEXIST; */
 
 	if ( (ndev_name = rddma_get_option(&loc->desc,"netdev=")) ) {
 		if ( !(ndev = dev_get_by_name(ndev_name)) )
@@ -331,19 +337,22 @@ static int fabric_register(struct rddma_location *loc)
 	else if ( !(ndev = dev_get_by_name(netdev_name)) )
 		return -ENODEV;
 	
-	fna = find_fabric_address(loc->desc.offset,0,ndev);
+	fna = find_fabric_address(loc->desc.offset,loc->desc.extent,0,ndev);
 	loc->desc.address = &fna->rfa;
-	_fabric_put(old);
-
 	fna->reg_loc = rddma_location_get(loc);
+
+	rddma_location_put(old->reg_loc);
+	_fabric_put(old);
 
 	return 0;
 }
 
 static void fabric_unregister(struct rddma_location *loc)
 {
+	struct fabric_address *old = to_fabric_address(loc->desc.address);
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
-	fabric_put(loc->desc.address);
+	old->reg_loc = NULL;
+	_fabric_put(old);
 	rddma_location_put(loc);
 }
 
@@ -373,7 +382,7 @@ static struct rddma_address_ops fabric_net_ops = {
 static int __init fabric_net_init(void)
 {
 	struct fabric_address *fna;
-	if ( (fna = new_fabric_address(UNKNOWN_IDX,0,0)) ) {
+	if ( (fna = new_fabric_address(UNKNOWN_IDX,0,0,0)) ) {
 		snprintf(fna->rfa.name, RDDMA_MAX_FABRIC_NAME_LEN, "%s", "rddma_fabric_net");
 		if (netdev_name)
 			if ( (fna->ndev = dev_get_by_name(netdev_name)) ) {

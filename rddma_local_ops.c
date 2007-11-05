@@ -136,6 +136,9 @@ static struct rddma_location *rddma_local_location_create(struct rddma_location 
 
 	newloc = rddma_location_create(loc,desc);
 
+	if (newloc && newloc->desc.address)
+		newloc->desc.address->ops->register_location(newloc);
+
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,loc,desc,newloc);
 
 	return newloc;
