@@ -237,7 +237,7 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 	fna = find_fabric_address(srcidx,dstidx,mac->h_source,dev);
 	
 	if (fna->reg_loc)
-		if (fna->reg_loc->desc.extent != dstidx)
+		if (dstidx && fna->reg_loc->desc.extent != dstidx)
 			goto forget;
 
 	*skb_tail_pointer(skb) = '\0';
@@ -280,11 +280,11 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 
 		mac->h_proto = htons(netdev_type);
 
-		dstidx = fna->idx;
-		srcidx = fna->src_idx;
+		dstidx = htonl(fna->idx);
+		srcidx = htonl(fna->src_idx);
 
-		if (!dstidx)
-			dstidx = htonl(default_dest);
+/* 		if (!dstidx) */
+/* 			dstidx = htonl(default_dest); */
 
 		memcpy(&mac->h_srcidx, &srcidx, sizeof(mac->h_srcidx));
 		memcpy(&mac->h_dstidx, &dstidx, sizeof(mac->h_dstidx));
