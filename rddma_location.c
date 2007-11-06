@@ -389,6 +389,13 @@ void rddma_location_delete(struct rddma_location *loc)
 	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,loc);
 	if (loc) {
 		rddma_location_unregister(loc);
+		
+		if (loc && loc->desc.rde)
+			rddma_dma_put(loc->desc.rde);
+		
+		if (loc && loc->desc.address)
+			rddma_fabric_put(loc->desc.address);
+		
 		rddma_location_put(loc);
 	}
 }

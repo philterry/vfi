@@ -149,19 +149,19 @@ static struct fabric_address *find_fabric_address(unsigned long idx, unsigned lo
 		if ( (new = find_fabric_mac(hwaddr,ndev)) )
 			return new;
 		else
-			return new_fabric_address(idx,src_idx,hwaddr,ndev);
+			return new_fabric_address(idx,0,hwaddr,ndev);
 	}
 
 	if (fp) {
 		if (fp->idx == idx) {
-			update_fabric_address(fp,0,hwaddr,ndev);
+			update_fabric_address(fp,src_idx,hwaddr,ndev);
 			return _fabric_get(fp);
 		}
 
 		if (!list_empty(&fp->list)) {
 			list_for_each_entry(new, &fp->list , list) {
 				if (new->idx == idx) {
-					update_fabric_address(new,0,hwaddr,ndev);
+					update_fabric_address(new,src_idx,hwaddr,ndev);
 					return _fabric_get(new);
 				}
 			}
@@ -234,7 +234,7 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 	memcpy(&srcidx, &mac->h_srcidx, 4);
 	be32_to_cpus((__u32 *)&srcidx);
 
-	fna = find_fabric_address(srcidx,dstidx,mac->h_source,dev);
+	fna = find_fabric_address(srcidx,0,mac->h_source,dev);
 	
 	if (fna->reg_loc)
 		if (dstidx && fna->reg_loc->desc.extent != dstidx)
