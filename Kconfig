@@ -18,13 +18,14 @@ config RDDMA_FABRIC_NET
 	  Enable support for using the ethernet for RDDMA as if
 	  it were a switch fabric.
 
+# Note: following depends on RAPIDIO, not NET, fixme later!
+
 config RDDMA_FABRIC_RIONET
 	tristate "Rincon DMA driver -- RIO switch fabric"
 	depends on RDDMA && NET
 	default m
 	---help---
-	  Enable support for using the ethernet for RDDMA as if
-	  it were a switch fabric.
+	  Enable support for RDDMA communication over RIO switch fabric
 
 # also depends on RAPIDIO, but removed for now
 
