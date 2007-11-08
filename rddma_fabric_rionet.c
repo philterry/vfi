@@ -18,6 +18,14 @@
 #include <linux/netdevice.h>
 #include <linux/module.h>
 #include <linux/if_ether.h>
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
+#include <linux/rio_drv.h>
+#include <linux/rio_ids.h>
+#include <linux/list.h>
+
+#define RDDMA_DOORBELL_START 0x2000
+#define RDDMA_DOORBELL_END 0x4000
 
 static char *netdev_name = "rionet"; /* "eth0" or "br0" or "bond0" "rionet0" etc */
 module_param(netdev_name, charp, 0444);
@@ -38,6 +46,45 @@ struct fabric_address {
 	struct rddma_fabric_address rfa;
 	struct kobject kobj;
 };
+
+/* RDDMA uses a single range of doorbell values.
+ * Doorbells are allocated from among this range as needed.
+ * Allocated doorbells, along with their callback functions, 
+ * are stored in doorbell_harray[].  If the number of allocated
+ * doorbells exceeds the size of doorbell_harray, array entries
+ * become hash lists.
+ *
+ * Doorbells are allocated in order from the shortest hash list.
+ * If list_head.next of the doorbell array is 0, the bin is unused.
+ */
+#define NUM_DOORBELL_BINS 256
+
+struct doorbell_node {
+	struct list_head node;
+	void (*cb) (struct rio_mport *, void *, u16, u16, u16);
+	void *arg;
+	u16 id;
+};
+
+struct doorbell_node doorbell_harray[NUM_DOORBELL_BINS];
+
+struct _rddma_dbell_mgr {
+	int next;
+	int mindepth;
+	int first_id;
+	int last_id;
+	int num_alloc;
+	int num;
+	int high_watermark;
+	spinlock_t lock;
+	struct semaphore sem;
+	struct doorbell_node *dbell;
+};
+
+static struct _rddma_dbell_mgr rddma_dbells;
+
+static void rddma_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
+	u16 dst, u16 id);
 
 static inline struct fabric_address *to_fabric_address(struct rddma_fabric_address *rfa)
 {
@@ -359,9 +406,67 @@ static struct rddma_address_ops fabric_net_ops = {
 	.unregister_doorbell = doorbell_unregister,
 };
 
-static int __init fabric_net_init(void)
+#if 1
+
+static struct rio_device_id rionet_id_table[] = {
+	{RIO_DEVICE(RIO_ANY_ID,RIO_ANY_ID)}
+};
+
+static int fabric_rionet_init(struct rio_dev *rdev, const struct rio_device_id *id);
+static void fabric_rionet_remove(struct rio_dev *rdev);
+
+static struct rio_driver rddma_rio_drv = {
+	.name = "rddma_rionet",
+	.id_table = rionet_id_table, 
+	.probe = fabric_rionet_init,
+	.remove = fabric_rionet_remove,
+};
+
+#endif
+
+void rddma_doorbells_init(int first, int last)
+{
+	int num = last - first + 1;
+	int i;
+	rddma_dbells.dbell = &doorbell_harray[0];
+	for (i = 0; i < NUM_DOORBELL_BINS; i++) {
+		memset(&doorbell_harray[i], 0, sizeof(struct doorbell_node));
+		doorbell_harray[i].id = 0xffff;
+	}
+	spin_lock_init (&rddma_dbells.lock);
+	init_MUTEX(&rddma_dbells.sem);
+	rddma_dbells.next = 0;
+	rddma_dbells.mindepth = 0;
+	rddma_dbells.num = num;
+	rddma_dbells.num_alloc = 0;
+	rddma_dbells.high_watermark = 0;
+	rddma_dbells.first_id = first;
+	rddma_dbells.last_id = last;
+};
+
+static void fabric_rionet_remove(struct rio_dev *rdev)
+{
+	/* dummy for now */
+}
+
+#if 0 /* Jimmy testing */
+static int __init fabric_rionet_init(void)
+#endif
+static int  fabric_rionet_init(struct rio_dev *rdev, const struct rio_device_id *id)
 {
 	struct fabric_address *fna;
+	int rc;
+#if 1
+	/* Jimmy */
+	if ((rc = rio_request_inb_dbell(rdev->net->hport,
+					(void *)rdev->net,
+					RDDMA_DOORBELL_START,
+					RDDMA_DOORBELL_END,
+					rddma_dbell_event)) < 0)
+		return -EINVAL;
+
+	rddma_doorbells_init(RDDMA_DOORBELL_START, RDDMA_DOORBELL_END);
+#endif
 	if ( (fna = new_fabric_address(UNKNOWN_IDX,0,0)) ) {
 		snprintf(fna->rfa.name, RDDMA_MAX_FABRIC_NAME_LEN, "%s", "rddma_fabric_rionet");
 		if (netdev_name)
@@ -375,10 +480,245 @@ static int __init fabric_net_init(void)
 	return -ENOMEM;
 }
 
+/* Look for 'val' in linked list.  Return value of function is position in
+ * list (0 if not found) 
+ * 'db' is for returning pointer to found entry  */
+static int find_db_in_list(struct list_head *q, u16 val, struct doorbell_node **db)
+{
+	struct list_head *dnode;
+	int queue_depth = 0;
+	__list_for_each(dnode, q) {
+		queue_depth++;
+		*db = list_entry(dnode, struct doorbell_node, node);
+		if ((*db)->id == val)
+			return queue_depth;
+	}
+	*db = NULL;
+	return 0;
+}
+
+static int list_len (struct list_head *list)
+{
+	struct list_head *pos;
+	int ret = 0;
+	__list_for_each(pos, list) {
+		ret++;
+	}
+	return ret;
+}
+/* Dispatch doorbell interrupt to the appropriate callback */
+/* should this be void or int return val?? */
+static void rddma_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
+	u16 dst, u16 id) 
+{
+	int depth;
+	int bin = (id - rddma_dbells.first_id) % NUM_DOORBELL_BINS;
+	struct doorbell_node *pdoorbell = &doorbell_harray[bin];
+
+	if (pdoorbell->node.next == 0)
+		depth = -1;
+	else {
+		if (pdoorbell->id == id)
+			depth = 0;
+		else {
+			depth = find_db_in_list(&pdoorbell->node, id, &pdoorbell);
+			if (depth == 0)
+				depth = -1;
+		}
+	}
+	if (depth == -1) {
+		return;
+	}
+
+	if (pdoorbell->cb)
+		(pdoorbell->cb)(mport, pdoorbell->arg, src, dst, id);
+
+}
+
+/* Allocate a doorbell and associate it with a callback.
+ * Only incoming doorbells need callback... 
+ * NULL callback function is OK.
+ */
+int rddma_get_doorbell (void (*cb)(struct rio_mport,void *,u16,u16,u16),void * arg)
+{
+	u16 ret = 0xffff;
+	u16 id;
+	int bin;
+	int bindepth;
+	int depth;
+	int i;
+	struct doorbell_node *pdoorbell;
+
+	/* 'next' is bin number of next available doorbell.
+	 * It's -1 if all doorbells allocated.
+	 */
+	if (rddma_dbells.next == -1)
+		return -1;
+
+	/* use semaphore instead */
+	down(&rddma_dbells.sem);
+	bin = rddma_dbells.next;
+	if (rddma_dbells.mindepth != 0) { 
+		/* Allocate a doorbell node */
+		pdoorbell = (struct doorbell_node *) kzalloc (sizeof(struct doorbell_node),
+			GFP_KERNEL);
+		if (pdoorbell == NULL) { /* Memory error */
+			up(&rddma_dbells.sem);
+			return ret;
+		}
+		/* Find another number that fits on this chain */
+		for (id = rddma_dbells.next + rddma_dbells.first_id; id <= rddma_dbells.last_id; id += NUM_DOORBELL_BINS) {
+			if (id != doorbell_harray[bin].id) {
+				struct doorbell_node *temp;
+				depth = find_db_in_list(&doorbell_harray[bin].node, id,
+			       		&temp);
+				if (depth)
+					continue;
+				else
+					goto end_search;
+			}
+		}
+end_search:
+		if (id > rddma_dbells.last_id) {
+			rddma_dbells.next = -1; /* All doorbells allocated */
+			up(&rddma_dbells.sem);
+			kfree (pdoorbell);
+			return ret;
+		}
+		pdoorbell->id = 0xffff;
+		list_add_tail(&pdoorbell->node, &doorbell_harray[bin].node);
+	}
+	else {
+		/* Simple case, don't need linked list */
+		id = (u16) (bin + rddma_dbells.first_id);
+		pdoorbell = &doorbell_harray[bin];
+		pdoorbell->id = 0xffff;
+		INIT_LIST_HEAD(&pdoorbell->node);
+	}
+	pdoorbell->cb = cb;
+	pdoorbell->arg = arg;
+	pdoorbell->id = id;
+	ret = id;
+	rddma_dbells.num_alloc++;
+	if (rddma_dbells.num_alloc > rddma_dbells.high_watermark)
+		rddma_dbells.high_watermark = rddma_dbells.num_alloc;
+
+	if (rddma_dbells.num <= NUM_DOORBELL_BINS) {
+		/* Scan till finding an empty bin, otherwise next = -1 */
+		for (i = bin + 1; i < rddma_dbells.num; i++) {
+			if (doorbell_harray[i].node.next == NULL) {
+				rddma_dbells.next = i;
+				up(&rddma_dbells.sem);
+				return (ret);
+			}
+		}
+		rddma_dbells.next = -1;
+		up(&rddma_dbells.sem);
+		return (ret);
+	}
+
+	/* Find new 'next' (index of the shortest bin) */
+	rddma_dbells.next = (bin + 1) % NUM_DOORBELL_BINS;
+	pdoorbell = &doorbell_harray[rddma_dbells.next];
+	for (i = rddma_dbells.next; i < NUM_DOORBELL_BINS; i++) {
+		if (pdoorbell->node.next == NULL)
+			goto done; /* empty bin */
+		else
+			bindepth = list_len(&pdoorbell->node);
+
+		if (bindepth > rddma_dbells.mindepth) {
+			pdoorbell++;
+			continue;
+		}
+		else
+			goto done;
+	}
+	/* find new minimum bin depth */
+	while (1) {
+		rddma_dbells.mindepth++;
+		pdoorbell = &doorbell_harray[0];
+		for (i = 0; i < NUM_DOORBELL_BINS; i++) {
+			bindepth = list_len(&pdoorbell->node);
+			if (bindepth == rddma_dbells.mindepth)
+				goto done;
+			else
+				pdoorbell++;
+		}
+	}
+done:
+	rddma_dbells.next = i;
+
+	up(&rddma_dbells.sem);
+	return ret;
+}
+
+int rddma_put_doorbell(u16 id)
+{
+	int bin = (id - rddma_dbells.first_id) % NUM_DOORBELL_BINS;
+	int depth;
+	unsigned long flags;
+	struct doorbell_node *pdb;
+	struct list_head *pnode;
+	void *node_free = NULL;
+
+	/* check for empty bin (free of unallocated doorbell) */
+	down(&rddma_dbells.sem);
+	if (doorbell_harray[bin].node.next == 0)
+		depth = -1;
+	else {
+		depth = find_db_in_list(&doorbell_harray[bin].node, id, &pdb);
+		if (depth == 0) {
+			if (doorbell_harray[bin].id != id)
+				depth = -1;
+		}
+	}
+	if (depth == -1) {
+		up(&rddma_dbells.sem);
+		return -1;
+	}
+	/* Doorbell in list 'bin' at 'depth' */
+	/* If depth > 0, remove node from list and free it */
+	spin_lock_irqsave(&rddma_dbells.lock, flags);
+	if (depth > 0) {
+		pnode = &pdb->node;
+		list_del(pnode);
+		node_free = pdb;
+	}
+	else {
+		/* If depth == 0, clear this array element */
+		doorbell_harray[bin].node.next = NULL;
+		doorbell_harray[bin].id = 0xffff;
+	}
+	spin_unlock_irqrestore(&rddma_dbells.lock, flags);
+
+	if (depth == rddma_dbells.mindepth) {
+		if (bin < rddma_dbells.next)
+			rddma_dbells.next = bin;
+	} 
+	else if (depth < rddma_dbells.mindepth) {
+		rddma_dbells.mindepth = depth;
+		rddma_dbells.next = bin;
+	}
+	--rddma_dbells.num_alloc;
+
+	up(&rddma_dbells.sem);
+
+	if (node_free)
+		kfree(node_free);
+
+	return 0;
+}
+
 static void __exit fabric_net_close(void)
 {
 	dev_remove_pack(&rddma_packets);
 	rddma_fabric_unregister("rddma_fabric_rionet");
+}
+
+/* Jimmy */
+static int __init fabric_net_init(void)
+{
+	return (rio_register_driver(&rddma_rio_drv));
 }
 
 module_init(fabric_net_init);
