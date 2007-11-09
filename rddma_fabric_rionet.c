@@ -555,7 +555,6 @@ int rddma_get_doorbell (void (*cb)(struct rio_mport,void *,u16,u16,u16),void * a
 	if (rddma_dbells.next == -1)
 		return -1;
 
-	/* use semaphore instead */
 	down(&rddma_dbells.sem);
 	bin = rddma_dbells.next;
 	if (rddma_dbells.mindepth != 0) { 
