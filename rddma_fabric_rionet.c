@@ -624,7 +624,7 @@ end_search:
 		if (pdoorbell->node.next == NULL)
 			goto done; /* empty bin */
 		else
-			bindepth = list_len(&pdoorbell->node);
+			bindepth = list_len(&pdoorbell->node) + 1;
 
 		if (bindepth > rddma_dbells.mindepth) {
 			pdoorbell++;
@@ -638,7 +638,7 @@ end_search:
 		rddma_dbells.mindepth++;
 		pdoorbell = &doorbell_harray[0];
 		for (i = 0; i < NUM_DOORBELL_BINS; i++) {
-			bindepth = list_len(&pdoorbell->node);
+			bindepth = list_len(&pdoorbell->node) + 1;
 			if (bindepth == rddma_dbells.mindepth)
 				goto done;
 			else
@@ -658,11 +658,10 @@ int rddma_put_doorbell(u16 id)
 	int depth;
 	unsigned long flags;
 	struct doorbell_node *pdb;
-	struct list_head *pnode;
 	void *node_free = NULL;
 
-	/* check for empty bin (free of unallocated doorbell) */
 	down(&rddma_dbells.sem);
+
 	if (doorbell_harray[bin].node.next == 0)
 		depth = -1;
 	else {
@@ -673,23 +672,44 @@ int rddma_put_doorbell(u16 id)
 		}
 	}
 	if (depth == -1) {
+		/* attempted to free unallocated doorbell */
 		up(&rddma_dbells.sem);
 		return -1;
 	}
 	/* Doorbell in list 'bin' at 'depth' */
 	/* If depth > 0, remove node from list and free it */
+
 	spin_lock_irqsave(&rddma_dbells.lock, flags);
 	if (depth > 0) {
-		pnode = &pdb->node;
-		list_del(pnode);
+		list_del(&pdb->node);
 		node_free = pdb;
 	}
-	else {
-		/* If depth == 0, clear this array element */
-		doorbell_harray[bin].node.next = NULL;
-		doorbell_harray[bin].id = 0xffff;
+	else { 
+		if (list_empty(&doorbell_harray[bin].node)) {
+			/* Clear this array element */
+			doorbell_harray[bin].node.next = NULL;
+			doorbell_harray[bin].id = 0xffff;
+		}
+		else {
+			/* Move head of linked list into hash array */
+			pdb = list_entry (doorbell_harray[bin].node.next, 
+				struct doorbell_node, node);
+			doorbell_harray[bin].id = pdb->id;
+			doorbell_harray[bin].cb = pdb->cb;
+			doorbell_harray[bin].arg = pdb->arg;
+			list_del(&pdb->node);
+			node_free = pdb;
+		}
 	}
+
 	spin_unlock_irqrestore(&rddma_dbells.lock, flags);
+
+	/* Compute depth of bin */
+	if (doorbell_harray[bin].node.next == NULL)
+		depth = 0;
+	else {
+		depth = 1 + list_len(&doorbell_harray[bin].node);
+	}
 
 	if (depth == rddma_dbells.mindepth) {
 		if (bin < rddma_dbells.next)
@@ -708,7 +728,6 @@ int rddma_put_doorbell(u16 id)
 
 	return 0;
 }
-
 static void __exit fabric_net_close(void)
 {
 	dev_remove_pack(&rddma_packets);
