@@ -4,7 +4,7 @@ else
 KERNELDIR ?= /lib/modules/`uname -r`/build
 
 modules:
-	$(MAKE) -C $(KERNELDIR) M=`pwd` CONFIG_RDDMA_FABRIC_NET=m CONFIG_RDDMA_FABRIC_RIONET=m CONFIG_RDDMA=m CONFIG_RDDMA_DMA_RIO=m $@
+	$(MAKE) -C $(KERNELDIR) M=`pwd` CONFIG_RDDMA_FABRIC_NET=m CONFIG_RDDMA=m CONFIG_RDDMA_DMA_RIO=m $@
 install:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` modules_install
 clean:

@@ -142,6 +142,8 @@ static struct rddma_smb *rddma_fabric_smb_find(struct rddma_location *parent, st
 	struct sk_buff  *skb;
 	struct rddma_smb *smb = NULL;
 
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	if ( (smb = to_rddma_smb(kset_find_obj(&parent->smbs->kset,desc->name))) )
 		return smb;
 
@@ -163,6 +165,8 @@ static struct rddma_smb *rddma_fabric_smb_find(struct rddma_location *parent, st
 
 static struct rddma_mmap *rddma_fabric_mmap_find(struct rddma_smb *parent, struct rddma_desc_param *desc)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	return NULL;
 }
 
@@ -170,6 +174,8 @@ static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, str
 {
 	struct sk_buff  *skb;
 	struct rddma_xfer *xfer = NULL;
+
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
 
 	skb = rddma_fabric_call(loc, 5, "xfer_find://%s.%s", desc->name,desc->location);
 	if (skb) {
@@ -191,6 +197,8 @@ static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, stru
 	struct sk_buff  *skb;
 	struct rddma_location *loc;
 	struct rddma_bind *bind = NULL;
+
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
 
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
@@ -218,6 +226,8 @@ static struct rddma_dst *rddma_fabric_dst_find(struct rddma_bind *parent, struct
 	struct rddma_location *loc;
 	struct rddma_dst *dst = NULL;
 
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
 
@@ -243,6 +253,8 @@ static struct rddma_src *rddma_fabric_src_find(struct rddma_dst *parent, struct 
 	struct sk_buff  *skb;
 	struct rddma_location *loc;
 	struct rddma_src *src = NULL;
+
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
 
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
@@ -325,6 +337,8 @@ static struct rddma_smb *rddma_fabric_smb_create(struct rddma_location *loc, str
 	struct sk_buff  *skb;
 	struct rddma_smb *smb = NULL;
 
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	skb = rddma_fabric_call(loc, 5, "smb_create://%s.%s#%llx:%x", desc->name,desc->location,desc->offset, desc->extent);
 	if (skb) {
 		struct rddma_desc_param reply;
@@ -342,6 +356,8 @@ static struct rddma_smb *rddma_fabric_smb_create(struct rddma_location *loc, str
 
 static struct rddma_mmap *rddma_fabric_mmap_create(struct rddma_smb *smb, struct rddma_desc_param *desc)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	return NULL;
 }
 
@@ -350,6 +366,8 @@ static struct rddma_bind *rddma_fabric_bind_create(struct rddma_xfer *parent, st
 	struct sk_buff  *skb;
 	struct rddma_bind *bind = NULL;
 	struct rddma_location *loc = parent->location;
+
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
 
 	skb = rddma_fabric_call(loc, 5, "bind_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
 				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
@@ -375,6 +393,8 @@ static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, s
 	struct sk_buff  *skb;
 	struct rddma_xfer *xfer = NULL;
 
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	skb = rddma_fabric_call(loc, 5, "xfer_create://%s.%s", desc->name,desc->location);
 	if (skb) {
 		struct rddma_desc_param reply;
@@ -397,6 +417,8 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 	struct rddma_dsts *dsts = NULL;
 
 	va_list ap;
+
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
 
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
@@ -427,6 +449,8 @@ static struct rddma_dst *rddma_fabric_dst_create(struct rddma_bind *parent, stru
 	struct rddma_location *loc;
 	struct rddma_dst *dst = NULL;
 
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
 
@@ -453,6 +477,8 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 	struct rddma_location *loc;
 	struct rddma_srcs *srcs = NULL;
 
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
 
@@ -478,6 +504,8 @@ static struct rddma_src *rddma_fabric_src_create(struct rddma_dst *parent, struc
 	struct sk_buff  *skb;
 	struct rddma_location *loc;
 	struct rddma_src *src = NULL;
+
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
 
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return NULL;
@@ -506,6 +534,8 @@ static void rddma_fabric_location_delete(struct rddma_location *loc, struct rddm
 {
 	struct sk_buff  *skb;
 
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	skb = rddma_fabric_call(loc, 5, "location_delete://%s.%s", desc->name,desc->location);
 	if (skb) {
 		struct rddma_desc_param reply;
@@ -523,6 +553,8 @@ static void rddma_fabric_smb_delete(struct rddma_location *loc, struct rddma_des
 {
 	struct sk_buff  *skb;
 	struct rddma_smb *smb;
+
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
 
 	if (NULL == (smb = to_rddma_smb(kset_find_obj(&loc->smbs->kset,desc->name))) )
 		return;
@@ -542,16 +574,22 @@ static void rddma_fabric_smb_delete(struct rddma_location *loc, struct rddma_des
 
 static void rddma_fabric_mmap_delete(struct rddma_smb *smb, struct rddma_desc_param *desc)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 }
 
 static void rddma_fabric_bind_delete(struct rddma_xfer *parent, struct rddma_bind_param *desc)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 }
 
 static void rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
 	struct rddma_xfer *xfer;
+
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
 
 	if (NULL == (xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->name))) )
 		return;
@@ -575,6 +613,8 @@ static void rddma_fabric_dst_delete(struct rddma_bind *parent, struct rddma_bind
 	struct rddma_location *loc;
 	struct rddma_dst *dst;
 	
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return;
 
@@ -601,6 +641,8 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 	struct sk_buff  *skb;
 	struct rddma_location *loc;
 	struct rddma_src *src;
+
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
 
 	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
 		return;

@@ -73,6 +73,8 @@ static struct rddma_bind *rddma_local_bind_find(struct rddma_xfer *parent, struc
 	struct rddma_bind *bind = NULL;
 	char *buf = kzalloc(2048,GFP_KERNEL);
 
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	if (NULL == buf)
 		goto out;
 
@@ -93,6 +95,8 @@ static struct rddma_dst *rddma_local_dst_find(struct rddma_bind *parent, struct 
 {
 	struct rddma_dst *dst = NULL;
 	char *buf = kzalloc (2048, GFP_KERNEL);
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	if (!buf) goto out;
 	
 	if (snprintf (buf, 2048, "%s.%s#%llx:%x", desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent) >= 2048) {
@@ -112,6 +116,8 @@ static struct rddma_src *rddma_local_src_find(struct rddma_dst *parent, struct r
 {
 	struct rddma_src *src = NULL;
 	char *buf = kzalloc (2048, GFP_KERNEL);
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	if (!buf) goto out;
 	
 	if (snprintf (buf, 2048, "%s.%s#%llx:%x", desc->src.name, desc->src.location, desc->src.offset, desc->src.extent) >= 2048) {
@@ -133,6 +139,8 @@ out:
 static struct rddma_location *rddma_local_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_location *newloc;
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 
 	newloc = rddma_location_create(loc,desc);
 
@@ -165,6 +173,8 @@ static struct rddma_smb *rddma_local_smb_create(struct rddma_location *loc, stru
 
 static struct rddma_mmap *rddma_local_mmap_create(struct rddma_smb *smb, struct rddma_desc_param *desc)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%sn",__FUNCTION__);
+
 	return rddma_mmap_create(smb,desc);
 }
 

@@ -228,6 +228,8 @@ static int smb_create(const char *desc, char *result, int size)
 	struct rddma_location *loc;
 	struct rddma_desc_param params;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
@@ -277,6 +279,8 @@ static int smb_delete(const char *desc, char *result, int size)
 	struct rddma_location *loc;
 	struct rddma_desc_param params;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
@@ -319,6 +323,8 @@ static int smb_find(const char *desc, char *result, int size)
 	struct rddma_smb *smb = NULL;
 	struct rddma_location *loc;
 	struct rddma_desc_param params;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
@@ -409,6 +415,8 @@ static int smb_mmap (const char* desc, char* result, int size)
 	struct rddma_desc_param params;
 	struct rddma_mmap *mmap = NULL;
 	
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
@@ -456,6 +464,8 @@ static int smb_unmmap (const char* desc, char* result, int size)
 	struct rddma_smb *smb = NULL;
 	struct rddma_desc_param params;
 	
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
@@ -505,6 +515,8 @@ static int xfer_create(const char *desc, char *result, int size)
 	struct rddma_location *location;
 	struct rddma_desc_param params;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
@@ -550,6 +562,8 @@ static int xfer_delete(const char *desc, char *result, int size)
 	struct rddma_location *loc;
 	struct rddma_desc_param params;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
@@ -591,6 +605,8 @@ static int xfer_find(const char *desc, char *result, int size)
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_location *location;
 	struct rddma_desc_param params;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
@@ -650,6 +666,8 @@ static int xfer_start (const char*desc, char *result, int size)
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_desc_param params;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ((ret = rddma_parse_desc (&params, desc)))
 		goto out;
 
@@ -690,6 +708,8 @@ static int bind_create(const char *desc, char *result, int size)
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_bind *bind = NULL;
 	struct rddma_bind_param params;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
@@ -835,6 +855,8 @@ static int bind_find(const char *desc, char *result, int size)
 	struct rddma_bind *bind = NULL;
 	struct rddma_bind_param params;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
@@ -879,6 +901,8 @@ static int dst_create(const char *desc, char *result, int size)
 	struct rddma_dst *dst = NULL;
 	struct rddma_bind *bind = NULL;
 	struct rddma_bind_param params;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
@@ -926,6 +950,8 @@ static int dst_delete(const char *desc, char *result, int size)
 	struct rddma_bind *bind = NULL;
 	struct rddma_bind_param params;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
@@ -967,6 +993,8 @@ static int dst_find(const char *desc, char *result, int size)
 	struct rddma_dst *dst = NULL;
 	struct rddma_bind *bind = NULL;
 	struct rddma_bind_param params;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
@@ -1015,6 +1043,8 @@ static int src_create(const char *desc, char *result, int size)
 	struct rddma_dst *dst = NULL;
 	struct rddma_bind_param params;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
@@ -1061,6 +1091,8 @@ static int src_delete(const char *desc, char *result, int size)
 	struct rddma_dst *dst = NULL;
 	struct rddma_bind_param params;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
@@ -1102,6 +1134,8 @@ static int src_find(const char *desc, char *result, int size)
 	struct rddma_src *src = NULL;
 	struct rddma_dst *dst = NULL;
 	struct rddma_bind_param params;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
@@ -1150,6 +1184,8 @@ static int srcs_create(const char *desc, char *result, int size)
 	struct rddma_dst *dst = NULL;
 	struct rddma_bind_param params;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
@@ -1188,6 +1224,8 @@ static int srcs_delete(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_dst *dst = NULL;
 	struct rddma_bind_param params;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
@@ -1229,6 +1267,8 @@ static int srcs_find(const char *desc, char *result, int size)
 	struct rddma_srcs *srcs = NULL;
 	struct rddma_dst *dst = NULL;
 	struct rddma_bind_param params;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
