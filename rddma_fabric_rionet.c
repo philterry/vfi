@@ -659,6 +659,9 @@ int rddma_put_doorbell(u16 id)
 	struct doorbell_node *pdb;
 	void *node_free = NULL;
 
+	if ((id < rddma_dbells.first_id) || (id > rddma_dbells.last_id))
+		return -1;
+
 	down(&rddma_dbells.sem);
 
 	if (doorbell_harray[bin].node.next == 0)
