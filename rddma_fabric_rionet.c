@@ -541,7 +541,7 @@ static void rddma_dbell_event(struct rio_mport *mport, void *dev_id, u16 src,
  */
 int rddma_get_doorbell (void (*cb)(struct rio_mport,void *,u16,u16,u16),void * arg)
 {
-	u16 ret = 0xffff;
+	int ret = -1;
 	u16 id;
 	int bin;
 	int bindepth;
@@ -553,7 +553,7 @@ int rddma_get_doorbell (void (*cb)(struct rio_mport,void *,u16,u16,u16),void * a
 	 * It's -1 if all doorbells allocated.
 	 */
 	if (rddma_dbells.next == -1)
-		return -1;
+		return ret;
 
 	down(&rddma_dbells.sem);
 	bin = rddma_dbells.next;
