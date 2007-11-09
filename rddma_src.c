@@ -174,6 +174,7 @@ struct rddma_src *new_rddma_src(struct rddma_dst *parent, struct rddma_bind_para
 	new->kobj.kset = &parent->srcs->kset;
 	new->desc.src.ops = parent->desc.src.ops;
 	new->desc.src.rde = parent->desc.src.rde;
+	new->dst = parent;
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p %p\n",__FUNCTION__,new,parent->srcs);
 	return new;

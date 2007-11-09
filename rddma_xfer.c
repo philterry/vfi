@@ -168,6 +168,7 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_de
 	new->desc.address = parent->desc.address;
 	new->desc.rde = parent->desc.rde;
 	new->state = RDDMA_XFER_UNINIT;
+	new->location = parent;
 #ifdef SERIALIZE_BIND_PROCESSING  
 	/* dma chain headed at transfer level, as all binds are linked
 	 * into one continuous chain 

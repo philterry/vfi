@@ -166,16 +166,12 @@ static struct rddma_mmap *rddma_fabric_mmap_find(struct rddma_smb *parent, struc
 	return NULL;
 }
 
-static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *parent, struct rddma_desc_param *desc)
+static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
-	struct rddma_location *loc;
 	struct rddma_xfer *xfer = NULL;
 
-	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->location))) )
-		return NULL;
-
-	skb = rddma_fabric_call(loc, 5, "xfer_find://%s", desc->name);
+	skb = rddma_fabric_call(loc, 5, "xfer_find://%s.%s", desc->name,desc->location);
 	if (skb) {
 		struct rddma_desc_param reply;
 		int ret = -EINVAL;
@@ -351,7 +347,27 @@ static struct rddma_mmap *rddma_fabric_mmap_create(struct rddma_smb *smb, struct
 
 static struct rddma_bind *rddma_fabric_bind_create(struct rddma_xfer *parent, struct rddma_bind_param *desc)
 {
-	return NULL;
+	struct sk_buff  *skb;
+	struct rddma_bind *bind = NULL;
+	struct rddma_location *loc = parent->location;
+
+	skb = rddma_fabric_call(loc, 5, "bind_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
+				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
+				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
+				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent
+		);
+	if (skb) {
+		struct rddma_bind_param reply;
+		int ret = -EINVAL;
+		if (!rddma_parse_bind(&reply,skb->data)) {
+			dev_kfree_skb(skb);
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
+				bind = rddma_bind_create(parent,&reply);
+			rddma_clean_bind(&reply);
+		}
+	}
+
+	return bind;
 }
 
 static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, struct rddma_desc_param *desc)
@@ -359,7 +375,7 @@ static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, s
 	struct sk_buff  *skb;
 	struct rddma_xfer *xfer = NULL;
 
-	skb = rddma_fabric_call(loc, 5, "xfer_create://%s", desc->name);
+	skb = rddma_fabric_call(loc, 5, "xfer_create://%s.%s", desc->name,desc->location);
 	if (skb) {
 		struct rddma_desc_param reply;
 		int ret = -EINVAL;

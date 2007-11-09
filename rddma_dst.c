@@ -154,6 +154,7 @@ struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_bind_par
 	new->desc.dst.ops = parent->desc.dst.ops;
 	new->desc.dst.rde = parent->desc.dst.rde;
 	new->desc.src.rde = parent->desc.src.rde;
+	new->bind = parent;
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
