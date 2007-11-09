@@ -218,6 +218,8 @@ struct rddma_xfer *find_rddma_xfer(struct rddma_desc_param *desc)
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_location *loc;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
 	if ( (loc = locate_rddma_location(NULL,desc)) ) {
 		xfer = (loc->desc.ops && loc->desc.ops->xfer_find) ? loc->desc.ops->xfer_find (loc,desc) : NULL;
 		rddma_location_put(loc);
@@ -228,6 +230,8 @@ struct rddma_xfer *find_rddma_xfer(struct rddma_desc_param *desc)
 struct rddma_xfer *rddma_xfer_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *new;
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
 	if ( (new = find_rddma_xfer(desc)) )
 		return new;
 
