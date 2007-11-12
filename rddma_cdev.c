@@ -211,6 +211,7 @@ struct aio_def_work {
 	unsigned long nr_iovs;
 	loff_t offset;
 	struct work_struct work;
+	struct workqueue_struct *woq;
 };
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
@@ -262,6 +263,8 @@ static void aio_def_write(struct work_struct *wk)
 	kobject_put(&priv->kobj);
 	kfree(work->iovs);
 	aio_complete(work->iocb,count,numdone);
+
+	destroy_workqueue(work->woq);
 	kfree(work);
 }
 
@@ -309,13 +312,16 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 		return count;
 	}
 	else {
+		char name[10];
 		struct aio_def_work *work = kzalloc(sizeof(struct aio_def_work),GFP_KERNEL);
 		int i = 0;
 		int ret = 0;
+		sprintf(name,"%p",work);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 		INIT_WORK(&work->work,aio_def_write, (void *) work);
 #else
 		INIT_WORK(&work->work,aio_def_write);
+		work->woq = create_workqueue(name);
 #endif
 		work->iocb = iocb;
 		work->iovs = kzalloc(sizeof(struct kvec)*nr_iovs, GFP_KERNEL);
@@ -337,7 +343,7 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 		kobject_get(&priv->kobj);
 		work->nr_iovs = nr_iovs;
 		work->offset = offset;
-		schedule_work(&work->work);
+		queue_work(work->woq,&work->work);
 		return -EIOCBQUEUED;
 	}
 }

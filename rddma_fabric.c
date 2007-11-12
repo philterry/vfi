@@ -28,6 +28,7 @@ struct call_back_tag {
 	struct sk_buff *rply_skb;
 	wait_queue_head_t wq;
 	struct work_struct wo;
+	struct workqueue_struct *woq;
 	struct rddma_fabric_address *sender;
 	void *cb_data;
 	struct call_back_tag *check;
@@ -57,6 +58,8 @@ static void fabric_do_rqst(struct work_struct *wo)
 
 	ret = rddma_fabric_tx(cb->sender,cb->rply_skb);
 	rddma_fabric_put(cb->sender);
+
+	destroy_workqueue(cb->woq);
 
 	kfree(cb);
 }
@@ -178,7 +181,9 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 		RDDMA_DEBUG(MY_DEBUG,"%s ret(%d) %p\n",__FUNCTION__,ret,cb);
 	}
 	else if ((buf = strstr(msg,"request="))) {
+		char name[10];
 		struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
+		sprintf(name,"%p",cb);
 		cb->rqst_skb = skb;
 		cb->check = cb;
 		if ( (cb->sender = rddma_fabric_get(sender)) ) {
@@ -186,8 +191,9 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 			INIT_WORK(&cb->wo, fabric_do_rqst, (void *) &cb->wo);
 #else
 			INIT_WORK(&cb->wo, fabric_do_rqst);
+			cb->woq = create_workqueue(name);
 #endif
-			schedule_work(&cb->wo);
+			queue_work(cb->woq,&cb->wo);
 			return 0;
 		}
 		else {
