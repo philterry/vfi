@@ -286,11 +286,19 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 	unsigned long srcidx, dstidx;
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
+#if 0
 	memcpy(&dstidx, &mac->h_dstidx, 4);
 	be32_to_cpus((__u32 *)&dstidx);
+#else
+	dstidx = ntohl(mac->h_dstidx);
+#endif
 
+#if 0
 	memcpy(&srcidx, &mac->h_srcidx, 4);
 	be32_to_cpus((__u32 *)&srcidx);
+#else
+	srcidx = ntohl(mac->h_srcidx);
+#endif
 
 	fna = find_fabric_address(srcidx,0,mac->h_source,dev);
 	
