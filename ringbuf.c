@@ -21,7 +21,6 @@ void ringbuf_init(RINGBUF * pRing, void **ppArray, int len, int full)
 
 void *ringbuf_get(RINGBUF * pRing)
 {
-	int next;
 	void *pData;
 
 	if (pRing->iRead == pRing->iWrite)

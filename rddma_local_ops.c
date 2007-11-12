@@ -61,9 +61,9 @@ static struct rddma_smb *rddma_local_smb_find(struct rddma_location *parent, str
 	return smb;
 }
 
-static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, struct rddma_desc_param *desc)
+static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, struct rddma_bind_param *desc)
 {
-	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&parent->xfers->kset,desc->name));
+	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&parent->xfers->kset,desc->xfer.name));
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,xfer);
 	return xfer;
 }
@@ -293,7 +293,7 @@ out:
 	return NULL;
 }
 
-static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, struct rddma_desc_param *desc)
+static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, struct rddma_bind_param *desc)
 {
 	struct rddma_xfer *xfer;
 
@@ -440,7 +440,7 @@ static void rddma_local_smb_delete(struct rddma_location *loc, struct rddma_desc
 	}
 }
 
-static int rddma_local_xfer_start(struct rddma_location *loc, struct rddma_desc_param *desc)
+static int rddma_local_xfer_start(struct rddma_location *loc, struct rddma_bind_param *desc)
 {
 	struct rddma_xfer *xfer;
 	int ret = -EINVAL;
@@ -458,7 +458,7 @@ static void rddma_local_mmap_delete(struct rddma_smb *smb, struct rddma_desc_par
 	rddma_mmap_delete(smb,desc);
 }
 
-static void rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
+static void rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_bind_param *desc)
 {
 	struct rddma_xfer *xfer;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
@@ -681,8 +681,8 @@ static void rddma_local_bind_dst_ready (struct rddma_xfer *xfer, struct rddma_bi
 		     desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
 		     desc->dst.name, desc->dst.offset, desc->dst.extent, 
 		     desc->src.name, desc->src.offset, desc->src.extent);
-	if (xfer->desc.ops && xfer->desc.ops->bind_vote) {
-		xfer->desc.ops->bind_vote (xfer, desc, 1, 0);
+	if (xfer->desc.xfer.ops && xfer->desc.xfer.ops->bind_vote) {
+		xfer->desc.xfer.ops->bind_vote (xfer, desc, 1, 0);
 	}
 	else {
 		RDDMA_DEBUG (MY_DEBUG, "xx No xfer::bind_vote() operation!\n");
@@ -720,8 +720,8 @@ static void rddma_local_bind_src_ready (struct rddma_xfer *xfer, struct rddma_bi
 		     desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
 		     desc->dst.name, desc->dst.offset, desc->dst.extent, 
 		     desc->src.name, desc->src.offset, desc->src.extent);
-	if (xfer->desc.ops && xfer->desc.ops->bind_vote) {
-		xfer->desc.ops->bind_vote (xfer, desc, 0, 1);
+	if (xfer->desc.xfer.ops && xfer->desc.xfer.ops->bind_vote) {
+		xfer->desc.xfer.ops->bind_vote (xfer, desc, 0, 1);
 	}
 	else {
 		RDDMA_DEBUG (MY_DEBUG, "xx No xfer::bind_vote() operation!\n");
@@ -777,8 +777,8 @@ void rddma_local_bind_vote (struct rddma_xfer *xfer, struct rddma_bind_param *de
 		if (x == atomic_read (&xfer->bind_count)) {
 			RDDMA_DEBUG (MY_DEBUG, ">>>>> BLAM BLAM BLAM BLAM! >>>>>\n");
 #ifdef SERIALIZE_BIND_PROCESSING
-			xfer->desc.rde->ops->load_transfer(xfer);
-			xfer->desc.rde->ops->queue_transfer(&xfer->descriptor);
+			xfer->desc.xfer.rde->ops->load_transfer(xfer);
+			xfer->desc.xfer.rde->ops->queue_transfer(&xfer->descriptor);
 #else
 			/* Loop over binds */
 			list_for_each(entry,&xfer->binds->kset.list) {

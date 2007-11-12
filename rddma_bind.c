@@ -173,8 +173,8 @@ struct rddma_bind *find_rddma_bind(struct rddma_bind_param *desc)
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_bind *bind = NULL;
 
-	if ( (xfer = find_rddma_xfer(&desc->xfer)) )
-		bind = xfer->desc.ops->bind_find(xfer,desc);
+	if ( (xfer = find_rddma_xfer(desc)) )
+		bind = xfer->desc.xfer.ops->bind_find(xfer,desc);
 	rddma_xfer_put(xfer);
 	return bind;
 }

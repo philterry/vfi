@@ -347,7 +347,7 @@ static void dma_rio_load_transfer(struct rddma_xfer *xfer)
 	xfo->xf.cb = NULL;
 #endif
 	xfo->xf.flags = RDDMA_XFO_READY;
-	xfo->xf.len = xfer->desc.extent;
+	xfo->xf.len = xfer->desc.xfer.extent;
 
 	/* Fill out list descriptor! */
 
