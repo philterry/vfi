@@ -1,4 +1,5 @@
  /* 
+  * if (doorbell_harray[i].node.next != NULL)
  * 
  * Copyright 2007 MicroMemory, LLC.
  * Phil Terry <pterry@micromemory.com> 
@@ -20,12 +21,15 @@
 #include <linux/if_ether.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/rio.h>
 #include <linux/rio_drv.h>
 #include <linux/rio_ids.h>
 #include <linux/list.h>
 
 #define RDDMA_DOORBELL_START 0x2000
 #define RDDMA_DOORBELL_END 0x4000
+
+static int first_probe = 1;
 
 static char *netdev_name = "rionet"; /* "eth0" or "br0" or "bond0" "rionet0" etc */
 module_param(netdev_name, charp, 0444);
@@ -45,7 +49,12 @@ struct fabric_address {
 	struct list_head list;
 	struct rddma_fabric_address rfa;
 	struct kobject kobj;
+	u16 rio_id;
 };
+
+#define is_rddma_rionet_capable(src_ops,dst_ops) \
+	((src_ops & RIO_SRC_OPS_DOORBELL) && \
+	 (dst_ops & RIO_DST_OPS_DOORBELL))
 
 /* RDDMA uses a single range of doorbell values.
  * Doorbells are allocated from among this range as needed.
@@ -61,7 +70,7 @@ struct fabric_address {
 
 struct doorbell_node {
 	struct list_head node;
-	void (*cb) (struct rio_mport *, void *, u16, u16, u16);
+	void (*cb) (void *);
 	void *arg;
 	u16 id;
 };
@@ -82,7 +91,11 @@ struct _rddma_dbell_mgr {
 };
 
 static struct _rddma_dbell_mgr rddma_dbells;
+static struct rio_mport*port;
 
+static int doorbell_send (struct rddma_fabric_address *address, int id);
+static void rddma_doorbells_init(int first, int last);
+static int find_db_in_list(struct list_head *q, u16 val, struct doorbell_node **db);
 static void rddma_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
 	u16 dst, u16 id);
 
@@ -402,6 +415,7 @@ static struct rddma_address_ops fabric_net_ops = {
 	.unregister_location = fabric_unregister,
 	.get = fabric_get,
 	.put = fabric_put,
+	.doorbell = doorbell_send,
 	.register_doorbell = doorbell_register,
 	.unregister_doorbell = doorbell_unregister,
 };
@@ -412,54 +426,71 @@ static struct rio_device_id rionet_id_table[] = {
 	{RIO_DEVICE(RIO_ANY_ID,RIO_ANY_ID)}
 };
 
-static int fabric_rionet_init(struct rio_dev *rdev, const struct rio_device_id *id);
+static int fabric_rionet_probe(struct rio_dev *rdev, const struct rio_device_id *id);
 static void fabric_rionet_remove(struct rio_dev *rdev);
 
 static struct rio_driver rddma_rio_drv = {
 	.name = "rddma_rionet",
 	.id_table = rionet_id_table, 
-	.probe = fabric_rionet_init,
+	.probe = fabric_rionet_probe,
 	.remove = fabric_rionet_remove,
 };
 
 #endif
 
-void rddma_doorbells_init(int first, int last)
+void rddma_doorbells_uninit(void)
 {
-	int num = last - first + 1;
 	int i;
-	rddma_dbells.dbell = &doorbell_harray[0];
+	struct list_head *temp;
+	struct list_head *curr;
+	struct doorbell_node *pdb;
+	/* Disconnect from H/W layer */
+	rio_release_inb_dbell(port, RDDMA_DOORBELL_START, RDDMA_DOORBELL_END);
+
 	for (i = 0; i < NUM_DOORBELL_BINS; i++) {
-		memset(&doorbell_harray[i], 0, sizeof(struct doorbell_node));
-		doorbell_harray[i].id = 0xffff;
+		pdb = &doorbell_harray[i];
+		if (pdb->node.next != NULL) {
+			list_for_each_safe(curr, temp, &pdb->node) {
+				kfree(list_entry(curr, struct doorbell_node, node));
+			}
+		}
 	}
-	spin_lock_init (&rddma_dbells.lock);
-	init_MUTEX(&rddma_dbells.sem);
-	rddma_dbells.next = 0;
-	rddma_dbells.mindepth = 0;
-	rddma_dbells.num = num;
-	rddma_dbells.num_alloc = 0;
-	rddma_dbells.high_watermark = 0;
-	rddma_dbells.first_id = first;
-	rddma_dbells.last_id = last;
-};
+	
+}
 
 static void fabric_rionet_remove(struct rio_dev *rdev)
 {
 	/* dummy for now */
 }
 
-#if 0 /* Jimmy testing */
-static int __init fabric_rionet_init(void)
-#endif
-static int  fabric_rionet_init(struct rio_dev *rdev, const struct rio_device_id *id)
+#define is_rddma_rionet_capable(src_ops,dst_ops) \
+	((src_ops & RIO_SRC_OPS_DOORBELL) && \
+	 (dst_ops & RIO_DST_OPS_DOORBELL))
+
+static int  fabric_rionet_probe(struct rio_dev *rdev, 
+	const struct rio_device_id *id)
 {
 	struct fabric_address *fna;
 	int rc;
+	int src_ops;
+	int dst_ops;
 #if 1
-	/* Jimmy */
-	if ((rc = rio_request_inb_dbell(rdev->net->hport,
-					(void *)rdev->net,
+	if (!first_probe)
+		return 0;
+
+	/* Set up for doorbells over RIO */
+
+	first_probe = 1;
+	port = rdev->net->hport;
+	rio_local_read_config_32(port, RIO_SRC_OPS_CAR, &src_ops);
+	rio_local_read_config_32(port, RIO_DST_OPS_CAR, &dst_ops);
+	if (!is_rddma_rionet_capable(src_ops, dst_ops)) {
+		printk("Unable to use rionet fabric -- no doorbell capability\n");;
+		return -EINVAL;
+	}
+
+	/* Attach event handler to doorbell interrupt */
+	if ((rc = rio_request_inb_dbell(port, (void *) port,
 					RDDMA_DOORBELL_START,
 					RDDMA_DOORBELL_END,
 					rddma_dbell_event)) < 0)
@@ -467,6 +498,9 @@ static int  fabric_rionet_init(struct rio_dev *rdev, const struct rio_device_id 
 
 	rddma_doorbells_init(RDDMA_DOORBELL_START, RDDMA_DOORBELL_END);
 #endif
+
+	/* Messages over ethernet */
+
 	if ( (fna = new_fabric_address(UNKNOWN_IDX,0,0)) ) {
 		snprintf(fna->rfa.name, RDDMA_MAX_FABRIC_NAME_LEN, "%s", "rddma_fabric_rionet");
 		if (netdev_name)
@@ -479,6 +513,46 @@ static int  fabric_rionet_init(struct rio_dev *rdev, const struct rio_device_id 
 	}
 	return -ENOMEM;
 }
+
+/* Dispatch doorbell interrupt to the appropriate callback */
+/* Note: this function called from interrupt level by RIO driver */
+static void rddma_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
+	u16 dst, u16 id) 
+{
+	int depth;
+	int bin = (id - rddma_dbells.first_id) % NUM_DOORBELL_BINS;
+	struct doorbell_node *pdoorbell = &doorbell_harray[bin];
+
+	if (pdoorbell->node.next == 0)
+		depth = -1;
+	else {
+		if (pdoorbell->id == id)
+			depth = 0;
+		else {
+			depth = find_db_in_list(&pdoorbell->node, id, &pdoorbell);
+			if (depth == 0)
+				depth = -1;
+		}
+	}
+	if (depth == -1) {
+		return;
+	}
+
+	if (pdoorbell->cb)
+		(pdoorbell->cb)(pdoorbell->arg);
+
+}
+
+static int doorbell_send (struct rddma_fabric_address *address, int info)
+{
+	u16 dst;
+	/* Extract dst from 'address' */
+	struct fabric_address *fa = to_fabric_address(address);
+	rio_mport_send_doorbell(port, fa->rio_id, (u16) info);
+	return 0;
+}
+
+/* Transport-independent doorbell management code below! */
 
 /* Look for 'val' in linked list.  Return value of function is position in
  * list (0 if not found) 
@@ -506,40 +580,32 @@ static int list_len (struct list_head *list)
 	}
 	return ret;
 }
-/* Dispatch doorbell interrupt to the appropriate callback */
-/* should this be void or int return val?? */
-static void rddma_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
-	u16 dst, u16 id) 
+
+static void rddma_doorbells_init(int first, int last)
 {
-	int depth;
-	int bin = (id - rddma_dbells.first_id) % NUM_DOORBELL_BINS;
-	struct doorbell_node *pdoorbell = &doorbell_harray[bin];
-
-	if (pdoorbell->node.next == 0)
-		depth = -1;
-	else {
-		if (pdoorbell->id == id)
-			depth = 0;
-		else {
-			depth = find_db_in_list(&pdoorbell->node, id, &pdoorbell);
-			if (depth == 0)
-				depth = -1;
-		}
+	int num = last - first + 1;
+	int i;
+	rddma_dbells.dbell = &doorbell_harray[0];
+	for (i = 0; i < NUM_DOORBELL_BINS; i++) {
+		memset(&doorbell_harray[i], 0, sizeof(struct doorbell_node));
+		doorbell_harray[i].id = 0xffff;
 	}
-	if (depth == -1) {
-		return;
-	}
-
-	if (pdoorbell->cb)
-		(pdoorbell->cb)(mport, pdoorbell->arg, src, dst, id);
-
-}
+	spin_lock_init (&rddma_dbells.lock);
+	init_MUTEX(&rddma_dbells.sem);
+	rddma_dbells.next = 0;
+	rddma_dbells.mindepth = 0;
+	rddma_dbells.num = num;
+	rddma_dbells.num_alloc = 0;
+	rddma_dbells.high_watermark = 0;
+	rddma_dbells.first_id = first;
+	rddma_dbells.last_id = last;
+};
 
 /* Allocate a doorbell and associate it with a callback.
  * Only incoming doorbells need callback... 
  * NULL callback function is OK.
  */
-int rddma_get_doorbell (void (*cb)(struct rio_mport,void *,u16,u16,u16),void * arg)
+int rddma_get_doorbell (void (*cb)(void *),void * arg)
 {
 	int ret = -1;
 	u16 id;
@@ -730,21 +796,24 @@ int rddma_put_doorbell(u16 id)
 
 	return 0;
 }
-static void __exit fabric_net_close(void)
+
+/* End of doorbell manager */
+
+static void __exit fabric_rionet_close(void)
 {
 	dev_remove_pack(&rddma_packets);
+	rddma_doorbells_uninit();
 	rddma_fabric_unregister("rddma_fabric_rionet");
 }
 
-/* Jimmy */
-static int __init fabric_net_init(void)
+static int __init fabric_rionet_init(void)
 {
 	return (rio_register_driver(&rddma_rio_drv));
 }
 
-module_init(fabric_net_init);
-module_exit(fabric_net_close);
+module_init(fabric_rionet_init);
+module_exit(fabric_rionet_close);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Phil Terry <pterry@micromemroy.com>");
-MODULE_DESCRIPTION("Implements an ethenet frame/rio doorbell based transport for RDDMA");
+MODULE_DESCRIPTION("Implements an ethernet frame/rio doorbell based transport for RDDMA");
