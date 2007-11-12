@@ -71,21 +71,15 @@ static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, s
 static struct rddma_bind *rddma_local_bind_find(struct rddma_xfer *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_bind *bind = NULL;
-	char *buf = kzalloc(2048,GFP_KERNEL);
+	char buf[128];
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	if (NULL == buf)
+	if ( snprintf(buf,128,"#%llx:%x", desc->xfer.offset, desc->xfer.extent) > 128 )
 		goto out;
-
-	if ( 2048 <= snprintf(buf,2048,"%s#%llx:%x", desc->xfer.name, 
-		desc->xfer.offset, desc->xfer.extent) )
-		goto fail_printf;
 
 	bind = to_rddma_bind(kset_find_obj(&parent->binds->kset,buf));
 
-fail_printf:
-	kfree(buf);
 out:
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,bind);
 	return bind;
@@ -293,16 +287,6 @@ out:
 	return NULL;
 }
 
-static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, struct rddma_bind_param *desc)
-{
-	struct rddma_xfer *xfer;
-
-	xfer = rddma_xfer_create(loc,desc);
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %p\n",__FUNCTION__,loc,desc,xfer);
-
-	return xfer;
-}
-
 /**
 * rddma_local_bind_create - create a bind within an xfer
 * @xfer:
@@ -353,6 +337,20 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 	}
 		
 	return bind;
+}
+
+static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, struct rddma_bind_param *desc)
+{
+	struct rddma_xfer *xfer;
+	struct rddma_bind *bind;
+
+	xfer = rddma_xfer_create(loc,desc);
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %p\n",__FUNCTION__,loc,desc,xfer);
+
+	bind = rddma_local_bind_create(xfer,desc);
+	
+	return xfer;
 }
 
 static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, struct rddma_bind_param *desc)

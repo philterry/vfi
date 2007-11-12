@@ -146,7 +146,7 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_p
 	
 	rddma_clone_bind(&new->desc, desc);
 	
-	kobject_set_name(&new->kobj,"%s#%llx:%x", desc->xfer.name, desc->xfer.offset,desc->xfer.extent);
+	kobject_set_name(&new->kobj,"#%llx:%x",desc->xfer.offset,desc->xfer.extent);
 	new->kobj.ktype = &rddma_bind_type;
 	
 	new->kobj.kset = &parent->binds->kset;
@@ -196,12 +196,21 @@ struct rddma_bind *find_rddma_bind(struct rddma_bind_param *desc)
 struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_param *desc)
 {
 	struct rddma_bind *new;
-	if ( (new = find_rddma_bind(desc)) )
-		return new;
+	char buf[128];
+
+	snprintf(buf,128,"#%llx:%x",xfer->desc.xfer.offset,desc->xfer.extent);
+
+	new = to_rddma_bind(kset_find_obj(&xfer->binds->kset,buf));
+
+	if (new)
+		return NULL;
 
 	if ( (new = new_rddma_bind(xfer,desc)) )
 		if (rddma_bind_register(new))
 			return NULL;
+
+	xfer->desc.xfer.offset += desc->xfer.extent;
+
 	return new;
 }
 

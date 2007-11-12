@@ -206,10 +206,7 @@ static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, stru
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
-		return NULL;
-
-	skb = rddma_fabric_call(loc, 5, "bind_find://%s.%s/%s.%s=%s.%s", desc->xfer.name,
+	skb = rddma_fabric_call(parent->location, 5, "bind_find://%s.%s/%s.%s=%s.%s", desc->xfer.name,
 				desc->xfer.location,desc->dst.name,desc->dst.location,
 				desc->src.name,desc->src.location);
 	if (skb) {

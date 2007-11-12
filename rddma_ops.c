@@ -520,6 +520,11 @@ static int xfer_create(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
+	ret = -EINVAL;
+
+	if ( !valid_extents(&params) )
+		goto out;
+
 	ret = -ENODEV;
 
 	if ( (location = locate_rddma_location(NULL,&params.xfer) ) ) {

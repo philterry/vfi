@@ -230,14 +230,22 @@ struct rddma_xfer *find_rddma_xfer(struct rddma_bind_param *desc)
 struct rddma_xfer *rddma_xfer_create(struct rddma_location *loc, struct rddma_bind_param *desc)
 {
 	struct rddma_xfer *new;
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
 
-	if ( (new = find_rddma_xfer(desc)) )
-		return new;
+	new = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->xfer.name));
+	
+	if (new) {
+		RDDMA_DEBUG(MY_DEBUG,"%s found %p %s locally in %p %s\n",__FUNCTION__,new,desc->xfer.name,loc,loc->desc.name);
+	}
+	else {
+		new = new_rddma_xfer(loc,desc);
+		if (new)
+			if (rddma_xfer_register(new))
+				return NULL;
+	}
 
-	if ( (new = new_rddma_xfer(loc,desc)) )
-		if (rddma_xfer_register(new))
-			return NULL;
+	new->desc.xfer.extent += desc->xfer.extent;
+
 	return new;
 }
 
