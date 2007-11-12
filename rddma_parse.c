@@ -231,38 +231,38 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
  */
 int rddma_parse_bind(struct rddma_bind_param *x, const char *desc)
 {
-	int ret = -ENOMEM;
-	char *mydesc;
+	int ret;
+	char *myxfer, *mydst, *mysrc;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,x,desc);
-	if ( !(mydesc = rddma_str_dup(desc,0)) ) 
-		goto dup_fail;
-	if (! name_remainder(mydesc, '/', &x->dst.name) )
-		goto xfer_fail;
-	if (! name_remainder(x->dst.name, '=', &x->src.name) )
-		goto bind_fail;
-	if ( (ret = rddma_parse_desc( &x->xfer, mydesc )) ) 
-		goto xfer_parse_fail;
-	if ( (ret = rddma_parse_desc( &x->dst, x->dst.name )) )
-		goto dst_parse_fail;
-	if ( (ret = rddma_parse_desc( &x->src, x->src.name)) )
-		goto src_parse_fail;
-	
-	kfree(mydesc);
 
-	return ret;
-
-src_parse_fail:
-	rddma_clean_desc(&x->dst);
-dst_parse_fail:
-	rddma_clean_desc(&x->xfer);
-xfer_parse_fail:
-bind_fail:
-xfer_fail:
-	ret = -EINVAL;
-	kfree(mydesc);
-dup_fail:
 	memset(x,0,sizeof(*x));
+
+	myxfer = rddma_str_dup(desc,0);
+
+	if ( myxfer == NULL ) 
+		return -ENOMEM;
+
+	name_remainder(myxfer, '/', &mydst);
+
+	if (mydst) {
+		name_remainder(mydst, '=', &mysrc);
+
+		if (mysrc) {
+			ret = rddma_parse_desc( &x->src, mysrc);
+			if (ret)
+				goto out;
+		}
+
+		ret = rddma_parse_desc( &x->dst, mydst);
+		if (ret)
+			goto out;
+	}
+
+	ret = rddma_parse_desc( &x->xfer, myxfer );
+out:
+	kfree(myxfer);
+
 	return ret;
 }
 
