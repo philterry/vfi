@@ -249,7 +249,7 @@ static void dma_6460_load_transfer(struct rddma_xfer *xfer)
 	struct my_xfer_object *xfo = (struct my_xfer_object *) &xfer->descriptor;
 	xfo->xf.cb = address_test_completion;
 	xfo->xf.flags = RDDMA_XFER_READY;
-	xfo->xf.len = xfer->desc.extent;
+	xfo->xf.len = xfer->desc.xfer.extent;
 	xfo->desc = to_sdesc(xfer->dma_chain.next);
 printk("Descriptor address in transfer object = 0x%x\n", (unsigned int) xfo->desc);
 }
