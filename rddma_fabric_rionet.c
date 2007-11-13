@@ -521,8 +521,9 @@ static int  fabric_rionet_probe(struct rio_dev *rdev,
 		if (netdev_name)
 			if ( (fna->ndev = dev_get_by_name(netdev_name)) ) {
 				rddma_packets.dev = fna->ndev;
-				dev_add_pack(&rddma_packets);
+				rddma_packets.type = htons(netdev_type);
 				fna->rio_id = port->id;
+				dev_add_pack(&rddma_packets);
 				return rddma_fabric_register(&fna->rfa);
 			}
 		return -ENODEV;
