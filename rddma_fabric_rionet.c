@@ -286,19 +286,8 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 	unsigned long srcidx, dstidx;
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
-#if 0
-	memcpy(&dstidx, &mac->h_dstidx, 4);
-	be32_to_cpus((__u32 *)&dstidx);
-#else
 	dstidx = ntohl(mac->h_dstidx);
-#endif
-
-#if 0
-	memcpy(&srcidx, &mac->h_srcidx, 4);
-	be32_to_cpus((__u32 *)&srcidx);
-#else
 	srcidx = ntohl(mac->h_srcidx);
-#endif
 
 	fna = find_fabric_address(srcidx,0,mac->h_source,dev);
 	
@@ -533,6 +522,7 @@ static int  fabric_rionet_probe(struct rio_dev *rdev,
 			if ( (fna->ndev = dev_get_by_name(netdev_name)) ) {
 				rddma_packets.dev = fna->ndev;
 				dev_add_pack(&rddma_packets);
+				fna->rio_id = port->id;
 				return rddma_fabric_register(&fna->rfa);
 			}
 		return -ENODEV;
