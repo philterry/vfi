@@ -35,6 +35,19 @@ struct call_back_tag {
 };
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+static void fabric_disposeq(void *data)
+{
+	struct work_struct *wo = (struct work_struct *) data;
+#else
+static void fabric_disposeq(struct work_struct *wo)
+{
+#endif
+	struct call_back_tag *cb = container_of(wo, struct call_back_tag, wo);
+	destroy_workqueue(cb->woq);
+	kfree(cb);
+}
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 static void fabric_do_rqst(void *data)
 {
 	struct work_struct *wo = (struct work_struct *) data;
@@ -59,9 +72,12 @@ static void fabric_do_rqst(struct work_struct *wo)
 	ret = rddma_fabric_tx(cb->sender,cb->rply_skb);
 	rddma_fabric_put(cb->sender);
 
-	destroy_workqueue(cb->woq);
-
-	kfree(cb);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+	INIT_WORK(&cb->wo, fabric_disposeq, (void *) &cb->wo);
+#else
+	INIT_WORK(&cb->wo, fabric_disposeq);
+#endif
+	schedule_work(&cb->wo);
 }
 
 /* Downcalls via the location->address */
