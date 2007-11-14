@@ -80,6 +80,25 @@ static void fabric_do_rqst(struct work_struct *wo)
 	schedule_work(&cb->wo);
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+static void fabric_sched_rqst(void *data)
+{
+	struct work_struct *wo = (struct work_struct *) data;
+#else
+static void fabric_sched_rqst(struct work_struct *wo)
+{
+#endif
+	struct call_back_tag *cb = container_of(wo, struct call_back_tag, wo);
+	cb->woq = create_workqueue("fab_rqst");
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+	INIT_WORK(&cb->wo, fabric_do_rqst, (void *) &cb->wo);
+#else
+	INIT_WORK(&cb->wo, fabric_do_rqst);
+#endif
+	queue_work(cb->woq,&cb->wo);
+}
+
 /* Downcalls via the location->address */
 
 int __must_check rddma_fabric_tx(struct rddma_fabric_address *address, struct sk_buff *skb)
@@ -197,19 +216,16 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 		RDDMA_DEBUG(MY_DEBUG,"%s ret(%d) %p\n",__FUNCTION__,ret,cb);
 	}
 	else if ((buf = strstr(msg,"request="))) {
-		char name[10];
 		struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
-		sprintf(name,"%p",cb);
 		cb->rqst_skb = skb;
 		cb->check = cb;
 		if ( (cb->sender = rddma_fabric_get(sender)) ) {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-			INIT_WORK(&cb->wo, fabric_do_rqst, (void *) &cb->wo);
+			INIT_WORK(&cb->wo, fabric_sched_rqst, (void *) &cb->wo);
 #else
-			INIT_WORK(&cb->wo, fabric_do_rqst);
-			cb->woq = create_workqueue(name);
+			INIT_WORK(&cb->wo, fabric_sched_rqst);
 #endif
-			queue_work(cb->woq,&cb->wo);
+			schedule_work(&cb->wo);
 			return 0;
 		}
 		else {
