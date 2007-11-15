@@ -182,14 +182,11 @@ static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, str
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
-				if (xfer) {
+			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0) {
+				if (xfer)
 					xfer->desc.xfer.extent = reply.xfer.extent;
-					xfer->desc.xfer.offset = reply.xfer.offset;
-				}
-				else {
+				else
 					xfer =  rddma_xfer_create(loc,&reply);
-				}
 			}
 			rddma_clean_bind(&reply);
 		}

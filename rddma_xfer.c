@@ -251,8 +251,6 @@ struct rddma_xfer *rddma_xfer_create(struct rddma_location *loc, struct rddma_bi
 				return NULL;
 	}
 
-	new->desc.xfer.extent += desc->xfer.extent;
-
 	return new;
 }
 

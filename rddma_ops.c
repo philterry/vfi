@@ -629,8 +629,8 @@ static int xfer_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (xfer)
-			ret = snprintf(result,size,"%s?result=%d,reply=%s\n",
-				       xfer->desc.xfer.name, ret,rddma_get_option(&params.src,"request"));
+			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%s\n",
+				       xfer->desc.xfer.name,xfer->desc.xfer.offset,xfer->desc.xfer.extent, ret,rddma_get_option(&params.src,"request"));
 		else 
 				ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret,rddma_get_option(&params.src,"request"));
 	}
