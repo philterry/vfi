@@ -167,8 +167,8 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_bi
 	new->desc.xfer.ops = parent->desc.ops;
 	new->desc.xfer.address = parent->desc.address;
 	new->desc.xfer.rde = parent->desc.rde;
+	new->desc.xfer.ploc = parent;
 	new->state = RDDMA_XFER_UNINIT;
-	new->location = parent;
 #ifdef SERIALIZE_BIND_PROCESSING  
 	/* dma chain headed at transfer level, as all binds are linked
 	 * into one continuous chain 
@@ -220,10 +220,17 @@ struct rddma_xfer *find_rddma_xfer(struct rddma_bind_param *desc)
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	if ( (loc = locate_rddma_location(NULL,&desc->xfer)) ) {
+	if (desc->xfer.ploc)
+		loc = desc->xfer.ploc;
+	else
+		loc = locate_rddma_location(NULL,&desc->xfer);
+
+	if (loc)
 		xfer = (loc->desc.ops && loc->desc.ops->xfer_find) ? loc->desc.ops->xfer_find (loc,desc) : NULL;
+
+	if (!desc->xfer.ploc)
 		rddma_location_put(loc);
-	}
+
 	return xfer;
 }
 

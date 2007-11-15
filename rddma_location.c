@@ -203,6 +203,8 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 			new->desc.address = rddma_fabric_get(loc->desc.address);
 	}
 
+	new->desc.ploc = loc;
+
 	kobject_init(&new->kset.kobj);
 	INIT_LIST_HEAD(&new->kset.list);
 	spin_lock_init(&new->kset.list_lock);

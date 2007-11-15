@@ -166,6 +166,7 @@ struct rddma_smb *new_rddma_smb(struct rddma_location *loc, struct rddma_desc_pa
 	new->kobj.kset = &loc->smbs->kset;
 	new->desc.ops = loc->desc.ops;
 	new->desc.rde = loc->desc.rde;
+	new->desc.ploc = loc;
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
@@ -199,12 +200,16 @@ struct rddma_smb *find_rddma_smb(struct rddma_desc_param *desc)
 	struct rddma_smb *smb = NULL;
 	struct rddma_location *loc;
 
-	loc = locate_rddma_location(NULL,desc);
+	if (desc->ploc)
+		loc = desc->ploc;
+	else
+		loc = locate_rddma_location(NULL,desc);
 	
 	if (loc)
 		smb = loc->desc.ops->smb_find(loc,desc);
 
-	rddma_location_put(loc);
+	if (!desc->ploc)
+		rddma_location_put(loc);
 
 	return smb;
 }

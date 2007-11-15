@@ -151,9 +151,8 @@ struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_bind_par
 	kobject_set_name(&new->kobj,"%s.%s#%llx:%x", new->desc.dst.name, new->desc.dst.location, new->desc.dst.offset, new->desc.dst.extent);
 
 	new->kobj.kset = &parent->dsts->kset;
-	new->desc.dst.ops = parent->desc.dst.ops;
-	new->desc.dst.rde = parent->desc.dst.rde;
-	new->desc.src.rde = parent->desc.src.rde;
+	rddma_inherit(&new->desc.dst,&parent->desc.dst);
+	rddma_inherit(&new->desc.src,&parent->desc.src);
 	new->bind = parent;
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);

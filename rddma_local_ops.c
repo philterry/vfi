@@ -93,7 +93,7 @@ static struct rddma_dst *rddma_local_dst_find(struct rddma_bind *parent, struct 
 
 	if (!buf) goto out;
 	
-	if (snprintf (buf, 2048, "%s.%s#%llx:%x", desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent) >= 2048) {
+	if (snprintf (buf, 2048, "#%llx:%x", desc->dst.offset, desc->dst.extent) >= 2048) {
 		goto fail_printf;
 	}
 	
@@ -114,7 +114,7 @@ static struct rddma_src *rddma_local_src_find(struct rddma_dst *parent, struct r
 
 	if (!buf) goto out;
 	
-	if (snprintf (buf, 2048, "%s.%s#%llx:%x", desc->src.name, desc->src.location, desc->src.offset, desc->src.extent) >= 2048) {
+	if (snprintf (buf, 2048, "#%llx:%x", desc->src.offset, desc->src.extent) >= 2048) {
 		goto fail_printf;
 	}
 	
@@ -176,7 +176,7 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 {
 	int page, first_page, last_page;
 	struct rddma_bind_param params = *desc;
-	struct rddma_location *sloc = NULL;
+	struct rddma_location *sloc = parent->desc.src.ploc;
 	struct rddma_smb *dsmb = NULL;
 	struct rddma_dst *new = NULL;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
@@ -186,8 +186,6 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 
 	if (!DESC_VALID(&dsmb->desc,&desc->dst))
 		goto fail_ddesc;
-
-	sloc = locate_rddma_location(NULL,&desc->src);
 
 	first_page = START_PAGE(&dsmb->desc,&desc->dst);
 	last_page = first_page + NUM_DMA(&dsmb->desc,&desc->dst);
@@ -221,7 +219,6 @@ join:
 			params.dst.extent = params.src.extent = PAGE_SIZE;
 	} 
 
-	rddma_location_put(sloc);
 	return new;
 
 fail_ddesc:

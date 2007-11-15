@@ -61,6 +61,7 @@ struct rddma_desc_param {
 	struct rddma_ops *ops;
 	struct rddma_dma_engine *rde;
 	struct rddma_fabric_address *address;
+	struct rddma_location *ploc;
 };
 
 /**
@@ -85,6 +86,7 @@ static inline void rddma_inherit(struct rddma_desc_param *c, struct rddma_desc_p
 	c->address = p->address;
 	c->rde = p->rde;
 	c->ops = p->ops;
+	c->ploc = p->ploc;
 }
 
 extern int __must_check rddma_parse_bind( struct rddma_bind_param *, const char *);
