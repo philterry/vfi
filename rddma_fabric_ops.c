@@ -174,9 +174,10 @@ static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, str
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "xfer_find://%s.%s/%s.%s=%s.%s", desc->xfer.name,
-				desc->xfer.location,desc->dst.name,desc->dst.location,
-				desc->src.name,desc->src.location);
+	skb = rddma_fabric_call(loc, 5, "xfer_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
+				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
+				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
+				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -202,15 +203,16 @@ static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, stru
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(parent->desc.xfer.ploc, 5, "bind_find://%s.%s/%s.%s=%s.%s", desc->xfer.name,
-				desc->xfer.location,desc->dst.name,desc->dst.location,
-				desc->src.name,desc->src.location);
+	skb = rddma_fabric_call(parent->desc.xfer.ploc, 5, "bind_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
+				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
+				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
+				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
 				bind = rddma_bind_create(parent,&reply);
 			rddma_clean_bind(&reply);
 		}

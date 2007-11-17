@@ -38,7 +38,8 @@ static inline struct rddma_dst *rddma_dst_get(struct rddma_dst *rddma_dst)
 static inline void rddma_dst_put(struct rddma_dst *rddma_dst)
 {
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_dst);
-	kobject_put(&rddma_dst->kobj);
+	if (rddma_dst)
+		kobject_put(&rddma_dst->kobj);
 }
 
 extern struct rddma_dst *new_rddma_dst(struct rddma_bind *, struct rddma_bind_param *);

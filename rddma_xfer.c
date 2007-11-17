@@ -161,7 +161,7 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_bi
 
 	rddma_clone_bind(&new->desc, desc);
 	new->kobj.ktype = &rddma_xfer_type;
-	kobject_set_name(&new->kobj,"%s", new->desc.xfer.name);
+	kobject_set_name(&new->kobj,"%s", desc->xfer.name);
 
 	new->kobj.kset = &parent->xfers->kset;
 	new->desc.xfer.ops = parent->desc.ops;
