@@ -77,7 +77,9 @@ static ssize_t rddma_xfer_default_show(struct rddma_xfer *rddma_xfer, char *buff
 	int size = 0;
 	ATTR_PRINTF("Xfer %p is %s \n",rddma_xfer,rddma_xfer ? rddma_xfer->desc.xfer.name : NULL);
 	if (rddma_xfer) {
-		ATTR_PRINTF("ops is %p rde is %p address is %p\n",rddma_xfer->desc.xfer.ops,rddma_xfer->desc.xfer.rde,rddma_xfer->desc.xfer.address);
+		ATTR_PRINTF("xfer: ops is %p rde is %p address is %p\n",rddma_xfer->desc.xfer.ops,rddma_xfer->desc.xfer.rde,rddma_xfer->desc.xfer.address);
+		ATTR_PRINTF("dst:  ops is %p rde is %p address is %p\n",rddma_xfer->desc.dst.ops,rddma_xfer->desc.dst.rde,rddma_xfer->desc.dst.address);
+		ATTR_PRINTF("src:  ops is %p rde is %p address is %p\n",rddma_xfer->desc.src.ops,rddma_xfer->desc.src.rde,rddma_xfer->desc.src.address);
 	}
 	return size;
 }

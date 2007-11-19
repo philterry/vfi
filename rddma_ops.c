@@ -1024,12 +1024,17 @@ static int dst_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (bind)
-			ret = snprintf(result,size,"%s.%s#%llx:%x=%s.%s#%llx:%x?result=%d,reply=%s\n",
+			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result=%d,reply=%s\n",
+				       bind->desc.xfer.name,bind->desc.xfer.location,bind->desc.xfer.offset, bind->desc.xfer.extent,
 				       bind->desc.dst.name, bind->desc.dst.location,bind->desc.dst.offset, bind->desc.dst.extent,
 				       bind->desc.src.name, bind->desc.src.location,bind->desc.src.offset, bind->desc.src.extent,
 				       ret,rddma_get_option(&params.src,"request"));
 		else
-			ret = snprintf(result,size,"%s.%s?result=%d,reply=%s\n", params.xfer.name, params.xfer.location,ret,rddma_get_option(&params.src,"request"));
+			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result=%d,reply=%s\n",
+				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
+				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
+				       params.src.name, params.src.location,params.src.offset, params.src.extent,
+				       ret,rddma_get_option(&params.src,"request"));
 	}
 
 	rddma_clean_bind(&params);
