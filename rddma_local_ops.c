@@ -179,6 +179,8 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 	struct rddma_location *sloc = parent->desc.src.ploc;
 	struct rddma_smb *dsmb = NULL;
 	struct rddma_dst *new = NULL;
+	struct rddma_srcs *srcs = NULL;
+
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	if ( NULL == (dsmb = find_rddma_smb(&desc->dst)) )
@@ -210,7 +212,11 @@ join:
 #endif
 
 		new = rddma_dst_create(parent,&params);
-		sloc->desc.ops->srcs_create(new,&params);
+		if (NULL == new)
+			goto fail_newdst;
+		srcs = sloc->desc.ops->srcs_create(new,&params);
+		if (NULL == srcs)
+			goto fail_srcs;
 		params.dst.offset = 0;
 		params.src.offset += params.src.extent;
 		if ( page + 2 == last_page && END_SIZE(&dsmb->desc,&desc->dst))
@@ -221,6 +227,8 @@ join:
 
 	return new;
 
+fail_srcs:
+fail_newdst:
 fail_ddesc:
 	rddma_smb_put(dsmb);
 fail_dsmb:
