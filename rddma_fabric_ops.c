@@ -238,7 +238,7 @@ static struct rddma_dst *rddma_fabric_dst_find(struct rddma_bind *parent, struct
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
 				dst = rddma_dst_create(parent,&reply);
 			rddma_clean_bind(&reply);
 		}
