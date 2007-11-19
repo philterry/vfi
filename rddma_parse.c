@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
-#define strtol simple_strtol
+#define strtoul simple_strtoul
 
 
 /**
@@ -175,12 +175,12 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 		name_remainder(sextent, '#', &soffset);
 
 	if (sextent) {
-		d->extent = simple_strtol(sextent,&sextent,16);
+		d->extent = simple_strtoul(sextent,&sextent,16);
  		RDDMA_ASSERT(('\0' == *sextent),"Dodgy extent string(%d) contains %s", (ret = (sextent - d->name)), sextent); 
 	}
 
 	if (soffset) {
-		d->offset = simple_strtol(soffset,&soffset,16);
+		d->offset = simple_strtoul(soffset,&soffset,16);
  		RDDMA_ASSERT(('\0' == *soffset),"Dodgy offset string(%d) contains %s", (ret = (soffset - d->name)), soffset); 
 	}
 
