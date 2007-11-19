@@ -229,9 +229,10 @@ static struct rddma_dst *rddma_fabric_dst_find(struct rddma_bind *parent, struct
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "dst_find://%s.%s/%s.%s=%s.%s", desc->xfer.name,desc->xfer.location,
-				desc->dst.name,desc->dst.location,
-				desc->src.name,desc->src.location);
+	skb = rddma_fabric_call(loc, 5, "dst_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
+				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
+				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
+				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -254,9 +255,10 @@ static struct rddma_src *rddma_fabric_src_find(struct rddma_dst *parent, struct 
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "src_find://%s.%s/%s.%s=%s.%s", desc->xfer.name,desc->xfer.location,
-				desc->dst.name,desc->dst.location,
-				desc->src.name,desc->src.location);
+	skb = rddma_fabric_call(loc, 5, "src_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
+				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
+				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
+				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;

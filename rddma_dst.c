@@ -186,7 +186,8 @@ struct rddma_dst *find_rddma_dst(struct rddma_bind_param *desc)
 	bind = find_rddma_bind(desc);
 	
 	if (bind)
-		dst = bind->desc.dst.ops->dst_find(bind,desc);
+		if (bind->desc.dst.ops)
+			dst = bind->desc.dst.ops->dst_find(bind,desc);
 
 	return dst;
 }

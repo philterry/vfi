@@ -88,6 +88,12 @@ static inline void rddma_inherit(struct rddma_desc_param *c, struct rddma_desc_p
 	c->ops = p->ops;
 	c->ploc = p->ploc;
 }
+static inline void rddma_bind_inherit(struct rddma_bind_param *c, struct rddma_bind_param *p)
+{
+	rddma_inherit(&c->xfer,&p->xfer);
+	rddma_inherit(&c->dst,&p->dst);
+	rddma_inherit(&c->src,&p->src);
+}
 
 extern int __must_check rddma_parse_bind( struct rddma_bind_param *, const char *);
 extern int __must_check rddma_parse_desc( struct rddma_desc_param *, const char *);

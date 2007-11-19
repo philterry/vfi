@@ -23,7 +23,6 @@ struct rddma_bind {
 	struct rddma_bind_param desc;
 	struct kobject kobj;
 	struct rddma_dsts *dsts;
-	struct rddma_xfer *xfer;
 	struct list_head dma_chain;
 	struct list_head *end_of_chain;
 	atomic_t src_votes;
