@@ -152,8 +152,8 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_p
 	new->kobj.kset = &parent->binds->kset;
 
 	rddma_inherit(&new->desc.xfer,&parent->desc.xfer);
-	rddma_inherit(&new->desc.dst,&parent->desc.xfer);
-	rddma_inherit(&new->desc.src,&parent->desc.xfer);
+	new->desc.dst.ops = &rddma_local_ops;
+	new->desc.src.ops = &rddma_local_ops;
 
 	INIT_LIST_HEAD(&new->dma_chain);
 
@@ -177,9 +177,13 @@ struct rddma_bind *find_rddma_bind(struct rddma_bind_param *desc)
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_bind *bind = NULL;
 
-	if ( (xfer = find_rddma_xfer(desc)) )
+	xfer = find_rddma_xfer(desc);
+
+	if (xfer && xfer->desc.xfer.ops)
 		bind = xfer->desc.xfer.ops->bind_find(xfer,desc);
+
 	rddma_xfer_put(xfer);
+
 	return bind;
 }
 

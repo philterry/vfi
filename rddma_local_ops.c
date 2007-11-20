@@ -175,14 +175,12 @@ static struct rddma_mmap *rddma_local_mmap_create(struct rddma_smb *smb, struct 
 	return rddma_mmap_create(smb,desc);
 }
 
-static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
+static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	int page, first_page, last_page;
 	struct rddma_bind_param params = *desc;
-	struct rddma_location *sloc = parent->desc.src.ploc;
 	struct rddma_smb *dsmb = NULL;
 	struct rddma_dst *new = NULL;
-	struct rddma_srcs *srcs = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
@@ -214,12 +212,10 @@ join:
 		}
 #endif
 
-		new = rddma_dst_create(parent,&params);
+		new = parent->desc.xfer.ops->dst_create(parent,&params);
 		if (NULL == new)
 			goto fail_newdst;
-		srcs = sloc->desc.ops->srcs_create(new,&params);
-		if (NULL == srcs)
-			goto fail_srcs;
+
 		params.dst.offset = 0;
 		params.src.offset += params.src.extent;
 		if ( page + 2 == last_page && END_SIZE(&dsmb->desc,&desc->dst))
@@ -228,70 +224,12 @@ join:
 			params.dst.extent = params.src.extent = PAGE_SIZE;
 	} 
 
-	return new;
+	return parent->dsts;
 
-fail_srcs:
 fail_newdst:
 fail_ddesc:
 	rddma_smb_put(dsmb);
 fail_dsmb:
-	return NULL;
-}
-
-static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc, char *name, ...)
-{
-	struct rddma_dsts *dsts = NULL;
-	struct rddma_smb *ssmb = NULL;
-	struct rddma_smb *dsmb = NULL;
-	va_list ap;
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	
-	if (NULL == parent->dsts) {
-		va_start(ap,name);
-		dsts = rddma_dsts_create_ap(parent,desc,name,ap);
-		va_end(ap);
-
-		if (NULL == dsts ) 
-			goto out;
-
-		parent->dsts = dsts;
-	}
-
-	if ( NULL == (dsmb = find_rddma_smb(&desc->dst)) )
-		goto fail_dsmb;
-
-	if (!DESC_VALID(&dsmb->desc,&desc->dst))
-		goto fail_ddesc;
-
-	if ( NULL == (ssmb = find_rddma_smb(&desc->src)) )
-		goto fail_ddesc;
-
-	if (!DESC_VALID(&ssmb->desc,&desc->src))
-		goto fail_sdesc;
-
-	rddma_inherit(&parent->desc.src,&ssmb->desc);
-	rddma_inherit(&parent->desc.dst,&dsmb->desc);
-
-	if ( NULL == parent->desc.dst.ops->dst_create(parent,desc))
-		goto fail_dst;
-
-	rddma_bind_load_dsts(parent);
-
-	if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
-		rddma_dma_chain_dump(&parent->dma_chain);
-
-	parent->end_of_chain = parent->dma_chain.prev;
-
-	return parent->dsts;
-
-fail_dst:
-fail_sdesc:
-	rddma_smb_put(ssmb);
-fail_ddesc:
-	rddma_smb_put(dsmb);
-fail_dsmb:
-	rddma_dsts_delete(dsts);
-out:
 	return NULL;
 }
 
@@ -309,6 +247,8 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 {
 	struct rddma_dsts *dsts;
 	struct rddma_bind *bind;
+	struct rddma_smb *ssmb = NULL;
+	struct rddma_smb *dsmb = NULL;
 	RDDMA_DEBUG (MY_DEBUG,"%s: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n",
 		    __FUNCTION__, 
 		     desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, 
@@ -317,23 +257,41 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 
 	xfer->state = RDDMA_XFER_BINDING;
 	if ( (bind = rddma_bind_create(xfer, desc))) {
-		if ( (dsts = rddma_local_dsts_create(bind,desc,"%s.%s#%llx:%x=%s.%s#%llx:%x",
+		if ( (dsts = rddma_dsts_create(bind,desc,"%s.%s#%llx:%x=%s.%s#%llx:%x",
 						     desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
 						     desc->src.name,desc->src.location,desc->src.offset,desc->src.extent)) ) {
+			if ( NULL == (dsmb = find_rddma_smb(&desc->dst)) )
+				goto fail_dsmb;
+
+			if (!DESC_VALID(&dsmb->desc,&desc->dst))
+				goto fail_ddesc;
+
+			if ( NULL == (ssmb = find_rddma_smb(&desc->src)) )
+				goto fail_ddesc;
+
+			if (!DESC_VALID(&ssmb->desc,&desc->src))
+				goto fail_sdesc;
+
+			rddma_inherit(&bind->desc.src,&ssmb->desc);
+			rddma_inherit(&bind->desc.dst,&dsmb->desc);
+
+			if ( NULL == bind->desc.dst.ops->dsts_create(bind,desc))
+				goto fail_dst;
+
 			rddma_xfer_load_binds(xfer,bind);
 			/*
-			* Increment the parent's bind counters, which it uses
-			* to coordinate transfer execution.
-			*
-			*/
+			 * Increment the parent's bind counters, which it uses
+			 * to coordinate transfer execution.
+			 *
+			 */
 			atomic_inc (&xfer->bind_count);
 	
 			if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
 #ifdef SERIALIZE_BIND_PROCESSING
 				rddma_dma_chain_dump(&xfer->dma_chain);
 #else
-				/* Jimmy, "bind" was "xfer" */
-				rddma_dma_chain_dump(&bind->dma_chain);
+			/* Jimmy, "bind" was "xfer" */
+			rddma_dma_chain_dump(&bind->dma_chain);
 #endif
 
 			xfer->state = RDDMA_XFER_READY;
@@ -345,7 +303,40 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 	}
 		
 	return bind;
+
+fail_dst:
+fail_sdesc:
+	rddma_smb_put(ssmb);
+fail_ddesc:
+	rddma_smb_put(dsmb);
+fail_dsmb:
+	rddma_dsts_delete(dsts);
+	return NULL;
 }
+
+static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
+{
+	struct rddma_dst *dst;
+	struct rddma_srcs *srcs;
+
+	dst = rddma_dst_create(parent,desc);
+	
+	if (dst) {
+		srcs = parent->desc.src.ops->srcs_create(dst,desc);
+
+		if (srcs) {
+			rddma_bind_load_dsts(parent);
+
+			if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
+				rddma_dma_chain_dump(&parent->dma_chain);
+
+			parent->end_of_chain = parent->dma_chain.prev;
+		}
+	}
+
+	return dst;
+}
+
 
 static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, struct rddma_bind_param *desc)
 {
@@ -397,7 +388,7 @@ join2:
 #endif
 
 		params.dst.extent = params.src.extent;
-		src = parent->desc.dst.ops->src_create(parent,&params);
+		src = parent->desc.xfer.ops->src_create(parent,&params);
 		params.src.offset = 0;
 		params.dst.offset += params.src.extent;
 		if (page + 2 >= last_page && END_SIZE(&smb->desc,&desc->src))
@@ -406,7 +397,6 @@ join2:
 			params.src.extent = PAGE_SIZE;
 	} 
 
-	rddma_dst_load_srcs(parent);
 	return srcs;
 }
 
@@ -418,6 +408,7 @@ static struct rddma_src *rddma_local_src_create(struct rddma_dst *parent, struct
 
 	src = rddma_src_create(parent,desc);
 
+	rddma_dst_load_srcs(parent);
 	return src;
 }
 

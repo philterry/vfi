@@ -20,7 +20,6 @@ struct rddma_dst {
 	struct rddma_bind_param desc;
 	struct kobject kobj;
 	struct rddma_srcs *srcs;
-	struct rddma_bind *bind;
 	struct rddma_src *head_src;
 };
 

@@ -183,7 +183,7 @@ static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, str
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0) {
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
 				if (xfer)
 					xfer->desc.xfer.extent = reply.xfer.extent;
 				else
@@ -264,7 +264,7 @@ static struct rddma_src *rddma_fabric_src_find(struct rddma_dst *parent, struct 
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
 				src = rddma_src_create(parent,&reply);
 			rddma_clean_bind(&reply);
 		}
@@ -409,13 +409,11 @@ static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, s
 	return xfer;
 }
 
-static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc, char *name, ...)
+static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
 	struct rddma_location *loc;
 	struct rddma_dsts *dsts = NULL;
-
-	va_list ap;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
@@ -431,10 +429,10 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0) {
-				va_start(ap,name);
-				dsts = rddma_dsts_create_ap(parent,&reply,name,ap);
-				va_end(ap);
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
+				dsts = rddma_dsts_create(parent,&reply,"%s.%s#%llx:%x=%s.%s#%llx:%x",
+							 reply.dst.name,reply.dst.location,reply.dst.offset,reply.dst.extent,
+							 reply.src.name,reply.src.location,reply.src.offset,reply.src.extent);
 			}
 			rddma_clean_bind(&reply);
 		}
@@ -460,7 +458,7 @@ static struct rddma_dst *rddma_fabric_dst_create(struct rddma_bind *parent, stru
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
 				dst = rddma_dst_create(parent,&reply);
 			rddma_clean_bind(&reply);
 		}
@@ -486,7 +484,7 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
 				srcs = rddma_srcs_create(parent,&reply);
 			rddma_clean_bind(&reply);
 		}
@@ -623,7 +621,7 @@ static void rddma_fabric_dst_delete(struct rddma_bind *parent, struct rddma_bind
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			int ret = -EINVAL;
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
 				rddma_dst_delete(dst);
 			rddma_clean_bind(&reply);
 		}
@@ -652,7 +650,7 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			int ret = -EINVAL;
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
 				rddma_src_delete(src);
 			rddma_clean_bind(&reply);
 		}

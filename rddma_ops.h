@@ -45,7 +45,7 @@ struct rddma_ops {
 	void			 (*bind_src_ready)(struct rddma_xfer *, struct rddma_bind_param *);		/* Signal bind src ready for xfer_start */
 	void			      (*bind_vote)(struct rddma_xfer *, struct rddma_bind_param *, int, int);	/* Add votes to bind readiness for xfer_start */
 	
-	struct rddma_dsts *          (*dsts_create)(struct rddma_bind *,      struct rddma_bind_param *, char *, ...) __attribute__((format(printf, 3,4)));
+	struct rddma_dsts *          (*dsts_create)(struct rddma_bind *,      struct rddma_bind_param *);
 	void                         (*dsts_delete)(struct rddma_bind *,      struct rddma_bind_param *);
 	struct rddma_dsts *            (*dsts_find)(struct rddma_bind *,      struct rddma_bind_param *);
 

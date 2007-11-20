@@ -171,10 +171,16 @@ struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_bin
 {
 	struct rddma_dsts  *dsts = NULL;
 	va_list ap;
-	va_start(ap,name);
-	dsts = rddma_dsts_create_ap(parent,desc,name,ap);
-	va_end(ap);
-	return dsts;
+	if (NULL == parent->dsts) {
+		va_start(ap,name);
+		dsts = rddma_dsts_create_ap(parent,desc,name,ap);
+		va_end(ap);
+	}
+
+	if (dsts) 
+		parent->dsts = dsts;
+
+	return parent->dsts;
 }
 
 struct rddma_dsts *rddma_dsts_create_ap(struct rddma_bind *parent, struct rddma_bind_param *desc, char *name, va_list ap)

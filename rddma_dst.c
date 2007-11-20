@@ -86,10 +86,9 @@ static ssize_t rddma_dst_default_show(struct rddma_dst *rddma_dst, char *buffer)
 	int size = 0;
 	ATTR_PRINTF("Dst %p is %s.%s = %s.%s\n",rddma_dst,rddma_dst->desc.dst.name,rddma_dst->desc.dst.location,
 		    rddma_dst->desc.src.name,rddma_dst->desc.src.location);
-	if (rddma_dst) {
-		ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",rddma_dst->desc.dst.ops,rddma_dst->desc.dst.rde,rddma_dst->desc.dst.address);
-		ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",rddma_dst->desc.src.ops,rddma_dst->desc.src.rde,rddma_dst->desc.src.address);
-	}
+	ATTR_PRINTF("xfer: ops is %p rde is %p address is %p\n",rddma_dst->desc.xfer.ops,rddma_dst->desc.xfer.rde,rddma_dst->desc.xfer.address);
+	ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",rddma_dst->desc.dst.ops,rddma_dst->desc.dst.rde,rddma_dst->desc.dst.address);
+	ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",rddma_dst->desc.src.ops,rddma_dst->desc.src.rde,rddma_dst->desc.src.address);
 	return size;
 
 }
@@ -151,9 +150,8 @@ struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_bind_par
 	kobject_set_name(&new->kobj,"%s.%s#%llx:%x", new->desc.dst.name, new->desc.dst.location, new->desc.dst.offset, new->desc.dst.extent);
 
 	new->kobj.kset = &parent->dsts->kset;
-	rddma_inherit(&new->desc.dst,&parent->desc.dst);
-	rddma_inherit(&new->desc.src,&parent->desc.src);
-	new->bind = parent;
+	rddma_bind_inherit(&new->desc,&parent->desc);
+
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
@@ -185,9 +183,8 @@ struct rddma_dst *find_rddma_dst(struct rddma_bind_param *desc)
 
 	bind = find_rddma_bind(desc);
 	
-	if (bind)
-		if (bind->desc.dst.ops)
-			dst = bind->desc.dst.ops->dst_find(bind,desc);
+	if (bind && bind->desc.xfer.ops)
+		dst = bind->desc.xfer.ops->dst_find(bind,desc);
 
 	return dst;
 }
