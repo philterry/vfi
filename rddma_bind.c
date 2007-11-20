@@ -151,7 +151,9 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_p
 	
 	new->kobj.kset = &parent->binds->kset;
 
-	rddma_bind_inherit(&new->desc,&parent->desc);
+	rddma_inherit(&new->desc.xfer,&parent->desc.xfer);
+	rddma_inherit(&new->desc.dst,&parent->desc.xfer);
+	rddma_inherit(&new->desc.src,&parent->desc.xfer);
 	new->desc.dst.ops = &rddma_local_ops;
 	new->desc.src.ops = &rddma_local_ops;
 
