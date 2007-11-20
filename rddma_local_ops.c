@@ -255,6 +255,11 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 		     desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent, 
 		     desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
 
+	if (!desc->xfer.offset)
+		desc->xfer.offset = xfer->desc.xfer.extent;
+
+	xfer->desc.xfer.extent += desc->xfer.extent;
+	
 	xfer->state = RDDMA_XFER_BINDING;
 	if ( (bind = rddma_bind_create(xfer, desc))) {
 		if ( (dsts = rddma_dsts_create(bind,desc,"%s.%s#%llx:%x=%s.%s#%llx:%x",

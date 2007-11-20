@@ -752,10 +752,6 @@ static int bind_create(const char *desc, char *result, int size)
 	ret = -ENODEV;
 
 	if ( (xfer = find_rddma_xfer(&params) ) ) {
-		if (!params.xfer.offset)
-			params.xfer.offset = xfer->desc.xfer.extent;
-
-		xfer->desc.xfer.extent += params.xfer.extent;
 
 		ret = -EINVAL;
 		if (xfer->desc.xfer.ops && xfer->desc.xfer.ops->bind_create)
