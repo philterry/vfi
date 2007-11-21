@@ -549,20 +549,12 @@ static int xfer_create(const char *desc, char *result, int size)
 	rddma_location_put(location);
 
 out:		
-	if (result) {
-		if (xfer)
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result=%d,reply=%s\n",
-				       xfer->desc.xfer.name, xfer->desc.xfer.location,xfer->desc.xfer.offset, xfer->desc.xfer.extent,
-				       xfer->desc.dst.name, xfer->desc.dst.location,xfer->desc.dst.offset, xfer->desc.dst.extent,
-				       xfer->desc.src.name, xfer->desc.src.location,xfer->desc.src.offset, xfer->desc.src.extent,
-				       ret,rddma_get_option(&params.src,"request"));
-		else
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result=%d,reply=%s\n",
-				       params.xfer.name, params.xfer.location,params.xfer.offset, params.xfer.extent,
-				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
-				       params.src.name, params.src.location,params.src.offset, params.src.extent,
-				       ret,rddma_get_option(&params.src,"request"));
-	}
+	if (result)
+		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result=%d,reply=%s\n",
+			       params.xfer.name, params.xfer.location,params.xfer.offset, params.xfer.extent,
+			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
+			       params.src.name, params.src.location,params.src.offset, params.src.extent,
+			       ret,rddma_get_option(&params.src,"request"));
 
 	rddma_clean_bind(&params);
 
@@ -646,16 +638,12 @@ static int xfer_find(const char *desc, char *result, int size)
 	rddma_location_put(location);
 
 out:
-	if (result) {
-		if (xfer)
-			ret = snprintf(result,size,"%s#%llx:%x?result=%d,reply=%s\n",
-				       xfer->desc.xfer.name,xfer->desc.xfer.offset,xfer->desc.xfer.extent,
-				       ret,rddma_get_option(&params.src,"request"));
-		else 
-			ret = snprintf(result,size,"%s?result=%d,reply=%s\n",
-				       params.xfer.name,
-				       ret,rddma_get_option(&params.src,"request"));
-	}
+	if (result)
+		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result=%d,reply=%s\n",
+			       params.xfer.name, params.xfer.location,params.xfer.offset, params.xfer.extent,
+			       params.dst.name,params.dst.location, params.dst.offset, params.dst.extent,
+			       params.src.name, params.src.location,params.src.offset, params.src.extent,
+			       ret,rddma_get_option(&params.src,"request"));
 
 	rddma_clean_bind(&params);
 

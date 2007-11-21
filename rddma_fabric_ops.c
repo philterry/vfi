@@ -471,7 +471,7 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 {
 	struct sk_buff  *skb;
 	struct rddma_location *sloc = parent->desc.src.ploc;
-	struct rddma_srcs *srcs = NULL;
+	struct rddma_srcs *srcs = rddma_srcs_create(parent,desc);
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
@@ -484,8 +484,8 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
-				srcs = rddma_srcs_create(parent,&reply);
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret != 0)
+				srcs = NULL;
 			rddma_clean_bind(&reply);
 		}
 	}
