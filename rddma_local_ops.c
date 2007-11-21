@@ -367,7 +367,7 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	struct rddma_bind_param params = *desc;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	parent->srcs = srcs = rddma_srcs_create(parent,desc);
+	srcs = rddma_srcs_create(parent,desc);
 	smb = find_rddma_smb(&desc->src);
 
 	first_page = START_PAGE(&smb->desc,&desc->src);
