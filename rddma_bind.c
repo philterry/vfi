@@ -219,8 +219,6 @@ struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_
 		if (rddma_bind_register(new))
 			return NULL;
 
-	xfer->desc.xfer.offset += desc->xfer.extent;
-
 	return new;
 }
 
