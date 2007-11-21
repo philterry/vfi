@@ -183,6 +183,9 @@ struct rddma_dst *find_rddma_dst(struct rddma_bind_param *desc)
 
 	bind = find_rddma_bind(desc);
 	
+	if (bind)
+		rddma_dsts_create(bind,desc,"dsts");
+
 	if (bind && bind->desc.xfer.ops)
 		dst = bind->desc.xfer.ops->dst_find(bind,desc);
 
