@@ -302,7 +302,7 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 			return bind;
 		}
 		RDDMA_DEBUG (MY_DEBUG, "xxx Failed to create bind %s - deleting\n", kobject_name (&bind->kobj));
-		rddma_bind_delete(bind);
+		rddma_bind_delete(xfer,desc);
 		bind = NULL;
 	}
 		
@@ -459,61 +459,6 @@ static void rddma_local_mmap_delete(struct rddma_smb *smb, struct rddma_desc_par
 	rddma_mmap_delete(smb,desc);
 }
 
-static void rddma_local_xfer_delete(struct rddma_location *loc, struct rddma_bind_param *desc)
-{
-	struct rddma_xfer *xfer;
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	xfer = rddma_local_xfer_find(loc,desc);
-	if (xfer) {
-		kobject_put(&xfer->kobj);
-		rddma_xfer_delete(xfer);
-	}
-}
-
-static void rddma_local_bind_delete(struct rddma_xfer *parent, struct rddma_bind_param *desc)
-{
-}
-
-
-/**
- * rddma_local_src_delete - delete a bind source
- *
- * @parent - points to the parent dst
- * @desc   - points to the bind descriptor
- *
- * This function deletes the source element of a bind or sub-bind. It sits at
- * the very bottom of the bind_delete stack, and is responsible for disengaging
- * the DMA engine that performs this part of the transfer.
- *
- * This function would typically run on the Source Agent of the bind - at the 
- * location where the source SMB resides, and therefore where DMA transactions
- * are queued. It can be called either in response to src_delete requests or 
- * as part of dst_delete or bind_delete requests.
- *
- **/
-static void rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
-{
-	struct rddma_src *src;
-	
-	RDDMA_DEBUG(MY_DEBUG,"%s: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", __FUNCTION__, 
-		    desc->xfer.name, desc->xfer.location,desc->xfer.offset, desc->xfer.extent, 
-		    desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent, 
-		    desc->src.name, desc->src.location,desc->src.offset, desc->src.extent);
-	
-	if (!(src = rddma_local_src_find (parent, desc))) {
-		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx Failed: cannot find the src!\n");
-		return;
-	}
-	
-/*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- xfer: %s.%s#%llx:%x\n", src->desc.xfer.name, src->desc.xfer.location,src->desc.xfer.offset, src->desc.xfer.extent);
-	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  dst: %s.%s#%llx:%x\n", src->desc.dst.name, src->desc.dst.location,src->desc.dst.offset, src->desc.dst.extent);
-	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  src: %s.%s#%llx:%x\n", src->desc.src.name, src->desc.src.location,src->desc.src.offset, src->desc.src.extent);
-	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Src Count: %lx\n", (unsigned long)src->kobj.kref.refcount.counter); */
-	
-	rddma_src_put (src);		/* Put, to counteract the find... */
-	rddma_src_delete (src);		/* And show we're ready to delete the kobject */
-}
-
 /**
  * rddma_local_srcs_delete
  *
@@ -553,49 +498,6 @@ static void rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind
 	}
 }
 
-
-/**
-* rddma_local_dst_delete - delete destination side of a bind or sub-bind
-* 
-* @parent - points to the rddma_bind of the binding to which the target belongs.
-* @desc   - points to complete bind descriptor in which the transfer, destination, 
-*           and source are correctly identified.
-*
-* This function is typically invoked as part of a larger bind_delete operation, 
-* but specifically in response to dst_delete, which is an operation in its own
-* right. It's job is to delete the destination side of a bind or sub-bind, but 
-* only after causing the source side of the bind to delete first.
-*
-* Individual binds, which transfer n bytes from a source SMB to a destination SMB, 
-* can be broken down into smaller sub-binds in order to make more efficient use
-* of DMA engines. An rddma_bind descriptor will include a list of destination
-* sub-binds; and each of those - which we are deleting here - includes a further 
-* list of source sub-binds. Our task here is to delete a single destination sub-bind, 
-* but only after explicitly deleting and source sub-binds that may be slung beneath
-* it.
-* 
-**/
-static void rddma_local_dst_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
-{
-	struct rddma_dst *dst;
-	
-	RDDMA_DEBUG(MY_DEBUG,"%s: %s.%s#%llx:%x/%s.%s#%llx:%x\n", __FUNCTION__, 
-		    desc->xfer.name, desc->xfer.location,desc->xfer.offset, desc->xfer.extent, 
-		    desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent);
-	
-	if (!(dst = rddma_local_dst_find (parent, desc))) {
-		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx Failed: cannot find the dst!\n");
-		return;
-	}
-/*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- xfer: %s.%s#%llx:%x\n", dst->desc.xfer.name, dst->desc.xfer.location,dst->desc.xfer.offset, dst->desc.xfer.extent);
-	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  dst: %s.%s#%llx:%x\n", dst->desc.dst.name, dst->desc.dst.location,dst->desc.dst.offset, dst->desc.dst.extent);
-	RDDMA_DEBUG (MY_LIFE_DEBUG, "--  src: %s.%s#%llx:%x\n", dst->desc.src.name, dst->desc.src.location,dst->desc.src.offset, dst->desc.src.extent); */
-	
-	rddma_local_srcs_delete (dst, desc);
-/*	RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Dst Count: %lx\n", (unsigned long)dst->kobj.kref.refcount.counter);	*/
-	rddma_dst_put (dst);		/* Put, to counteract the find... */
-	rddma_dst_delete (dst);		/* And remove the kobject from the tree. */
-}
 
 /**
 * rddma_local_dsts_delete - Delete bind destinations
@@ -810,21 +712,21 @@ struct rddma_ops rddma_local_ops = {
 	.mmap_create = rddma_local_mmap_create,
 	.mmap_delete = rddma_local_mmap_delete,
 	.xfer_create = rddma_local_xfer_create,
-	.xfer_delete = rddma_local_xfer_delete,
+	.xfer_delete = rddma_xfer_delete,
 	.xfer_start = rddma_local_xfer_start,
 	.xfer_find = rddma_local_xfer_find,
 	.srcs_create = rddma_local_srcs_create,
 	.src_create = rddma_local_src_create,
-	.src_delete = rddma_local_src_delete,
+	.src_delete = rddma_src_delete,
 	.src_find = rddma_local_src_find,
 	.dsts_create = rddma_local_dsts_create,
 	.dsts_delete = rddma_local_dsts_delete, 
 	.dst_create = rddma_local_dst_create,
-	.dst_delete = rddma_local_dst_delete,
+	.dst_delete = rddma_dst_delete,
 	.dst_find = rddma_local_dst_find,
 	.bind_find = rddma_local_bind_find,
 	.bind_create = rddma_local_bind_create,
-	.bind_delete = rddma_local_bind_delete, 
+	.bind_delete = rddma_bind_delete, 
 	.bind_dst_ready = rddma_local_bind_dst_ready, 
 	.bind_src_ready = rddma_local_bind_src_ready, 
 	.bind_vote = rddma_local_bind_vote, 

@@ -46,7 +46,7 @@ extern int rddma_dst_register(struct rddma_dst *);
 extern void rddma_dst_unregister(struct rddma_dst *);
 extern struct rddma_dst *find_rddma_dst(struct rddma_bind_param *);
 extern struct rddma_dst *rddma_dst_create(struct rddma_bind *, struct rddma_bind_param *);
-extern void rddma_dst_delete(struct rddma_dst *);
+extern void rddma_dst_delete(struct rddma_bind *, struct rddma_bind_param *);
 extern void rddma_dst_load_srcs(struct rddma_dst *);
 extern struct kobj_type rddma_dst_type;
 #endif /* RDDMA_DST_H */

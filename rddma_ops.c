@@ -597,7 +597,8 @@ static int xfer_delete(const char *desc, char *result, int size)
 
 out:
 	if (result) 
-		ret = snprintf(result,size,"%s?result=%d,reply=%s\n", params.xfer.name, ret, rddma_get_option(&params.src,"request"));
+		ret = snprintf(result,size,"%s.%s?result=%d,reply=%s\n",
+			       params.xfer.name, params.xfer.location,ret, rddma_get_option(&params.xfer,"request"));
 
 	rddma_clean_bind(&params);
 
@@ -844,11 +845,9 @@ static int bind_delete(const char *desc, char *result, int size)
 
 out:
 	if (result) 
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result=%d,reply=%s\n",
+		ret = snprintf(result,size,"%s.%s#%llx:%x?result=%d,reply=%s\n",
 			       params.xfer.name, params.xfer.location,params.xfer.offset, params.xfer.extent,
-			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
-			       params.src.name, params.src.location,params.src.offset, params.src.extent,
-			       ret,rddma_get_option(&params.src,"request"));
+			       ret,rddma_get_option(&params.xfer,"request"));
 
 	rddma_clean_bind(&params);
 

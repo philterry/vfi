@@ -173,7 +173,8 @@ out:
 void rddma_dst_unregister(struct rddma_dst *rddma_dst)
 {
     
-     kobject_unregister(&rddma_dst->kobj);
+	if (rddma_dst)
+		kobject_unregister(&rddma_dst->kobj);
 }
 
 struct rddma_dst *find_rddma_dst(struct rddma_bind_param *desc)
@@ -209,11 +210,25 @@ out:
 	return NULL;
 }
 
-void rddma_dst_delete(struct rddma_dst *dst)
+void rddma_dst_delete (struct rddma_bind *bind, struct rddma_bind_param *desc)
 {
-	if (dst) {
-		rddma_dst_unregister(dst);
+	struct rddma_dst *dst;
+	char buf[128];
+
+	RDDMA_DEBUG(MY_DEBUG,"%s: %s.%s#%llx:%x/%s.%s#%llx:%x\n", __FUNCTION__, 
+		    desc->xfer.name, desc->xfer.location,desc->xfer.offset, desc->xfer.extent, 
+		    desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent);
+	
+	if (snprintf (buf, 128, "%s.%s#%llx:%x",
+		      desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent
+		    ) >= 128) {
+		RDDMA_DEBUG(MY_DEBUG, "%s buffer not big enough\n",__FUNCTION__);
 	}
+	
+	dst = to_rddma_dst (kset_find_obj (&bind->dsts->kset, buf));
+
+	rddma_dst_put (dst);		/* Put, to counteract the find... */
+	rddma_dst_unregister(dst);
 }
 
 void rddma_dst_load_srcs(struct rddma_dst *dst)

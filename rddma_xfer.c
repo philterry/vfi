@@ -211,8 +211,10 @@ out:
 
 void rddma_xfer_unregister(struct rddma_xfer *rddma_xfer)
 {
-	rddma_binds_unregister(rddma_xfer->binds);
-	kobject_unregister(&rddma_xfer->kobj);
+	if (rddma_xfer) {
+		rddma_binds_unregister(rddma_xfer->binds);
+		kobject_unregister(&rddma_xfer->kobj);
+	}
 }
 
 struct rddma_xfer *find_rddma_xfer(struct rddma_bind_param *desc)
@@ -300,10 +302,13 @@ void rddma_xfer_start(struct rddma_xfer *xfer)
 }
 #endif
 
-void rddma_xfer_delete(struct rddma_xfer *xfer)
+void rddma_xfer_delete(struct rddma_location *loc, struct rddma_bind_param *desc)
 {
-	if (xfer)
-		rddma_xfer_unregister(xfer);
+	struct rddma_xfer *xfer;
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->xfer.name));
+	rddma_xfer_put(xfer);
+	rddma_xfer_unregister(xfer);
 }
 
 void rddma_xfer_load_binds(struct rddma_xfer *xfer, struct rddma_bind *bind)

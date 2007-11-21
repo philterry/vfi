@@ -164,7 +164,8 @@ out:
 void rddma_dsts_unregister(struct rddma_dsts *rddma_dsts)
 {
     
-     kset_unregister(&rddma_dsts->kset);
+	if (rddma_dsts)
+		kset_unregister(&rddma_dsts->kset);
 }
 
 struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc, char *name, ...)
@@ -202,5 +203,6 @@ out:
 
 void rddma_dsts_delete(struct rddma_dsts *dsts)
 {
-	rddma_dsts_unregister(dsts);
+	if (dsts)
+		rddma_dsts_unregister(dsts);
 }

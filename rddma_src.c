@@ -225,9 +225,23 @@ out:
 	return NULL;
 }
 
-void rddma_src_delete(struct rddma_src *src)
+void rddma_src_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
-	if (src) {
-		rddma_src_unregister(src);
+	struct rddma_src *src;
+	char buf[128];
+	
+	RDDMA_DEBUG(MY_DEBUG,"%s: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", __FUNCTION__, 
+		    desc->xfer.name, desc->xfer.location,desc->xfer.offset, desc->xfer.extent, 
+		    desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent, 
+		    desc->src.name, desc->src.location,desc->src.offset, desc->src.extent);
+	
+	if (snprintf (buf, 128, "#%llx:%x", desc->src.offset, desc->src.extent) >= 128) {
+		RDDMA_DEBUG(MY_DEBUG, "%s: buffer not big enough\n",__FUNCTION__);
 	}
+	
+	src = to_rddma_src (kset_find_obj (&parent->srcs->kset, buf));
+
+	rddma_src_put (src);		/* Put, to counteract the find... */
+	rddma_src_unregister(src);
 }
+
