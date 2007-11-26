@@ -43,7 +43,8 @@ static inline struct rddma_bind *rddma_bind_get(struct rddma_bind *rddma_bind)
 static inline void rddma_bind_put(struct rddma_bind *rddma_bind)
 {
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_bind);
-	kobject_put(&rddma_bind->kobj);
+	if (rddma_bind)
+		kobject_put(&rddma_bind->kobj);
 }
 
 extern struct rddma_bind *new_rddma_bind(struct rddma_xfer *, struct rddma_bind_param *);

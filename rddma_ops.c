@@ -1376,8 +1376,8 @@ static int dsts_create(const char *desc, char *result, int size)
 	
 	if ( (bind = find_rddma_bind(&params) ) ) {
 		ret = -EINVAL;
-		if (bind->desc.src.ops && bind->desc.src.ops->dsts_create)
-			ret = ((dsts = bind->desc.src.ops->dsts_create(bind, &params)) == NULL);
+		if (bind->desc.dst.ops && bind->desc.dst.ops->dsts_create)
+			ret = ((dsts = bind->desc.dst.ops->dsts_create(bind, &params)) == NULL);
 	}
 
 	rddma_bind_put(bind);
@@ -1447,7 +1447,7 @@ out:
  * @result:Pointer to buffer to hold result string
  * @size: Maximum size of result buffer.
  * returns the number of characters written into result (not including
- * terminating null) or negative if an error.
+b * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
@@ -1561,7 +1561,7 @@ int do_operation(const char *cmd, char *result, int size)
 	}
 out:
 	if (!found) {
-		ret = snprintf(result,size,"%s,reply=10101\n" ,sp1+3);
+		ret = snprintf(result,size,"%s,result=10101\n" ,sp1+3);
 	}
 
 	return ret;
