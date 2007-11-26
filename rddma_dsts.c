@@ -116,23 +116,16 @@ static struct kset_uevent_ops rddma_dsts_uevent_ops = {
  	.uevent = rddma_dsts_uevent, 
 };
 
-struct rddma_dsts *new_rddma_dsts(struct rddma_bind_param *params, struct rddma_bind *parent, char *name, va_list args)
+struct rddma_dsts *new_rddma_dsts(struct rddma_bind_param *params, struct rddma_bind *parent)
 {
-	char *buf;
-	int size;
 	struct rddma_dsts *new = kzalloc(sizeof(struct rddma_dsts), GFP_KERNEL);
     
 	if (NULL == new)
 		return new;
     
-	if (NULL == (buf = kzalloc(PAGE_SIZE,GFP_KERNEL)) )
-		goto fail_buf;
-
-	if ( PAGE_SIZE-1 <= (size = vsnprintf(buf, PAGE_SIZE-1,name,args)) ) 
-		goto fail_printf;
-		
-	kobject_set_name(&new->kset.kobj,"%s",buf);
-	kfree(buf);
+	kobject_set_name(&new->kset.kobj,"%s.%s#%llx:%x=%s.%s#%llx:%x",
+						    params->dst.name,params->dst.location,params->dst.offset,params->dst.extent,
+						    params->src.name,params->src.location,params->src.offset,params->src.extent);
 	new->kset.kobj.ktype = &rddma_dsts_type;
 	new->kset.uevent_ops = &rddma_dsts_uevent_ops;
 	new->kset.kobj.parent = &parent->kobj;
@@ -140,12 +133,6 @@ struct rddma_dsts *new_rddma_dsts(struct rddma_bind_param *params, struct rddma_
 
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
-fail_printf:
-	kfree(buf);
-fail_buf:
-	kfree(new);
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,NULL);
-	return NULL;
 }
 
 int rddma_dsts_register(struct rddma_dsts *rddma_dsts)
@@ -168,36 +155,22 @@ void rddma_dsts_unregister(struct rddma_dsts *rddma_dsts)
 		kset_unregister(&rddma_dsts->kset);
 }
 
-struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc, char *name, ...)
+struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
-	struct rddma_dsts  *dsts = NULL;
-	va_list ap;
-	if (NULL == parent->dsts) {
-		va_start(ap,name);
-		dsts = rddma_dsts_create_ap(parent,desc,name,ap);
-		va_end(ap);
+	struct rddma_dsts *dsts = NULL;
+
+	if (NULL == parent->dsts)
+		dsts = new_rddma_dsts(desc,parent);
+
+	if (dsts) {
+		if (rddma_dsts_register(dsts))
+			goto fail_reg;
+		parent->dsts = dsts;
 	}
 
-	if (dsts) 
-		parent->dsts = dsts;
-
 	return parent->dsts;
-}
-
-struct rddma_dsts *rddma_dsts_create_ap(struct rddma_bind *parent, struct rddma_bind_param *desc, char *name, va_list ap)
-{
-	struct rddma_dsts *new;
-
-	if (NULL == (new = new_rddma_dsts(desc,parent,name,ap)) )
-		goto out;
-
-	if (rddma_dsts_register(new))
-		goto fail_reg;
-
-	return new;
 fail_reg:
-	rddma_dsts_put(new);
-out:
+	rddma_dsts_put(dsts);
 	return NULL;
 }
 

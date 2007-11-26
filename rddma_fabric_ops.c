@@ -412,13 +412,10 @@ static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, s
 static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
-	struct rddma_location *loc;
-	struct rddma_dsts *dsts = NULL;
+	struct rddma_location *loc = parent->desc.dst.ploc;
+	struct rddma_dsts *dsts = rddma_dsts_create(parent,desc);
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-
-	if (NULL == (loc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,desc->xfer.location))) )
-		return NULL;
 
 	skb = rddma_fabric_call(loc, 5, "dsts_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
 				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
@@ -429,10 +426,8 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
-				dsts = rddma_dsts_create(parent,&reply,"%s.%s#%llx:%x=%s.%s#%llx:%x",
-							 reply.dst.name,reply.dst.location,reply.dst.offset,reply.dst.extent,
-							 reply.src.name,reply.src.location,reply.src.offset,reply.src.extent);
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret != 0) {
+				dsts = NULL;
 			}
 			rddma_clean_bind(&reply);
 		}
