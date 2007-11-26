@@ -1349,6 +1349,139 @@ out:
 
 	return ret;
 }
+/**
+ * dsts_create - Creates set holder for destinations.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int dsts_create(const char *desc, char *result, int size)
+{
+	int ret = -ENOMEM;
+	struct rddma_dsts *dsts = NULL;
+	struct rddma_bind *bind = NULL;
+	struct rddma_bind_param params;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = rddma_parse_bind(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+	
+	if ( (bind = find_rddma_bind(&params) ) ) {
+		ret = -EINVAL;
+		if (bind->desc.src.ops && bind->desc.src.ops->dsts_create)
+			ret = ((dsts = bind->desc.src.ops->dsts_create(bind, &params)) == NULL);
+	}
+
+	rddma_bind_put(bind);
+
+out:		
+	if (result)
+		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result=%d,reply=%s\n",
+			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
+			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
+			       params.src.name, params.src.location,params.src.offset, params.src.extent,
+			       ret,rddma_get_option(&params.src,"request"));
+	rddma_clean_bind(&params);
+
+	return ret;
+}
+
+/**
+ * dsts_delete - Deletes destination set.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int dsts_delete(const char *desc, char *result, int size)
+{
+	int ret = -ENOMEM;
+	struct rddma_bind *bind = NULL;
+	struct rddma_bind_param params;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = rddma_parse_bind(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+	if ( (bind = find_rddma_bind(&params) ) ) {
+		ret = -EINVAL;
+		if ( bind->desc.dst.ops && bind->desc.dst.ops->dsts_delete ) {
+			ret = 0;
+			bind->desc.dst.ops->dsts_delete(bind, &params);
+		}
+	}
+
+	rddma_bind_put(bind);
+
+out:
+	if (result)
+		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result=%d,reply=%s\n",
+				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
+				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
+				       params.src.name, params.src.location,params.src.offset, params.src.extent,
+				       ret,rddma_get_option(&params.src,"request"));
+
+	rddma_clean_bind(&params);
+
+	return ret;
+}
+
+/**
+ * dsts_find - Find sources
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int dsts_find(const char *desc, char *result, int size)
+{
+	int ret = -ENOMEM;
+	struct rddma_dsts *dsts = NULL;
+	struct rddma_bind *bind = NULL;
+	struct rddma_bind_param params;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = rddma_parse_bind(&params, desc)) )
+		goto out;
+
+	if ( (bind = find_rddma_bind(&params)) ) {
+		ret = -EINVAL;
+		if (bind->desc.dst.ops && bind->desc.dst.ops->dsts_find)
+			ret = ((dsts = bind->desc.dst.ops->dsts_find(bind,&params)) == NULL);
+	}
+
+	rddma_bind_put(bind);
+
+out:
+	if (result)
+		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result=%d,reply=%s\n",
+			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
+			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
+			       params.src.name, params.src.location,params.src.offset, params.src.extent,
+			       ret,rddma_get_option(&params.src,"request"));
+	rddma_clean_bind(&params);
+
+	return ret;
+}
 
 #define MAX_OP_LEN 15		/* length of location_create */
 static struct ops {
@@ -1380,6 +1513,9 @@ static struct ops {
 	{"srcs_create", srcs_create},
 	{"srcs_delete", srcs_delete},
 	{"srcs_find", srcs_find},
+	{"dsts_create", dsts_create},
+	{"dsts_delete", dsts_delete},
+	{"dsts_find", dsts_find},
 	{0,0},
 };
 
@@ -1425,7 +1561,7 @@ int do_operation(const char *cmd, char *result, int size)
 	}
 out:
 	if (!found) {
-		ret = snprintf(result,size,"Huh \"%s\"\n" ,cmd);
+		ret = snprintf(result,size,"%s,reply=10101\n" ,sp1+3);
 	}
 
 	return ret;
