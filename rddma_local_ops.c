@@ -181,6 +181,8 @@ static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, str
 	struct rddma_smb *dsmb = NULL;
 	struct rddma_dst *new = NULL;
 
+	rddma_dsts_create(parent,desc);
+
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	if ( NULL == (dsmb = find_rddma_smb(&desc->dst)) )
