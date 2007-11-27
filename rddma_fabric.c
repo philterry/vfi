@@ -73,9 +73,9 @@ static void fabric_do_rqst(struct work_struct *wo)
 	rddma_fabric_put(cb->sender);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	INIT_WORK(&cb->wo, fabric_disposeq, (void *) &cb->wo);
+	PREPARE_WORK(&cb->wo, fabric_disposeq, (void *) &cb->wo);
 #else
-	INIT_WORK(&cb->wo, fabric_disposeq);
+	PREPARE_WORK(&cb->wo, fabric_disposeq);
 #endif
 	schedule_work(&cb->wo);
 }
@@ -92,9 +92,9 @@ static void fabric_sched_rqst(struct work_struct *wo)
 	cb->woq = create_workqueue("fab_rqst");
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	INIT_WORK(&cb->wo, fabric_do_rqst, (void *) &cb->wo);
+	PREPARE_WORK(&cb->wo, fabric_do_rqst, (void *) &cb->wo);
 #else
-	INIT_WORK(&cb->wo, fabric_do_rqst);
+	PREPARE_WORK(&cb->wo, fabric_do_rqst);
 #endif
 	queue_work(cb->woq,&cb->wo);
 }
@@ -234,7 +234,7 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 	}
 	sender->ops->put(sender);
 	dev_kfree_skb(skb);
-	return -EINVAL;
+	return NET_RX_DROP;
 
 }
 

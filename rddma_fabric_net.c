@@ -240,14 +240,13 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 		if (dstidx && fna->reg_loc->desc.extent != dstidx)
 			goto forget;
 
-	*skb_tail_pointer(skb) = '\0';
-	skb_put(skb,1);
+	*skb_put(skb,1) = '\0';
 
 	return rddma_fabric_receive(&fna->rfa, skb);
 
 forget:
 	_fabric_put(fna);
-	kfree_skb(skb);
+	dev_kfree_skb(skb);
 	return NET_RX_DROP;
 }
 
@@ -260,7 +259,6 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 	struct rddmahdr *mac;
 	unsigned long srcidx = 0, dstidx = 0;
 
-	int ret = NET_XMIT_DROP;
 	struct fabric_address *fna = to_fabric_address(addr);
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %p " MACADDRFMT "\n",__FUNCTION__,addr,skb->data,fna, MACADDRBYTES(fna->hw_address));
@@ -301,7 +299,7 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 
 	_fabric_put(fna);
 	dev_kfree_skb(skb);
-	return ret;
+	return NET_XMIT_DROP;
 }
 
 static struct rddma_fabric_address *fabric_get(struct rddma_fabric_address *rfa)
