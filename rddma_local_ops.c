@@ -347,7 +347,16 @@ static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, st
 	struct rddma_xfer *xfer;
 	struct rddma_bind *bind;
 
+	unsigned long extent = desc->xfer.extent;
+	unsigned long long offset = desc->xfer.offset;
+
+	desc->xfer.offset = 0;
+	desc->xfer.extent = 0;
+
 	xfer = rddma_xfer_create(loc,desc);
+
+	desc->xfer.offset = offset;
+	desc->xfer.extent = extent;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %p\n",__FUNCTION__,loc,desc,xfer);
 
