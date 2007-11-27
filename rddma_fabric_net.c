@@ -240,7 +240,8 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 		if (dstidx && fna->reg_loc->desc.extent != dstidx)
 			goto forget;
 
-	*skb_put(skb,1) = '\0';
+	if (skb_tailroom(skb))	/* FIXME */
+		*skb_put(skb,1) = '\0';
 
 	return rddma_fabric_receive(&fna->rfa, skb);
 
