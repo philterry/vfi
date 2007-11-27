@@ -928,8 +928,8 @@ static int dst_create(const char *desc, char *result, int size)
 
 	if ( (bind = find_rddma_bind(&params) ) ) {
 		ret = -EINVAL;
-		if (bind->desc.dst.ops && bind->desc.dst.ops->dst_create)
-			ret = ((dst = bind->desc.dst.ops->dst_create(bind, &params)) == NULL);
+		if (bind->desc.xfer.ops && bind->desc.xfer.ops->dst_create)
+			ret = ((dst = bind->desc.xfer.ops->dst_create(bind, &params)) == NULL);
 	}
 
 	rddma_bind_put(bind);
