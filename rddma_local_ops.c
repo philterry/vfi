@@ -687,6 +687,7 @@ void rddma_local_bind_vote (struct rddma_xfer *xfer, struct rddma_bind_param *de
 	if (d == 1 && s == 1) {
 		int x = atomic_inc_return (&xfer->start_votes);
 		if (x == atomic_read (&xfer->bind_count)) {
+			sema_init(&xfer->dma_sync,0);
 			RDDMA_DEBUG (MY_DEBUG, ">>>>> BLAM BLAM BLAM BLAM! >>>>>\n");
 #ifdef SERIALIZE_BIND_PROCESSING
 			xfer->desc.xfer.rde->ops->load_transfer(xfer);
@@ -698,6 +699,7 @@ void rddma_local_bind_vote (struct rddma_xfer *xfer, struct rddma_bind_param *de
 				xfer->desc.rde->ops->queue_transfer(&bind->descriptor);
 			}
 #endif
+			down_interruptible(&xfer->dma_sync);
 			return;
 		}
 		else {

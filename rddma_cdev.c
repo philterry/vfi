@@ -110,19 +110,6 @@ out:
 	return mycount;
 }
 
-static ssize_t rddma_aio_read(struct kiocb * iocb, const struct iovec *iovs, unsigned long nr_iovs, loff_t offset)
-{
-	if (is_sync_kiocb(iocb)) {
-		int i = 0;
-		ssize_t count = 0;
-		while (i < nr_iovs) {
-			count += rddma_read(iocb->ki_filp, iovs[i].iov_base, iovs[i].iov_len, &offset);
-			i++;
-		}
-		return count;
-	}
-	return 0;
-}
 
 static ssize_t rddma_real_write(struct mybuffers *mybuf, size_t count, loff_t *offset)
 {
@@ -244,7 +231,18 @@ static void aio_def_write(struct work_struct *wk)
 
 				if ( ret >= 0 ) {
 					mybuf->size = ret;
+#ifdef READ_ASYNC_REPLY
 					queue_to_read(priv,mybuf);
+#else
+					/* ki_pos is pointer to user buffer */
+	
+					if (work->iocb->ki_pos)
+ 						copy_to_user(work->iocb->ki_pos,
+						       	mybuf->reply, 
+							strlen(mybuf->reply) + 1);
+					kfree(mybuf);
+#endif
+
 					ret = 0;
 				}
 				else {
@@ -262,7 +260,13 @@ static void aio_def_write(struct work_struct *wk)
 	}
 	kobject_put(&priv->kobj);
 	kfree(work->iovs);
+
+#ifdef READ_ASYNC_REPLY
 	aio_complete(work->iocb,count,numdone);
+#else
+	/* return string will be in res2 */
+	aio_complete(work->iocb,count,work->iocb->ki_pos);
+#endif
 
 	destroy_workqueue(work->woq);
 	kfree(work);
@@ -271,81 +275,45 @@ static void aio_def_write(struct work_struct *wk)
 static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, unsigned long nr_iovs, loff_t offset)
 {
 	struct privdata *priv = iocb->ki_filp->private_data;
+	char name[10];
+	struct aio_def_work *work;
+	int i = 0;
+	int ret = 0;
 
 	if (is_sync_kiocb(iocb)) {
-		int i = 0;
-		int ret = 0;
-		ssize_t count = 0;
-		while (i < nr_iovs) {
-			struct mybuffers *mybuf;
-			char *buffer = kzalloc(iovs[i].iov_len+1, GFP_KERNEL);
-			if (!buffer) 
-				return -ENOMEM;
-
-			if (copy_from_user(buffer, iovs[i].iov_base,iovs[i].iov_len)) {
-				kfree(buffer);
-				return -EFAULT;
-			}
-			
-			if (!(mybuf = kzalloc(1024,GFP_KERNEL))) {
-				kfree(buffer);
-				return -ENOMEM;
-			}
-
-			mybuf->buf = buffer;
-			mybuf->reply= (char *)(mybuf+1);
-
-			ret = rddma_real_write(mybuf, iovs[i].iov_len, &offset);
-			
-			if (  ret < 0 ) {
-				kfree(mybuf->buf);
-				kfree(mybuf);
-				return ret;
-			}
-
-			mybuf->size = ret;
-			queue_to_read(priv,mybuf);
-
-			count += iovs[i].iov_len;
-			i++;
-		}
-		return count;
+		return -EIO;
 	}
-	else {
-		char name[10];
-		struct aio_def_work *work = kzalloc(sizeof(struct aio_def_work),GFP_KERNEL);
-		int i = 0;
-		int ret = 0;
-		sprintf(name,"%p",work);
+
+	work = kzalloc(sizeof(struct aio_def_work),GFP_KERNEL);
+	sprintf(name,"%p",work);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-		INIT_WORK(&work->work,aio_def_write, (void *) work);
+	INIT_WORK(&work->work,aio_def_write, (void *) work);
 #else
-		INIT_WORK(&work->work,aio_def_write);
-		work->woq = create_workqueue(name);
+	INIT_WORK(&work->work,aio_def_write);
+	work->woq = create_workqueue(name);
 #endif
-		work->iocb = iocb;
-		work->iovs = kzalloc(sizeof(struct kvec)*nr_iovs, GFP_KERNEL);
-		while ( i < nr_iovs) {
-			work->iovs[i].iov_len = iovs[i].iov_len;
-			work->iovs[i].iov_base = kzalloc(iovs[i].iov_len+1,GFP_KERNEL);
-			if ( (ret = copy_from_user(work->iovs[i].iov_base, iovs[i].iov_base, iovs[i].iov_len)))
-				break;
-			i++;
-		}
-		if ( i != nr_iovs) {
-			do {
-				kfree(work->iovs[i].iov_base);
-			} while (i--);
-			kfree(work->iovs);
-			return ret;
-		}
-
-		kobject_get(&priv->kobj);
-		work->nr_iovs = nr_iovs;
-		work->offset = offset;
-		queue_work(work->woq,&work->work);
-		return -EIOCBQUEUED;
+	work->iocb = iocb;
+	work->iovs = kzalloc(sizeof(struct kvec)*nr_iovs, GFP_KERNEL);
+	while ( i < nr_iovs) {
+		work->iovs[i].iov_len = iovs[i].iov_len;
+		work->iovs[i].iov_base = kzalloc(iovs[i].iov_len+1,GFP_KERNEL);
+		if ( (ret = copy_from_user(work->iovs[i].iov_base, iovs[i].iov_base, iovs[i].iov_len)))
+			break;
+		i++;
 	}
+	if ( i != nr_iovs) {
+		do {
+			kfree(work->iovs[i].iov_base);
+		} while (i--);
+		kfree(work->iovs);
+		return ret;
+	}
+
+	kobject_get(&priv->kobj);
+	work->nr_iovs = nr_iovs;
+	work->offset = offset;
+	queue_work(work->woq,&work->work);
+	return -EIOCBQUEUED;
 }
 
 #if 0
@@ -529,7 +497,6 @@ struct file_operations rddma_file_ops = {
  	.read = rddma_read, 
 	.write = rddma_write,
 /* 	.fsync = rddma_fsync, */
- 	.aio_read = rddma_aio_read, 
 	.aio_write = rddma_aio_write,
 /* 	.aio_fsync = rddma_aio_fsync, */
 /* 	.fasync = rddma_fasync, */

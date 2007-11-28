@@ -404,6 +404,19 @@ err:
 	atomic_dec(&bind->src_votes);
 	atomic_dec(&bind->dst_votes);
 	atomic_dec(&xfer->start_votes);
+	xfo->xf.flags = RDDMA_BIND_READY;
+	/* Loop over binds */
+	list_for_each(entry,&xfer->binds->kset.list) {
+		bind = to_rddma_bind(to_kobj(entry));
+		xfo = (struct my_xfer_object *) bind;
+		if (xfo->xf.flags != RDDMA_BIND_READY)
+			return;
+	}
+
+	/* Jimmy, set BIND_READY flag 
+	 * Check all binds in xfer.  If any not ready, return
+	 */
+
 #endif
 #ifdef SERIALIZE_BIND_PROCESSING
 	xfer = (struct rddma_xfer *) dma_desc;
@@ -415,7 +428,10 @@ err:
 		atomic_dec(&xfer->start_votes);
 	}
 #endif
-
+	/* Jimmy, new 
+	*  Give xfer_sync semaphore to unblock caller 
+	*/
+	up(&xfer->dma_sync);
 #endif
 }
 
