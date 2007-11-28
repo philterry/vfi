@@ -27,7 +27,7 @@ struct rddma_xfer {
 	struct rddma_bind *head_bind;
 	struct rddma_binds *binds;
 	struct list_head dma_chain;
-	
+	struct semaphore dma_sync; 
 	/*
 	* Xfer start synchronization controls.
 	*
