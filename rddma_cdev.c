@@ -217,6 +217,8 @@ static void aio_def_write(struct work_struct *wk)
 	int numdone = 0;
 	int ret = 0;
 	ssize_t count = 0;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 #if 0
 	/* Test hack:  Suspend what's on the work queue */
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -301,7 +303,6 @@ static void aio_def_write(struct work_struct *wk)
 	}
 	kobject_put(&priv->kobj);
 	kfree(work->iovs);
-printk("calling aio_complete\n");
 
 #ifdef READ_ASYNC_REPLY
 	aio_complete(work->iocb,count,numdone);
@@ -321,6 +322,8 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 	struct aio_def_work *work;
 	int i = 0;
 	int ret = 0;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	if (is_sync_kiocb(iocb)) {
 		return -EIO;
@@ -354,7 +357,7 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 	kobject_get(&priv->kobj);
 	work->nr_iovs = nr_iovs;
 	work->offset = offset;
-#if 1   /* pin down response string pages for kernel */
+#ifndef READ_ASYNC_REPLY   /* pin down response string pages for kernel */
 	if (iocb->ki_pos) {
 		int nr_pages;
 		struct page **uctx;
