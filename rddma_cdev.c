@@ -21,6 +21,7 @@
 #include <linux/kobject.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/pagemap.h>
 #include <linux/proc_fs.h>
 
 #include <linux/rddma_drv.h>
@@ -199,6 +200,7 @@ struct aio_def_work {
 	loff_t offset;
 	struct work_struct work;
 	struct workqueue_struct *woq;
+	struct page **uctx;
 };
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
@@ -215,6 +217,11 @@ static void aio_def_write(struct work_struct *wk)
 	int numdone = 0;
 	int ret = 0;
 	ssize_t count = 0;
+#if 0
+	/* Test hack:  Suspend what's on the work queue */
+	set_current_state(TASK_INTERRUPTIBLE);
+	schedule_timeout(10000);
+#endif
 	while (i < work->nr_iovs) {
 		if (!ret) {
 			struct mybuffers *mybuf = kzalloc(1024,GFP_KERNEL);
@@ -236,10 +243,44 @@ static void aio_def_write(struct work_struct *wk)
 #else
 					/* ki_pos is pointer to user buffer */
 	
-					if (work->iocb->ki_pos)
+					if (work->iocb->ki_pos) {
+#if 0
+
  						copy_to_user(work->iocb->ki_pos,
 						       	mybuf->reply, 
 							strlen(mybuf->reply) + 1);
+#endif
+						int nr_pages_max;
+						int nr_pages;
+						int i;
+						char *from;
+						char *to;
+						int ncopy = strlen(mybuf->reply) + 1;
+						nr_pages_max = ((PAGE_ALIGN((unsigned long) work->iocb->ki_pos + 256) - ((unsigned long) work->iocb->ki_pos & PAGE_MASK)) >> PAGE_SHIFT);
+						nr_pages = ((PAGE_ALIGN((unsigned long) work->iocb->ki_pos + ncopy) - ((unsigned long) work->iocb->ki_pos & PAGE_MASK)) >> PAGE_SHIFT);
+						from = mybuf->reply;
+						to = kmap(work->uctx[0]);
+						to += (work->iocb->ki_pos & ~PAGE_MASK);
+						if (nr_pages == 1) {
+							memcpy (to, from, ncopy);
+							kunmap(work->uctx[0]);
+						}
+						else {
+							int n = PAGE_SIZE - (unsigned long) (from - 
+								PAGE_ALIGN((unsigned long) from));
+							memcpy (to, from, n);
+							kunmap(work->uctx[0]);
+							to = kmap(work->uctx[1]);
+							from = mybuf->reply + n;
+							memcpy (to, from, ncopy - n);
+							kunmap(work->uctx[1]);
+						}
+						for (i = 0; i < nr_pages_max; i++) {
+							set_page_dirty_lock(work->uctx[i]);
+							page_cache_release(work->uctx[i]);
+						}
+					}
+					kfree(work->uctx);
 					kfree(mybuf);
 #endif
 
@@ -260,6 +301,7 @@ static void aio_def_write(struct work_struct *wk)
 	}
 	kobject_put(&priv->kobj);
 	kfree(work->iovs);
+printk("calling aio_complete\n");
 
 #ifdef READ_ASYNC_REPLY
 	aio_complete(work->iocb,count,numdone);
@@ -290,7 +332,7 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 	INIT_WORK(&work->work,aio_def_write, (void *) work);
 #else
 	INIT_WORK(&work->work,aio_def_write);
-	work->woq = create_workqueue(name);
+	work->woq = create_singlethread_workqueue(name);
 #endif
 	work->iocb = iocb;
 	work->iovs = kzalloc(sizeof(struct kvec)*nr_iovs, GFP_KERNEL);
@@ -312,6 +354,31 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 	kobject_get(&priv->kobj);
 	work->nr_iovs = nr_iovs;
 	work->offset = offset;
+#if 1   /* pin down response string pages for kernel */
+	if (iocb->ki_pos) {
+		int nr_pages;
+		struct page **uctx;
+		nr_pages = ((PAGE_ALIGN((unsigned long) iocb->ki_pos + 256) - 
+			((unsigned long) iocb->ki_pos & PAGE_MASK)) >> PAGE_SHIFT);
+		uctx = (struct page **) kmalloc(nr_pages * sizeof (struct page *), GFP_KERNEL);
+		work->uctx = uctx;
+
+		/* pin pages down */
+		down_read(&current->mm->mmap_sem);
+		ret = get_user_pages(
+			current,
+			current->mm,
+			(unsigned long) iocb->ki_pos & PAGE_MASK,
+			nr_pages,
+			1,	/* write */
+			0,	/* force */
+			uctx,
+			NULL);
+		up_read(&current->mm->mmap_sem);
+		if (ret != nr_pages)
+			BUG();
+	}
+#endif
 	queue_work(work->woq,&work->work);
 	return -EIOCBQUEUED;
 }
