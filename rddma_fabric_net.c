@@ -234,9 +234,14 @@ static void invoke_db(int evnt)
 	struct db_node *db;
 	down(&dbell_sem);
 	db = find_db(evnt);
-	if (db)
-		db->callback(db->var);
-	up(&dbell_sem);
+	if (db) {
+		void (*cb)(void *) = db->callback;
+		void *v = db->var;
+		up(&dbell_sem);
+		cb(v);
+	}
+	else
+		up(&dbell_sem);
 }
 
 static int allocate_db(void (*callback)(void *), void *var)
