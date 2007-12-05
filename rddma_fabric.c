@@ -149,7 +149,13 @@ int rddma_doorbell_register(struct rddma_fabric_address *address, void (*callbac
 void rddma_doorbell_unregister(struct rddma_fabric_address *address, int doorbell)
 {
 	if (address && address->ops && address->ops->unregister_doorbell)
-		return address->ops->unregister_doorbell(doorbell);
+		address->ops->unregister_doorbell(doorbell);
+}
+
+void rddma_doorbell_send(struct rddma_fabric_address *address, int doorbell)
+{
+	if (address && address->ops && address->ops->doorbell)
+		address->ops->doorbell(address, doorbell);
 }
 
 struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, ...)
