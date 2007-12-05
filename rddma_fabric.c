@@ -65,11 +65,13 @@ static void fabric_do_rqst(struct work_struct *wo)
 	ret = do_operation(cb->rqst_skb->data,cb->rply_skb->data,1928);
 	RDDMA_ASSERT(ret < 1928, "reply truncated need reply buffer bigger than 2048!");
 
-	skb_put(cb->rply_skb,ret);
-
 	dev_kfree_skb(cb->rqst_skb);
+	
+	if (ret) {
+		skb_put(cb->rply_skb,ret);
+		ret = rddma_fabric_tx(cb->sender,cb->rply_skb);
+	}
 
-	ret = rddma_fabric_tx(cb->sender,cb->rply_skb);
 	rddma_fabric_put(cb->sender);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
@@ -207,6 +209,7 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 		if ( (ret = sscanf(buf,"reply=%x", (unsigned int *)&cb)) ) {
 			RDDMA_DEBUG(MY_DEBUG,"%s cb(%p)\n",__FUNCTION__,cb);
 			if (cb && cb->check == cb) {
+				cb->check = 0;
 				RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,cb);
 				cb->rply_skb = skb;
 				wake_up_interruptible(&cb->wq);
