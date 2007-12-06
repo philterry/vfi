@@ -26,6 +26,7 @@
 
 #define RDDMA_DOORBELL_START 0x2000
 #define RDDMA_DOORBELL_END 0x4000
+#define RDDMA_DOORBELL_HASHLEN 256
 
 static int first_probe = 1;
 
@@ -55,28 +56,16 @@ struct fabric_address {
 	((src_ops & RIO_SRC_OPS_DOORBELL) && \
 	 (dst_ops & RIO_DST_OPS_DOORBELL))
 
-/* RDDMA uses a single range of doorbell values.
- * Doorbells are allocated from among this range as needed.
- * Allocated doorbells, along with their callback functions, 
- * are stored in doorbell_harray[].  If the number of allocated
- * doorbells exceeds the size of doorbell_harray, array entries
- * become hash lists.
- *
- * Doorbells are allocated in order from the shortest hash list.
- * If list_head.next of the doorbell array is 0, the bin is unused.
- */
-#define NUM_DOORBELL_BINS 256
+static struct rio_mport *port;
 
-struct doorbell_node {
+struct event_node {
 	struct list_head node;
 	void (*cb) (void *);
 	void *arg;
-	u16 id;
+	int id;
 };
 
-struct doorbell_node doorbell_harray[NUM_DOORBELL_BINS];
-
-struct _rddma_dbell_mgr {
+struct _rddma_event_mgr {
 	int next;
 	int mindepth;
 	int first_id;
@@ -84,19 +73,22 @@ struct _rddma_dbell_mgr {
 	int num_alloc;
 	int num;
 	int high_watermark;
+	int hashlen;
 	spinlock_t lock;
 	struct semaphore sem;
-	struct doorbell_node *dbell;
+	struct event_node *event_harray;
 };
 
-static struct _rddma_dbell_mgr rddma_dbells;
-static struct rio_mport*port;
+static struct _rddma_event_mgr *dbmgr;
+static int find_db_in_list(struct list_head *q, int val, struct event_node **db);
+static void rddma_events_uninit(struct _rddma_event_mgr *evmgr);
+static struct _rddma_event_mgr *rddma_events_init(int first, int last, int hashlen);
 
-static int doorbell_send (struct rddma_fabric_address *address, int id);
-static void rddma_doorbells_init(int first, int last);
-static int find_db_in_list(struct list_head *q, u16 val, struct doorbell_node **db);
 static void rddma_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
 	u16 dst, u16 id);
+static int doorbell_send (struct rddma_fabric_address *address, int id);
+static int rddma_get_doorbell (void (*cb)(void *),void * arg);
+static void rddma_put_doorbell (int id);
 
 static inline struct fabric_address *to_fabric_address(struct rddma_fabric_address *rfa)
 {
@@ -411,19 +403,6 @@ static void fabric_unregister(struct rddma_location *loc)
 	rddma_location_put(loc);
 }
 
-#define stash_away(x,y) -1
-#define stash_clean(x)
-
-static int doorbell_register(void (*callback)(void *), void *var)
-{
-	return stash_away(callback,var);
-}
-
-static void doorbell_unregister(int doorbell)
-{
-	stash_clean(doorbell);
-}
-
 static struct rddma_address_ops fabric_rionet_ops = {
 	.transmit = fabric_transmit,
 	.register_location = fabric_register,
@@ -431,8 +410,8 @@ static struct rddma_address_ops fabric_rionet_ops = {
 	.get = fabric_get,
 	.put = fabric_put,
 	.doorbell = doorbell_send,
-	.register_doorbell = doorbell_register,
-	.unregister_doorbell = doorbell_unregister,
+	.register_doorbell = rddma_get_doorbell,
+	.unregister_doorbell = rddma_put_doorbell,
 };
 
 #if 1
@@ -453,25 +432,6 @@ static struct rio_driver rddma_rio_drv = {
 
 #endif
 
-void rddma_doorbells_uninit(void)
-{
-	int i;
-	struct list_head *temp;
-	struct list_head *curr;
-	struct doorbell_node *pdb;
-	/* Disconnect from H/W layer */
-	rio_release_inb_dbell(port, RDDMA_DOORBELL_START, RDDMA_DOORBELL_END);
-
-	for (i = 0; i < NUM_DOORBELL_BINS; i++) {
-		pdb = &doorbell_harray[i];
-		if (pdb->node.next != NULL) {
-			list_for_each_safe(curr, temp, &pdb->node) {
-				kfree(list_entry(curr, struct doorbell_node, node));
-			}
-		}
-	}
-	
-}
 
 static void fabric_rionet_remove(struct rio_dev *rdev)
 {
@@ -489,7 +449,7 @@ static int  fabric_rionet_probe(struct rio_dev *rdev,
 	int rc;
 	int src_ops;
 	int dst_ops;
-#if 1
+
 	if (!first_probe)
 		return 0;
 
@@ -511,8 +471,7 @@ static int  fabric_rionet_probe(struct rio_dev *rdev,
 					rddma_dbell_event)) < 0)
 		return -EINVAL;
 
-	rddma_doorbells_init(RDDMA_DOORBELL_START, RDDMA_DOORBELL_END);
-#endif
+	dbmgr = rddma_events_init(RDDMA_DOORBELL_START, RDDMA_DOORBELL_END, RDDMA_DOORBELL_HASHLEN);
 
 	/* Messages over ethernet */
 
@@ -531,56 +490,61 @@ static int  fabric_rionet_probe(struct rio_dev *rdev,
 	return -ENOMEM;
 }
 
-/* Dispatch doorbell interrupt to the appropriate callback */
-/* Note: this function called from interrupt level by RIO driver */
-static void rddma_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
-	u16 dst, u16 id) 
-{
-	int depth;
-	int bin = (id - rddma_dbells.first_id) % NUM_DOORBELL_BINS;
-	struct doorbell_node *pdoorbell = &doorbell_harray[bin];
+/* RDDMA events for rionet are a range of 16-bit values associated with
+ * a callback function and an argument.  The H/W implementation is RIO doorbells.
+ * When an event is received over the fabric, the doorbell unit
+ * raises an interrupt callback function is executed.
+ *
+ * Usage:
+ *
+ * 1) struct _rddma_event_mgr *rddma_events_init(int first, int last, int hashlen)
+ *
+ *    Initialize a new event manager.  Supply the first and last event number, and also
+ *    the length of the hash table that is used to store allocated events;
+ *    Funtion returns event manager handle.
+ * 
+ * 2) int rddma_get_event (struct _rddma_event_mgr *evmgr, void (*cb)(void *),void * arg)
+ *
+ *    Supply an event manager handle,  callback function and argument (NULL is valid).  
+ *    Funtion returns event id.
+ *
+ * 3) void rddma_event_dispatch(struct _rddma_event_mgr *evmgr, int id) 
+ *
+ *    Supply an event manager handle and id.
+ *    Funtion will call the event's associated callback function.
+ *
+ * 4) int rddma_put_event(struct _rddma_event_mgr *evmgr, int id)
+ *
+ *    Supply an event manager handle and id.
+ *    Funtion will free the event
+ *
+ * 5) void rddma_events_uninit(struct _rddma_event_mgr *evmgr)
+ *
+ *    Supply an event manager handle.
+ *    Funtion will delete the event manager.
+ *
+ * Allocated events, along with their callback functions, 
+ * are stored in event_harray[].  If the number of allocated
+ * events exceeds the size of event_harray, array entries
+ * become hash lists.
+ *
+ * Events are allocated in order from the shortest hash list.
+ * If list_head.next of the event array is 0, the bin is unused.
+ */
 
-	RDDMA_DEBUG(MY_DEBUG,"%s src=%d dst=%d bell=%d\n",__FUNCTION__,src,dst,id);
-	if (pdoorbell->node.next == 0)
-		depth = -1;
-	else {
-		if (pdoorbell->id == id)
-			depth = 0;
-		else {
-			depth = find_db_in_list(&pdoorbell->node, id, &pdoorbell);
-			if (depth == 0)
-				depth = -1;
-		}
-	}
-	if (depth == -1) {
-		return;
-	}
 
-	if (pdoorbell->cb)
-		(pdoorbell->cb)(pdoorbell->arg);
-
-}
-
-static int doorbell_send (struct rddma_fabric_address *address, int info)
-{
-	struct fabric_address *fa = to_fabric_address(address);
-	RDDMA_DEBUG(MY_DEBUG,"%s dst=%d bell=%d\n",__FUNCTION__,fa->rio_id,info);
-	rio_mport_send_doorbell(port, fa->rio_id, (u16) info);
-	return 0;
-}
-
-/* Transport-independent doorbell management code below! */
+/** Event manager **/
 
 /* Look for 'val' in linked list.  Return value of function is position in
  * list (0 if not found) 
  * 'db' is for returning pointer to found entry  */
-static int find_db_in_list(struct list_head *q, u16 val, struct doorbell_node **db)
+static int find_db_in_list(struct list_head *q, int val, struct event_node **db)
 {
 	struct list_head *dnode;
 	int queue_depth = 0;
 	__list_for_each(dnode, q) {
 		queue_depth++;
-		*db = list_entry(dnode, struct doorbell_node, node);
+		*db = list_entry(dnode, struct event_node, node);
 		if ((*db)->id == val)
 			return queue_depth;
 	}
@@ -597,62 +561,120 @@ static int list_len (struct list_head *list)
 	}
 	return ret;
 }
+void rddma_events_uninit(struct _rddma_event_mgr *evmgr)
+{
+	int i;
+	struct list_head *temp;
+	struct list_head *curr;
+	struct event_node *pdb;
 
-static void rddma_doorbells_init(int first, int last)
+	for (i = 0; i < evmgr->hashlen; i++) {
+		pdb = &evmgr->event_harray[i];
+		if (pdb->node.next != NULL) {
+			list_for_each_safe(curr, temp, &pdb->node) {
+				kfree(list_entry(curr, struct event_node, node));
+			}
+		}
+	}
+	kfree (evmgr->event_harray);
+	kfree (evmgr);
+	
+}
+
+static struct _rddma_event_mgr *rddma_events_init(int first, int last, int hashlen)
 {
 	int num = last - first + 1;
 	int i;
-	rddma_dbells.dbell = &doorbell_harray[0];
-	for (i = 0; i < NUM_DOORBELL_BINS; i++) {
-		memset(&doorbell_harray[i], 0, sizeof(struct doorbell_node));
-		doorbell_harray[i].id = 0xffff;
+        struct _rddma_event_mgr *evmgr;
+	evmgr = kmalloc(sizeof (struct _rddma_event_mgr), GFP_KERNEL);
+	if (evmgr == NULL)
+		return NULL;
+	evmgr->event_harray = kmalloc (hashlen * sizeof (struct event_node), GFP_KERNEL);
+	if (evmgr->event_harray == NULL)
+		goto bad1;
+	for (i = 0; i < hashlen; i++) {
+		memset(&evmgr->event_harray[i], 0, sizeof(struct event_node));
+		evmgr->event_harray[i].id = -1;
 	}
-	spin_lock_init (&rddma_dbells.lock);
-	init_MUTEX(&rddma_dbells.sem);
-	rddma_dbells.next = 0;
-	rddma_dbells.mindepth = 0;
-	rddma_dbells.num = num;
-	rddma_dbells.num_alloc = 0;
-	rddma_dbells.high_watermark = 0;
-	rddma_dbells.first_id = first;
-	rddma_dbells.last_id = last;
+	spin_lock_init (&evmgr->lock);
+	init_MUTEX(&evmgr->sem);
+	evmgr->next = 0;
+	evmgr->mindepth = 0;
+	evmgr->num = num;
+	evmgr->num_alloc = 0;
+	evmgr->high_watermark = 0;
+	evmgr->first_id = first;
+	evmgr->last_id = last;
+	evmgr->hashlen = hashlen;
+	return evmgr;
+bad1:
+	kfree(evmgr);
+	return (NULL);
 };
 
-/* Allocate a doorbell and associate it with a callback.
- * Only incoming doorbells need callback... 
+/* Dispatch event to the appropriate callback */
+/* Note: this function called from interrupt level by rionet and rio fabric driver */
+
+static void rddma_event_dispatch(struct _rddma_event_mgr *evmgr, int id) 
+{
+	int depth;
+	int bin = (id - evmgr->first_id) % evmgr->hashlen;
+	struct event_node *pevent = &evmgr->event_harray[bin];
+
+	if (pevent->node.next == 0)
+		depth = -1;
+	else {
+		if (pevent->id == id)
+			depth = 0;
+		else {
+			depth = find_db_in_list(&pevent->node, id, &pevent);
+			if (depth == 0)
+				depth = -1;
+		}
+	}
+	if (depth == -1) {
+		return;
+	}
+
+	if (pevent->cb)
+		(pevent->cb)(pevent->arg);
+}
+
+/* Allocate an event and associate it with a callback.
+ * Only incoming events need callback... 
  * NULL callback function is OK.
  */
-int rddma_get_doorbell (void (*cb)(void *),void * arg)
+static int rddma_get_event (struct _rddma_event_mgr *evmgr, void (*cb)(void *),void * arg)
 {
 	int ret = -1;
-	u16 id;
+	int id;
 	int bin;
 	int bindepth;
 	int depth;
 	int i;
-	struct doorbell_node *pdoorbell;
+	struct event_node *pevent;
 
-	/* 'next' is bin number of next available doorbell.
-	 * It's -1 if all doorbells allocated.
+	/* 'next' is bin number of next available event.
+	 * It's -1 if all events allocated.
 	 */
-	if (rddma_dbells.next == -1)
+	if (evmgr->next == -1)
 		return ret;
 
-	down(&rddma_dbells.sem);
-	bin = rddma_dbells.next;
-	if (rddma_dbells.mindepth != 0) { 
-		/* Allocate a doorbell node */
-		pdoorbell = (struct doorbell_node *) kzalloc (sizeof(struct doorbell_node),
+	down(&evmgr->sem);
+	bin = evmgr->next;
+	if (evmgr->mindepth != 0) { 
+		/* Allocate an event node */
+		pevent = (struct event_node *) kzalloc (sizeof(struct event_node),
 			GFP_KERNEL);
-		if (pdoorbell == NULL) { /* Memory error */
-			up(&rddma_dbells.sem);
+		if (pevent == NULL) { /* Memory error */
+			up(&evmgr->sem);
 			return ret;
 		}
 		/* Find another number that fits on this chain */
-		for (id = rddma_dbells.next + rddma_dbells.first_id; id <= rddma_dbells.last_id; id += NUM_DOORBELL_BINS) {
-			if (id != doorbell_harray[bin].id) {
-				struct doorbell_node *temp;
-				depth = find_db_in_list(&doorbell_harray[bin].node, id,
+		for (id = evmgr->next + evmgr->first_id; id <= evmgr->last_id; id += evmgr->hashlen) {
+			if (id != evmgr->event_harray[bin].id) {
+				struct event_node *temp;
+				depth = find_db_in_list(&evmgr->event_harray[bin].node, id,
 			       		&temp);
 				if (depth)
 					continue;
@@ -661,55 +683,55 @@ int rddma_get_doorbell (void (*cb)(void *),void * arg)
 			}
 		}
 end_search:
-		if (id > rddma_dbells.last_id) {
-			rddma_dbells.next = -1; /* All doorbells allocated */
-			up(&rddma_dbells.sem);
-			kfree (pdoorbell);
+		if (id > evmgr->last_id) {
+			evmgr->next = -1; /* All event numbers allocated */
+			up(&evmgr->sem);
+			kfree (pevent);
 			return ret;
 		}
-		pdoorbell->id = 0xffff;
-		list_add_tail(&pdoorbell->node, &doorbell_harray[bin].node);
+		pevent->id = -1;
+		list_add_tail(&pevent->node, &evmgr->event_harray[bin].node);
 	}
 	else {
 		/* Simple case, don't need linked list */
-		id = (u16) (bin + rddma_dbells.first_id);
-		pdoorbell = &doorbell_harray[bin];
-		pdoorbell->id = 0xffff;
-		INIT_LIST_HEAD(&pdoorbell->node);
+		id = (int) (bin + evmgr->first_id);
+		pevent = &evmgr->event_harray[bin];
+		pevent->id = -1;
+		INIT_LIST_HEAD(&pevent->node);
 	}
-	pdoorbell->cb = cb;
-	pdoorbell->arg = arg;
-	pdoorbell->id = id;
+	pevent->cb = cb;
+	pevent->arg = arg;
+	pevent->id = id;
 	ret = id;
-	rddma_dbells.num_alloc++;
-	if (rddma_dbells.num_alloc > rddma_dbells.high_watermark)
-		rddma_dbells.high_watermark = rddma_dbells.num_alloc;
+	evmgr->num_alloc++;
+	if (evmgr->num_alloc > evmgr->high_watermark)
+		evmgr->high_watermark = evmgr->num_alloc;
 
-	if (rddma_dbells.num <= NUM_DOORBELL_BINS) {
+	if (evmgr->num <= evmgr->hashlen) {
 		/* Scan till finding an empty bin, otherwise next = -1 */
-		for (i = bin + 1; i < rddma_dbells.num; i++) {
-			if (doorbell_harray[i].node.next == NULL) {
-				rddma_dbells.next = i;
-				up(&rddma_dbells.sem);
+		for (i = bin + 1; i < evmgr->num; i++) {
+			if (evmgr->event_harray[i].node.next == NULL) {
+				evmgr->next = i;
+				up(&evmgr->sem);
 				return (ret);
 			}
 		}
-		rddma_dbells.next = -1;
-		up(&rddma_dbells.sem);
+		evmgr->next = -1;
+		up(&evmgr->sem);
 		return (ret);
 	}
 
 	/* Find new 'next' (index of the shortest bin) */
-	rddma_dbells.next = (bin + 1) % NUM_DOORBELL_BINS;
-	pdoorbell = &doorbell_harray[rddma_dbells.next];
-	for (i = rddma_dbells.next; i < NUM_DOORBELL_BINS; i++) {
-		if (pdoorbell->node.next == NULL)
+	evmgr->next = (bin + 1) % evmgr->hashlen;
+	pevent = &evmgr->event_harray[evmgr->next];
+	for (i = evmgr->next; i < evmgr->hashlen; i++) {
+		if (pevent->node.next == NULL)
 			goto done; /* empty bin */
 		else
-			bindepth = list_len(&pdoorbell->node) + 1;
+			bindepth = list_len(&pevent->node) + 1;
 
-		if (bindepth > rddma_dbells.mindepth) {
-			pdoorbell++;
+		if (bindepth > evmgr->mindepth) {
+			pevent++;
 			continue;
 		}
 		else
@@ -717,101 +739,148 @@ end_search:
 	}
 	/* find new minimum bin depth */
 	while (1) {
-		rddma_dbells.mindepth++;
-		pdoorbell = &doorbell_harray[0];
-		for (i = 0; i < NUM_DOORBELL_BINS; i++) {
-			bindepth = list_len(&pdoorbell->node) + 1;
-			if (bindepth == rddma_dbells.mindepth)
+		evmgr->mindepth++;
+		pevent = &evmgr->event_harray[0];
+		for (i = 0; i < evmgr->hashlen; i++) {
+			bindepth = list_len(&pevent->node) + 1;
+			if (bindepth == evmgr->mindepth)
 				goto done;
 			else
-				pdoorbell++;
+				pevent++;
 		}
 	}
 done:
-	rddma_dbells.next = i;
+	evmgr->next = i;
 
-	up(&rddma_dbells.sem);
+	up(&evmgr->sem);
 	return ret;
 }
 
-int rddma_put_doorbell(u16 id)
+int rddma_put_event(struct _rddma_event_mgr *evmgr, int id)
 {
-	int bin = (id - rddma_dbells.first_id) % NUM_DOORBELL_BINS;
+	int bin = (id - evmgr->first_id) % evmgr->hashlen;
 	int depth;
 	unsigned long flags;
-	struct doorbell_node *pdb;
+	struct event_node *pdb;
 	void *node_free = NULL;
 
-	if ((id < rddma_dbells.first_id) || (id > rddma_dbells.last_id))
+	if ((id < evmgr->first_id) || (id > evmgr->last_id))
 		return -1;
 
-	down(&rddma_dbells.sem);
+	down(&evmgr->sem);
 
-	if (doorbell_harray[bin].node.next == 0)
+	if (evmgr->event_harray[bin].node.next == 0)
 		depth = -1;
 	else {
-		depth = find_db_in_list(&doorbell_harray[bin].node, id, &pdb);
+		depth = find_db_in_list(&evmgr->event_harray[bin].node, id, &pdb);
 		if (depth == 0) {
-			if (doorbell_harray[bin].id != id)
+			if (evmgr->event_harray[bin].id != id)
 				depth = -1;
 		}
 	}
 	if (depth == -1) {
 		/* attempted to free unallocated doorbell */
-		up(&rddma_dbells.sem);
+		up(&evmgr->sem);
 		return -1;
 	}
 	/* Doorbell in list 'bin' at 'depth' */
 	/* If depth > 0, remove node from list and free it */
 
-	spin_lock_irqsave(&rddma_dbells.lock, flags);
+	spin_lock_irqsave(&evmgr->lock, flags);
 	if (depth > 0) {
 		list_del(&pdb->node);
 		node_free = pdb;
 	}
 	else { 
-		if (list_empty(&doorbell_harray[bin].node)) {
+		if (list_empty(&evmgr->event_harray[bin].node)) {
 			/* Clear this array element */
-			doorbell_harray[bin].node.next = NULL;
-			doorbell_harray[bin].id = 0xffff;
+			evmgr->event_harray[bin].node.next = NULL;
+			evmgr->event_harray[bin].id = -1;
 		}
 		else {
 			/* Move head of linked list into hash array */
-			pdb = list_entry (doorbell_harray[bin].node.next, 
-				struct doorbell_node, node);
-			doorbell_harray[bin].id = pdb->id;
-			doorbell_harray[bin].cb = pdb->cb;
-			doorbell_harray[bin].arg = pdb->arg;
+			pdb = list_entry (evmgr->event_harray[bin].node.next, 
+				struct event_node, node);
+			evmgr->event_harray[bin].id = pdb->id;
+			evmgr->event_harray[bin].cb = pdb->cb;
+			evmgr->event_harray[bin].arg = pdb->arg;
 			list_del(&pdb->node);
 			node_free = pdb;
 		}
 	}
 
-	spin_unlock_irqrestore(&rddma_dbells.lock, flags);
+	spin_unlock_irqrestore(&evmgr->lock, flags);
 
 	/* Compute depth of bin */
-	if (doorbell_harray[bin].node.next == NULL)
+	if (evmgr->event_harray[bin].node.next == NULL)
 		depth = 0;
 	else {
-		depth = 1 + list_len(&doorbell_harray[bin].node);
+		depth = 1 + list_len(&evmgr->event_harray[bin].node);
 	}
 
-	if (depth == rddma_dbells.mindepth) {
-		if (bin < rddma_dbells.next)
-			rddma_dbells.next = bin;
+	if (depth == evmgr->mindepth) {
+		if (bin < evmgr->next)
+			evmgr->next = bin;
 	} 
-	else if (depth < rddma_dbells.mindepth) {
-		rddma_dbells.mindepth = depth;
-		rddma_dbells.next = bin;
+	else if (depth < evmgr->mindepth) {
+		evmgr->mindepth = depth;
+		evmgr->next = bin;
 	}
-	--rddma_dbells.num_alloc;
+	--evmgr->num_alloc;
 
-	up(&rddma_dbells.sem);
+	up(&evmgr->sem);
 
 	if (node_free)
 		kfree(node_free);
 
 	return 0;
+}
+
+/**** End of event manager *****/
+
+static void rddma_doorbells_uninit(void)
+{
+	/* Disconnect from H/W layer */
+	rio_release_inb_dbell(port, RDDMA_DOORBELL_START, RDDMA_DOORBELL_END);
+	/* Tear down the doorbell manager */
+	if (dbmgr)
+		rddma_events_uninit(dbmgr);
+	dbmgr = NULL;
+}
+
+/* Dispatch doorbell interrupt to the appropriate callback */
+/* Note: this function called from interrupt level by RIO driver */
+static void rddma_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
+	u16 dst, u16 id) 
+{
+
+	RDDMA_DEBUG(MY_DEBUG,"%s src=%d dst=%d bell=%d\n",__FUNCTION__,src,dst,id);
+	rddma_event_dispatch(dbmgr, (int) id);
+}
+
+static int doorbell_send (struct rddma_fabric_address *address, int info)
+{
+	struct fabric_address *fa = to_fabric_address(address);
+	RDDMA_DEBUG(MY_DEBUG,"%s dst=%d bell=%d\n",__FUNCTION__,fa->rio_id,info);
+	rio_mport_send_doorbell(port, fa->rio_id, (u16) info);
+	return 0;
+}
+
+/* Allocate a doorbell and associate it with a callback.
+ * Only incoming doorbells need callback... 
+ * NULL callback function is OK.
+ */
+static int rddma_get_doorbell (void (*cb)(void *),void * arg)
+{
+
+	return (rddma_get_event(dbmgr, cb, arg));
+
+}
+
+static void rddma_put_doorbell(int id)
+{
+	rddma_put_event(dbmgr, id);
+	return;
 }
 
 /* End of doorbell manager */
