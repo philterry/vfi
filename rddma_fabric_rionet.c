@@ -28,6 +28,8 @@
 #define RDDMA_DOORBELL_END 0x4000
 #define RDDMA_DOORBELL_HASHLEN 256
 
+#define RDDMA_FABRIC_MSG 0
+
 static int first_probe = 1;
 
 static char *netdev_name = "rionet"; /* "eth0" or "br0" or "bond0" "rionet0" etc */
@@ -263,6 +265,7 @@ struct rddmahdr {
 	__be16		h_proto;		/* packet type ID field	*/
 	__be32          h_dstidx;
 	__be32          h_srcidx;
+	__be32          h_pkt_info;
 } __attribute__((packed));
 
 static inline struct rddmahdr *rddma_hdr(struct sk_buff *skb)
@@ -287,8 +290,8 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 		if (dstidx && fna->reg_loc->desc.extent != dstidx)
 			goto forget;
 
-	*skb_tail_pointer(skb) = '\0';
-	skb_put(skb,1);
+	if (skb_tailroom(skb))  /* FIXME */
+		*skb_put(skb,1) = '\0';
 
 	return rddma_fabric_receive(&fna->rfa, skb);
 
@@ -326,6 +329,8 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 		memcpy(mac->h_source, fna->ndev->dev_addr,ETH_ALEN);
 
 		mac->h_proto = htons(netdev_type);
+
+		mac->h_pkt_info = RDDMA_FABRIC_MSG;
 
 		dstidx = htonl(fna->idx);
 		srcidx = htonl(fna->src_idx);
