@@ -173,7 +173,7 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 			va_start(ap,f);
 			skb_put(skb,vsprintf(skb->data,f,ap));
 			va_end(ap);
-			skb_put(skb,sprintf(skb->tail, "%crequest=%p",strstr(skb->data,"?") ? ',' : '?', cb)); 
+			skb_put(skb,sprintf(skb->tail, "%crequest(%p)",strstr(skb->data,"?") ? ',' : '?', cb)); 
 			RDDMA_DEBUG(MY_DEBUG,"	%s: %s\n",__FUNCTION__, skb->data);
 			
 			rddma_address_register(loc);
@@ -210,9 +210,9 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %s\n",__FUNCTION__,sender,msg);
 
-	if ((buf = strstr(msg,"reply="))) {
+	if ((buf = strstr(msg,"reply("))) {
 		RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,buf);
-		if ( (ret = sscanf(buf,"reply=%x", (unsigned int *)&cb)) ) {
+		if ( (ret = sscanf(buf,"reply(%x)", (unsigned int *)&cb)) ) {
 			RDDMA_DEBUG(MY_DEBUG,"%s cb(%p)\n",__FUNCTION__,cb);
 			if (cb && cb->check == cb) {
 				cb->check = 0;
@@ -224,7 +224,7 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 		}
 		RDDMA_DEBUG(MY_DEBUG,"%s ret(%d) %p\n",__FUNCTION__,ret,cb);
 	}
-	else if ((buf = strstr(msg,"request="))) {
+	else if ((buf = strstr(msg,"request("))) {
 		struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
 		cb->rqst_skb = skb;
 		cb->check = cb;
