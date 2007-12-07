@@ -110,9 +110,11 @@ struct kobj_type rddma_event_type = {
     .default_attrs = rddma_event_default_attrs,
 };
 
-struct rddma_event *find_rddma_event(struct rddma_events *parent, char *name)
+struct rddma_event *find_rddma_event(struct rddma_events *parent, int id)
 {
-    return to_rddma_event(kset_find_obj(&parent->kset,name));
+	char buf[20];
+	sprintf(buf,"%x",id);
+	return to_rddma_event(kset_find_obj(&parent->kset,buf));
 }
 
 static int rddma_event_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -137,14 +139,16 @@ static struct kset_uevent_ops rddma_event_uevent_ops = {
 	.uevent = rddma_event_uevent,
 };
 
-struct rddma_event *new_rddma_event(struct rddma_events *parent, char *name)
+struct rddma_event *new_rddma_event(struct rddma_events *parent, struct rddma_desc_param *desc)
 {
     struct rddma_event *new = kzalloc(sizeof(struct rddma_event), GFP_KERNEL);
     
     if (NULL == new)
 	return new;
 
-    kobject_set_name(&new->kobj,name);
+    rddma_clone_desc(&new->desc,desc);
+    sscanf(rddma_get_option(desc,"event_id"),"%x",&new->event);
+    kobject_set_name(&new->kobj,"%x",new->event);
     new->kobj.ktype = &rddma_event_type;
     new->kobj.kset = &parent->kset;
 
@@ -170,11 +174,11 @@ void rddma_event_unregister(struct rddma_event *rddma_event)
      kobject_unregister(&rddma_event->kobj);
 }
 
-struct rddma_event *rddma_event_create(struct rddma_events *parent, char *name)
+struct rddma_event *rddma_event_create(struct rddma_events *parent, struct rddma_desc_param *desc)
 {
 	struct rddma_event *new; 
 
-	if ( (new = new_rddma_event(parent, name)) ) {
+	if ( (new = new_rddma_event(parent, desc)) ) {
 		if (rddma_event_register(new)) {
 			rddma_event_put(new);
 			return NULL;

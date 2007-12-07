@@ -74,7 +74,7 @@ struct kobj_type rddma_readies_type = {
 
 struct rddma_events *find_rddma_readies(struct rddma_subsys *parent, char *name)
 {
-    return to_rddma_events(kset_find_obj(&parent->readies->kset,name));
+    return to_rddma_events(kset_find_obj(&parent->events->kset,name));
 }
 
 static int rddma_readies_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -125,17 +125,15 @@ void rddma_readies_unregister(struct rddma_readies *rddma_readies)
 		kset_unregister(&rddma_readies->kset);
 }
 
-struct rddma_readies *rddma_readies_create(struct rddma_subsys *parent)
+struct rddma_readies *rddma_readies_create(struct rddma_subsys *parent, char *name)
 {
 	struct rddma_readies *new; 
 
-	if ( (new = new_rddma_readies(parent, "readies")) ) {
+	if ( (new = new_rddma_readies(parent, name)) ) {
 		if (rddma_readies_register(new)) {
 			rddma_readies_put(new);
 			return NULL;
 		}
-		else
-			parent->readies = new;
 	}
 	return new;
 }

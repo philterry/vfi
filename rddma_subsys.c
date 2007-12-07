@@ -14,6 +14,7 @@
 
 #include <linux/rddma_subsys.h>
 #include <linux/rddma_location.h>
+#include <linux/rddma_readies.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -214,19 +215,32 @@ out:
     return NULL;
 }
 
-int rddma_subsys_register(struct rddma_subsys *rddma_subsys)
+int rddma_subsys_register(struct rddma_subsys *parent)
 {
-	int ret = 0;
+	int ret;
+	struct rddma_readies *events;
 
-	kobject_set_name(&rddma_subsys->kset.kobj,rddma_subsys->desc.name);
-	if ( (ret = kset_register(&rddma_subsys->kset) ) )
-		kset_put(&rddma_subsys->kset);
+	kobject_set_name(&parent->kset.kobj,parent->desc.name);
 
-	return ret;
+	if ( (ret = kset_register(&parent->kset) ) ) {
+		kset_put(&parent->kset);
+		return ret;
+	}
+
+	events = rddma_readies_create(parent,"events");
+
+	if (events) {
+		parent->events = events;
+		return ret;
+	}
+
+	rddma_subsys_unregister(parent);
+	return -ENOMEM;
 }
 
-void rddma_subsys_unregister(struct rddma_subsys *rddma_subsys)
+void rddma_subsys_unregister(struct rddma_subsys *parent)
 {
-     kset_unregister(&rddma_subsys->kset);
+	if (parent)
+		kset_unregister(&parent->kset);
 }
 

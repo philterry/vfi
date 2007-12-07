@@ -26,7 +26,6 @@ rddma-objs := \
 	      rddma_subsys.o \
                    rddma_location.o \
 			rddma_readies.o \
-                        rddma_dones.o \
 			rddma_events.o \
 			rddma_event.o \
                         rddma_smbs.o \

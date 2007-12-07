@@ -2,6 +2,8 @@
 #define MY_LIFE_DEBUG RDDMA_DBG_RDYS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
 #include <linux/rddma_events.h>
+#include <linux/rddma_subsys.h>
+#include <linux/rddma_readies.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -71,9 +73,9 @@ struct kobj_type rddma_events_type = {
     .default_attrs = rddma_events_default_attrs,
 };
 
-struct rddma_events *find_rddma_events(struct kset *kset, char *name)
+struct rddma_events *find_rddma_events(struct rddma_subsys *p, char *name)
 {
-    return to_rddma_events(kset_find_obj(kset,name));
+    return to_rddma_events(kset_find_obj(&p->events->kset,name));
 }
 
 static int rddma_events_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -98,7 +100,7 @@ static struct kset_uevent_ops rddma_events_uevent_ops = {
 	.uevent = rddma_events_uevent,
 };
 
-struct rddma_events *new_rddma_events(struct kset *parent, char *name)
+struct rddma_events *new_rddma_events(struct rddma_subsys *parent, char *name)
 {
     struct rddma_events *new = kzalloc(sizeof(struct rddma_events), GFP_KERNEL);
     
@@ -108,7 +110,7 @@ struct rddma_events *new_rddma_events(struct kset *parent, char *name)
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &rddma_events_type;
     new->kset.uevent_ops = &rddma_events_uevent_ops;
-    new->kset.kobj.parent = &parent->kobj;
+    new->kset.kobj.kset = &parent->events->kset;
 
     return new;
 }
@@ -124,7 +126,7 @@ void rddma_events_unregister(struct rddma_events *rddma_events)
 		kset_unregister(&rddma_events->kset);
 }
 
-struct rddma_events *rddma_events_create(struct kset *parent, char *name)
+struct rddma_events *rddma_events_create(struct rddma_subsys *parent, char *name)
 {
 	struct rddma_events *new; 
 

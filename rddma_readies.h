@@ -27,4 +27,6 @@ extern int rddma_readies_register(struct rddma_readies *);
 extern void rddma_readies_unregister(struct rddma_readies *);
 extern struct rddma_events *find_rddma_readies(struct rddma_subsys *, char *);
 extern struct kobj_type rddma_readies_type;
+extern struct rddma_readies *rddma_readies_create(struct rddma_subsys *, char *name);
+extern void rddma_readies_delete(struct rddma_readies *);
 #endif /* RDDMA_READIES_H */

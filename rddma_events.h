@@ -2,6 +2,7 @@
 #define RDDMA_EVENTS_H
 
 #include <linux/rddma.h>
+#include <linux/rddma_subsys.h>
 
 struct rddma_events {
     struct kset kset;
@@ -22,9 +23,11 @@ static inline void rddma_events_put(struct rddma_events *rddma_events)
     kset_put(&rddma_events->kset);
 }
 
-extern struct rddma_events *new_rddma_events(struct kset *, char *name);
+extern struct rddma_events *new_rddma_events(struct rddma_subsys *, char *name);
 extern int rddma_events_register(struct rddma_events *);
 extern void rddma_events_unregister(struct rddma_events *);
-extern struct rddma_events *find_rddma_events(struct kset *, char *);
+extern struct rddma_events *find_rddma_events(struct rddma_subsys *, char *);
 extern struct kobj_type rddma_events_type;
+extern struct rddma_events *rddma_events_create(struct rddma_subsys *, char *name);
+extern void rddma_events_delete(struct rddma_events *);
 #endif /* RDDMA_EVENTS_H */

@@ -7,6 +7,7 @@
 
 struct rddma_event {
 	struct rddma_desc_param desc;
+	int event;
 	struct kobject kobj;
 };
 
@@ -25,9 +26,11 @@ static inline void rddma_event_put(struct rddma_event *rddma_event)
     kobject_put(&rddma_event->kobj);
 }
 
-extern struct rddma_event *new_rddma_event(struct rddma_events *, char *name);
+extern struct rddma_event *new_rddma_event(struct rddma_events *, struct rddma_desc_param *);
 extern int rddma_event_register(struct  rddma_event *);
 extern void rddma_event_unregister(struct rddma_event *);
-extern struct rddma_event *find_rddma_event(struct rddma_events *, char *);
+extern struct rddma_event *find_rddma_event(struct rddma_events *, int);
 extern struct kobj_type rddma_event_type;
+extern struct rddma_event *rddma_event_create(struct rddma_events *, struct rddma_desc_param *);
+extern void rddma_event_delete(struct rddma_event *);
 #endif /* RDDMA_EVENT_H */
