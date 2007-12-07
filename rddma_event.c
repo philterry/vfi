@@ -2,6 +2,7 @@
 #define MY_LIFE_DEBUG RDDMA_DBG_RDYS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
 #include <linux/rddma_event.h>
+#include <linux/rddma_fabric.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -190,4 +191,9 @@ struct rddma_event *rddma_event_create(struct rddma_events *parent, struct rddma
 void rddma_event_delete(struct rddma_event *rddma_event)
 {
 	rddma_event_unregister(rddma_event);
+}
+
+void rddma_event_send(struct rddma_event *event)
+{
+	rddma_doorbell_send(event->desc.address, event->event);
 }
