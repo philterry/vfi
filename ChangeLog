@@ -118,10 +118,10 @@
 	the return value is as for snprintf for the result,size buffer
 	provided in the call parameters. The semantics is that an
 	operation will print back its parameters canonicalized where
-	applicable together with a ?result=%d result string on the end if
+	applicable together with a ?result(%d) result string on the end if
 	you supply a result buffer. If you provide a null buffer pointer
 	the result will be 0 unless an error occured when the negative
-	value normally returned in ?result=%d is returned. If returned
+	value normally returned in ?result(%d) is returned. If returned
 	value is equal or greater than size then the result has been
 	truncated.  Fixed all operator replies against accidentally
 	returning the original ?request=%x strings.

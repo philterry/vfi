@@ -21,7 +21,7 @@
  * name      := <string>
  * var       := <string>
  * val       := <string>
- * option    := var[=val]
+ * option    := var[(<val>)]
  * options   := ?option[,option]*
  * location  := name[.location][options]
  * smb       := name[.location][options]
@@ -52,11 +52,8 @@ struct rddma_desc_param {
 	char *location;
 	u64  offset;
 	unsigned int extent;
-#define RDDMA_MAX_QUERY_STRINGS 5
-/* DO NOT SEPERATE THE FOLLOWING TWO LINES */
-	char *query[RDDMA_MAX_QUERY_STRINGS];		/* var[=val] */
-	char *rest;		/* var[=val][,var[=val]]* */
-/* rest is aliased as query[RDDMA_MAX_QUERY_STRINGS] in the parse routine! Naughty code! */
+	char **query;
+	char **end;
 /* private: */
 	struct rddma_ops *ops;
 	struct rddma_dma_engine *rde;

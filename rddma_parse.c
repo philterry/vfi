@@ -31,21 +31,47 @@
  * null terminated so the allocation is max of @name length and 4095
  * plus 1.
  */
-static char *rddma_str_dup(const char *name, size_t *newsize)
+static char *rddma_str_dup(const char *name, struct rddma_desc_param *d)
 {
 	char *ret = NULL;
-	if (newsize)
-		*newsize = 0;
-	if (name) {
-		size_t size = strnlen(name,4095);
-		if ((ret = kzalloc(size+1, GFP_KERNEL)) ) {
-			strncpy(ret, name, size);
-			if (newsize)
-				*newsize = size;
+	const char *p = name;
+	size_t oldsize, size;
+	int argc = 1;
+
+	if (d)
+		d->buflen = 0;
+
+	if (name == NULL)
+		return ret;
+
+	oldsize = strnlen(name,4096) + 1;
+
+	if (oldsize > 4096)
+		return ret;
+
+	while (*p) {
+		if (*p == '?' || *p == ',') 
+			argc++;
+		p++;
+	}
+		
+	size = (((oldsize >> 2) + 1) << 2) + (argc << 2);
+
+	if (size > 4096)
+		return ret;
+
+	if ((ret = kzalloc(size, GFP_KERNEL)) ) {
+		strncpy(ret, name, oldsize);
+		if (d) {
+			d->buflen = size;
+			if (argc) {
+				d->query = (char **)(ret + (((oldsize >> 2) + 1) << 2));
+				d->end = d->query + (argc - 1);
+			}
 		}
 	}
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p to %p\n",__FUNCTION__,name,ret);
+	RDDMA_DEBUG(MY_DEBUG,"%s %p(%d) to %p(%d)\n",__FUNCTION__,name,oldsize,ret,size);
 	return ret;
 }
 
@@ -100,17 +126,76 @@ char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
 {
 	char *found_var = NULL;
 	char *found_val = NULL;
-	int i;
+	char **query = desc->query;
 
-	for (i = 0; i <= RDDMA_MAX_QUERY_STRINGS && desc->query[i]; i++)
-		if (desc->query[i]) {
-			if ((found_var = strstr(desc->query[i],needle)))
-				found_val = strstr(found_var,"=");
-		}
+	while (*query) {
+		if ((found_var = strstr(*query++,needle)))
+			found_val = strstr(found_var,"=");
+	}
+
 	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s->%s%s\n",__FUNCTION__,desc,needle,found_var,found_val);
 	return found_val ? found_val+1 : found_var ;
 }
 EXPORT_SYMBOL(rddma_get_option);
+
+int rddma_add_option(struct rddma_desc_param *desc, char *opt)
+{
+	int additional,opt_space,opt_len,nl,ol;
+	char *ob, *nb, *nopt;
+	char **oq, **nq;
+	
+	opt_len = strlen(opt) + 1;
+	opt_space = ((opt_len >> 2) + 1) << 2;
+	additional =  opt_space + 4;
+
+	ol = desc->buflen;
+	nl = ol + additional;
+
+	nb = kzalloc(nl, GFP_KERNEL);
+
+	if (nb == NULL)
+		return -ENOMEM;
+
+	ob = desc->buf;
+	oq = desc->query;
+	nq = (char **)(nb + ((char *)oq - ob) + opt_space);
+
+	memcpy(nb, ob, ol);
+	nopt = nb + ((char *)oq - ob);
+	memcpy(nopt,opt,opt_len);
+	
+	desc->query = nq;
+	while (*oq) {
+		*nq = nb + ((char *)oq - ob);
+		oq++;
+		nq++;
+	}
+
+	*nq = nopt;
+	desc->buf = nb;
+	desc->buflen = nl;
+	desc->name = nb + (desc->name - ob);
+	desc->location = nb + (desc->location - ob);
+	desc->end = nq+1;
+	kfree(ob);
+	return 0;
+}
+
+static void rddma_parse_options(char **query)
+{
+	char *q;
+
+	while (*query) {
+		name_remainder(*query, ',', query+1);
+		if ((q = strstr(*query,"("))) {
+			*q = '=';
+			if ((q = strstr(q,")")))
+				*q = '\0';
+		}
+		RDDMA_DEBUG(MY_DEBUG,"%s: %s\n",__FUNCTION__,*query);
+		query++;
+	}
+}
 
 /**
  * rddma_parse_desc - Takes a string which is then duped and parsed into the desc struct.
@@ -134,15 +219,12 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	char *ops;
 	char *fabric_name;
 	char *dma_engine_name;
-	int i;
 	
 	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
 
 	d->extent = 0;
 	d->offset = 0;
 	d->location = NULL;
-	d->query[0] = NULL;
-	d->rest = NULL;
 	d->ops = NULL;
 	d->rde = NULL;
 	d->address = NULL;
@@ -184,9 +266,7 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
  		RDDMA_ASSERT(('\0' == *soffset),"Dodgy offset string(%d) contains %s", (ret = (soffset - d->name)), soffset); 
 	}
 
-	i = 0;
-	while (name_remainder(d->query[i], ',', &d->query[i+1]) && i < RDDMA_MAX_QUERY_STRINGS) i++;
-	/* The above naughty loop will leave any remaining options in d->rest */
+	rddma_parse_options(d->query);
 
 	if ( (ops = rddma_get_option(d,"default_ops")) ) {
 		if (!strncmp(ops,"private",7))
@@ -211,7 +291,7 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 	char *mydesc;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
-	if ( (mydesc = rddma_str_dup(desc,&d->buflen)) ) {
+	if ( (mydesc = rddma_str_dup(desc,d)) ) {
 		if ( (ret = _rddma_parse_desc(d,mydesc)) ) {
 			d->buf = NULL;
 			d->buflen = 0;
@@ -280,16 +360,14 @@ int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
 	if (new->rde)
 		rddma_dma_get(new->rde);
 
-	if ( old->buf && old->buflen && (new->buf = kzalloc(old->buflen + 1, GFP_KERNEL)) ) {
+	if ( old->buf && old->buflen && (new->buf = kzalloc(old->buflen, GFP_KERNEL)) ) {
 		memcpy(new->buf, old->buf, old->buflen);
 		if (old->location)
 			new->location = new->buf + (old->location - old->buf);
 		new->name = new->buf + (old->name - old->buf);
 		i = 0;
-		while (i <= RDDMA_MAX_QUERY_STRINGS) {
-			if (old->query[i]) {
-				new->query[i] = new->buf + (old->query[i] - old->buf);
-			}
+		while (old->query[i]) {
+			new->query[i] = new->buf + (old->query[i] - old->buf);
 			i++;
 		}
 
