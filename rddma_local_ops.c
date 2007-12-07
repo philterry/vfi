@@ -711,6 +711,35 @@ void rddma_local_bind_vote (struct rddma_xfer *xfer, struct rddma_bind_param *de
 	}
 }
 
+static void rddma_local_src_done(struct rddma_bind *bind)
+{
+	/* A DMA engine, either local or remote, has completed a
+	 * transfer involving a local smb as the source. Do vote
+	 * adjustment. */
+}
+
+static void rddma_local_dst_done(struct rddma_bind *bind)
+{
+	/* A DMA engine, either local or remote, has completed a
+	 * transfer involving a local SMB as the destination. Do vote
+	 * ajustment accordingly */
+}
+
+void rddma_local_src_ready(struct rddma_bind *bind)
+{
+	/* Someone, either locally or via the fabric, executed start
+	 * on an event which is telling us, the local DMA engine
+	 * assigned for this bind, that the source SMB, which may be
+	 * local or remote, is ready for action. */
+}
+
+void rddma_local_dst_ready(struct rddma_bind *bind)
+{
+	/* Someone, either locally or via the fabric, executed start on
+	 * an event which is telling us, the local DMA engine assigned
+	 * for this bind, that the destination SMB, which may be local
+	 * or remote, is ready for action. */
+}
 
 struct rddma_ops rddma_local_ops = {
 	.location_create = rddma_local_location_create,
@@ -741,5 +770,9 @@ struct rddma_ops rddma_local_ops = {
 	.bind_dst_ready  = rddma_local_bind_dst_ready, 
 	.bind_src_ready  = rddma_local_bind_src_ready, 
 	.bind_vote       = rddma_local_bind_vote, 
+	.src_done        = rddma_local_src_done,
+	.dst_done        = rddma_local_dst_done,
+	.src_ready       = rddma_local_src_ready,
+	.dst_ready       = rddma_local_dst_ready,
 };
 

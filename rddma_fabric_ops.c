@@ -26,7 +26,7 @@
 #include <linux/rddma_dsts.h>
 #include <linux/rddma_parse.h>
 #include <linux/rddma_drv.h>
-
+#include <linux/rddma_event.h>
 #include <linux/device.h>
 #include <linux/mm.h>
 
@@ -649,32 +649,67 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 	
 }
 
+static void rddma_fabric_src_done(struct rddma_bind *bind)
+{
+	/* Our local DMA engine, has completed a transfer involving a
+	 * remote SMB as the source requiring us to send a done event
+	 * to the remote source so that it may adjust its votes. */
+	rddma_event_send(bind->src_done_event);
+}
+
+static void rddma_fabric_dst_done(struct rddma_bind *bind)
+{
+	/* Our local DMA engine, has completed a transfer involving a
+	 * remote SMB as the destination requiring us to send a done
+	 * event to the remote destination so that it may adjust its
+	 * votes. */
+	rddma_event_send(bind->dst_done_event);
+}
+
+void rddma_fabric_src_ready(struct rddma_bind *bind)
+{
+	/* Someone locally executed start on an event associated with
+	 * the local source SMB in a bind assigned a remote DMA
+	 * engine. So we need to send the ready event to it so that it
+	 * may adjust its vote accordingly. */
+}
+
+void rddma_fabric_dst_ready(struct rddma_bind *bind)
+{
+	/* Someone locally executed start on an event associated with
+	 * the local destination SMB in a bind assigned a remote DMA
+	 * engine. So we need to send the ready event to it so that it
+	 * may adjust its vote accordingly. */
+}
+
 struct rddma_ops rddma_fabric_ops = {
 	.location_create = rddma_fabric_location_create,
 	.location_delete = rddma_fabric_location_delete,
-	.location_find = rddma_fabric_location_find,
-	.location_put = rddma_fabric_location_put,
-	.smb_create = rddma_fabric_smb_create,
-	.smb_delete = rddma_fabric_smb_delete,
-	.smb_find = rddma_fabric_smb_find,
-	.mmap_create = rddma_fabric_mmap_create,
-	.mmap_delete = rddma_fabric_mmap_delete,
-	.mmap_find = rddma_fabric_mmap_find,
-	.xfer_create = rddma_fabric_xfer_create,
-	.xfer_delete = rddma_fabric_xfer_delete,
-	.xfer_find = rddma_fabric_xfer_find,
-	.srcs_create = rddma_fabric_srcs_create,
-	.src_create = rddma_fabric_src_create,
-	.src_delete = rddma_fabric_src_delete,
-	.src_find = rddma_fabric_src_find,
-	.dsts_create = rddma_fabric_dsts_create,
-	.dst_create = rddma_fabric_dst_create,
-	.dst_delete = rddma_fabric_dst_delete,
-	.dst_find = rddma_fabric_dst_find,
-	.bind_find = rddma_fabric_bind_find,
-/*	.bind_dst_ready = NOTHING - local op only 
-	.bind_src_ready = NOTHING - local op only */
-	.bind_create = rddma_fabric_bind_create,
-	.bind_delete = rddma_fabric_bind_delete,
+	.location_find   = rddma_fabric_location_find,
+	.location_put    = rddma_fabric_location_put,
+	.smb_create      = rddma_fabric_smb_create,
+	.smb_delete      = rddma_fabric_smb_delete,
+	.smb_find        = rddma_fabric_smb_find,
+	.mmap_create     = rddma_fabric_mmap_create,
+	.mmap_delete     = rddma_fabric_mmap_delete,
+	.mmap_find       = rddma_fabric_mmap_find,
+	.xfer_create     = rddma_fabric_xfer_create,
+	.xfer_delete     = rddma_fabric_xfer_delete,
+	.xfer_find       = rddma_fabric_xfer_find,
+	.srcs_create     = rddma_fabric_srcs_create,
+	.src_create      = rddma_fabric_src_create,
+	.src_delete      = rddma_fabric_src_delete,
+	.src_find        = rddma_fabric_src_find,
+	.dsts_create     = rddma_fabric_dsts_create,
+	.dst_create      = rddma_fabric_dst_create,
+	.dst_delete      = rddma_fabric_dst_delete,
+	.dst_find        = rddma_fabric_dst_find,
+	.bind_find       = rddma_fabric_bind_find,
+	.bind_create     = rddma_fabric_bind_create,
+	.bind_delete     = rddma_fabric_bind_delete,
+	.src_done        = rddma_fabric_src_done,
+	.dst_done        = rddma_fabric_dst_done,
+	.src_ready       = rddma_fabric_src_ready,
+	.dst_ready       = rddma_fabric_dst_ready,
 };
 

@@ -27,6 +27,9 @@ struct rddma_bind {
 	struct list_head *end_of_chain;
 	atomic_t src_votes;
 	atomic_t dst_votes;
+
+	struct rddma_event *dst_done_event;
+	struct rddma_event *src_done_event;
 };
 
 static inline struct rddma_bind *to_rddma_bind(struct kobject *kobj)

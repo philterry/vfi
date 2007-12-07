@@ -61,11 +61,20 @@ struct rddma_ops {
 	void                         (*src_delete)(struct rddma_dst *,      struct rddma_bind_param *);
 	struct rddma_src *             (*src_find)(struct rddma_dst *,      struct rddma_bind_param *);
 
+	void (*src_done)(struct rddma_bind *);
+	void (*dst_done)(struct rddma_bind *);
+	void (*src_ready)(struct rddma_bind *);
+	void (*dst_ready)(struct rddma_bind *);
 };
 
 
 extern struct rddma_ops rddma_local_ops;
 extern struct rddma_ops rddma_fabric_ops;
+
+extern void rddma_local_src_ready(struct rddma_bind *);
+extern void rddma_local_dst_ready(struct rddma_bind *);
+extern void rddma_fabric_src_ready(struct rddma_bind *);
+extern void rddma_fabric_dst_ready(struct rddma_bind *);
 
 extern int do_operation (const char *, char *, int);
 
