@@ -70,8 +70,12 @@ extern unsigned int rddma_debug_level;
 #define RDDMA_DBG_DST      0x00020000
 #define RDDMA_DBG_SRC      0x00010000
 #define RDDMA_DBG_MMAP     0x00008000
+#define RDDMA_DBG_RDYS     0x00004000
+#define RDDMA_DBG_DONES    0x00002000
+#define RDDMA_DBG_EVNTS    0x00001000
+#define RDDMA_DBG_EVNT     0x00000800
 
-#define RDDMA_DBG_WHO      0xffff8000
+#define RDDMA_DBG_WHO      0xfffff800
 
 /* The bottom bits of who_what select a functional area, what to debug */
 #define RDDMA_DBG_FUNCALL  0x00000010

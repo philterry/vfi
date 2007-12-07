@@ -26,6 +26,9 @@ struct rddma_subsys {
 	struct class class;
 	dev_t dev;
 
+	struct rddma_dones *dones;
+	struct rddma_readies *readies;
+
 	struct kset kset;
 };
 
