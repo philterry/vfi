@@ -137,4 +137,5 @@ extern void rddma_dma_put(struct rddma_dma_engine *);
 extern void rddma_dealloc_pages( struct page **pages, int num_pages);
 extern int rddma_alloc_pages( size_t size, int offset, struct page **pages[], int *num_pages);
 
+extern void rddma_dma_complete(struct rddma_bind *);
 #endif

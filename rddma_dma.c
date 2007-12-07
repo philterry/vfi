@@ -17,6 +17,8 @@
 #include <linux/rio_ids.h>
 #include <linux/rio_drv.h>
 #include <linux/mm_types.h>
+#include <linux/rddma_bind.h>
+#include <linux/rddma_ops.h>
 
 int order(int x) {
 	int ord = 0;
@@ -190,6 +192,19 @@ void rddma_dma_put(struct rddma_dma_engine *rde)
 	if (rde) {
 		rde->ops->put(rde);
 		module_put(rde->owner);
+	}
+}
+
+void rddma_dma_complete(struct rddma_bind *bind)
+{
+	/* DMA engines call this upcall when they get the interrupt
+	 * that a chain of descriptors representing a bind has
+	 * completed. */
+	if (bind) {
+		if (bind->desc.dst.ops && bind->desc.dst.ops->dst_done)
+			bind->desc.dst.ops->dst_done(bind);
+		if (bind->desc.src.ops && bind->desc.src.ops->dst_done)
+			bind->desc.src.ops->src_done(bind);
 	}
 }
 
