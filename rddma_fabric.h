@@ -170,7 +170,7 @@ extern int rddma_address_register(struct rddma_location *);
 extern void rddma_address_unregister(struct rddma_location *);
 extern int rddma_doorbell_register(struct rddma_fabric_address *, void (*)(void *), void *);
 extern void rddma_doorbell_unregister(struct rddma_fabric_address *, int);
-
+extern void rddma_doorbell_send(struct rddma_fabric_address *, int);
 /*
  * The most common form of interaction is the rpc, to send a request
  * to a location and return with the result of that request as an
