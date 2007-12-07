@@ -31,7 +31,6 @@
 
 void desc_param_dump(struct rddma_desc_param *d)
 {
-	char *q;
 	int i;
 	if (d == NULL) {
 		printk("NULL desc_param!\n");
@@ -51,16 +50,11 @@ void desc_param_dump(struct rddma_desc_param *d)
 
 	printk("offset = 0x%llx\n", d->offset);
 	printk("extent = 0x%x\n", d->extent);
-	for (i = 0; i < RDDMA_MAX_QUERY_STRINGS; i++) {
-		q = d->query[i];
-		if (q == NULL)
-			break;
+	i = 0;
+	while (d->query && d->query[i]) {
 		printk("query str @ %p", d->query[i]);
 		printk(" = %s\n", d->query[i]);
 	}
-
-	if (d->rest)
-		printk("rest = %s\n", d->rest);
 
 	if (d->address) {
 		printk("fabric name = %s\n", &d->address->name[0]);
