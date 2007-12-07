@@ -129,8 +129,9 @@ char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
 	char **query = desc->query;
 
 	while (*query) {
-		if ((found_var = strstr(*query++,needle)))
+		if ((found_var = strstr(*query,needle)))
 			found_val = strstr(found_var,"=");
+		query++;
 	}
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s->%s%s\n",__FUNCTION__,desc,needle,found_var,found_val);
