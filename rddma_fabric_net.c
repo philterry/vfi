@@ -509,7 +509,7 @@ static int fabric_register(struct rddma_location *loc)
 /* 	if (old && old->reg_loc) */
 /* 		return -EEXIST; */
 
-	if ( (ndev_name = rddma_get_option(&loc->desc,"netdev=")) ) {
+	if ( (ndev_name = rddma_get_option(&loc->desc,"netdev")) ) {
 		if ( !(ndev = dev_get_by_name(ndev_name)) )
 			return -ENODEV;
 	}

@@ -128,11 +128,12 @@ char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
 	char *found_val = NULL;
 	char **query = desc->query;
 
-	while (*query) {
-		if ((found_var = strstr(*query,needle)))
-			found_val = strstr(found_var,"=");
-		query++;
-	}
+	if (query)
+		while (*query && (found_var == NULL)) {
+			if ((found_var = strstr(*query,needle)))
+				found_val = strstr(found_var,"=");
+			query++;
+		}
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s->%s%s\n",__FUNCTION__,desc,needle,found_var,found_val);
 	return found_val ? found_val+1 : found_var ;
