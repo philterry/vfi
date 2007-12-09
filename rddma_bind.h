@@ -30,6 +30,8 @@ struct rddma_bind {
 
 	struct rddma_event *dst_done_event;
 	struct rddma_event *src_done_event;
+	struct rddma_event *dst_ready_event;
+	struct rddma_event *src_ready_event;
 };
 
 static inline struct rddma_bind *to_rddma_bind(struct kobject *kobj)

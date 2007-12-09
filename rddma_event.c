@@ -194,5 +194,5 @@ void rddma_event_delete(struct rddma_event *rddma_event)
 
 void rddma_event_send(struct rddma_event *event)
 {
-	rddma_doorbell_send(event->desc.address, event->event);
+	rddma_doorbell_send(event->desc.address, event->event_id);
 }

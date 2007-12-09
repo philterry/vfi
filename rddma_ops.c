@@ -23,6 +23,7 @@
 #include <linux/rddma_bind.h>
 #include <linux/rddma_mmap.h>
 #include <linux/rddma_events.h>
+#include <linux/rddma_event.h>
 
 #include <linux/device.h>
 
@@ -1225,6 +1226,8 @@ static int srcs_create(const char *desc, char *result, int size)
 	int ret = -ENOMEM;
 	struct rddma_srcs *srcs = NULL;
 	struct rddma_dst *dst = NULL;
+	struct rddma_bind *bind = NULL;
+	int event_id = -1;
 	struct rddma_bind_param params;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
@@ -1236,18 +1239,24 @@ static int srcs_create(const char *desc, char *result, int size)
 	
 	if ( (dst = find_rddma_dst(&params) ) ) {
 		ret = -EINVAL;
+
 		if (dst->desc.src.ops && dst->desc.src.ops->srcs_create)
 			ret = ((srcs = dst->desc.src.ops->srcs_create(dst, &params)) == NULL);
+
+		bind = rddma_dst_parent(dst);
+		if (bind->src_ready_event)
+			event_id = bind->src_ready_event->event_id;
+		rddma_bind_put(bind);
 	}
 
 	rddma_dst_put(dst);
 
 out:		
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_id(%d),result(%d),reply(%s)\n",
 			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
-			       params.src.name, params.src.location,params.src.offset, params.src.extent,
+			       params.src.name, params.src.location,params.src.offset, params.src.extent,event_id,
 			       ret,rddma_get_option(&params.src,"request"));
 	rddma_clean_bind(&params);
 
@@ -1359,6 +1368,7 @@ static int dsts_create(const char *desc, char *result, int size)
 	struct rddma_dsts *dsts = NULL;
 	struct rddma_bind *bind = NULL;
 	struct rddma_bind_param params;
+	int event_id = -1;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
@@ -1369,17 +1379,22 @@ static int dsts_create(const char *desc, char *result, int size)
 	
 	if ( (bind = find_rddma_bind(&params) ) ) {
 		ret = -EINVAL;
+
 		if (bind->desc.dst.ops && bind->desc.dst.ops->dsts_create)
 			ret = ((dsts = bind->desc.dst.ops->dsts_create(bind, &params)) == NULL);
+
+		if (bind->dst_ready_event)
+			event_id = bind->dst_ready_event->event_id;
 	}
 
 	rddma_bind_put(bind);
 
 out:		
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x?event_id(%d)=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
+			       event_id,
 			       params.src.name, params.src.location,params.src.offset, params.src.extent,
 			       ret,rddma_get_option(&params.src,"request"));
 	rddma_clean_bind(&params);

@@ -41,6 +41,12 @@ static inline void rddma_dst_put(struct rddma_dst *rddma_dst)
 		kobject_put(&rddma_dst->kobj);
 }
 
+static inline struct rddma_bind *rddma_dst_parent(struct rddma_dst *dst)
+{
+	return dst ? rddma_bind_get(to_rddma_bind(dst->kobj.parent)) : NULL;
+}
+
+
 extern struct rddma_dst *new_rddma_dst(struct rddma_bind *, struct rddma_bind_param *);
 extern int rddma_dst_register(struct rddma_dst *);
 extern void rddma_dst_unregister(struct rddma_dst *);
