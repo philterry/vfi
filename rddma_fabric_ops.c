@@ -422,7 +422,6 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 	event_id = rddma_doorbell_register(parent->desc.xfer.address,
 					   (void (*)(void *))parent->desc.xfer.ops->dst_ready,
 					   (void *)parent);
-
 	if (event_id < 0)
 		goto event_fail;
 
@@ -516,11 +515,13 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 	if (bind == NULL)
 		goto out;
 
-	event_id = rddma_doorbell_register(bind->desc.xfer.address,
-					   (void (*)(void *))bind->desc.xfer.ops->src_ready,
-					   (void *)bind);
-	if (event_id < 0)
-		goto event_fail;
+	if (bind->src_ready_event < 0) {
+		bind->src_ready_event = event_id = rddma_doorbell_register(bind->desc.xfer.address,
+									   (void (*)(void *))bind->desc.xfer.ops->src_ready,
+									   (void *)bind);
+		if (event_id < 0)
+			goto event_fail;
+	}
 
 	srcs = rddma_srcs_create(parent,desc);
 
@@ -530,25 +531,25 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 	skb = rddma_fabric_call(sloc, 5, "srcs_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_id(%d)",
 				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
 				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
-				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent,event_id);
+				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent,bind->src_ready_event);
 	if (skb == NULL)
 		goto skb_fail;
 
 	if (rddma_parse_bind(&reply,skb->data)) 
 		goto parse_fail;
 
-	if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret != 0)
-		goto result_fail;
+	if (bind->src_done_event < 0) {
+		if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret != 0)
+			goto result_fail;
 
-	event_str = rddma_get_option(&reply.src,"event_id");
+		event_str = rddma_get_option(&reply.src,"event_id");
 
-	if (event_str == NULL)
-		goto result_fail;
+		if (event_str == NULL)
+			goto result_fail;
 
-	if (sscanf(event_str,"%d",&bind->src_done_event) != 1)
-		goto result_fail;
-
-	bind->src_ready_event = event_id;
+		if (sscanf(event_str,"%d",&bind->src_done_event) != 1)
+			goto result_fail;
+	}
 
 	rddma_clean_bind(&reply);
 	dev_kfree_skb(skb);
@@ -561,7 +562,8 @@ parse_fail:
 skb_fail:
 	rddma_srcs_delete(srcs);
 srcs_fail:
-	rddma_doorbell_unregister(bind->desc.xfer.address,event_id);
+	if (event_id != -1)
+		rddma_doorbell_unregister(bind->desc.xfer.address,event_id);
 event_fail:
 	rddma_bind_put(bind);
 out:
