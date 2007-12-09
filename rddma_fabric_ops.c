@@ -666,7 +666,7 @@ static void rddma_fabric_dst_done(struct rddma_bind *bind)
 	rddma_event_send(bind->dst_done_event);
 }
 
-void rddma_fabric_src_ready(struct rddma_bind *bind)
+static void rddma_fabric_src_ready(struct rddma_bind *bind)
 {
 	/* Someone locally executed start on an event associated with
 	 * the local source SMB in a bind assigned a remote DMA
@@ -674,7 +674,7 @@ void rddma_fabric_src_ready(struct rddma_bind *bind)
 	 * may adjust its vote accordingly. */
 }
 
-void rddma_fabric_dst_ready(struct rddma_bind *bind)
+static void rddma_fabric_dst_ready(struct rddma_bind *bind)
 {
 	/* Someone locally executed start on an event associated with
 	 * the local destination SMB in a bind assigned a remote DMA

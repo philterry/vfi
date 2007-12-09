@@ -12,6 +12,7 @@
 #define MY_DEBUG      RDDMA_DBG_OPS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_OPS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
+#include <linux/rddma_drv.h>
 #include <linux/rddma_parse.h>
 #include <linux/rddma_location.h>
 #include <linux/rddma_ops.h>
@@ -21,6 +22,7 @@
 #include <linux/rddma_xfer.h>
 #include <linux/rddma_bind.h>
 #include <linux/rddma_mmap.h>
+#include <linux/rddma_events.h>
 
 #include <linux/device.h>
 
@@ -1438,7 +1440,7 @@ out:
  * @result:Pointer to buffer to hold result string
  * @size: Maximum size of result buffer.
  * returns the number of characters written into result (not including
-b * terminating null) or negative if an error.
+ * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
@@ -1470,6 +1472,28 @@ out:
 			       params.src.name, params.src.location,params.src.offset, params.src.extent,
 			       ret,rddma_get_option(&params.src,"request"));
 	rddma_clean_bind(&params);
+
+	return ret;
+}
+
+static int event_start(const char *desc, char *result, int size)
+{
+	struct rddma_events  *event_list;
+	struct rddma_desc_param params;
+	int ret = -EINVAL;
+
+	if ( (ret = rddma_parse_desc(&params,desc)) ) {
+		goto out;
+	}
+
+	if ( (ret = (event_list = find_rddma_events(rddma_subsys,params.name)) != NULL) )
+		rddma_events_start(event_list);
+out:
+	if (result)
+		ret = snprintf(result,size,"%s?result(%d),reply(%s)\n",
+			       params.name,
+			       ret,rddma_get_option(&params,"request"));
+	rddma_clean_desc(&params);
 
 	return ret;
 }
@@ -1507,6 +1531,7 @@ static struct ops {
 	{"dsts_create", dsts_create},
 	{"dsts_delete", dsts_delete},
 	{"dsts_find", dsts_find},
+	{"event_start",event_start},
 	{0,0},
 };
 

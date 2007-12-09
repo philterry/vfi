@@ -30,4 +30,5 @@ extern struct rddma_events *find_rddma_events(struct rddma_subsys *, char *);
 extern struct kobj_type rddma_events_type;
 extern struct rddma_events *rddma_events_create(struct rddma_subsys *, char *name);
 extern void rddma_events_delete(struct rddma_events *);
+extern void rddma_events_start(struct rddma_events *);
 #endif /* RDDMA_EVENTS_H */

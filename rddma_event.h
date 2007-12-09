@@ -8,6 +8,8 @@
 struct rddma_event {
 	struct rddma_desc_param desc;
 	int event;
+	struct rddma_bind *bind;
+	void (*start_event)(struct rddma_bind *);
 	struct kobject kobj;
 };
 

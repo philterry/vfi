@@ -725,7 +725,7 @@ static void rddma_local_dst_done(struct rddma_bind *bind)
 	 * ajustment accordingly */
 }
 
-void rddma_local_src_ready(struct rddma_bind *bind)
+static void rddma_local_src_ready(struct rddma_bind *bind)
 {
 	/* Someone, either locally or via the fabric, executed start
 	 * on an event which is telling us, the local DMA engine
@@ -733,7 +733,7 @@ void rddma_local_src_ready(struct rddma_bind *bind)
 	 * local or remote, is ready for action. */
 }
 
-void rddma_local_dst_ready(struct rddma_bind *bind)
+static void rddma_local_dst_ready(struct rddma_bind *bind)
 {
 	/* Someone, either locally or via the fabric, executed start on
 	 * an event which is telling us, the local DMA engine assigned

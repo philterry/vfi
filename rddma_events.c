@@ -4,6 +4,7 @@
 #include <linux/rddma_events.h>
 #include <linux/rddma_subsys.h>
 #include <linux/rddma_readies.h>
+#include <linux/rddma_event.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -142,4 +143,21 @@ struct rddma_events *rddma_events_create(struct rddma_subsys *parent, char *name
 void rddma_events_delete(struct rddma_events *rddma_events)
 {
 	rddma_events_unregister(rddma_events);
+}
+
+void rddma_events_start(struct rddma_events *events)
+{
+	struct rddma_event *ep;
+	struct list_head *entry;
+
+	if (events) {
+		spin_lock(&events->kset.list_lock);
+		if (!list_empty(&events->kset.list)) {
+			list_for_each(entry,&events->kset.list) {
+				ep = to_rddma_event(to_kobj(entry));
+				ep->start_event(ep->bind);
+			}
+		}
+		spin_unlock(&events->kset.list_lock);
+	}
 }
