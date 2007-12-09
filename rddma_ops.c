@@ -1244,8 +1244,7 @@ static int srcs_create(const char *desc, char *result, int size)
 			ret = ((srcs = dst->desc.src.ops->srcs_create(dst, &params)) == NULL);
 
 		bind = rddma_dst_parent(dst);
-		if (bind->src_ready_event)
-			event_id = bind->src_ready_event->event_id;
+		event_id = bind->src_done_event;
 		rddma_bind_put(bind);
 	}
 
@@ -1383,8 +1382,7 @@ static int dsts_create(const char *desc, char *result, int size)
 		if (bind->desc.dst.ops && bind->desc.dst.ops->dsts_create)
 			ret = ((dsts = bind->desc.dst.ops->dsts_create(bind, &params)) == NULL);
 
-		if (bind->dst_ready_event)
-			event_id = bind->dst_ready_event->event_id;
+		event_id = bind->dst_done_event;
 	}
 
 	rddma_bind_put(bind);
