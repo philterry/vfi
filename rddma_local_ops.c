@@ -594,6 +594,11 @@ static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bin
 	}
 	
 }
+
+static void rddma_local_done(struct rddma_bind *bind)
+{
+}
+
 static void rddma_local_src_done(struct rddma_bind *bind)
 {
 	/* A DMA engine, either local or remote, has completed a
@@ -608,6 +613,10 @@ static void rddma_local_dst_done(struct rddma_bind *bind)
 	 * transfer involving a local SMB as the destination. Do vote
 	 * ajustment accordingly */
 	rddma_bind_dst_done(bind);
+}
+
+static void rddma_local_ready(struct rddma_bind *bind)
+{
 }
 
 static void rddma_local_src_ready(struct rddma_bind *bind)
@@ -655,8 +664,10 @@ struct rddma_ops rddma_local_ops = {
 	.bind_delete     = rddma_bind_delete, 
 	.src_done        = rddma_local_src_done,
 	.dst_done        = rddma_local_dst_done,
+	.done            = rddma_local_done,
 	.src_ready       = rddma_local_src_ready,
 	.dst_ready       = rddma_local_dst_ready,
+	.ready           = rddma_local_ready,
 	.dst_events      = rddma_local_dst_events,
 	.src_events      = rddma_local_src_events,
 };

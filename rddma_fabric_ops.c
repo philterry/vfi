@@ -813,6 +813,10 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 	
 }
 
+static void rddma_fabric_done(struct rddma_bind *bind)
+{
+}
+
 static void rddma_fabric_src_done(struct rddma_bind *bind)
 {
 	/* Our local DMA engine, has completed a transfer involving a
@@ -828,6 +832,10 @@ static void rddma_fabric_dst_done(struct rddma_bind *bind)
 	 * event to the remote destination so that it may adjust its
 	 * votes. */
 	rddma_doorbell_send(bind->desc.dst.address,bind->dst_done_event_id);
+}
+
+static void rddma_fabric_ready(struct rddma_bind *bind)
+{
 }
 
 static void rddma_fabric_src_ready(struct rddma_bind *bind)
@@ -875,8 +883,10 @@ struct rddma_ops rddma_fabric_ops = {
 	.bind_delete     = rddma_fabric_bind_delete,
 	.src_done        = rddma_fabric_src_done,
 	.dst_done        = rddma_fabric_dst_done,
+	.done            = rddma_fabric_done,
 	.src_ready       = rddma_fabric_src_ready,
 	.dst_ready       = rddma_fabric_dst_ready,
+	.ready           = rddma_fabric_ready,
 	.src_events      = rddma_fabric_src_events,
 	.dst_events      = rddma_fabric_dst_events,
 };
