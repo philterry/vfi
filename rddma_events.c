@@ -74,9 +74,9 @@ struct kobj_type rddma_events_type = {
     .default_attrs = rddma_events_default_attrs,
 };
 
-struct rddma_events *find_rddma_events(struct rddma_subsys *p, char *name)
+struct rddma_events *find_rddma_events(struct rddma_readies *p, char *name)
 {
-    return to_rddma_events(kset_find_obj(&p->events->kset,name));
+    return to_rddma_events(kset_find_obj(&p->kset,name));
 }
 
 static int rddma_events_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -101,7 +101,7 @@ static struct kset_uevent_ops rddma_events_uevent_ops = {
 	.uevent = rddma_events_uevent,
 };
 
-struct rddma_events *new_rddma_events(struct rddma_subsys *parent, char *name)
+struct rddma_events *new_rddma_events(struct rddma_readies *parent, char *name)
 {
     struct rddma_events *new = kzalloc(sizeof(struct rddma_events), GFP_KERNEL);
     
@@ -111,7 +111,7 @@ struct rddma_events *new_rddma_events(struct rddma_subsys *parent, char *name)
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &rddma_events_type;
     new->kset.uevent_ops = &rddma_events_uevent_ops;
-    new->kset.kobj.kset = &parent->events->kset;
+    new->kset.kobj.kset = &parent->kset;
 
     return new;
 }
@@ -127,7 +127,7 @@ void rddma_events_unregister(struct rddma_events *rddma_events)
 		kset_unregister(&rddma_events->kset);
 }
 
-struct rddma_events *rddma_events_create(struct rddma_subsys *parent, char *name)
+struct rddma_events *rddma_events_create(struct rddma_readies *parent, char *name)
 {
 	struct rddma_events *new; 
 
@@ -150,14 +150,16 @@ void rddma_events_start(struct rddma_events *events)
 	struct rddma_event *ep;
 	struct list_head *entry;
 
-	if (events) {
-		spin_lock(&events->kset.list_lock);
-		if (!list_empty(&events->kset.list)) {
-			list_for_each(entry,&events->kset.list) {
-				ep = to_rddma_event(to_kobj(entry));
-				ep->start_event(ep->bind);
-			}
+	if (events == NULL) 
+		return;
+
+	spin_lock(&events->kset.list_lock);
+	if (!list_empty(&events->kset.list)) {
+		list_for_each(entry,&events->kset.list) {
+			ep = to_rddma_event(to_kobj(entry));
+			ep->start_event(ep->bind);
+			events->count++;
 		}
-		spin_unlock(&events->kset.list_lock);
 	}
+	spin_unlock(&events->kset.list_lock);
 }

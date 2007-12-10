@@ -218,7 +218,8 @@ out:
 int rddma_subsys_register(struct rddma_subsys *parent)
 {
 	int ret;
-	struct rddma_readies *events;
+	struct rddma_readies *readies;
+	struct rddma_readies *dones;
 
 	kobject_set_name(&parent->kset.kobj,parent->desc.name);
 
@@ -227,13 +228,26 @@ int rddma_subsys_register(struct rddma_subsys *parent)
 		return ret;
 	}
 
-	events = rddma_readies_create(parent,"events");
+	readies = rddma_readies_create(parent,"readies");
 
-	if (events) {
-		parent->events = events;
-		return ret;
-	}
+	if (readies == NULL)
+		goto out;
 
+	parent->readies = readies;
+
+	dones = rddma_readies_create(parent,"dones");
+
+	if (dones == NULL)
+		goto dones_fail;
+
+	parent->dones = dones;
+
+	return 0;
+
+dones_fail:
+	rddma_readies_delete(readies);
+	parent->readies = NULL;
+out:
 	rddma_subsys_unregister(parent);
 	return -ENOMEM;
 }

@@ -424,15 +424,20 @@ static int rddma_fabric_dst_events(struct rddma_bind *bind, struct rddma_bind_pa
 
 	if (event_str && event_name) {
 		sscanf(event_str,"%d",&event_id);
-		event_list = find_rddma_events(rddma_subsys, event_name);
+		event_list = find_rddma_events(rddma_subsys->readies, event_name);
 		if (event_list == NULL)
-			event_list = rddma_events_create(rddma_subsys,event_name);
-		bind->dst_ready_event = rddma_event_create(event_list,&desc->xfer,bind,event_id);
+			event_list = rddma_events_create(rddma_subsys->readies,event_name);
+		bind->dst_ready_event = rddma_event_create(event_list,&desc->xfer,bind,desc->xfer.ops->dst_ready,event_id);
 	}
 
-	bind->dst_done_event_id = rddma_doorbell_register(bind->desc.xfer.address,
-							  (void (*)(void *))bind->desc.dst.ops->dst_done,
-							  (void *)bind);
+	event_list = find_rddma_events(rddma_subsys->dones, event_name);
+	if (event_list == NULL)
+		event_list = rddma_events_create(rddma_subsys->dones,event_name);
+	event_id = rddma_doorbell_register(bind->desc.xfer.address,
+					   (void (*)(void *))bind->desc.dst.ops->dst_done,
+					   (void *)bind);
+	bind->dst_done_event = rddma_event_create(event_list,&desc->dst,bind,0,event_id);
+
 	return 0;
 }
 
@@ -562,15 +567,20 @@ static int rddma_fabric_src_events(struct rddma_dst *parent, struct rddma_bind_p
 
 	if (event_str && event_name) {
 		sscanf(event_str,"%d",&event_id);
-		event_list = find_rddma_events(rddma_subsys, event_name);
+		event_list = find_rddma_events(rddma_subsys->readies, event_name);
 		if (event_list == NULL)
-			event_list = rddma_events_create(rddma_subsys,event_name);
-		bind->src_ready_event = rddma_event_create(event_list,&desc->xfer,bind,event_id);
+			event_list = rddma_events_create(rddma_subsys->readies,event_name);
+		bind->src_ready_event = rddma_event_create(event_list,&desc->xfer,bind,desc->xfer.ops->src_ready,event_id);
 	}
 
-	bind->src_done_event_id = rddma_doorbell_register(bind->desc.xfer.address,
-							  (void (*)(void *))bind->desc.dst.ops->dst_done,
-							  (void *)bind);
+	event_id = rddma_doorbell_register(bind->desc.xfer.address,
+					   (void (*)(void *))bind->desc.dst.ops->dst_done,
+					   (void *)bind);
+	event_list = find_rddma_events(rddma_subsys->dones, event_name);
+	if (event_list == NULL)
+		event_list = rddma_events_create(rddma_subsys->dones,event_name);
+	bind->src_done_event = rddma_event_create(event_list,&desc->src,bind,0,event_id);
+	
 	return 0;
 }
 
@@ -597,7 +607,7 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 	if (bind == NULL)
 		goto out;
 
-	if (bind->src_ready_event_id < 0) {
+	if (bind->src_ready_event == NULL) {
 		bind->src_ready_event_id = event_id = rddma_doorbell_register(bind->desc.xfer.address,
 									   (void (*)(void *))bind->desc.xfer.ops->src_ready,
 									   (void *)bind);
@@ -813,8 +823,9 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 	
 }
 
-static void rddma_fabric_done(struct rddma_bind *bind)
+static void rddma_fabric_done(struct rddma_event *event)
 {
+	/* Nothing to be done here mate */
 }
 
 static void rddma_fabric_src_done(struct rddma_bind *bind)
@@ -822,6 +833,7 @@ static void rddma_fabric_src_done(struct rddma_bind *bind)
 	/* Our local DMA engine, has completed a transfer involving a
 	 * remote SMB as the source requiring us to send a done event
 	 * to the remote source so that it may adjust its votes. */
+	rddma_bind_src_done(bind);
 	rddma_doorbell_send(bind->desc.src.address,bind->src_done_event_id);
 }
 
@@ -831,11 +843,8 @@ static void rddma_fabric_dst_done(struct rddma_bind *bind)
 	 * remote SMB as the destination requiring us to send a done
 	 * event to the remote destination so that it may adjust its
 	 * votes. */
+	rddma_bind_dst_done(bind);
 	rddma_doorbell_send(bind->desc.dst.address,bind->dst_done_event_id);
-}
-
-static void rddma_fabric_ready(struct rddma_bind *bind)
-{
 }
 
 static void rddma_fabric_src_ready(struct rddma_bind *bind)
@@ -844,6 +853,7 @@ static void rddma_fabric_src_ready(struct rddma_bind *bind)
 	 * the local source SMB in a bind assigned a remote DMA
 	 * engine. So we need to send the ready event to it so that it
 	 * may adjust its vote accordingly. */
+	rddma_bind_src_ready(bind);
 	rddma_doorbell_send(bind->desc.xfer.address,bind->src_ready_event_id);
 }
 
@@ -853,6 +863,7 @@ static void rddma_fabric_dst_ready(struct rddma_bind *bind)
 	 * the local destination SMB in a bind assigned a remote DMA
 	 * engine. So we need to send the ready event to it so that it
 	 * may adjust its vote accordingly. */
+	rddma_bind_dst_ready(bind);
 	rddma_doorbell_send(bind->desc.xfer.address,bind->dst_ready_event_id);
 }
 
@@ -886,7 +897,6 @@ struct rddma_ops rddma_fabric_ops = {
 	.done            = rddma_fabric_done,
 	.src_ready       = rddma_fabric_src_ready,
 	.dst_ready       = rddma_fabric_dst_ready,
-	.ready           = rddma_fabric_ready,
 	.src_events      = rddma_fabric_src_events,
 	.dst_events      = rddma_fabric_dst_events,
 };

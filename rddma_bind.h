@@ -26,17 +26,17 @@ struct rddma_bind {
 	struct list_head dma_chain;
 	struct list_head *end_of_chain;
 
-	void (*dst_done_event)(struct rddma_bind *);
+	/* doorbell events created or used by the transfer agent */
 	int dst_done_event_id;
-
-	void (*src_done_event)(struct rddma_bind *);
 	int src_done_event_id;
-
 	int dst_ready_event_id;
 	int src_ready_event_id;
 
+	/* doorbell events created or used by the src/dst agents */
 	struct rddma_event *dst_ready_event;
 	struct rddma_event *src_ready_event;
+	struct rddma_event *dst_done_event;
+	struct rddma_event *src_done_event;
 
 	int ready;
 #define RDDMA_BIND_DONE 0
@@ -57,16 +57,18 @@ static inline int is_rddma_bind_done(struct rddma_bind *b)
 	return ! b->ready;
 }
 
-static inline void rddma_bind_src_ready(struct rddma_bind *b)
+static inline int rddma_bind_src_ready(struct rddma_bind *b)
 { 
 	b->ready ^= RDDMA_BIND_SRC_RDY;
 	RDDMA_ASSERT(b->ready & RDDMA_BIND_SRC_RDY,"%s\n",__FUNCTION__);
+	return b->ready == RDDMA_BIND_RDY;
 }
 
-static inline void rddma_bind_dst_ready(struct rddma_bind *b)
+static inline int rddma_bind_dst_ready(struct rddma_bind *b)
 { 
 	b->ready ^= RDDMA_BIND_DST_RDY;
 	RDDMA_ASSERT(b->ready & RDDMA_BIND_DST_RDY,"%s\n",__FUNCTION__);
+	return b->ready == RDDMA_BIND_RDY;
 }
 
 static inline void rddma_bind_src_done(struct rddma_bind *b)

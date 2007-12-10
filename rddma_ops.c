@@ -1185,7 +1185,7 @@ static int srcs_create(const char *desc, char *result, int size)
 			ret = ((srcs = dst->desc.src.ops->srcs_create(dst, &params)) == NULL);
 
 		bind = rddma_dst_parent(dst);
-		event_id = bind->src_done_event_id;
+		event_id = bind->src_done_event->event_id;
 		rddma_bind_put(bind);
 	}
 
@@ -1323,7 +1323,7 @@ static int dsts_create(const char *desc, char *result, int size)
 		if (bind->desc.dst.ops && bind->desc.dst.ops->dsts_create)
 			ret = ((dsts = bind->desc.dst.ops->dsts_create(bind, &params)) == NULL);
 
-		event_id = bind->dst_done_event_id;
+		event_id = bind->dst_done_event->event_id;
 	}
 
 	rddma_bind_put(bind);
@@ -1440,7 +1440,7 @@ static int event_start(const char *desc, char *result, int size)
 		goto out;
 	}
 
-	if ( (ret = (event_list = find_rddma_events(rddma_subsys,params.name)) != NULL) )
+	if ( (ret = (event_list = find_rddma_events(rddma_subsys->readies,params.name)) != NULL) )
 		rddma_events_start(event_list);
 out:
 	if (result)

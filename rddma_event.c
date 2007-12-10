@@ -141,7 +141,7 @@ static struct kset_uevent_ops rddma_event_uevent_ops = {
 	.uevent = rddma_event_uevent,
 };
 
-struct rddma_event *new_rddma_event(struct rddma_events *parent, struct rddma_desc_param *desc, struct rddma_bind *bind, int id)
+struct rddma_event *new_rddma_event(struct rddma_events *parent, struct rddma_desc_param *desc, struct rddma_bind *bind, void (*f)(struct rddma_bind *),int id)
 {
     struct rddma_event *new = kzalloc(sizeof(struct rddma_event), GFP_KERNEL);
     
@@ -152,7 +152,7 @@ struct rddma_event *new_rddma_event(struct rddma_events *parent, struct rddma_de
     kobject_set_name(&new->kobj,"%x", id);
     new->kobj.ktype = &rddma_event_type;
     new->kobj.kset = &parent->kset;
-    new->start_event = desc->ops->dst_ready;
+    new->start_event = f;
     new->bind = bind;
     new->event_id = id;
     return new;
@@ -169,11 +169,11 @@ void rddma_event_unregister(struct rddma_event *rddma_event)
 		kobject_unregister(&rddma_event->kobj);
 }
 
-struct rddma_event *rddma_event_create(struct rddma_events *parent, struct rddma_desc_param *desc, struct rddma_bind *bind, int id)
+struct rddma_event *rddma_event_create(struct rddma_events *parent, struct rddma_desc_param *desc, struct rddma_bind *bind, void (*f)(struct rddma_bind *),int id)
 {
 	struct rddma_event *new; 
 
-	if ( (new = new_rddma_event(parent, desc, bind, id)) ) {
+	if ( (new = new_rddma_event(parent, desc, bind, f, id)) ) {
 		if (rddma_event_register(new)) {
 			rddma_event_put(new);
 			return NULL;

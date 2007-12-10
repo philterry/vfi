@@ -182,16 +182,17 @@ static int rddma_local_dst_events(struct rddma_bind *bind, struct rddma_bind_par
 	struct rddma_events *event_list;
 	char *event_name;
 
-	bind->dst_done_event_id = -1;
-	bind->dst_ready_event_id = -1;
-	
-	bind->dst_done_event = bind->desc.xfer.ops->dst_done;
-
 	event_name = rddma_get_option(&bind->desc.dst,"event_name");
-	event_list = find_rddma_events(rddma_subsys,event_name);
+
+	event_list = find_rddma_events(rddma_subsys->dones,event_name);
 	if (event_list == NULL)
-		rddma_events_create(rddma_subsys,event_name);
-	bind->dst_ready_event = rddma_event_create(event_list,&desc->dst,bind,-1);
+		rddma_events_create(rddma_subsys->dones,event_name);
+	bind->dst_done_event = rddma_event_create(event_list,&bind->desc.xfer,bind,0,-1);
+
+	event_list = find_rddma_events(rddma_subsys->readies,event_name);
+	if (event_list == NULL)
+		rddma_events_create(rddma_subsys->readies,event_name);
+	bind->dst_ready_event = rddma_event_create(event_list,&desc->dst,bind,desc->dst.ops->dst_ready,-1);
 						   
 	return 0;
 }
@@ -401,16 +402,17 @@ static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_pa
 	if (bind->src_done_event)
 		return 0;
 
-	bind->src_done_event_id = -1;
-	bind->src_ready_event_id = -1;
-	
-	bind->src_done_event = bind->desc.xfer.ops->src_done;
-
 	event_name = rddma_get_option(&bind->desc.src,"event_name");
-	event_list = find_rddma_events(rddma_subsys,event_name);
+
+	event_list = find_rddma_events(rddma_subsys->readies,event_name);
 	if (event_list == NULL)
-		rddma_events_create(rddma_subsys,event_name);
-	bind->src_ready_event = rddma_event_create(event_list,&desc->src,bind,-1);
+		rddma_events_create(rddma_subsys->readies,event_name);
+	bind->src_done_event = rddma_event_create(event_list,&bind->desc.xfer,bind,0,-1);
+
+	event_list = find_rddma_events(rddma_subsys->readies,event_name);
+	if (event_list == NULL)
+		rddma_events_create(rddma_subsys->readies,event_name);
+	bind->src_ready_event = rddma_event_create(event_list,&desc->src,bind,desc->src.ops->src_ready,-1);
 						   
 	return 0;
 }
@@ -595,8 +597,13 @@ static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bin
 	
 }
 
-static void rddma_local_done(struct rddma_bind *bind)
+static void rddma_local_done(struct rddma_event *event)
 {
+	/* A DMA engine, either local or remote, has completed a
+	 * transfer involving a local smb as the source or
+	 * destination. Do vote adjustment. */
+	struct rddma_events *e = to_rddma_events(event->kobj.parent);
+	e->count--;
 }
 
 static void rddma_local_src_done(struct rddma_bind *bind)
@@ -605,6 +612,7 @@ static void rddma_local_src_done(struct rddma_bind *bind)
 	 * transfer involving a local smb as the source. Do vote
 	 * adjustment. */
 	rddma_bind_src_done(bind);
+	bind->desc.src.ops->done(bind->src_done_event);
 }
 
 static void rddma_local_dst_done(struct rddma_bind *bind)
@@ -613,10 +621,7 @@ static void rddma_local_dst_done(struct rddma_bind *bind)
 	 * transfer involving a local SMB as the destination. Do vote
 	 * ajustment accordingly */
 	rddma_bind_dst_done(bind);
-}
-
-static void rddma_local_ready(struct rddma_bind *bind)
-{
+	bind->desc.dst.ops->done(bind->dst_done_event);
 }
 
 static void rddma_local_src_ready(struct rddma_bind *bind)
@@ -625,7 +630,9 @@ static void rddma_local_src_ready(struct rddma_bind *bind)
 	 * on an event which is telling us, the local DMA engine
 	 * assigned for this bind, that the source SMB, which may be
 	 * local or remote, is ready for action. */
-	rddma_bind_src_ready(bind);
+	if (rddma_bind_src_ready(bind))
+		bind->desc.xfer.rde->ops->queue_transfer(&bind->descriptor);
+	
 }
 
 static void rddma_local_dst_ready(struct rddma_bind *bind)
@@ -634,7 +641,8 @@ static void rddma_local_dst_ready(struct rddma_bind *bind)
 	 * an event which is telling us, the local DMA engine assigned
 	 * for this bind, that the destination SMB, which may be local
 	 * or remote, is ready for action. */
-	rddma_bind_dst_ready(bind);
+	if (rddma_bind_dst_ready(bind))
+		bind->desc.xfer.rde->ops->queue_transfer(&bind->descriptor);
 }
 
 struct rddma_ops rddma_local_ops = {
@@ -667,7 +675,6 @@ struct rddma_ops rddma_local_ops = {
 	.done            = rddma_local_done,
 	.src_ready       = rddma_local_src_ready,
 	.dst_ready       = rddma_local_dst_ready,
-	.ready           = rddma_local_ready,
 	.dst_events      = rddma_local_dst_events,
 	.src_events      = rddma_local_src_events,
 };
