@@ -391,10 +391,10 @@ static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, s
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "xfer_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
+	skb = rddma_fabric_call(loc, 5, "xfer_create://%s.%s#%llx:%x/%s.%s#%llx:%x?event_name(%s)=%s.%s#%llx:%x?event_name(%s)",
 				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
-				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
-				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
+				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,rddma_get_option(&desc->dst,"event_name"),
+				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent,rddma_get_option(&desc->src,"event_name"));
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
