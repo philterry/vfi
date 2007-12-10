@@ -503,19 +503,6 @@ static void rddma_local_smb_delete(struct rddma_location *loc, struct rddma_desc
 	}
 }
 
-static int rddma_local_xfer_start(struct rddma_location *loc, struct rddma_bind_param *desc)
-{
-	struct rddma_xfer *xfer;
-	int ret = -EINVAL;
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	xfer = rddma_local_xfer_find(loc,desc);
-	if (xfer) {
-		kobject_put(&xfer->kobj);
-		rddma_xfer_start(xfer);
-		ret = 0;
-	}
-	return ret;
-}
 static void rddma_local_mmap_delete(struct rddma_smb *smb, struct rddma_desc_param *desc)
 {
 	rddma_mmap_delete(smb,desc);
@@ -607,163 +594,6 @@ static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bin
 	}
 	
 }
-
-/*
-*     X F E R   S T A R T   O P E R A T I O N S
-*    -------------------------------------------
-*
-*/
-
-
-/**
-* rddma_local_bind_dst_ready - signal xfer agent that bind destination is ready for transfer
-*
-* @xfer: the transfer to which the bind belongs
-* @desc: description of the bind
-*
-* This function plays a role in xfer_start by signaling the xfer agent, who manages the
-* transfer, that the destination buffer of a specific bind is now ready for data transfer.
-* The xfer agent will be able to execute the bind once both its source and its destination
-* buffers have signalled their readiness.
-*
-* Special Constraints
-* -------------------
-* Because a bind requires both its source buffer and its destination buffer to signal
-* readiness separately, and because in most cases the source and destinations will live
-* at different locations, this particular operation should ONLY be available locally - with
-* no fabric counterpart. 
-*
-* Temporary Solution
-* ------------------
-* This function will one day buzz a RIO doorbell to signal the xfer agent, but until fabric
-* functionality becomes available we use a temporary call hack to signal the xfer agent.
-*
-**/
-static void rddma_local_bind_dst_ready (struct rddma_xfer *xfer, struct rddma_bind_param *desc)
-{
-	RDDMA_DEBUG (MY_DEBUG, "## %s for %s#%llx:%x/[ %s#%llx:%x ]=%s#%llx:%x\n", 
-		     __FUNCTION__, 
-		     desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
-		     desc->dst.name, desc->dst.offset, desc->dst.extent, 
-		     desc->src.name, desc->src.offset, desc->src.extent);
-	if (xfer->desc.xfer.ops && xfer->desc.xfer.ops->bind_vote) {
-		xfer->desc.xfer.ops->bind_vote (xfer, desc, 1, 0);
-	}
-	else {
-		RDDMA_DEBUG (MY_DEBUG, "xx No xfer::bind_vote() operation!\n");
-	}
-}
-
-/**
- * rddma_local_bind_src_ready - signal xfer agent that bind source is ready for transfer
- *
- * @xfer: the transfer to which the bind belongs
- * @desc: description of the bind
- *
- * This function plays a role in xfer_start by signaling the xfer agent, who manages the
- * transfer, that the source buffer of a specific bind is now ready for data transfer.
- * The xfer agent will be able to execute the bind once both its source and its destination
- * buffers have signalled their readiness.
- *
- * Special Constraints
- * -------------------
- * Because a bind requires both its source buffer and its destination buffer to signal
- * readiness separately, and because in most cases the source and destinations will live
- * at different locations, this particular operation should ONLY be available locally - with
- * no fabric counterpart. 
- *
- * Temporary Solution
- * ------------------
- * This function will one day buzz a RIO doorbell to signal the xfer agent, but until fabric
- * functionality becomes available we use a temporary call hack to signal the xfer agent.
- *
- **/
-static void rddma_local_bind_src_ready (struct rddma_xfer *xfer, struct rddma_bind_param *desc)
-{
-	RDDMA_DEBUG (MY_DEBUG, "## %s for %s#%llx:%x/%s#%llx:%x=[ %s#%llx:%x ]\n", 
-		     __FUNCTION__, 
-		     desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
-		     desc->dst.name, desc->dst.offset, desc->dst.extent, 
-		     desc->src.name, desc->src.offset, desc->src.extent);
-	if (xfer->desc.xfer.ops && xfer->desc.xfer.ops->bind_vote) {
-		xfer->desc.xfer.ops->bind_vote (xfer, desc, 0, 1);
-	}
-	else {
-		RDDMA_DEBUG (MY_DEBUG, "xx No xfer::bind_vote() operation!\n");
-	}
-}
-
-/**
-* rddma_local_bind_vote - add votes to bind towards xfer_start readiness
-*
-* @xfer:	Parent xfer 
-* @desc:	Bind descriptor
-* @d_votes:	Number of destination votes to add
-* @s_votes:	Number of source votes to add
-*
-* This function is that part of the xfer_start suite that adds source and destination
-* votes to a bind in order to adjust its update for xfer_start.
-*
-* This implementation of the function - the local version - is intended to run on
-* the xfer agent, where xfer_start is ultimately controlled.
-*
-* The function works by finding the bind object in the local tree, then adding the
-* given source and destination votes to its internal tallies. Once both source and
-* destination are ready, a further vote will be submitted to the parent xfer to show
-* that one more bind is now ready. And once the xfer has a vote from all of its binds, 
-* xfer_start can finally execute.
-*
-**/
-void rddma_local_bind_vote (struct rddma_xfer *xfer, struct rddma_bind_param *desc, int d_votes, int s_votes)
-{
-	struct rddma_bind *bind;
-	int d, s;
-#ifdef PARALLELIZE_BIND_PROCESSING
-	struct list_head *entry;
-#endif
-	
-	RDDMA_DEBUG (MY_DEBUG, "## %s for %s#%llx:%x/%s#%llx:%x[%+d]=%s#%llx:%x[%+d]\n", 
-		     __FUNCTION__, 
-		     desc->xfer.name, desc->xfer.offset, desc->xfer.extent, 
-		     desc->dst.name, desc->dst.offset, desc->dst.extent, d_votes, 
-		     desc->src.name, desc->src.offset, desc->src.extent, s_votes);
-	if (!(bind = rddma_local_bind_find (xfer, desc))) {
-		RDDMA_DEBUG (MY_DEBUG, "xx Unable to locate the bind!\n");
-		return;
-	}
-	
-	if (!d_votes && !s_votes) {
-		return;
-	}
-	d = (d_votes) ? atomic_inc_return (&bind->dst_votes) : atomic_read (&bind->dst_votes);
-	s = (s_votes) ? atomic_inc_return (&bind->src_votes) : atomic_read (&bind->src_votes);
-	if (d == 1 && s == 1) {
-		int x = atomic_inc_return (&xfer->start_votes);
-		if (x == atomic_read (&xfer->bind_count)) {
-			sema_init(&xfer->dma_sync,0);
-			RDDMA_DEBUG (MY_DEBUG, ">>>>> BLAM BLAM BLAM BLAM! >>>>>\n");
-#ifdef SERIALIZE_BIND_PROCESSING
-			xfer->desc.xfer.rde->ops->load_transfer(xfer);
-			xfer->desc.xfer.rde->ops->queue_transfer(&xfer->descriptor);
-#else
-			/* Loop over binds */
-			list_for_each(entry,&xfer->binds->kset.list) {
-				bind = to_rddma_bind(to_kobj(entry));
-				xfer->desc.rde->ops->queue_transfer(&bind->descriptor);
-			}
-#endif
-			down_interruptible(&xfer->dma_sync);
-			return;
-		}
-		else {
-			RDDMA_DEBUG (MY_DEBUG, "Xfer ---> %d of %d\n", x, atomic_read (&xfer->bind_count));
-		}
-	}
-	else {
-		RDDMA_DEBUG (MY_DEBUG, "Bind --> [d:%d s:%d]\n", d, s);
-	}
-}
-
 static void rddma_local_src_done(struct rddma_bind *bind)
 {
 	/* A DMA engine, either local or remote, has completed a
@@ -810,7 +640,6 @@ struct rddma_ops rddma_local_ops = {
 	.mmap_delete     = rddma_local_mmap_delete,
 	.xfer_create     = rddma_local_xfer_create,
 	.xfer_delete     = rddma_xfer_delete,
-	.xfer_start      = rddma_local_xfer_start,
 	.xfer_find       = rddma_local_xfer_find,
 	.srcs_create     = rddma_local_srcs_create,
 	.src_create      = rddma_local_src_create,
@@ -824,9 +653,6 @@ struct rddma_ops rddma_local_ops = {
 	.bind_find       = rddma_local_bind_find,
 	.bind_create     = rddma_local_bind_create,
 	.bind_delete     = rddma_bind_delete, 
-	.bind_dst_ready  = rddma_local_bind_dst_ready, 
-	.bind_src_ready  = rddma_local_bind_src_ready, 
-	.bind_vote       = rddma_local_bind_vote, 
 	.src_done        = rddma_local_src_done,
 	.dst_done        = rddma_local_dst_done,
 	.src_ready       = rddma_local_src_ready,

@@ -25,8 +25,6 @@ struct rddma_bind {
 	struct rddma_dsts *dsts;
 	struct list_head dma_chain;
 	struct list_head *end_of_chain;
-	atomic_t src_votes;
-	atomic_t dst_votes;
 
 	void (*dst_done_event)(struct rddma_bind *);
 	int dst_done_event_id;
