@@ -448,8 +448,8 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 	char *dst_event_name;
 	char *src_event_name;
 
-	dst_event_name = rddma_get_option(&bind->desc.dst,"event_name");
-	src_event_name = rddma_get_option(&bind->desc.src,"event_name");
+	dst_event_name = rddma_get_option(&parent->desc.dst,"event_name");
+	src_event_name = rddma_get_option(&parent->desc.src,"event_name");
 
 	if (dst_event_name == NULL || src_event_name == NULL)
 		goto event_fail;
@@ -546,7 +546,31 @@ fail_event:
 static int rddma_fabric_src_events(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	/* Local source SMB with a remote transfer agent. */
-	struct rddma_bind *bind = rddma_dst_parent(parent);
+	struct rddma_bind *bind;
+	char *event_str;
+	char *event_name;
+	int event_id = -1;
+	struct rddma_events *event_list;
+
+	bind = rddma_dst_parent(parent);
+
+	if (bind->src_ready_event)
+		return 0;
+	
+	event_str = rddma_get_option(&desc->xfer,"event_id");
+	event_name = rddma_get_option(&desc->xfer,"event_name");
+
+	if (event_str && event_name) {
+		sscanf(event_str,"%d",&event_id);
+		event_list = find_rddma_events(rddma_subsys, event_name);
+		if (event_list == NULL)
+			event_list = rddma_events_create(rddma_subsys,event_name);
+		bind->src_ready_event = rddma_event_create(event_list,&desc->xfer,bind,event_id);
+	}
+
+	bind->src_done_event_id = rddma_doorbell_register(bind->desc.xfer.address,
+							  (void (*)(void *))bind->desc.dst.ops->dst_done,
+							  (void *)bind);
 	return 0;
 }
 

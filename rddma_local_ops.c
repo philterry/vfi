@@ -392,7 +392,26 @@ static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, st
 static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	/* Local source SMB with a local transfer agent. */
-	struct rddma_bind *bind = rddma_dst_parent(parent);
+	struct rddma_bind *bind;
+	struct rddma_events *event_list;
+	char *event_name;
+
+	bind = rddma_dst_parent(parent);
+
+	if (bind->src_done_event)
+		return 0;
+
+	bind->src_done_event_id = -1;
+	bind->src_ready_event_id = -1;
+	
+	bind->src_done_event = bind->desc.xfer.ops->src_done;
+
+	event_name = rddma_get_option(&bind->desc.src,"event_name");
+	event_list = find_rddma_events(rddma_subsys,event_name);
+	if (event_list == NULL)
+		rddma_events_create(rddma_subsys,event_name);
+	bind->src_ready_event = rddma_event_create(event_list,&desc->src,bind,-1);
+						   
 	return 0;
 }
 
