@@ -204,11 +204,12 @@ static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, str
 	struct rddma_smb *dsmb = NULL;
 	struct rddma_dst *new = NULL;
 
-	parent->desc.xfer.ops->dst_events(parent,desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
+
+	if (parent->desc.xfer.ops->dst_events(parent,desc))
+		goto fail_events;
 
 	rddma_dsts_create(parent,desc);
-
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	if ( NULL == (dsmb = find_rddma_smb(&desc->dst)) )
 		goto fail_dsmb;
@@ -256,6 +257,7 @@ fail_newdst:
 fail_ddesc:
 	rddma_smb_put(dsmb);
 fail_dsmb:
+fail_events:
 	return NULL;
 }
 

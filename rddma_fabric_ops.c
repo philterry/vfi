@@ -416,29 +416,36 @@ static int rddma_fabric_dst_events(struct rddma_bind *bind, struct rddma_bind_pa
 	char *event_name;
 	int event_id = -1;
 	struct rddma_events *event_list;
+	
+	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p) desc(%p)\n",__FUNCTION__,bind,desc);
 
 	bind->dst_ready_event = NULL;
 	
-	event_str = rddma_get_option(&desc->xfer,"event_id");
-	event_name = rddma_get_option(&desc->xfer,"event_name");
+	event_str = rddma_get_option(&desc->dst,"event_id");
+	event_name = rddma_get_option(&desc->dst,"event_name");
 
 	if (event_str && event_name) {
 		sscanf(event_str,"%d",&event_id);
+
 		event_list = find_rddma_events(rddma_subsys->readies, event_name);
 		if (event_list == NULL)
 			event_list = rddma_events_create(rddma_subsys->readies,event_name);
+
 		bind->dst_ready_event = rddma_event_create(event_list,&desc->xfer,bind,desc->xfer.ops->dst_ready,event_id);
+
+		event_list = find_rddma_events(rddma_subsys->dones, event_name);
+		if (event_list == NULL)
+			event_list = rddma_events_create(rddma_subsys->dones,event_name);
+
+		event_id = rddma_doorbell_register(bind->desc.xfer.address,
+						   (void (*)(void *))bind->desc.dst.ops->dst_done,
+						   (void *)bind);
+
+		bind->dst_done_event = rddma_event_create(event_list,&desc->dst,bind,0,event_id);
+
+		return 0;
 	}
-
-	event_list = find_rddma_events(rddma_subsys->dones, event_name);
-	if (event_list == NULL)
-		event_list = rddma_events_create(rddma_subsys->dones,event_name);
-	event_id = rddma_doorbell_register(bind->desc.xfer.address,
-					   (void (*)(void *))bind->desc.dst.ops->dst_done,
-					   (void *)bind);
-	bind->dst_done_event = rddma_event_create(event_list,&desc->dst,bind,0,event_id);
-
-	return 0;
+	return -EINVAL;
 }
 
 static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
