@@ -65,6 +65,9 @@ struct rddma_ops {
 	void                           (*dst_done)(struct rddma_bind *);
 	void                          (*src_ready)(struct rddma_bind *);
 	void                          (*dst_ready)(struct rddma_bind *);
+
+	int                          (*dst_events)(struct rddma_bind *,     struct rddma_bind_param *);
+	int                          (*src_events)(struct rddma_dst *,      struct rddma_bind_param *);
 };
 
 

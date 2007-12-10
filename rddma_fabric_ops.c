@@ -409,6 +409,33 @@ static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, s
 	return xfer;
 }
 
+static int rddma_fabric_dst_events(struct rddma_bind *bind, struct rddma_bind_param *desc)
+{
+	/* Local destination SMB with a remote transfer agent. */
+	char *event_str;
+	char *event_name;
+	int event_id = -1;
+	struct rddma_events *event_list;
+
+	bind->dst_ready_event = NULL;
+	
+	event_str = rddma_get_option(&desc->xfer,"event_id");
+	event_name = rddma_get_option(&desc->xfer,"event_name");
+
+	if (event_str && event_name) {
+		sscanf(event_str,"%d",&event_id);
+		event_list = find_rddma_events(rddma_subsys, event_name);
+		if (event_list == NULL)
+			event_list = rddma_events_create(rddma_subsys,event_name);
+		bind->dst_ready_event = rddma_event_create(event_list,&desc->xfer,bind,event_id);
+	}
+
+	bind->dst_done_event_id = rddma_doorbell_register(bind->desc.xfer.address,
+							  (void (*)(void *))bind->desc.dst.ops->dst_done,
+							  (void *)bind);
+	return 0;
+}
+
 static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
@@ -418,6 +445,14 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 	struct rddma_bind_param reply;
 	int ret = -EINVAL;
 	char *event_str;
+	char *dst_event_name;
+	char *src_event_name;
+
+	dst_event_name = rddma_get_option(&bind->desc.dst,"event_name");
+	src_event_name = rddma_get_option(&bind->desc.src,"event_name");
+
+	if (dst_event_name == NULL || src_event_name == NULL)
+		goto event_fail;
 
 	event_id = rddma_doorbell_register(parent->desc.xfer.address,
 					   (void (*)(void *))parent->desc.xfer.ops->dst_ready,
@@ -432,10 +467,12 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "dsts_create://%s.%s#%llx:%x?event_id(%d)/%s.%s#%llx:%x=%s.%s#%llx:%x",
-				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,event_id,
+	skb = rddma_fabric_call(loc, 5, "dsts_create://%s.%s#%llx:%x/%s.%s#%llx:%x?event_id(%d),event_name(%s)=%s.%s#%llx:%x?event_name(%s)",
+				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
 				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
-				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
+				event_id,dst_event_name,
+				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent,
+				src_event_name);
 	if (skb == NULL)
 		goto skb_fail;
 	
@@ -450,10 +487,10 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 	if (event_str == NULL)
 		goto result_fail;
 
-	if (sscanf(event_str,"%d",&parent->dst_done_event) != 1)
+	if (sscanf(event_str,"%d",&parent->dst_done_event_id) != 1)
 		goto result_fail;
 
-	parent->dst_ready_event = event_id;
+	parent->dst_ready_event_id = event_id;
 
 	dev_kfree_skb(skb);
 	rddma_clean_bind(&reply);
@@ -476,13 +513,20 @@ static struct rddma_dst *rddma_fabric_dst_create(struct rddma_bind *parent, stru
 	struct sk_buff  *skb;
 	struct rddma_location *loc = parent->desc.dst.ploc;
 	struct rddma_dst *dst = NULL;
+	char *src_event_name;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "dst_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
+	src_event_name = rddma_get_option(&desc->src,"event_name");
+
+	if (src_event_name == NULL)
+		goto fail_event;
+
+	skb = rddma_fabric_call(loc, 5, "dst_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_name(%s)",
 				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
 				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
-				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
+				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent,
+				src_event_name);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -495,6 +539,15 @@ static struct rddma_dst *rddma_fabric_dst_create(struct rddma_bind *parent, stru
 	}
 
 	return dst;
+fail_event:
+	return NULL;
+}
+
+static int rddma_fabric_src_events(struct rddma_dst *parent, struct rddma_bind_param *desc)
+{
+	/* Local source SMB with a remote transfer agent. */
+	struct rddma_bind *bind = rddma_dst_parent(parent);
+	return 0;
 }
 
 static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
@@ -510,13 +563,18 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
+	event_str = rddma_get_option(&desc->src,"event_name");
+	
+	if (event_str == NULL)
+		goto out;
+
 	bind = rddma_dst_parent(parent);
 
 	if (bind == NULL)
 		goto out;
 
-	if (bind->src_ready_event < 0) {
-		bind->src_ready_event = event_id = rddma_doorbell_register(bind->desc.xfer.address,
+	if (bind->src_ready_event_id < 0) {
+		bind->src_ready_event_id = event_id = rddma_doorbell_register(bind->desc.xfer.address,
 									   (void (*)(void *))bind->desc.xfer.ops->src_ready,
 									   (void *)bind);
 		if (event_id < 0)
@@ -528,26 +586,26 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 	if (srcs == NULL)
 		goto srcs_fail;
 
-	skb = rddma_fabric_call(sloc, 5, "srcs_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_id(%d)",
+	skb = rddma_fabric_call(sloc, 5, "srcs_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_name(%s),event_id(%d)",
 				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
 				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
-				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent,bind->src_ready_event);
+				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent,event_str,bind->src_ready_event_id);
 	if (skb == NULL)
 		goto skb_fail;
 
 	if (rddma_parse_bind(&reply,skb->data)) 
 		goto parse_fail;
 
-	if (bind->src_done_event < 0) {
-		if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret != 0)
-			goto result_fail;
+	if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret != 0)
+		goto result_fail;
 
+	if (bind->src_done_event_id < 0) {
 		event_str = rddma_get_option(&reply.src,"event_id");
 
 		if (event_str == NULL)
 			goto result_fail;
 
-		if (sscanf(event_str,"%d",&bind->src_done_event) != 1)
+		if (sscanf(event_str,"%d",&bind->src_done_event_id) != 1)
 			goto result_fail;
 	}
 
@@ -736,7 +794,7 @@ static void rddma_fabric_src_done(struct rddma_bind *bind)
 	/* Our local DMA engine, has completed a transfer involving a
 	 * remote SMB as the source requiring us to send a done event
 	 * to the remote source so that it may adjust its votes. */
-	rddma_doorbell_send(bind->desc.src.address,bind->src_done_event);
+	rddma_doorbell_send(bind->desc.src.address,bind->src_done_event_id);
 }
 
 static void rddma_fabric_dst_done(struct rddma_bind *bind)
@@ -745,7 +803,7 @@ static void rddma_fabric_dst_done(struct rddma_bind *bind)
 	 * remote SMB as the destination requiring us to send a done
 	 * event to the remote destination so that it may adjust its
 	 * votes. */
-	rddma_doorbell_send(bind->desc.dst.address,bind->dst_done_event);
+	rddma_doorbell_send(bind->desc.dst.address,bind->dst_done_event_id);
 }
 
 static void rddma_fabric_src_ready(struct rddma_bind *bind)
@@ -754,6 +812,7 @@ static void rddma_fabric_src_ready(struct rddma_bind *bind)
 	 * the local source SMB in a bind assigned a remote DMA
 	 * engine. So we need to send the ready event to it so that it
 	 * may adjust its vote accordingly. */
+	rddma_doorbell_send(bind->desc.xfer.address,bind->src_ready_event_id);
 }
 
 static void rddma_fabric_dst_ready(struct rddma_bind *bind)
@@ -762,6 +821,7 @@ static void rddma_fabric_dst_ready(struct rddma_bind *bind)
 	 * the local destination SMB in a bind assigned a remote DMA
 	 * engine. So we need to send the ready event to it so that it
 	 * may adjust its vote accordingly. */
+	rddma_doorbell_send(bind->desc.xfer.address,bind->dst_ready_event_id);
 }
 
 struct rddma_ops rddma_fabric_ops = {
@@ -793,5 +853,7 @@ struct rddma_ops rddma_fabric_ops = {
 	.dst_done        = rddma_fabric_dst_done,
 	.src_ready       = rddma_fabric_src_ready,
 	.dst_ready       = rddma_fabric_dst_ready,
+	.src_events      = rddma_fabric_src_events,
+	.dst_events      = rddma_fabric_dst_events,
 };
 

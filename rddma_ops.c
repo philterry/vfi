@@ -939,11 +939,11 @@ static int dst_create(const char *desc, char *result, int size)
 
 out:		
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_name(%s),result(%d),reply(%s)\n",
 			       params.xfer.name,params.xfer.location,params.xfer.offset,params.xfer.extent,
 			       params.dst.name,params.dst.location,params.dst.offset,params.dst.extent,
 			       params.src.name,params.src.location,params.src.offset,params.src.extent,
-			       ret,rddma_get_option(&params.src,"request"));
+			       rddma_get_option(&params.src,"event_name"),ret,rddma_get_option(&params.src,"request"));
 	rddma_clean_bind(&params);
 
 	return ret;
@@ -1244,7 +1244,7 @@ static int srcs_create(const char *desc, char *result, int size)
 			ret = ((srcs = dst->desc.src.ops->srcs_create(dst, &params)) == NULL);
 
 		bind = rddma_dst_parent(dst);
-		event_id = bind->src_done_event;
+		event_id = bind->src_done_event_id;
 		rddma_bind_put(bind);
 	}
 
@@ -1382,7 +1382,7 @@ static int dsts_create(const char *desc, char *result, int size)
 		if (bind->desc.dst.ops && bind->desc.dst.ops->dsts_create)
 			ret = ((dsts = bind->desc.dst.ops->dsts_create(bind, &params)) == NULL);
 
-		event_id = bind->dst_done_event;
+		event_id = bind->dst_done_event_id;
 	}
 
 	rddma_bind_put(bind);

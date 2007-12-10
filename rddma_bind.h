@@ -28,11 +28,60 @@ struct rddma_bind {
 	atomic_t src_votes;
 	atomic_t dst_votes;
 
-	int dst_done_event;
-	int src_done_event;
-	int dst_ready_event;
-	int src_ready_event;
+	void (*dst_done_event)(struct rddma_bind *);
+	int dst_done_event_id;
+
+	void (*src_done_event)(struct rddma_bind *);
+	int src_done_event_id;
+
+	int dst_ready_event_id;
+	int src_ready_event_id;
+
+	struct rddma_event *dst_ready_event;
+	struct rddma_event *src_ready_event;
+
+	int ready;
+#define RDDMA_BIND_DONE 0
+#define RDDMA_BIND_SRC_RDY 1
+#define RDDMA_BIND_DST_RDY 2
+#define RDDMA_BIND_RDY 3
+
 };
+
+static inline int is_rddma_bind_ready(struct rddma_bind *b)
+{
+	return b->ready == RDDMA_BIND_RDY;
+}
+
+static inline int is_rddma_bind_done(struct rddma_bind *b)
+{ 
+	b->ready ^= RDDMA_BIND_RDY;
+	return ! b->ready;
+}
+
+static inline void rddma_bind_src_ready(struct rddma_bind *b)
+{ 
+	b->ready ^= RDDMA_BIND_SRC_RDY;
+	RDDMA_ASSERT(b->ready & RDDMA_BIND_SRC_RDY,"%s\n",__FUNCTION__);
+}
+
+static inline void rddma_bind_dst_ready(struct rddma_bind *b)
+{ 
+	b->ready ^= RDDMA_BIND_DST_RDY;
+	RDDMA_ASSERT(b->ready & RDDMA_BIND_DST_RDY,"%s\n",__FUNCTION__);
+}
+
+static inline void rddma_bind_src_done(struct rddma_bind *b)
+{ 
+	b->ready ^= RDDMA_BIND_SRC_RDY;
+	RDDMA_ASSERT(!(b->ready & RDDMA_BIND_SRC_RDY),"%s\n",__FUNCTION__);
+}
+
+static inline void rddma_bind_dst_done(struct rddma_bind *b)
+{ 
+	b->ready ^= RDDMA_BIND_DST_RDY;
+	RDDMA_ASSERT(!(b->ready & RDDMA_BIND_DST_RDY),"%s\n",__FUNCTION__);
+}
 
 static inline struct rddma_bind *to_rddma_bind(struct kobject *kobj)
 {

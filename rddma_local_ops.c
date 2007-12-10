@@ -27,6 +27,8 @@
 #include <linux/rddma_parse.h>
 #include <linux/rddma_drv.h>
 #include <linux/rddma_mmap.h>
+#include <linux/rddma_events.h>
+#include <linux/rddma_event.h>
 
 #include <linux/device.h>
 #include <linux/mm.h>
@@ -174,12 +176,34 @@ static struct rddma_mmap *rddma_local_mmap_create(struct rddma_smb *smb, struct 
 	return rddma_mmap_create(smb,desc);
 }
 
+static int rddma_local_dst_events(struct rddma_bind *bind, struct rddma_bind_param *desc)
+{
+	/* Local destination SMB with a local transfer agent. */
+	struct rddma_events *event_list;
+	char *event_name;
+
+	bind->dst_done_event_id = -1;
+	bind->dst_ready_event_id = -1;
+	
+	bind->dst_done_event = bind->desc.xfer.ops->dst_done;
+
+	event_name = rddma_get_option(&bind->desc.dst,"event_name");
+	event_list = find_rddma_events(rddma_subsys,event_name);
+	if (event_list == NULL)
+		rddma_events_create(rddma_subsys,event_name);
+	bind->dst_ready_event = rddma_event_create(event_list,&desc->dst,bind,-1);
+						   
+	return 0;
+}
+
 static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	int page, first_page, last_page;
 	struct rddma_bind_param params = *desc;
 	struct rddma_smb *dsmb = NULL;
 	struct rddma_dst *new = NULL;
+
+	parent->desc.xfer.ops->dst_events(parent,desc);
 
 	rddma_dsts_create(parent,desc);
 
@@ -365,6 +389,13 @@ static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, st
 	return xfer;
 }
 
+static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_param *desc)
+{
+	/* Local source SMB with a local transfer agent. */
+	struct rddma_bind *bind = rddma_dst_parent(parent);
+	return 0;
+}
+
 static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 /* 	srcs_create://tp.x:2000/d.p#uuuuu000:1000=s.r#c000:1000 */
@@ -376,7 +407,10 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	struct rddma_bind_param params = *desc;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
+	parent->desc.xfer.ops->src_events(parent,desc);
+
 	srcs = rddma_srcs_create(parent,desc);
+
 	smb = find_rddma_smb(&desc->src);
 
 	first_page = START_PAGE(&smb->desc,&desc->src);
@@ -716,6 +750,7 @@ static void rddma_local_src_done(struct rddma_bind *bind)
 	/* A DMA engine, either local or remote, has completed a
 	 * transfer involving a local smb as the source. Do vote
 	 * adjustment. */
+	rddma_bind_src_done(bind);
 }
 
 static void rddma_local_dst_done(struct rddma_bind *bind)
@@ -723,6 +758,7 @@ static void rddma_local_dst_done(struct rddma_bind *bind)
 	/* A DMA engine, either local or remote, has completed a
 	 * transfer involving a local SMB as the destination. Do vote
 	 * ajustment accordingly */
+	rddma_bind_dst_done(bind);
 }
 
 static void rddma_local_src_ready(struct rddma_bind *bind)
@@ -731,6 +767,7 @@ static void rddma_local_src_ready(struct rddma_bind *bind)
 	 * on an event which is telling us, the local DMA engine
 	 * assigned for this bind, that the source SMB, which may be
 	 * local or remote, is ready for action. */
+	rddma_bind_src_ready(bind);
 }
 
 static void rddma_local_dst_ready(struct rddma_bind *bind)
@@ -739,6 +776,7 @@ static void rddma_local_dst_ready(struct rddma_bind *bind)
 	 * an event which is telling us, the local DMA engine assigned
 	 * for this bind, that the destination SMB, which may be local
 	 * or remote, is ready for action. */
+	rddma_bind_dst_ready(bind);
 }
 
 struct rddma_ops rddma_local_ops = {
@@ -774,5 +812,7 @@ struct rddma_ops rddma_local_ops = {
 	.dst_done        = rddma_local_dst_done,
 	.src_ready       = rddma_local_src_ready,
 	.dst_ready       = rddma_local_dst_ready,
+	.dst_events      = rddma_local_dst_events,
+	.src_events      = rddma_local_src_events,
 };
 
