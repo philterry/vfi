@@ -184,17 +184,31 @@ static int rddma_local_dst_events(struct rddma_bind *bind, struct rddma_bind_par
 
 	event_name = rddma_get_option(&bind->desc.dst,"event_name");
 
+	if (event_name == NULL)
+		goto fail;
+
 	event_list = find_rddma_events(rddma_subsys->dones,event_name);
 	if (event_list == NULL)
 		rddma_events_create(rddma_subsys->dones,event_name);
-	bind->dst_done_event = rddma_event_create(event_list,&bind->desc.xfer,bind,0,-1);
+
+	if (event_list == NULL)
+		goto fail;
+
+	bind->dst_done_event = rddma_event_create(event_list,&desc->dst,bind,0,-1);
 
 	event_list = find_rddma_events(rddma_subsys->readies,event_name);
 	if (event_list == NULL)
 		rddma_events_create(rddma_subsys->readies,event_name);
-	bind->dst_ready_event = rddma_event_create(event_list,&desc->dst,bind,desc->dst.ops->dst_ready,-1);
+
+	if (event_list == NULL)
+		goto fail;
+
+	bind->dst_ready_event = rddma_event_create(event_list,&desc->dst,bind,bind->desc.dst.ops->dst_ready,-1);
 						   
 	return 0;
+
+fail:
+	return -EINVAL;
 }
 
 static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
@@ -399,24 +413,42 @@ static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_pa
 	struct rddma_events *event_list;
 	char *event_name;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s dst_parent(%p) descc(%p)\n",__FUNCTION__,parent,desc);
+
 	bind = rddma_dst_parent(parent);
 
 	if (bind->src_done_event)
 		return 0;
 
 	event_name = rddma_get_option(&bind->desc.src,"event_name");
+	
+	if (event_name == NULL)
+		goto event_name_fail;
 
 	event_list = find_rddma_events(rddma_subsys->dones,event_name);
 	if (event_list == NULL)
-		rddma_events_create(rddma_subsys->dones,event_name);
+		event_list = rddma_events_create(rddma_subsys->dones,event_name);
+
+	if (event_list == NULL)
+		goto dones_fail;
+
 	bind->src_done_event = rddma_event_create(event_list,&desc->src,bind,0,-1);
 
 	event_list = find_rddma_events(rddma_subsys->readies,event_name);
 	if (event_list == NULL)
-		rddma_events_create(rddma_subsys->readies,event_name);
-	bind->src_ready_event = rddma_event_create(event_list,&desc->src,bind,desc->src.ops->src_ready,-1);
-						   
+		event_list = rddma_events_create(rddma_subsys->readies,event_name);
+
+	if (event_list == NULL)
+		goto readies_fail;
+
+	bind->src_ready_event = rddma_event_create(event_list,&desc->src,bind,bind->desc.src.ops->src_ready,-1);
+		
 	return 0;
+
+readies_fail:
+dones_fail:
+event_name_fail:				   
+	return -EINVAL;
 }
 
 static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
@@ -430,7 +462,8 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	struct rddma_bind_param params = *desc;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	parent->desc.xfer.ops->src_events(parent,desc);
+	if (parent->desc.xfer.ops->src_events(parent,desc))
+		return NULL;
 
 	srcs = rddma_srcs_create(parent,desc);
 
