@@ -1,4 +1,4 @@
-2007-07-25
+2007-12-11
 ----------
 
 In no particular order of importance, size, complexity or urgency.
@@ -6,87 +6,38 @@ In no particular order of importance, size, complexity or urgency.
 1. Debug
 --------
 
-Nothing has been debugged.
+Some things have been debugged.
 
-1.a cdev
---------
-
-Suggest building a dummy operation for do-operation which "just"
-returns, returns after a schedule timeout, etc.
-
-Use this to test the read/write request/result passing in the face of
-closing the file descriptor while do-operation is outstanding test the
-ref counting of the write to read queue, etc.
-
-Test the synchronous aio_write/aio_read similarly.
-
-Test the aysnchronous aio_write/aio_read similarly.
-
-1.b fabric
-----------
-
-fabric should be tested with the same dooperation interface command to
-test work queue alloction, refcounting, request to reply copying, etc.
-
-Need to use a lower layer fabric other than fabric_rio which is a
-simple test harness.
-
-1.c driver types
-----------------
-
-Now test each type create/delete/find on location/smb/xfer
-
-1.d general ref counting
+1.a general ref counting
 ------------------------
 
 Overall not enough care has been spent putting the get/put and
 create/delete parings to make sure release works throughout the driver
 on all levels.
 
+1.b Start_event
+---------------
+
+New code needs debugging.
+
+1.c DMA Overall State Machine
+-----------------------------
+
+start event prodding the DMA engine to start transfers of binds, completeion from
+DMA generating events back to let the next start event begin.
+
+1.d Delete and tear down code
+-----------------------------
+
+We've focussed on creating everything and now getting it to actually DMA. Then we
+need to get the delete tear down functions to work.
 
 2. Unfinished
 -------------
 
-While some of the above debug suggests things are ready, in fact
-some/most will require additional coding on unfinished areas.
+I think only the network emulation of DMA is missing... rddma_dma_net.[ch]?
 
-2.a DMA registration
---------------------
-
-when how to register the various lower level dma interfaces and
-propogation of dma_ops through stack needs auditing/writing/debugging
-
-2.b Fabric registration
------------------------
-
-I've added code for fabric registratio with a net based transport as
-the first worked example. This also shows how to multiplex based on
-address to allow multiple low levels to co-exist, e.g, both rio and
-ethernet.
-
-2.c Timeout/Failure Recovery
-----------------------------
-
-This is really how to do remote ref counting in the face of failure of
-boards holding remote counts. ??????
-
-2.d Virtual Physical Address mappings
--------------------------------------
-
-The one's I've thrown in are currently probably wrong (kernel virtual
-vs bus physical) so need fixing/replacing and also need extending to
-cope with the ATMU mappings between 36 bit MPX bus physical and 34-bit
-rio fabric.
-
-2.e Local mmaping of SMBs
--------------------------
-This is completely missing at the moment all the way from cdev mmap
-call, do-operation map calls, etc.
-
-2.f xfer_start/xfer_stop
-------------------------
-
-Again missing from do-operation on down. 
+The delete code for 1.d may be incomplete place holders in many cases...
 
 3. Enhancements
 ---------------
@@ -120,7 +71,3 @@ lists.
 
 Feel free to add.
 
-4.0 Development
----------------
-
-Need to create git infrastructure
