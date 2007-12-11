@@ -846,6 +846,7 @@ static void rddma_fabric_src_done(struct rddma_bind *bind)
 	/* Our local DMA engine, has completed a transfer involving a
 	 * remote SMB as the source requiring us to send a done event
 	 * to the remote source so that it may adjust its votes. */
+	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	rddma_bind_src_done(bind);
 	rddma_doorbell_send(bind->desc.src.address,bind->src_done_event_id);
 }
@@ -856,6 +857,7 @@ static void rddma_fabric_dst_done(struct rddma_bind *bind)
 	 * remote SMB as the destination requiring us to send a done
 	 * event to the remote destination so that it may adjust its
 	 * votes. */
+	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	rddma_bind_dst_done(bind);
 	rddma_doorbell_send(bind->desc.dst.address,bind->dst_done_event_id);
 }
@@ -866,6 +868,7 @@ static void rddma_fabric_src_ready(struct rddma_bind *bind)
 	 * the local source SMB in a bind assigned a remote DMA
 	 * engine. So we need to send the ready event to it so that it
 	 * may adjust its vote accordingly. */
+	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	rddma_bind_src_ready(bind);
 	rddma_doorbell_send(bind->desc.xfer.address,bind->src_ready_event_id);
 }
@@ -876,6 +879,7 @@ static void rddma_fabric_dst_ready(struct rddma_bind *bind)
 	 * the local destination SMB in a bind assigned a remote DMA
 	 * engine. So we need to send the ready event to it so that it
 	 * may adjust its vote accordingly. */
+	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	rddma_bind_dst_ready(bind);
 	rddma_doorbell_send(bind->desc.xfer.address,bind->dst_ready_event_id);
 }

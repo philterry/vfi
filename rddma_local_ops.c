@@ -644,6 +644,7 @@ static void rddma_local_done(struct rddma_event *event)
 	 * destination. Do vote adjustment. */
 	struct rddma_events *e = to_rddma_events(event->kobj.parent);
 	e->count--;
+	RDDMA_DEBUG(MY_DEBUG,"%s event(%p) events(%p) count(%d)\n",__FUNCTION__,event,e,e->count);
 }
 
 static void rddma_local_src_done(struct rddma_bind *bind)
@@ -651,6 +652,7 @@ static void rddma_local_src_done(struct rddma_bind *bind)
 	/* A DMA engine, either local or remote, has completed a
 	 * transfer involving a local smb as the source. Do vote
 	 * adjustment. */
+	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	rddma_bind_src_done(bind);
 	bind->desc.src.ops->done(bind->src_done_event);
 }
@@ -660,6 +662,7 @@ static void rddma_local_dst_done(struct rddma_bind *bind)
 	/* A DMA engine, either local or remote, has completed a
 	 * transfer involving a local SMB as the destination. Do vote
 	 * ajustment accordingly */
+	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	rddma_bind_dst_done(bind);
 	bind->desc.dst.ops->done(bind->dst_done_event);
 }
@@ -670,6 +673,7 @@ static void rddma_local_src_ready(struct rddma_bind *bind)
 	 * on an event which is telling us, the local DMA engine
 	 * assigned for this bind, that the source SMB, which may be
 	 * local or remote, is ready for action. */
+	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	if (rddma_bind_src_ready(bind))
 		bind->desc.xfer.rde->ops->queue_transfer(&bind->descriptor);
 	
@@ -681,6 +685,7 @@ static void rddma_local_dst_ready(struct rddma_bind *bind)
 	 * an event which is telling us, the local DMA engine assigned
 	 * for this bind, that the destination SMB, which may be local
 	 * or remote, is ready for action. */
+	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	if (rddma_bind_dst_ready(bind))
 		bind->desc.xfer.rde->ops->queue_transfer(&bind->descriptor);
 }
