@@ -880,6 +880,26 @@ static void rddma_fabric_dst_ready(struct rddma_bind *bind)
 	rddma_doorbell_send(bind->desc.xfer.address,bind->dst_ready_event_id);
 }
 
+static int rddma_fabric_event_start(struct rddma_location *loc, struct rddma_desc_param *desc)
+{
+	struct sk_buff  *skb;
+	int ret = -EINVAL;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s loc(%p) desc(%p)\n",__FUNCTION__, loc, desc);
+
+	skb = rddma_fabric_call(loc, 5, "event_start://%s.%s", desc->name,desc->location);
+	if (skb) {
+		struct rddma_desc_param reply;
+		int ret = -EINVAL;
+		if (!rddma_parse_desc(&reply,skb->data)) {
+			sscanf(rddma_get_option(&reply,"result"),"%d",&ret);
+			rddma_clean_desc(&reply);
+		}
+		dev_kfree_skb(skb);
+	}
+	return ret;
+}
+
 struct rddma_ops rddma_fabric_ops = {
 	.location_create = rddma_fabric_location_create,
 	.location_delete = rddma_fabric_location_delete,
@@ -912,5 +932,6 @@ struct rddma_ops rddma_fabric_ops = {
 	.dst_ready       = rddma_fabric_dst_ready,
 	.src_events      = rddma_fabric_src_events,
 	.dst_events      = rddma_fabric_dst_events,
+	.event_start     = rddma_fabric_event_start,
 };
 

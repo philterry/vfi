@@ -1432,20 +1432,30 @@ out:
 
 static int event_start(const char *desc, char *result, int size)
 {
-	struct rddma_events  *event_list;
 	struct rddma_desc_param params;
+	struct rddma_location *loc;
 	int ret = -EINVAL;
 
 	if ( (ret = rddma_parse_desc(&params,desc)) ) {
 		goto out;
 	}
 
-	if ( (ret = (event_list = find_rddma_events(rddma_subsys->readies,params.name)) != NULL) )
-		rddma_events_start(event_list);
+	if ( params.location && *params.location ) {
+		if ( (loc = locate_rddma_location(NULL,&params))) {
+			if (loc && loc->desc.ops && loc->desc.ops->event_start) {
+				ret = loc->desc.ops->event_start(loc,&params);
+			}
+			rddma_location_put(loc);
+		}
+	}
+	else if (params.ops) {
+		ret = params.ops->event_start(NULL,&params);
+	}
+
 out:
 	if (result)
-		ret = snprintf(result,size,"%s?result(%d),reply(%s)\n",
-			       params.name,
+		ret = snprintf(result,size,"%s.%s?result(%d),reply(%s)\n",
+			       params.name,params.location,
 			       ret,rddma_get_option(&params,"request"));
 	rddma_clean_desc(&params);
 

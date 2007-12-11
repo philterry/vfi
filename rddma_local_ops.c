@@ -685,6 +685,16 @@ static void rddma_local_dst_ready(struct rddma_bind *bind)
 		bind->desc.xfer.rde->ops->queue_transfer(&bind->descriptor);
 }
 
+static int rddma_local_event_start(struct rddma_location *loc, struct rddma_desc_param *desc)
+{
+	struct rddma_events *event_list;
+	event_list = find_rddma_events(rddma_subsys->readies,desc->name);
+	if (event_list == NULL )
+		return -EINVAL;
+	rddma_events_start(event_list);
+	return 0;
+}
+
 struct rddma_ops rddma_local_ops = {
 	.location_create = rddma_local_location_create,
 	.location_delete = rddma_local_location_delete,
@@ -717,5 +727,6 @@ struct rddma_ops rddma_local_ops = {
 	.dst_ready       = rddma_local_dst_ready,
 	.dst_events      = rddma_local_dst_events,
 	.src_events      = rddma_local_src_events,
+	.event_start     = rddma_local_event_start,
 };
 
