@@ -433,7 +433,7 @@ static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_pa
 	if (event_list == NULL)
 		goto dones_fail;
 
-	bind->src_done_event = rddma_event_create(event_list,&desc->src,bind,0,(int)bind);
+	bind->src_done_event = rddma_event_create(event_list,&desc->src,bind,0,(int)parent);
 
 	event_list = find_rddma_events(rddma_subsys->readies,event_name);
 	if (event_list == NULL)
@@ -442,7 +442,7 @@ static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_pa
 	if (event_list == NULL)
 		goto readies_fail;
 
-	bind->src_ready_event = rddma_event_create(event_list,&desc->src,bind,bind->desc.src.ops->src_ready,(int)bind);
+	bind->src_ready_event = rddma_event_create(event_list,&desc->src,bind,bind->desc.src.ops->src_ready,(int)parent);
 		
 	return 0;
 
