@@ -406,10 +406,10 @@ static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_pa
 
 	event_name = rddma_get_option(&bind->desc.src,"event_name");
 
-	event_list = find_rddma_events(rddma_subsys->readies,event_name);
+	event_list = find_rddma_events(rddma_subsys->dones,event_name);
 	if (event_list == NULL)
-		rddma_events_create(rddma_subsys->readies,event_name);
-	bind->src_done_event = rddma_event_create(event_list,&bind->desc.xfer,bind,0,-1);
+		rddma_events_create(rddma_subsys->dones,event_name);
+	bind->src_done_event = rddma_event_create(event_list,&desc->src,bind,0,-1);
 
 	event_list = find_rddma_events(rddma_subsys->readies,event_name);
 	if (event_list == NULL)
