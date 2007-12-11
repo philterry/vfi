@@ -420,7 +420,7 @@ static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_pa
 	if (bind->src_done_event)
 		return 0;
 
-	event_name = rddma_get_option(&bind->desc.src,"event_name");
+	event_name = rddma_get_option(&desc->src,"event_name");
 	
 	if (event_name == NULL)
 		goto event_name_fail;
