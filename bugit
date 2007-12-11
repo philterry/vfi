@@ -1,0 +1,62 @@
+#!/bin/bash
+TESTPROG=testprog
+while getopts :a OPT; do
+    case $OPT in
+	a|+a)
+	    TESTPROG=testprog_async
+	    ;;
+	*)
+	    echo "usage: ${0##*/} [+-a} [--] ARGS..."
+	    exit 2
+    esac
+done
+shift $[ OPTIND - 1 ]
+
+while [ -n "$1" ] ; do
+
+if [ "x$1" = "xinstall" ] ; then
+modprobe -r rddma_fabric_net rddma_dma_rio rddma
+modprobe rddma_fabric_net
+modprobe rddma_dma_rio
+
+if [ ! -c /dev/rddma ] ; then
+    mknod /dev/rddma c 252 0
+    chmod 666 /dev/rddma
+fi
+elif [ "x$1" = "xuninstall" ] ; then
+modprobe -r rddma_fabric_net rddma_dma_rio rddma
+
+elif [ "x$1" = "xlocal" ] ; then
+$TESTPROG "location_create://fabric?default_ops(private),dma_name(rddma_rio_dma)"
+$TESTPROG "location_create://radar.fabric?default_ops(private),dma_name(rddma_rio_dma)"
+$TESTPROG "location_create://proc.fabric?default_ops(private),dma_name(rddma_rio_dma)"
+$TESTPROG "location_create://me.fabric?default_ops(private),dma_name(rddma_rio_dma)"
+$TESTPROG "smb_create://buf1.radar.fabric#400:4000"
+$TESTPROG "smb_create://buf2.proc.fabric#800:4000"
+$TESTPROG "xfer_create://tran1.me.fabric:2000/buf2.proc.fabric#c00?event_name(local_dst)=buf1.radar.fabric#600?event_name(local_src)"
+
+elif [ "x$1" = "xmaster" ] ; then
+
+$TESTPROG "location_create://fabric#1:1?default_ops(private),dma_name(rddma_rio_dma),fabric(rddma_fabric_net)"
+$TESTPROG "location_create://fujitsu.fabric#1"
+$TESTPROG "location_create://lenovo.fabric#2?default_ops(public)"
+
+elif [ "x$1" = "xslave" ] ; then
+
+$TESTPROG "location_find://fabric?dma_name(rddma_rio_dma),default_ops(public),fabric(rddma_fabric_net)"
+$TESTPROG "location_find://lenovo.fabric"
+$TESTPROG "location_find://fujitsu.fabric"
+
+$TESTPROG "smb_create://bufA.fujitsu.fabric:4000"
+$TESTPROG "smb_create://bufA.lenovo.fabric:4000"
+$TESTPROG "smb_create://bufB.fujitsu.fabric:4000"
+$TESTPROG "smb_create://bufB.lenovo.fabric:4000"
+
+$TESTPROG "xfer_create://tran.fujitsu.fabric:2000/bufA.lenovo.fabric#1000?event_name(fred)=bufA.fujitsu.fabric#2000?event_name(george)"
+$TESTPROG "xfer_create://tran.fujitsu.fabric:2000/bufB.fujitsu.fabric#1000?event_name(george)=bufB.lenovo.fabric#2000?event_name(fred)"
+$TESTPROG "xfer_create://tran.fujitsu.fabric:2000/bufA.lenovo.fabric#1000?event_name(lenovo)=bufB.lenovo.fabric#1000?event_name(lenovo)"
+$TESTPROG "xfer_create://tran.fujitsu.fabric:2000/bufB.fujitsu.fabric#2000?event_name(fujitsu)=bufA.fujitsu.fabric#2000?event_name(fujitsu)"
+
+fi
+shift
+done
