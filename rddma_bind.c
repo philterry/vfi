@@ -213,7 +213,7 @@ struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_
 	struct rddma_bind *new;
 	char buf[128];
 
-	snprintf(buf,128,"#%llx:%x",xfer->desc.xfer.offset,desc->xfer.extent);
+	snprintf(buf,128,"#%llx:%x",desc->xfer.offset,desc->xfer.extent);
 
 	new = to_rddma_bind(kset_find_obj(&xfer->binds->kset,buf));
 
