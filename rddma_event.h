@@ -20,12 +20,16 @@ static inline struct rddma_event *to_rddma_event(struct kobject *kobj)
 
 static inline struct rddma_event *rddma_event_get(struct rddma_event *rddma_event)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
     return to_rddma_event(kobject_get(&rddma_event->kobj));
 }
 
 static inline void rddma_event_put(struct rddma_event *rddma_event)
 {
-    kobject_put(&rddma_event->kobj);
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
+	if(rddma_event)
+		kobject_put(&rddma_event->kobj);
 }
 
 extern struct rddma_event *new_rddma_event(struct rddma_events *, struct rddma_desc_param *, struct rddma_bind *, void (*)(struct rddma_bind *),int);

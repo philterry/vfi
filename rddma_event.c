@@ -145,6 +145,8 @@ struct rddma_event *new_rddma_event(struct rddma_events *parent, struct rddma_de
 {
     struct rddma_event *new = kzalloc(sizeof(struct rddma_event), GFP_KERNEL);
     
+    RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
     if (NULL == new)
 	return new;
 
@@ -160,6 +162,8 @@ struct rddma_event *new_rddma_event(struct rddma_events *parent, struct rddma_de
 
 int rddma_event_register(struct rddma_event *rddma_event)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
 	return kobject_register(&rddma_event->kobj);
 }
 
@@ -172,6 +176,8 @@ void rddma_event_unregister(struct rddma_event *rddma_event)
 struct rddma_event *rddma_event_create(struct rddma_events *parent, struct rddma_desc_param *desc, struct rddma_bind *bind, void (*f)(struct rddma_bind *),int id)
 {
 	struct rddma_event *new; 
+
+	RDDMA_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p) bind(%p) f(%p) id(%d)\n",__FUNCTION__,parent,desc,bind,f,id);
 
 	if ( (new = new_rddma_event(parent, desc, bind, f, id)) ) {
 		if (rddma_event_register(new)) {

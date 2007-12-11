@@ -76,7 +76,8 @@ struct kobj_type rddma_events_type = {
 
 struct rddma_events *find_rddma_events(struct rddma_readies *p, char *name)
 {
-    return to_rddma_events(kset_find_obj(&p->kset,name));
+	RDDMA_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,p,name);
+	return to_rddma_events(kset_find_obj(&p->kset,name));
 }
 
 static int rddma_events_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -105,6 +106,8 @@ struct rddma_events *new_rddma_events(struct rddma_readies *parent, char *name)
 {
     struct rddma_events *new = kzalloc(sizeof(struct rddma_events), GFP_KERNEL);
     
+    RDDMA_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,parent,name);
+    
     if (NULL == new)
 	return new;
 
@@ -118,11 +121,13 @@ struct rddma_events *new_rddma_events(struct rddma_readies *parent, char *name)
 
 int rddma_events_register(struct rddma_events *rddma_events)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,rddma_events);
 	return kset_register(&rddma_events->kset);
 }
 
 void rddma_events_unregister(struct rddma_events *rddma_events)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,rddma_events);
 	if (rddma_events)
 		kset_unregister(&rddma_events->kset);
 }
@@ -130,18 +135,20 @@ void rddma_events_unregister(struct rddma_events *rddma_events)
 struct rddma_events *rddma_events_create(struct rddma_readies *parent, char *name)
 {
 	struct rddma_events *new; 
-
+	RDDMA_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,parent,name);
 	if ( (new = new_rddma_events(parent, name)) ) {
 		if (rddma_events_register(new)) {
 			rddma_events_put(new);
 			return NULL;
 		}
 	}
+	RDDMA_DEBUG(MY_DEBUG,"%s returns(%p)\n",__FUNCTION__,new);
 	return new;
 }
 
 void rddma_events_delete(struct rddma_events *rddma_events)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,rddma_events);
 	rddma_events_unregister(rddma_events);
 }
 
@@ -149,6 +156,8 @@ void rddma_events_start(struct rddma_events *events)
 {
 	struct rddma_event *ep;
 	struct list_head *entry;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,events);
 
 	if (events == NULL) 
 		return;

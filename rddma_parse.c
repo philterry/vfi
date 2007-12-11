@@ -128,7 +128,7 @@ char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
 	char *found_val = NULL;
 	char **query = desc->query;
 
-	RDDMA_DEBUG((RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG),"%s desc(%p) desc->query(%p)\n",__FUNCTION__,desc,desc->query);
+	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p) desc->query(%p)\n",__FUNCTION__,desc,desc->query);
 
 	if (query)
 		while (*query && (found_var == NULL)) {
@@ -138,7 +138,7 @@ char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
 			query++;
 		}
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s->%s%s\n",__FUNCTION__,desc,needle,found_var,found_val);
+	RDDMA_DEBUG((RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG),"%s %p,%s->%s\n",__FUNCTION__,desc,needle,found_val ? found_val+1 : found_var);
 
 	return found_val ? found_val+1 : found_var ;
 }

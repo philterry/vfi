@@ -54,16 +54,31 @@ void desc_param_dump(struct rddma_desc_param *d)
 	while (d->query && d->query[i]) {
 		printk("query str @ %p", d->query[i]);
 		printk(" = %s\n", d->query[i]);
+		i++;
 	}
 
 	if (d->address) {
 		printk("fabric name = %s\n", &d->address->name[0]);
 	}
+
+	printk("ops(%p) is ",d->ops);
+	if (d->ops) {
+		if (d->ops == &rddma_local_ops)
+			printk("local\n");
+		else if (d->ops == &rddma_fabric_ops)
+			printk("fabric\n");
+		else
+			printk("unknown\n");
+	}
+	else
+		printk("NULL\n");
 	/* not dumping ops fields */
 	return;
 }
 void bind_param_dump(struct rddma_bind_param *b)
 {
+	printk("Xfer param:\n");
+	desc_param_dump(&b->xfer);
 	printk("Destination param:\n");
 	desc_param_dump(&b->dst);
 	printk("Source param:\n");

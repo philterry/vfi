@@ -90,6 +90,11 @@ static ssize_t rddma_subsys_debug_show(struct rddma_subsys *rddma_subsys, char *
 	SHOW_BIT( "bind", RDDMA_DBG_BIND);
 	SHOW_BIT( "dst", RDDMA_DBG_DST);
 	SHOW_BIT( "src", RDDMA_DBG_SRC);
+	SHOW_BIT( "mmap", RDDMA_DBG_MMAP);
+	SHOW_BIT( "rdys", RDDMA_DBG_RDYS);
+	SHOW_BIT( "dones", RDDMA_DBG_DONES);
+	SHOW_BIT( "evnts", RDDMA_DBG_EVNTS);
+	SHOW_BIT( "evnt", RDDMA_DBG_EVNT);
 	SHOW_BIT( "funcall", RDDMA_DBG_FUNCALL);
 	SHOW_BIT( "life", RDDMA_DBG_LIFE);
 	SHOW_LEVEL();
@@ -126,6 +131,11 @@ static ssize_t rddma_subsys_debug_store(struct rddma_subsys *rddma_subsys, const
 		STORE_BIT("bind", RDDMA_DBG_BIND);
 		STORE_BIT("dst", RDDMA_DBG_DST);
 		STORE_BIT("src", RDDMA_DBG_SRC);
+		STORE_BIT( "mmap", RDDMA_DBG_MMAP);
+		STORE_BIT( "rdys", RDDMA_DBG_RDYS);
+		STORE_BIT( "dones", RDDMA_DBG_DONES);
+		STORE_BIT( "evnts", RDDMA_DBG_EVNTS);
+		STORE_BIT( "evnt", RDDMA_DBG_EVNT);
 		STORE_BIT("funcall", RDDMA_DBG_FUNCALL);
 		STORE_BIT("life", RDDMA_DBG_LIFE);
 		STORE_BIT("all", RDDMA_DBG_ALL);

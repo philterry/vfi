@@ -22,7 +22,8 @@ static inline struct rddma_events *rddma_events_get(struct rddma_events *rddma_e
 
 static inline void rddma_events_put(struct rddma_events *rddma_events)
 {
-    kset_put(&rddma_events->kset);
+	if (rddma_events)
+		kset_put(&rddma_events->kset);
 }
 
 extern struct rddma_events *new_rddma_events(struct rddma_readies *, char *name);
