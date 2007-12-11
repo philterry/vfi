@@ -189,7 +189,7 @@ static int rddma_local_dst_events(struct rddma_bind *bind, struct rddma_bind_par
 
 	event_list = find_rddma_events(rddma_subsys->dones,event_name);
 	if (event_list == NULL)
-		rddma_events_create(rddma_subsys->dones,event_name);
+		event_list = rddma_events_create(rddma_subsys->dones,event_name);
 
 	if (event_list == NULL)
 		goto fail;
@@ -198,7 +198,7 @@ static int rddma_local_dst_events(struct rddma_bind *bind, struct rddma_bind_par
 
 	event_list = find_rddma_events(rddma_subsys->readies,event_name);
 	if (event_list == NULL)
-		rddma_events_create(rddma_subsys->readies,event_name);
+		event_list = rddma_events_create(rddma_subsys->readies,event_name);
 
 	if (event_list == NULL)
 		goto fail;
