@@ -21,6 +21,7 @@ struct rddma_dst {
 	struct kobject kobj;
 	struct rddma_srcs *srcs;
 	struct rddma_src *head_src;
+	struct rddma_bind *bind;
 };
 
 static inline struct rddma_dst *to_rddma_dst(struct kobject *kobj)
@@ -43,7 +44,7 @@ static inline void rddma_dst_put(struct rddma_dst *rddma_dst)
 
 static inline struct rddma_bind *rddma_dst_parent(struct rddma_dst *dst)
 {
-	return dst ? rddma_bind_get(to_rddma_bind(dst->kobj.parent)) : NULL;
+	return dst ? dst->bind : NULL;
 }
 
 

@@ -413,10 +413,11 @@ static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_pa
 	struct rddma_events *event_list;
 	char *event_name;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s dst_parent(%p) descc(%p)\n",__FUNCTION__,parent,desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s dst_parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
 
 	bind = rddma_dst_parent(parent);
 
+	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)->src_done_event(%p)\n",__FUNCTION__,bind,bind->src_done_event);
 	if (bind->src_done_event)
 		return 0;
 
@@ -462,10 +463,13 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	struct rddma_bind_param params = *desc;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	if (parent->desc.xfer.ops->src_events(parent,desc))
+	srcs = rddma_srcs_create(parent,desc);
+
+	if (srcs == NULL)
 		return NULL;
 
-	srcs = rddma_srcs_create(parent,desc);
+	if (parent->desc.xfer.ops->src_events(parent,desc))
+		return NULL;
 
 	smb = find_rddma_smb(&desc->src);
 
@@ -511,7 +515,8 @@ static struct rddma_src *rddma_local_src_create(struct rddma_dst *parent, struct
 
 	src = rddma_src_create(parent,desc);
 
-	rddma_dst_load_srcs(parent);
+	if (src)
+		rddma_dst_load_srcs(parent);
 	return src;
 }
 

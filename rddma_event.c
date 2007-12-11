@@ -148,7 +148,7 @@ struct rddma_event *new_rddma_event(struct rddma_events *parent, struct rddma_de
     RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
     if (NULL == new)
-	return new;
+	goto out;
 
     rddma_clone_desc(&new->desc,desc);
     kobject_set_name(&new->kobj,"%x", id);
@@ -157,6 +157,8 @@ struct rddma_event *new_rddma_event(struct rddma_events *parent, struct rddma_de
     new->start_event = f;
     new->bind = bind;
     new->event_id = id;
+out:
+    RDDMA_DEBUG(MY_DEBUG,"%s returns %p\n",__FUNCTION__,new);
     return new;
 }
 

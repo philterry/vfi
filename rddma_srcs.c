@@ -139,6 +139,8 @@ int rddma_srcs_register(struct rddma_srcs *rddma_srcs)
 {
     int ret = 0;
 
+    RDDMA_DEBUG(MY_DEBUG,"%s srcs(%p)\n",__FUNCTION__,rddma_srcs);
+
     if ( (ret = kset_register(&rddma_srcs->kset) ) )
 	goto out;
 
@@ -151,12 +153,17 @@ out:
 void rddma_srcs_unregister(struct rddma_srcs *rddma_srcs)
 {
     
-     kset_unregister(&rddma_srcs->kset);
+	if (rddma_srcs)
+		kset_unregister(&rddma_srcs->kset);
 }
 
 struct rddma_srcs *rddma_srcs_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
-	struct rddma_srcs *new = new_rddma_srcs(desc,parent);
+	struct rddma_srcs *new;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s parent_dst(%p) desc(%p)\n",__FUNCTION__,parent,desc);
+
+	new = new_rddma_srcs(desc,parent);
 
 	if (NULL == new)
 		goto out;
@@ -173,6 +180,5 @@ out:
 
 void rddma_srcs_delete(struct rddma_srcs *srcs)
 {
-	if (srcs)
-		rddma_srcs_unregister(srcs);
+	rddma_srcs_unregister(srcs);
 }
