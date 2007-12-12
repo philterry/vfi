@@ -894,7 +894,6 @@ static int rddma_fabric_event_start(struct rddma_location *loc, struct rddma_des
 	skb = rddma_fabric_call(loc, 5, "event_start://%s.%s", desc->name,desc->location);
 	if (skb) {
 		struct rddma_desc_param reply;
-		int ret = -EINVAL;
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			sscanf(rddma_get_option(&reply,"result"),"%d",&ret);
 			rddma_clean_desc(&reply);
