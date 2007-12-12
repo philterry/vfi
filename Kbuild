@@ -4,6 +4,7 @@ rddma_6460-objs := \
 	rddma_dma_6460.o 
 
 obj-$(CONFIG_RDDMA_DMA_RIO) += rddma_dma_rio.o
+obj-$(CONFIG_RDDMA_DMA_NET) += rddma_dma_net.o
 
 obj-$(CONFIG_RDDMA_FABRIC_NET) += rddma_fabric_net.o
 
