@@ -60,5 +60,5 @@ $TESTPROG "bind_create://tran.fujitsu.fabric:2000/bufB.fujitsu.fabric#1000?event
 fi
 shift
 done
-$TESTPROG "bind_create://tran.fujitsu.fabric:2000/bufA.lenovo.fabric#1000?event_name(lenovo)=bufB.lenovo.fabric#1000?event_name(lenovo)"
+# $TESTPROG "bind_create://tran.fujitsu.fabric:2000/bufA.lenovo.fabric#1000?event_name(lenovo)=bufB.lenovo.fabric#1000?event_name(lenovo)"
 # $TESTPROG "bind_create://tran.fujitsu.fabric:2000/bufB.fujitsu.fabric#2000?event_name(fujitsu)=bufA.fujitsu.fabric#2000?event_name(fujitsu)"
