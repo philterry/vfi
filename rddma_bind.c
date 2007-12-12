@@ -184,6 +184,8 @@ struct rddma_bind *find_rddma_bind(struct rddma_desc_param *desc)
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_bind *bind = NULL;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
+
 	xfer = find_rddma_xfer(desc);
 
 	if (xfer && xfer->desc.ops)
@@ -213,12 +215,16 @@ struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_
 	struct rddma_bind *new;
 	char buf[128];
 
+	RDDMA_DEBUG(MY_DEBUG,"%s xfer(%p) desc(%p)\n",__FUNCTION__,xfer,desc);
+
 	snprintf(buf,128,"#%llx:%x",desc->xfer.offset,desc->xfer.extent);
 
 	new = to_rddma_bind(kset_find_obj(&xfer->binds->kset,buf));
 
-	if (new)
-		return NULL;
+	if (new) {
+		RDDMA_DEBUG(MY_DEBUG,"%s found %p locally in %p\n",__FUNCTION__,new,xfer);
+		return new;
+	}
 
 	if ( (new = new_rddma_bind(xfer,desc)) )
 		if (rddma_bind_register(new))
