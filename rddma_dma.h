@@ -12,9 +12,6 @@
 #ifndef RDDMA_DMA_H
 #define RDDMA_DMA_H
 #include <linux/rddma.h>
-#if 0 /* Jimmy hacking! */
-#include <linux/rddma_dma_rio.h>
-#endif
 
 #include <linux/slab.h>
 #include <linux/module.h>

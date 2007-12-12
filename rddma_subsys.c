@@ -86,6 +86,7 @@ static ssize_t rddma_subsys_debug_show(struct rddma_subsys *rddma_subsys, char *
 	SHOW_BIT( "parse", RDDMA_DBG_PARSE);
 	SHOW_BIT( "dma", RDDMA_DBG_DMA);
 	SHOW_BIT( "riodma", RDDMA_DBG_DMARIO);
+	SHOW_BIT( "netdma", RDDMA_DBG_DMANET);
 	SHOW_BIT( "subsys", RDDMA_DBG_SUBSYS);
 	SHOW_BIT( "bind", RDDMA_DBG_BIND);
 	SHOW_BIT( "dst", RDDMA_DBG_DST);
@@ -127,6 +128,7 @@ static ssize_t rddma_subsys_debug_store(struct rddma_subsys *rddma_subsys, const
 		STORE_BIT("parse", RDDMA_DBG_PARSE);
 		STORE_BIT("dma", RDDMA_DBG_DMA);
 		STORE_BIT("riodma", RDDMA_DBG_DMARIO);
+		STORE_BIT("netdma", RDDMA_DBG_DMANET);
 		STORE_BIT("subsys", RDDMA_DBG_SUBSYS);
 		STORE_BIT("bind", RDDMA_DBG_BIND);
 		STORE_BIT("dst", RDDMA_DBG_DST);

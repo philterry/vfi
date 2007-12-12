@@ -40,13 +40,14 @@ static inline dma_addr_t ldesc_virt_to_phys(struct dma_list *d)
 
 static void dma_net_load(struct rddma_src *src)
 {
-
+	RDDMA_DEBUG(MY_DEBUG,"%s src(%p)\n",__FUNCTION__,src);
 }
 
 static void dma_net_link_src(struct list_head *first, struct rddma_src *second)
 {
 	struct seg_desc *rio2 = (struct seg_desc *)&second->descriptor;
 	struct seg_desc *riolast; 
+	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
 	if (!list_empty(first)) {
 		riolast = to_sdesc(first->prev);
 		riolast->hw.next = rio2->paddr & ~0x1f;	/* 64-bit safe (0xffffffe0); */
@@ -58,6 +59,7 @@ static void dma_net_link_dst(struct list_head *first, struct rddma_dst *second)
 {
 	struct seg_desc *rio2;
 	struct seg_desc *riolast;
+	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
 	if (!list_empty(first)) {
 		riolast = to_sdesc(first->prev);
 		rio2 = to_sdesc(second->srcs->dma_chain.next);
@@ -73,6 +75,7 @@ static void dma_net_link_bind(struct list_head *first, struct rddma_bind *second
 	struct seg_desc *rio2;
 	struct seg_desc *riolast;
 	unsigned int val;
+	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
 	if (!list_empty(first)) {
 		riolast = to_sdesc(first->prev);
 		rio2 = to_sdesc(second->dma_chain.next);
@@ -92,6 +95,7 @@ static void dma_net_unlink_bind(struct list_head *first, struct rddma_bind *seco
 	struct list_head *start = second->dma_chain.next;
 	struct list_head *end = second->end_of_chain;
 	/* link start->prev to end->next */
+	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
 	start->prev->next = end->next;
 	end->next->prev = start->prev;
 	rioend = to_sdesc(end);
@@ -108,6 +112,7 @@ static void dma_net_load_transfer(struct rddma_xfer *xfer)
 	struct my_xfer_object *xfo = (struct my_xfer_object *) &xfer->descriptor;
 	struct seg_desc *seg;
 	/* Fill out a "transfer object" */
+	RDDMA_DEBUG(MY_DEBUG,"%s xfer(%p)\n",__FUNCTION__,xfer);
 #ifdef LOCAL_DMA_ADDRESS_TEST
 	xfo->xf.cb = address_test_completion;
 #else
@@ -138,6 +143,7 @@ static void dma_net_link_bind(struct list_head *first, struct rddma_bind *second
 	/* Hack for now!  Use link_bind to fill out a "transfer object" */
 	struct seg_desc *seg;
 	struct my_xfer_object *xfo = (struct my_xfer_object *) &second->descriptor;
+	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
 #ifdef LOCAL_DMA_ADDRESS_TEST
 	xfo->xf.cb = address_test_completion;
 #else
@@ -161,10 +167,12 @@ static void dma_net_link_bind(struct list_head *first, struct rddma_bind *second
 /* This is a no-op in parallel case since binds aren't linked together */
 static void dma_net_unlink_bind(struct list_head *first, struct rddma_bind *second)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
 	return;
 }
 static void dma_net_load_transfer(struct rddma_xfer *xfer)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s xfer(%p)\n",__FUNCTION__,xfer);
 	/* Fill out a "transfer object" */
 	return;
 }
@@ -172,10 +180,12 @@ static void dma_net_load_transfer(struct rddma_xfer *xfer)
 
 static void dma_net_cancel_transfer(struct rddma_dma_descriptor *desc)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
 }
 
 static void dma_net_queue_transfer(struct rddma_dma_descriptor *list)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s list(%p)\n",__FUNCTION__,list);
 }
 
 static struct rddma_dma_engine *dma_net_get(struct rddma_dma_engine *rde)
