@@ -220,7 +220,7 @@ struct rddma_xfer *find_rddma_xfer(struct rddma_desc_param *desc)
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_location *loc;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p) ploc(%p)\n",__FUNCTION__,desc,desc->ploc);
 
 	if (desc->ploc)
 		loc = desc->ploc;

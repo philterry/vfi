@@ -234,6 +234,7 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	d->ops = NULL;
 	d->rde = NULL;
 	d->address = NULL;
+	d->ploc = NULL;
 	d->buf = desc;
 	d->name = desc;
 
