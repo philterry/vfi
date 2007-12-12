@@ -692,11 +692,11 @@ static int bind_create(const char *desc, char *result, int size)
 
 out:		
 	if (result) {
-		if (xfer && bind)
+		if (bind)
 			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
-				       xfer->desc.name, xfer->desc.location,xfer->desc.offset, xfer->desc.extent,
-				       bind->desc.dst.name,bind->desc.dst.location, bind->desc.dst.offset, bind->desc.dst.extent,
-				       bind->desc.src.name, bind->desc.src.location,bind->desc.src.offset, bind->desc.src.extent,
+				       bind->desc.xfer.name, bind->desc.xfer.location, bind->desc.xfer.offset, bind->desc.xfer.extent,
+				       bind->desc.dst.name,  bind->desc.dst.location,  bind->desc.dst.offset,  bind->desc.dst.extent,
+				       bind->desc.src.name,  bind->desc.src.location,  bind->desc.src.offset,  bind->desc.src.extent,
 				       ret,rddma_get_option(&params.src,"request"));
 		else
 			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
