@@ -168,46 +168,43 @@ static struct rddma_mmap *rddma_fabric_mmap_find(struct rddma_smb *parent, struc
 	return NULL;
 }
 
-static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, struct rddma_bind_param *desc)
+static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
-	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->xfer.name));
+	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->name));
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "xfer_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
-				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
-				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
-				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
+	skb = rddma_fabric_call(loc, 5, "xfer_find://%s.%s#%llx:%x",
+				desc->name,desc->location,desc->offset,desc->extent
+				);
 	if (skb) {
-		struct rddma_bind_param reply;
+		struct rddma_desc_param reply;
 		int ret = -EINVAL;
-		if (!rddma_parse_bind(&reply,skb->data)) {
+		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
 				if (xfer)
-					xfer->desc.xfer.extent = reply.xfer.extent;
+					xfer->desc.extent = reply.extent;
 				else
 					xfer =  rddma_xfer_create(loc,&reply);
 			}
-			rddma_clean_bind(&reply);
+			rddma_clean_desc(&reply);
 		}
 	}
 
 	return xfer;
 }
 
-static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, struct rddma_bind_param *desc)
+static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
 	struct rddma_bind *bind = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(parent->desc.xfer.ploc, 5, "bind_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
-				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
-				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
-				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
+	skb = rddma_fabric_call(parent->desc.ploc, 5, "bind_find://%s.%s#%llx:%x",
+				desc->name,desc->location,desc->offset,desc->extent);
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -363,14 +360,14 @@ static struct rddma_bind *rddma_fabric_bind_create(struct rddma_xfer *parent, st
 {
 	struct sk_buff  *skb;
 	struct rddma_bind *bind = NULL;
-	struct rddma_location *loc = parent->desc.xfer.ploc;
+	struct rddma_location *loc = parent->desc.ploc;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "bind_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
+	skb = rddma_fabric_call(loc, 5, "bind_create://%s.%s#%llx:%x/%s.%s#%llx:%x?event_name(%s)=%s.%s#%llx:%x?event_name(%s)",
 				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
-				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
-				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
+				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,rddma_get_option(&desc->dst,"event_name"),
+				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent,rddma_get_option(&desc->src,"event_name"));
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -385,25 +382,24 @@ static struct rddma_bind *rddma_fabric_bind_create(struct rddma_xfer *parent, st
 	return bind;
 }
 
-static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, struct rddma_bind_param *desc)
+static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
 	struct rddma_xfer *xfer = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "xfer_create://%s.%s#%llx:%x/%s.%s#%llx:%x?event_name(%s)=%s.%s#%llx:%x?event_name(%s)",
-				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
-				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,rddma_get_option(&desc->dst,"event_name"),
-				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent,rddma_get_option(&desc->src,"event_name"));
+	skb = rddma_fabric_call(loc, 5, "xfer_create://%s.%s#%llx:%x",
+				desc->name,desc->location,desc->offset,desc->extent
+				);
 	if (skb) {
-		struct rddma_bind_param reply;
+		struct rddma_desc_param reply;
 		int ret = -EINVAL;
-		if (!rddma_parse_bind(&reply,skb->data)) {
+		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
 				xfer = rddma_xfer_create(loc,&reply);
-			rddma_clean_bind(&reply);
+			rddma_clean_desc(&reply);
 		}
 	}
 
@@ -752,41 +748,42 @@ static void rddma_fabric_mmap_delete(struct rddma_smb *smb, struct rddma_desc_pa
 
 }
 
-static void rddma_fabric_bind_delete(struct rddma_xfer *xfer, struct rddma_bind_param *desc)
+static void rddma_fabric_bind_delete(struct rddma_xfer *xfer, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
-	struct rddma_location *loc = xfer->desc.xfer.ploc;
+	struct rddma_location *loc = xfer->desc.ploc;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	skb = rddma_fabric_call(loc, 5, "bind_delete://%s.%s#%llx:%x",
-				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent);
+				desc->name, desc->location, desc->offset, desc->extent);
 	if (skb) {
-		struct rddma_bind_param reply;
+		struct rddma_desc_param reply;
 		int ret = -EINVAL;
-		if (!rddma_parse_bind(&reply,skb->data)) {
+		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
 				rddma_bind_delete(xfer,&reply);
-			rddma_clean_bind(&reply);
+			rddma_clean_desc(&reply);
 		}
 	}
 }
-static void rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_bind_param *desc)
+static void rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "xfer_delete://%s.%s", desc->xfer.name,desc->xfer.location);
+	skb = rddma_fabric_call(loc, 5, "xfer_delete://%s.%s", desc->name,desc->location);
 	if (skb) {
-		struct rddma_bind_param reply;
+		struct rddma_desc_param reply;
 		int ret = -EINVAL;
-		if (!rddma_parse_bind(&reply,skb->data)) {
+		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.xfer,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
 				rddma_xfer_delete(loc,&reply);
-			rddma_clean_bind(&reply);
+			rddma_clean_desc(&reply);
+
 		}
 	}
 }

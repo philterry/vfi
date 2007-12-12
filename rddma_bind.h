@@ -104,9 +104,9 @@ static inline void rddma_bind_put(struct rddma_bind *rddma_bind)
 extern struct rddma_bind *new_rddma_bind(struct rddma_xfer *, struct rddma_bind_param *);
 extern int rddma_bind_register(struct rddma_bind *);
 extern void rddma_bind_unregister(struct rddma_bind *);
-extern struct rddma_bind *find_rddma_bind(struct rddma_bind_param *);
+extern struct rddma_bind *find_rddma_bind(struct rddma_desc_param *);
 extern struct rddma_bind *rddma_bind_create(struct rddma_xfer *, struct rddma_bind_param *);
-extern void rddma_bind_delete(struct rddma_xfer *, struct rddma_bind_param *);
+extern void rddma_bind_delete(struct rddma_xfer *, struct rddma_desc_param *);
 extern void rddma_bind_load_dsts(struct rddma_bind *);
 extern struct kobj_type rddma_bind_type;
 #endif /* RDDMA_BIND_H */

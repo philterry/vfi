@@ -182,7 +182,7 @@ struct rddma_dst *find_rddma_dst(struct rddma_bind_param *desc)
 	struct rddma_bind *bind = NULL;
 	struct rddma_dst *dst = NULL;
 
-	bind = find_rddma_bind(desc);
+	bind = find_rddma_bind(&desc->xfer);
 	
 	if (bind)
 		rddma_dsts_create(bind,desc);

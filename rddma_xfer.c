@@ -28,9 +28,9 @@ static void rddma_xfer_release(struct kobject *kobj)
 {
     struct rddma_xfer *p = to_rddma_xfer(kobj);
     RDDMA_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
-    if (p->desc.xfer.name) {
-	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free xfer %p\n",__FUNCTION__,p->desc.xfer.name);
-	    rddma_clean_bind(&p->desc);
+    if (p->desc.name) {
+	    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s free xfer %p\n",__FUNCTION__,p->desc.name);
+	    rddma_clean_desc(&p->desc);
     }
     kfree(p);
 }
@@ -75,11 +75,9 @@ static ssize_t rddma_xfer_default_show(struct rddma_xfer *rddma_xfer, char *buff
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("Xfer %p is %s \n",rddma_xfer,rddma_xfer ? rddma_xfer->desc.xfer.name : NULL);
+	ATTR_PRINTF("Xfer %p is %s \n",rddma_xfer,rddma_xfer ? rddma_xfer->desc.name : NULL);
 	if (rddma_xfer) {
-		ATTR_PRINTF("xfer: ops is %p rde is %p address is %p\n",rddma_xfer->desc.xfer.ops,rddma_xfer->desc.xfer.rde,rddma_xfer->desc.xfer.address);
-		ATTR_PRINTF("dst:  ops is %p rde is %p address is %p\n",rddma_xfer->desc.dst.ops,rddma_xfer->desc.dst.rde,rddma_xfer->desc.dst.address);
-		ATTR_PRINTF("src:  ops is %p rde is %p address is %p\n",rddma_xfer->desc.src.ops,rddma_xfer->desc.src.rde,rddma_xfer->desc.src.address);
+		ATTR_PRINTF("xfer: ops is %p rde is %p address is %p\n",rddma_xfer->desc.ops,rddma_xfer->desc.rde,rddma_xfer->desc.address);
 	}
 	return size;
 }
@@ -93,7 +91,7 @@ RDDMA_XFER_ATTR(default, 0644, rddma_xfer_default_show, rddma_xfer_default_store
 
 static ssize_t rddma_xfer_location_show(struct rddma_xfer *rddma_xfer, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%s\n",rddma_xfer->desc.xfer.location);
+	return snprintf(buffer, PAGE_SIZE, "%s\n",rddma_xfer->desc.location);
 }
 
 static ssize_t rddma_xfer_location_store(struct rddma_xfer *rddma_xfer, const char *buffer, size_t size)
@@ -105,7 +103,7 @@ RDDMA_XFER_ATTR(location, 0644, rddma_xfer_location_show, rddma_xfer_location_st
 
 static ssize_t rddma_xfer_name_show(struct rddma_xfer *rddma_xfer, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%s\n", rddma_xfer->desc.xfer.name);
+	return snprintf(buffer, PAGE_SIZE, "%s\n", rddma_xfer->desc.name);
 }
 
 static ssize_t rddma_xfer_name_store(struct rddma_xfer *rddma_xfer, const char *buffer, size_t size)
@@ -117,7 +115,7 @@ RDDMA_XFER_ATTR(name, 0644, rddma_xfer_name_show, rddma_xfer_name_store);
 
 static ssize_t rddma_xfer_extent_show(struct rddma_xfer *rddma_xfer, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_xfer->desc.xfer.extent);
+	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_xfer->desc.extent);
 }
 
 static ssize_t rddma_xfer_extent_store(struct rddma_xfer *rddma_xfer, const char *buffer, size_t size)
@@ -129,7 +127,7 @@ RDDMA_XFER_ATTR(extent, 0644, rddma_xfer_extent_show, rddma_xfer_extent_store);
 
 static ssize_t rddma_xfer_offset_show(struct rddma_xfer *rddma_xfer, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%llx\n",rddma_xfer->desc.xfer.offset);
+	return snprintf(buffer, PAGE_SIZE, "%llx\n",rddma_xfer->desc.offset);
 }
 
 static ssize_t rddma_xfer_offset_store(struct rddma_xfer *rddma_xfer, const char *buffer, size_t size)
@@ -154,23 +152,23 @@ struct kobj_type rddma_xfer_type = {
     .default_attrs = rddma_xfer_default_attrs,
 };
 
-struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_bind_param *desc)
+struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *new = kzalloc(sizeof(struct rddma_xfer), GFP_KERNEL);
     
 	if (NULL == new)
 		goto out;
 
-	rddma_clone_bind(&new->desc, desc);
+	rddma_clone_desc(&new->desc, desc);
 	new->kobj.ktype = &rddma_xfer_type;
-	kobject_set_name(&new->kobj,"%s", desc->xfer.name);
+	kobject_set_name(&new->kobj,"%s", desc->name);
 
 	new->kobj.kset = &parent->xfers->kset;
-	new->desc.xfer.ops = parent->desc.ops;
-	new->desc.xfer.address = parent->desc.address;
-	new->desc.xfer.rde = parent->desc.rde;
-	new->desc.xfer.ploc = parent;
-	new->state = RDDMA_XFER_UNINIT;
+	new->desc.ops = parent->desc.ops;
+	new->desc.address = parent->desc.address;
+	new->desc.rde = parent->desc.rde;
+	new->desc.ploc = parent;
+
 #ifdef SERIALIZE_BIND_PROCESSING  
 	/* dma chain headed at transfer level, as all binds are linked
 	 * into one continuous chain 
@@ -217,35 +215,35 @@ void rddma_xfer_unregister(struct rddma_xfer *rddma_xfer)
 	}
 }
 
-struct rddma_xfer *find_rddma_xfer(struct rddma_bind_param *desc)
+struct rddma_xfer *find_rddma_xfer(struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_location *loc;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	if (desc->xfer.ploc)
-		loc = desc->xfer.ploc;
+	if (desc->ploc)
+		loc = desc->ploc;
 	else
-		loc = locate_rddma_location(NULL,&desc->xfer);
+		loc = locate_rddma_location(NULL,desc);
 
 	if (loc && loc->desc.ops && loc->desc.ops->xfer_find)
 		xfer = loc->desc.ops->xfer_find(loc,desc);
 
-	desc->xfer.ploc = loc;
+	desc->ploc = loc;
 
 	return xfer;
 }
 
-struct rddma_xfer *rddma_xfer_create(struct rddma_location *loc, struct rddma_bind_param *desc)
+struct rddma_xfer *rddma_xfer_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *new;
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
 
-	new = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->xfer.name));
+	new = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->name));
 	
 	if (new) {
-		RDDMA_DEBUG(MY_DEBUG,"%s found %p %s locally in %p %s\n",__FUNCTION__,new,desc->xfer.name,loc,loc->desc.name);
+		RDDMA_DEBUG(MY_DEBUG,"%s found %p %s locally in %p %s\n",__FUNCTION__,new,desc->name,loc,loc->desc.name);
 	}
 	else {
 		new = new_rddma_xfer(loc,desc);
@@ -257,11 +255,11 @@ struct rddma_xfer *rddma_xfer_create(struct rddma_location *loc, struct rddma_bi
 	return new;
 }
 
-void rddma_xfer_delete(struct rddma_location *loc, struct rddma_bind_param *desc)
+void rddma_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *xfer;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->xfer.name));
+	xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->name));
 	rddma_xfer_put(xfer);
 	rddma_xfer_unregister(xfer);
 }
@@ -270,19 +268,19 @@ void rddma_xfer_load_binds(struct rddma_xfer *xfer, struct rddma_bind *bind)
 {
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,xfer,bind);
 	/* Added test, and diagnostics: this call sometimes fails, and Oops the kernel */
-	if (xfer->desc.xfer.rde && xfer->desc.xfer.rde->ops && xfer->desc.xfer.rde->ops->link_bind) {
+	if (xfer->desc.rde && xfer->desc.rde->ops && xfer->desc.rde->ops->link_bind) {
 #ifdef SERIALIZE_BIND_PROCESSING
-		xfer->desc.xfer.rde->ops->link_bind(&xfer->dma_chain, bind);
+		xfer->desc.rde->ops->link_bind(&xfer->dma_chain, bind);
 #else
-		xfer->desc.xfer.rde->ops->link_bind(NULL, bind);
+		xfer->desc.rde->ops->link_bind(NULL, bind);
 #endif
 
 		return;
 	}
 	RDDMA_DEBUG (MY_DEBUG, "xx %s: Xfer %s has incomplete operations set.\n", __FUNCTION__, kobject_name (&xfer->kobj));
-	RDDMA_DEBUG (MY_DEBUG, "   rde: %s\n", (xfer->desc.xfer.rde) ? "Present" : "Missing!");
-	RDDMA_DEBUG (MY_DEBUG, "   rde ops: %s\n", (xfer->desc.xfer.rde && xfer->desc.xfer.rde->ops) ? "Present" : "Missing!");
-	RDDMA_DEBUG (MY_DEBUG, "   rde link_bind op: %s\n", (xfer->desc.xfer.rde && xfer->desc.xfer.rde->ops && xfer->desc.xfer.rde->ops->link_bind) ? "Present" : "Missing!");
+	RDDMA_DEBUG (MY_DEBUG, "   rde: %s\n", (xfer->desc.rde) ? "Present" : "Missing!");
+	RDDMA_DEBUG (MY_DEBUG, "   rde ops: %s\n", (xfer->desc.rde && xfer->desc.rde->ops) ? "Present" : "Missing!");
+	RDDMA_DEBUG (MY_DEBUG, "   rde link_bind op: %s\n", (xfer->desc.rde && xfer->desc.rde->ops && xfer->desc.rde->ops->link_bind) ? "Present" : "Missing!");
 }
 
 

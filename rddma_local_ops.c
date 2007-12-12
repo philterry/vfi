@@ -63,21 +63,21 @@ static struct rddma_smb *rddma_local_smb_find(struct rddma_location *parent, str
 	return smb;
 }
 
-static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, struct rddma_bind_param *desc)
+static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, struct rddma_desc_param *desc)
 {
-	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&parent->xfers->kset,desc->xfer.name));
+	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&parent->xfers->kset,desc->name));
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,xfer);
 	return xfer;
 }
 
-static struct rddma_bind *rddma_local_bind_find(struct rddma_xfer *parent, struct rddma_bind_param *desc)
+static struct rddma_bind *rddma_local_bind_find(struct rddma_xfer *parent, struct rddma_desc_param *desc)
 {
 	struct rddma_bind *bind = NULL;
 	char buf[128];
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	if ( snprintf(buf,128,"#%llx:%x", desc->xfer.offset, desc->xfer.extent) > 128 )
+	if ( snprintf(buf,128,"#%llx:%x", desc->offset, desc->extent) > 128 )
 		goto out;
 
 	bind = to_rddma_bind(kset_find_obj(&parent->binds->kset,buf));
@@ -298,11 +298,11 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 		     desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
 /* Start Atomic */
 	if (!desc->xfer.offset)
-		desc->xfer.offset = xfer->desc.xfer.extent;
+		desc->xfer.offset = xfer->desc.extent;
 
-	xfer->desc.xfer.extent += desc->xfer.extent;
+	xfer->desc.extent += desc->xfer.extent;
 /* End Atomic */
-	xfer->state = RDDMA_XFER_BINDING;
+
 	if ( (bind = rddma_bind_create(xfer, desc))) {
 		if ( (dsts = rddma_dsts_create(bind,desc)) ) {
 			if ( NULL == (dsmb = find_rddma_smb(&desc->dst)) )
@@ -324,12 +324,6 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 				goto fail_dst;
 
 			rddma_xfer_load_binds(xfer,bind);
-			/*
-			 * Increment the parent's bind counters, which it uses
-			 * to coordinate transfer execution.
-			 *
-			 */
-			atomic_inc (&xfer->bind_count);
 	
 			if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
 #ifdef SERIALIZE_BIND_PROCESSING
@@ -339,11 +333,10 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 			rddma_dma_chain_dump(&bind->dma_chain);
 #endif
 
-			xfer->state = RDDMA_XFER_READY;
 			return bind;
 		}
 		RDDMA_DEBUG (MY_DEBUG, "xxx Failed to create bind %s - deleting\n", kobject_name (&bind->kobj));
-		rddma_bind_delete(xfer,desc);
+		rddma_bind_delete(xfer,&desc->xfer);
 		bind = NULL;
 	}
 		
@@ -383,26 +376,23 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 }
 
 
-static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, struct rddma_bind_param *desc)
+static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *xfer;
-	struct rddma_bind *bind;
 
-	unsigned long extent = desc->xfer.extent;
-	unsigned long long offset = desc->xfer.offset;
+	unsigned long extent = desc->extent;
+	unsigned long long offset = desc->offset;
 
-	desc->xfer.offset = 0;
-	desc->xfer.extent = 0;
+	desc->offset = 0;
+	desc->extent = 0;
 
 	xfer = rddma_xfer_create(loc,desc);
 
-	desc->xfer.offset = offset;
-	desc->xfer.extent = extent;
+	desc->offset = offset;
+	desc->extent = extent;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %p\n",__FUNCTION__,loc,desc,xfer);
 
-	bind = rddma_local_bind_create(xfer,desc);
-	
 	return xfer;
 }
 
@@ -700,6 +690,14 @@ static int rddma_local_event_start(struct rddma_location *loc, struct rddma_desc
 	return 0;
 }
 
+static void rddma_local_bind_delete(struct rddma_xfer *parent, struct rddma_desc_param *desc)
+{
+}
+
+static void rddma_local_xfer_delete(struct rddma_location *parent, struct rddma_desc_param *desc)
+{
+}
+
 struct rddma_ops rddma_local_ops = {
 	.location_create = rddma_local_location_create,
 	.location_delete = rddma_local_location_delete,
@@ -711,7 +709,7 @@ struct rddma_ops rddma_local_ops = {
 	.mmap_create     = rddma_local_mmap_create,
 	.mmap_delete     = rddma_local_mmap_delete,
 	.xfer_create     = rddma_local_xfer_create,
-	.xfer_delete     = rddma_xfer_delete,
+	.xfer_delete     = rddma_local_xfer_delete,
 	.xfer_find       = rddma_local_xfer_find,
 	.srcs_create     = rddma_local_srcs_create,
 	.src_create      = rddma_local_src_create,
@@ -724,7 +722,7 @@ struct rddma_ops rddma_local_ops = {
 	.dst_find        = rddma_local_dst_find,
 	.bind_find       = rddma_local_bind_find,
 	.bind_create     = rddma_local_bind_create,
-	.bind_delete     = rddma_bind_delete, 
+	.bind_delete     = rddma_local_bind_delete, 
 	.src_done        = rddma_local_src_done,
 	.dst_done        = rddma_local_dst_done,
 	.done            = rddma_local_done,

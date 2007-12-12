@@ -33,7 +33,7 @@ $TESTPROG "location_create://proc.fabric?default_ops(private),dma_name(rddma_net
 $TESTPROG "location_create://me.fabric?default_ops(private),dma_name(rddma_net_dma)"
 $TESTPROG "smb_create://buf1.radar.fabric#400:4000"
 $TESTPROG "smb_create://buf2.proc.fabric#800:4000"
-$TESTPROG "xfer_create://tran1.me.fabric:2000/buf2.proc.fabric#c00?event_name(local_dst)=buf1.radar.fabric#600?event_name(local_src)"
+$TESTPROG "bind_create://tran1.me.fabric:2000/buf2.proc.fabric#c00?event_name(local_dst)=buf1.radar.fabric#600?event_name(local_src)"
 
 elif [ "x$1" = "xmaster" ] ; then
 
@@ -52,10 +52,12 @@ $TESTPROG "smb_create://bufA.lenovo.fabric:4000"
 $TESTPROG "smb_create://bufB.fujitsu.fabric:4000"
 $TESTPROG "smb_create://bufB.lenovo.fabric:4000"
 
-$TESTPROG "xfer_create://tran.fujitsu.fabric:2000/bufA.lenovo.fabric#1000?event_name(fred)=bufA.fujitsu.fabric#2000?event_name(george)"
-$TESTPROG "xfer_create://tran.fujitsu.fabric:2000/bufB.fujitsu.fabric#1000?event_name(george)=bufB.lenovo.fabric#2000?event_name(fred)"
-$TESTPROG "xfer_create://tran.fujitsu.fabric:2000/bufA.lenovo.fabric#1000?event_name(lenovo)=bufB.lenovo.fabric#1000?event_name(lenovo)"
-$TESTPROG "xfer_create://tran.fujitsu.fabric:2000/bufB.fujitsu.fabric#2000?event_name(fujitsu)=bufA.fujitsu.fabric#2000?event_name(fujitsu)"
+$TESTPROG "xfer_create://tran.fujitsu.fabric"
+
+$TESTPROG "bind_create://tran.fujitsu.fabric:2000/bufA.lenovo.fabric#1000?event_name(fred)=bufA.fujitsu.fabric#2000?event_name(george)"
+$TESTPROG "bind_create://tran.fujitsu.fabric:2000/bufB.fujitsu.fabric#1000?event_name(george)=bufB.lenovo.fabric#2000?event_name(fred)"
+$TESTPROG "bind_create://tran.fujitsu.fabric:2000/bufA.lenovo.fabric#1000?event_name(lenovo)=bufB.lenovo.fabric#1000?event_name(lenovo)"
+$TESTPROG "bind_create://tran.fujitsu.fabric:2000/bufB.fujitsu.fabric#2000?event_name(fujitsu)=bufA.fujitsu.fabric#2000?event_name(fujitsu)"
 
 fi
 shift

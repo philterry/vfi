@@ -151,9 +151,9 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_p
 	
 	new->kobj.kset = &parent->binds->kset;
 
-	rddma_inherit(&new->desc.xfer,&parent->desc.xfer);
-	rddma_inherit(&new->desc.dst,&parent->desc.xfer);
-	rddma_inherit(&new->desc.src,&parent->desc.xfer);
+	rddma_inherit(&new->desc.xfer,&parent->desc);
+	rddma_inherit(&new->desc.dst,&parent->desc);
+	rddma_inherit(&new->desc.src,&parent->desc);
 	new->desc.dst.ops = &rddma_local_ops;
 	new->desc.src.ops = &rddma_local_ops;
 
@@ -179,15 +179,15 @@ void rddma_bind_unregister(struct rddma_bind *rddma_bind)
      kobject_unregister(&rddma_bind->kobj);
 }
 
-struct rddma_bind *find_rddma_bind(struct rddma_bind_param *desc)
+struct rddma_bind *find_rddma_bind(struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *xfer = NULL;
 	struct rddma_bind *bind = NULL;
 
 	xfer = find_rddma_xfer(desc);
 
-	if (xfer && xfer->desc.xfer.ops)
-		bind = xfer->desc.xfer.ops->bind_find(xfer,desc);
+	if (xfer && xfer->desc.ops)
+		bind = xfer->desc.ops->bind_find(xfer,desc);
 
 	rddma_xfer_put(xfer);
 
@@ -227,14 +227,14 @@ struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_
 	return new;
 }
 
-void rddma_bind_delete(struct rddma_xfer *xfer, struct rddma_bind_param *desc)
+void rddma_bind_delete(struct rddma_xfer *xfer, struct rddma_desc_param *desc)
 {
 	struct rddma_bind *bind = NULL;
 	char buf[128];
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	if ( snprintf(buf,128,"#%llx:%x", desc->xfer.offset, desc->xfer.extent) > 128 )
+	if ( snprintf(buf,128,"#%llx:%x", desc->offset, desc->extent) > 128 )
 		goto out;
 
 	bind = to_rddma_bind(kset_find_obj(&xfer->binds->kset, buf));

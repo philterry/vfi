@@ -21,22 +21,12 @@ struct rddma_xfer {
 #ifdef SERIALIZE_BIND_PROCESSING
 	struct rddma_dma_descriptor descriptor __attribute__ ((aligned(RDDMA_DESC_ALIGN)));
 #endif
-	int state;
-	struct rddma_bind_param desc;
+	struct rddma_desc_param desc;
 	struct kobject kobj;
 	struct rddma_bind *head_bind;
 	struct rddma_binds *binds;
 	struct list_head dma_chain;
 	struct semaphore dma_sync; 
-	/*
-	* Xfer start synchronization controls.
-	*
-	* The following fields are used to control xfer start.
-	* Before an xfer start may begin, all bind sources and 
-	* all bind destinations must declare themselves "ready".
-	*/
-	atomic_t	bind_count;		/* Xfer start reference */
-	atomic_t	start_votes;		/* binds ready for xfer_start */
 };
 
 static inline struct rddma_xfer *to_rddma_xfer(struct kobject *kobj)
@@ -56,13 +46,13 @@ static inline void rddma_xfer_put(struct rddma_xfer *rddma_xfer)
 	if (rddma_xfer) kobject_put(&rddma_xfer->kobj);
 }
 
-extern struct rddma_xfer *new_rddma_xfer(struct rddma_location *, struct rddma_bind_param *);
+extern struct rddma_xfer *new_rddma_xfer(struct rddma_location *, struct rddma_desc_param *);
 extern int rddma_xfer_register(struct rddma_xfer *);
 extern void rddma_xfer_unregister(struct rddma_xfer *);
-extern struct rddma_xfer *find_rddma_xfer(struct rddma_bind_param *);
-extern struct rddma_xfer *rddma_xfer_create(struct rddma_location *, struct rddma_bind_param *);
+extern struct rddma_xfer *find_rddma_xfer(struct rddma_desc_param *);
+extern struct rddma_xfer *rddma_xfer_create(struct rddma_location *, struct rddma_desc_param *);
 extern void rddma_xfer_start(struct rddma_xfer *);
-extern void rddma_xfer_delete(struct rddma_location *, struct rddma_bind_param *);
+extern void rddma_xfer_delete(struct rddma_location *, struct rddma_desc_param *);
 extern void rddma_xfer_load_binds(struct rddma_xfer *, struct rddma_bind *);
 extern void rddma_xfer_start (struct rddma_xfer*);
 extern struct kobj_type rddma_xfer_type;
