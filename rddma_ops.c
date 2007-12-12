@@ -635,10 +635,16 @@ static int xfer_find(const char *desc, char *result, int size)
 	rddma_location_put(location);
 
 out:
-	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x?result(%d),reply(%s)\n",
-			       params.name, params.location,params.offset, params.extent,
-			       ret,rddma_get_option(&params,"request"));
+	if (result) {
+		if (xfer)
+			ret = snprintf(result,size,"%s.%s#%llx:%x?result(%d),reply(%s)\n",
+				       params.name, params.location,xfer->desc.offset, xfer->desc.extent,
+				       ret,rddma_get_option(&params,"request"));
+		else
+			ret = snprintf(result,size,"%s.%s?result(%d),reply(%s)\n",
+				       params.name, params.location,
+				       ret,rddma_get_option(&params,"request"));
+	}
 
 	rddma_clean_desc(&params);
 
