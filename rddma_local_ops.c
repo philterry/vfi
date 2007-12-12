@@ -87,7 +87,7 @@ out:
 	return bind;
 }
 
-static struct rddma_dst *rddma_local_dst_find(struct rddma_bind *parent, struct rddma_bind_param *desc)
+struct rddma_dst *rddma_local_dst_find(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_dst *dst = NULL;
 	char *buf = kzalloc (2048, GFP_KERNEL);

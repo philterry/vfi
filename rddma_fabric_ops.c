@@ -171,12 +171,15 @@ static struct rddma_mmap *rddma_fabric_mmap_find(struct rddma_smb *parent, struc
 static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
-	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->name));
+	struct rddma_xfer *xfer;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(loc, 5, "xfer_find://%s.%s#%llx:%x",
-				desc->name,desc->location,desc->offset,desc->extent
+	if ( (xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->name))) )
+		return xfer;
+
+	skb = rddma_fabric_call(loc, 5, "xfer_find://%s.%s",
+				desc->name,desc->location
 				);
 	if (skb) {
 		struct rddma_desc_param reply;
@@ -184,10 +187,9 @@ static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, str
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
-				if (xfer)
-					xfer->desc.extent = reply.extent;
-				else
-					xfer =  rddma_xfer_create(loc,&reply);
+				reply.extent = 0;
+				reply.offset = 0;
+				xfer =  rddma_xfer_create(loc,&reply);
 			}
 			rddma_clean_desc(&reply);
 		}
@@ -200,8 +202,13 @@ static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, stru
 {
 	struct sk_buff  *skb;
 	struct rddma_bind *bind = NULL;
+	char buf[128];
+	snprintf(buf,128,"#%llx:%x",desc->offset,desc->extent);
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p) bind(%s)\n",__FUNCTION__,parent,desc,buf);
+
+	if ( (bind = to_rddma_bind(kset_find_obj(&parent->binds->kset,buf))) )
+		return bind;
 
 	skb = rddma_fabric_call(parent->desc.ploc, 5, "bind_find://%s.%s#%llx:%x",
 				desc->name,desc->location,desc->offset,desc->extent);
@@ -219,13 +226,17 @@ static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, stru
 	return bind;
 }
 
+extern struct rddma_dst *rddma_local_dst_find(struct rddma_bind *, struct rddma_bind_param *);
 static struct rddma_dst *rddma_fabric_dst_find(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
 	struct rddma_location *loc = parent->desc.dst.ploc;
-	struct rddma_dst *dst = NULL;
+	struct rddma_dst *dst = rddma_local_dst_find(parent,desc);
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p) dst(%p)\n",__FUNCTION__,parent,desc,dst);
+
+	if (dst)
+		return dst;
 
 	skb = rddma_fabric_call(loc, 5, "dst_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
 				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
