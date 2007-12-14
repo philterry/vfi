@@ -127,7 +127,7 @@ if [ -n "$doInstall" -o -n "$doSymlink" ] ; then
 	rm $kernelsrc/drivers/rddma
     fi
     mkdir -p $kernelsrc/drivers/rddma
-    for file in *.c Makefile Kbuild Kconfig ; do
+    for file in *.c Makefile Kbuild Kconfig ringbuf.h mpc10xdma.h ; do
 	if [ -n "$doSymlink" ]; then
 	    ln -s $(pwd)/$file $kernelsrc/drivers/rddma/$file
 	else
