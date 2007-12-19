@@ -187,23 +187,16 @@ static int rddma_local_dst_events(struct rddma_bind *bind, struct rddma_bind_par
 	if (event_name == NULL)
 		goto fail;
 
-	event_list = find_rddma_events(rddma_subsys->dones,event_name);
+	event_list = find_rddma_events(rddma_subsys->events,event_name);
 	if (event_list == NULL)
-		event_list = rddma_events_create(rddma_subsys->dones,event_name);
-
-	if (event_list == NULL)
-		goto fail;
-
-	bind->dst_done_event = rddma_event_create(event_list,&desc->dst,bind,0,(int)bind);
-
-	event_list = find_rddma_events(rddma_subsys->readies,event_name);
-	if (event_list == NULL)
-		event_list = rddma_events_create(rddma_subsys->readies,event_name);
+		event_list = rddma_events_create(rddma_subsys->events,event_name);
 
 	if (event_list == NULL)
 		goto fail;
 
-	bind->dst_ready_event = rddma_event_create(event_list,&desc->dst,bind,bind->desc.dst.ops->dst_ready,(int)bind);
+	bind->dst_done_event = rddma_event_create(event_list,&desc->dst,bind,0,(int)&bind->dst_done_event);
+
+	bind->dst_ready_event = rddma_event_create(event_list,&desc->dst,bind,bind->desc.dst.ops->dst_ready,(int)&bind->dst_ready_event);
 						   
 	return 0;
 
@@ -416,27 +409,19 @@ static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_pa
 	if (event_name == NULL)
 		goto event_name_fail;
 
-	event_list = find_rddma_events(rddma_subsys->dones,event_name);
+	event_list = find_rddma_events(rddma_subsys->events,event_name);
 	if (event_list == NULL)
-		event_list = rddma_events_create(rddma_subsys->dones,event_name);
+		event_list = rddma_events_create(rddma_subsys->events,event_name);
 
 	if (event_list == NULL)
 		goto dones_fail;
 
 	bind->src_done_event = rddma_event_create(event_list,&desc->src,bind,0,(int)parent);
 
-	event_list = find_rddma_events(rddma_subsys->readies,event_name);
-	if (event_list == NULL)
-		event_list = rddma_events_create(rddma_subsys->readies,event_name);
-
-	if (event_list == NULL)
-		goto readies_fail;
-
-	bind->src_ready_event = rddma_event_create(event_list,&desc->src,bind,bind->desc.src.ops->src_ready,(int)parent);
+	bind->src_ready_event = rddma_event_create(event_list,&desc->src,bind,bind->desc.src.ops->src_ready,(int)&parent->srcs);
 		
 	return 0;
 
-readies_fail:
 dones_fail:
 event_name_fail:				   
 	return -EINVAL;
@@ -683,7 +668,7 @@ static void rddma_local_dst_ready(struct rddma_bind *bind)
 static int rddma_local_event_start(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_events *event_list;
-	event_list = find_rddma_events(rddma_subsys->readies,desc->name);
+	event_list = find_rddma_events(rddma_subsys->events,desc->name);
 	if (event_list == NULL )
 		return -EINVAL;
 	rddma_events_start(event_list);

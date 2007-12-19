@@ -166,7 +166,8 @@ void rddma_events_start(struct rddma_events *events)
 	if (!list_empty(&events->kset.list)) {
 		list_for_each(entry,&events->kset.list) {
 			ep = to_rddma_event(to_kobj(entry));
-			ep->start_event(ep->bind);
+			if (ep->start_event)
+				ep->start_event(ep->bind);
 			events->count++;
 		}
 	}
