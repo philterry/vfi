@@ -151,7 +151,7 @@ struct rddma_event *new_rddma_event(struct rddma_events *parent, struct rddma_de
 	goto out;
 
     rddma_clone_desc(&new->desc,desc);
-    kobject_set_name(&new->kobj,"%x", id);
+    kobject_set_name(&new->kobj,"%p:%x", desc,id);
     new->kobj.ktype = &rddma_event_type;
     new->kobj.kset = &parent->kset;
     new->start_event = f;
