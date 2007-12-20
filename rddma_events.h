@@ -6,7 +6,8 @@
 
 struct rddma_events {
 	int count;
-	
+	struct semaphore start_lock;
+	struct completion dma_sync;
 	struct kset kset;
 };
 

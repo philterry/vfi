@@ -208,6 +208,7 @@ void rddma_dma_complete(struct rddma_bind *bind)
 	}
 }
 
+EXPORT_SYMBOL(rddma_dma_complete);
 EXPORT_SYMBOL(rddma_dma_register);
 EXPORT_SYMBOL(rddma_dma_unregister);
 

@@ -115,6 +115,8 @@ struct rddma_events *new_rddma_events(struct rddma_readies *parent, char *name)
     new->kset.kobj.ktype = &rddma_events_type;
     new->kset.uevent_ops = &rddma_events_uevent_ops;
     new->kset.kobj.kset = &parent->kset;
+    init_MUTEX(&new->start_lock);
+    init_completion(&new->dma_sync);
 
     return new;
 }
@@ -162,14 +164,23 @@ void rddma_events_start(struct rddma_events *events)
 	if (events == NULL) 
 		return;
 
-	spin_lock(&events->kset.list_lock);
-	if (!list_empty(&events->kset.list)) {
-		list_for_each(entry,&events->kset.list) {
-			ep = to_rddma_event(to_kobj(entry));
-			if (ep->start_event)
-				ep->start_event(ep->bind);
-			events->count++;
+	if (!down_trylock(&events->start_lock)) {
+		spin_lock(&events->kset.list_lock);
+		if (!list_empty(&events->kset.list)) {
+			list_for_each(entry,&events->kset.list) {
+				ep = to_rddma_event(to_kobj(entry));
+				if (ep->start_event) {
+					events->count++;
+					ep->start_event(ep->bind);
+				}
+			}
 		}
+		spin_unlock(&events->kset.list_lock);
+		wait_for_completion(&events->dma_sync);
+		up(&events->start_lock);
 	}
-	spin_unlock(&events->kset.list_lock);
+	else {
+		printk("Error, event already started\n");
+	}
+
 }

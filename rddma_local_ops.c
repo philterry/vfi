@@ -618,7 +618,12 @@ static void rddma_local_done(struct rddma_event *event)
 	 * transfer involving a local smb as the source or
 	 * destination. Do vote adjustment. */
 	struct rddma_events *e = to_rddma_events(event->kobj.parent);
+
 	e->count--;
+
+	if (e->count == 0)
+		complete(&e->dma_sync);
+
 	RDDMA_DEBUG(MY_DEBUG,"%s event(%p) events(%p) count(%d)\n",__FUNCTION__,event,e,e->count);
 }
 
