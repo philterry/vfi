@@ -17,6 +17,7 @@
 #include <linux/rddma_src.h>
 #include <linux/rddma_srcs.h>
 #include <linux/rddma_binds.h>
+#include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/completion.h>
@@ -38,7 +39,7 @@ struct dma_engine {
 	int next_channel;
 };
 
-#ifdef CONFIG_FSL_SOC
+#if defined (CONFIG_FSL_SOC) || defined(CONFIG_FSL_BOOKE)
 extern phys_addr_t get_immrbase(void); /* defined in sysdev/fsl_soc.c */
 #else
 /* A stub to allow us to compile on other platforms */
@@ -84,7 +85,7 @@ static struct rddma_dma_ops dma_rio_ops;
 static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
        	struct my_xfer_object *xfo);
 
-#ifndef CONFIG_FSL_SOC 	/* So we can build for x86 */
+#if !defined(CONFIG_FSL_SOC) && !defined(CONFIG_FSL_BOOKE) /* So we can build for x86 */
 #define out_be32(x,y) return
 #define in_be32(x) 0
 #endif
@@ -106,6 +107,18 @@ static inline dma_addr_t ldesc_virt_to_phys(struct dma_list *d)
 	struct my_xfer_object *va = (struct my_xfer_object *) d;
 	return (u32) va->paddr;
 }
+
+static int __devinit mpc85xx_rddma_probe(struct platform_device *pdev);
+static int __devinit mpc85xx_rddma_remove(struct platform_device *pdev);
+
+static struct platform_driver mpc85xx_rddma_driver = {
+	.probe = mpc85xx_rddma_probe,
+	.remove = mpc85xx_rddma_remove,
+	.driver = {
+		.name = "fsl-dma",
+		.owner = THIS_MODULE,
+	},
+};
 
 static int dma_completion_thread(void *data)
 {
@@ -470,7 +483,7 @@ static void dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc)
 
 	/* DMA in flight!  Abort the transer */
 	dma_set_reg(chan, DMA_MR, dma_get_reg(chan, DMA_MR) | DMA_MODE_ABORT);
-#ifdef CONFIG_FSL_SOC /* More x86 */
+#if defined(CONFIG_FSL_SOC) || defined(CONFIG_FSL_BOOKE) /* More x86 */
 	isync();
 #endif
 	chan->state = DMA_IDLE;
@@ -793,75 +806,80 @@ static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
 }
 #endif
 
-#ifdef CONFIG_FSL_SOC
+#if defined(CONFIG_FSL_SOC) || defined(CONFIG_FSL_BOOKE)
 /* Initialize per-channel data structures and h/w.
  * Return number of channels.
  */
-static int setup_dma_channels(struct dma_engine *device)
+static int setup_rddma_channel(struct platform_device *pdev)
 {
 	u32 xfercap;
-	int i;
 	int err;
+	int index;
 	struct ppc_dma_chan *chan;
+	struct resource *res;
 
 	/* 8641 -- (2**26 - 1) */
 	xfercap = ~0xfc000000;
+	index = pdev->id;
+	if (index < first_chan || index < 0)
+		return -ELNRNG;
 
-	for (i = first_chan; i <= last_chan; i++) {
-		chan = &de->ppc8641_dma_chans[i];
-		memset(chan, 0, sizeof(struct ppc_dma_chan));
-		chan->device = device;
-		chan->regbase = device->regbase + (0x80 * (i + 1));
-		chan->xfercap = xfercap;
-		chan->num = i;
+	if (index > last_chan || index > PPC8641_DMA_NCHANS)
+		return -ELNRNG;
 
-		/* using chained list descriptors */
-#ifdef SPOOL_AND_KICK
-		/* 
-		 * Using chained list descriptors.
-		 * Write to CLSDAR register starts channel
-		 */
-		chan->op_mode = DMA_MODE_EXTENDED | DMA_MODE_QUICKSTART;
-#else
-		/* Using chained list descriptors. */
-		chan->op_mode = DMA_MODE_EXTENDED;
+	chan = &de->ppc8641_dma_chans[index];
+	memset(chan, 0, sizeof(struct ppc_dma_chan));
+	res = platform_get_resource (pdev, IORESOURCE_MEM, 0);
+	BUG_ON(!res);
+#if 0
+	chan->device = device;
 #endif
-		chan->op_mode |= DMA_MODE_ERR_INT_EN;
+	chan->regbase = ioremap_nocache(res->start, res->end - res->start + 1);
+	chan->xfercap = xfercap;
+	chan->num = index;
+
+	/* using chained list descriptors */
 #ifdef SPOOL_AND_KICK
-		chan->op_mode |= DMA_MODE_LIST_INT_EN;
+	/* 
+	 * Using chained list descriptors.
+	 * Write to CLSDAR register starts channel
+	 */
+	chan->op_mode = DMA_MODE_EXTENDED | DMA_MODE_QUICKSTART;
 #else
-		chan->op_mode |= DMA_MODE_CHAIN_INT_EN;
+	/* Using chained list descriptors. */
+	chan->op_mode = DMA_MODE_EXTENDED;
+#endif
+	chan->op_mode |= DMA_MODE_ERR_INT_EN;
+#ifdef SPOOL_AND_KICK
+	chan->op_mode |= DMA_MODE_LIST_INT_EN;
+#else
+	chan->op_mode |= DMA_MODE_CHAIN_INT_EN;
 #endif
 
-		/* Might move this!! Jimmy */
-		dma_set_reg(chan, DMA_MR, chan->op_mode);
+	/* Might move this!! Jimmy */
+	dma_set_reg(chan, DMA_MR, chan->op_mode);
 
-		/* Using 32-bit descriptors */
-		dma_set_reg(chan, DMA_ECLSDAR, 0);
+	/* Using 32-bit descriptors */
+	dma_set_reg(chan, DMA_ECLSDAR, 0);
 
-		/* Hack!  Since we're not going through dts/platform
-		 * stuff for DMA controller, the IRQ number is 
-		 * hardwired.  The 0x10 appears because the 
-		 * first internal interrupt source is offset by 0x10.
-		 */
-		sprintf(chan->name, "rddma-chan%d", i);
-		chan->irq = 0x10 + DMA_INTERNAL_INT_NUMBER + i;
-		err = request_irq(chan->irq, &do_interrupt, 0, chan->name, chan);
-		if (err)
-			goto err_irq;
-		spin_lock_init(&chan->cleanup_lock);
-		spin_lock_init(&chan->queuelock);
-		INIT_LIST_HEAD(&chan->dma_q);
-		chan->state = DMA_IDLE;
-		de->nchans++;
+	sprintf(chan->name, "rddma-chan%d", index);
+	res = platform_get_resource (pdev, IORESOURCE_IRQ, 0);
+	chan->irq = res->start;
+	err = request_irq(chan->irq, &do_interrupt, 0, chan->name, chan);
+	if (err)
+		goto err_irq;
+	spin_lock_init(&chan->cleanup_lock);
+	spin_lock_init(&chan->queuelock);
+	INIT_LIST_HEAD(&chan->dma_q);
+	chan->state = DMA_IDLE;
+	de->nchans++;
 #ifdef CONFIG_PROC_FS
-		chan->proc_dir = proc_mkdir(chan->name, proc_dev_dir);
-		chan->proc_entry = create_proc_read_entry("stats", 0, 
-			chan->proc_dir, proc_dump_dma_stats, (void *) chan->num);
+	chan->proc_dir = proc_mkdir(chan->name, proc_dev_dir);
+	chan->proc_entry = create_proc_read_entry("stats", 0, 
+		chan->proc_dir, proc_dump_dma_stats, (void *) chan->num);
 #else
-		chan->proc_dir = NULL;
+	chan->proc_dir = NULL;
 #endif
-	}
 	return de->nchans;
 err_irq:
 	chan->state = DMA_UNINIT;
@@ -893,14 +911,19 @@ static int __init dma_rio_init(void)
 	}
 	else
 		return -ENOMEM;
-#ifdef CONFIG_FSL_SOC
-	de->regbase = ioremap(get_immrbase() + MPC86XX_DMA_OFFSET,
+
+#if 0
+/* Deal with 86XX later.  For now we're using 8548, which has
+ * FSL platform bus
+ */
+	de->regbase = ioremap(get_ccsrbar() + MPC86XX_DMA_OFFSET,
 			   MPC86XX_DMA_REG_SIZE);
 
 	if (!de->regbase) {
 		return (-ENOMEM);
 	}
 #endif
+
 #ifdef CONFIG_PROC_FS
 	if (!proc_root_rddma) 
 		proc_root_rddma = proc_mkdir ("rddma", proc_root_driver);
@@ -908,13 +931,13 @@ static int __init dma_rio_init(void)
 	proc_dev_dir = proc_mkdir ("rddma_rio_dma", proc_root_rddma);
 #endif
 
-	/* 
-	 * Do something like this if we add DMA to platform devices,
-	 * otherwise setup the DMA channels directly 
-	platform_driver_register(&mpc10x_rddma_driver);
-	*/
-#ifdef CONFIG_FSL_SOC
+	platform_driver_register(&mpc85xx_rddma_driver);
+
+#if 0  
+/* 85XX:  DMA chans will be setup via callback to platform driver probe func */
+#if defined(CONFIG_FSL_SOC) || defined(CONFIG_FSL_BOOKE)
 	setup_dma_channels(de);
+#endif
 #endif
 
 	/* Set up completion callback mechanism */
@@ -1034,6 +1057,20 @@ static void __exit dma_rio_close(void)
 	rddma_dma_unregister("rddma_rio_dma");
 	iounmap(de->regbase);
 	kfree(de);
+}
+
+static int __devinit mpc85xx_rddma_probe (struct platform_device *pdev)
+{
+	int status;
+	status = setup_rddma_channel (pdev);
+	return (status);
+}
+
+static int __devexit mpc85xx_rddma_remove (struct platform_device *pdev)
+{
+	printk("PIGGY! PIGGY!\n");
+	printk("start = 0x%x\n", pdev->resource[0].start);
+	return 0;
 }
 
 module_init(dma_rio_init);

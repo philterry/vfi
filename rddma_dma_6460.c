@@ -8,8 +8,9 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#define MY_DEBUG      RDDMA_DBG_DMARIO | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_DMARIO | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+
+#define MY_DEBUG      RDDMA_DBG_DMA | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
+#define MY_LIFE_DEBUG RDDMA_DBG_DMA | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
 #include <linux/rddma.h>
 #include <linux/rddma_src.h>
@@ -24,6 +25,11 @@
 #include <asm/io.h>
 #include "./mpc10xdma.h"
 #include "./ringbuf.h"
+
+
+#define LOCAL_DMA_ADDRESS_TEST
+
+static char *dma_name = "ppc8245";
 
 struct dma_engine {
 	struct rddma_dma_engine rde;
@@ -134,10 +140,12 @@ static void dma_6460_load(struct rddma_src *src)
 	struct seg_desc *rio = (struct seg_desc *)&src->descriptor;
 	rio->paddr = (u64) __pa(rio);
 	writel(__pa(src->desc.src.offset & 0xffffffff), &rio->hw.saddr);
+#ifdef LOCAL_DMA_ADDRESS_TEST
 	/* Jimmy...Address test:  write address into source array */
 	p = (int *) ((int) src->desc.src.offset);
 	for (i = 0; i < src->desc.src.extent/4; i++)
 		*p++ = (unsigned int) p;
+#endif
 	writel(0, &rio->hw.saddr_ext);
 	writel(__pa(src->desc.dst.offset & 0xffffffff), &rio->hw.daddr);
 	writel(0, &rio->hw.daddr_ext);
@@ -185,7 +193,11 @@ static void dma_6460_link_bind(struct list_head *first, struct rddma_bind *secon
 {
 	/* Hack for now!  Use link_bind to fill out a "transfer object" */
 	struct my_xfer_object *xfo = (struct my_xfer_object *) &second->descriptor;
+#ifdef LOCAL_DMA_ADDRESS_TEST
 	xfo->xf.cb = address_test_completion;
+#else
+	xfo->xf.cb = rddma_dma_complete;
+#endif
 	xfo->xf.flags = RDDMA_BIND_READY;
 	xfo->xf.len = second->desc.src.extent;
 	xfo->desc = to_sdesc(second->dma_chain.next);
@@ -280,69 +292,23 @@ static struct rddma_dma_ops dma_6460_ops = {
 
 static void start_dma(struct ppc_dma_chan *chan, struct seg_desc *dma_desc)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s GO!! Desc @ = %p(va), %p(pa)\n", __FUNCTION__, dma_desc, 
+		sdesc_virt_to_phys(dma_desc));
 	chan->state = DMA_RUNNING;
+#if 0
 printk("SET DMA_CDAR, va = 0x%x\n",(unsigned int) dma_desc);
 printk("              pa = 0x%x\n", sdesc_virt_to_phys(dma_desc));
+#endif
 	dma_set_reg(chan, DMA_CDAR, sdesc_virt_to_phys(dma_desc));
-printk("CLEAR start bit in  DMA_MR\n");
 	dma_set_reg(chan, DMA_MR, chan->op_mode);
+#if 0
 printk("DMA_MR, GO!\n");
+#endif
 	dma_set_reg(chan, DMA_MR, chan->op_mode | DMA_MODE_START);
 
 	return;
 }
 
-#if 0
-/* This is the original test code, before completion thread */
-void send_completion (struct ppc_dma_chan *chan, struct my_xfer_object *xfo,
-	int status)
-{
-	struct seg_desc *sdesc;
-	int *p;
-	int *p2;
-	int i;
-	int len;
-	printk("DMA complete, status = 0x%x\n", status);
-	/* Address test, make sure all vals in destination equal corresponding
-	 * source addresses
-	 */
-	sdesc = xfo->desc;
-loop:
-	p = phys_to_virt(readl(&sdesc->hw.daddr));
-	p2 = phys_to_virt(readl(&sdesc->hw.saddr));
-	len = (readl(&sdesc->hw.nbytes))/4;
-	/* Compare current segment */
-	for (i = 0; i < len; i++)
-		if (*p != *p2) {
-			printk("dma failed\n");
-			goto err;
-		}
-		else {
-			if (*p2 != (unsigned int) p2)
-				printk("bogus test!\n");
-			p++; 
-			p2++; 
-		}
-        /* Next segment or terminate */
-	p2 = readl(&sdesc->hw.next);
-	if (((unsigned int) p2 & 0x1) == 0) {
-		p2 = (unsigned int) p2 & 0xffffffe0;
-		sdesc = phys_to_virt((unsigned int) p2);
-		printk("segment ok, next desc at va 0x%x\n", (unsigned int) sdesc);
-		goto loop;
-	}
-
-#if 0
-	if (xfo->xf.cb == NULL)
-		printk("DMA complete, status = 0x%x\n", status);
-#endif
-err:
-	xfo->xf.rc = RDDMA_BIND_READY;  /* Allows bind to be queued again */
-	/* Fix me! */
-}
-#endif
-
-/* This is the original test code, before completion thread */
 void address_test_completion (struct rddma_dma_descriptor *dma_desc)
 {
 	struct my_xfer_object *xfo = (struct my_xfer_object *) dma_desc;
@@ -542,7 +508,7 @@ int ppcdma_queue_chain(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
 #endif
 	spin_lock_irqsave(&chan->queuelock, flags);
 	if (chan->state != DMA_IDLE && chan->state != DMA_RUNNING) {
-printk("ppcdma_queue_chain Error in chan state\n");
+		printk("ppcdma_queue_chain Error in chan state\n");
 		/* channel in error state, don't queue this node */
 		spin_unlock_irqrestore(&chan->queuelock, flags);
 		return (-EAGAIN);
@@ -551,7 +517,6 @@ printk("ppcdma_queue_chain Error in chan state\n");
 	/* Spool the DMA chain */
 	list_add_tail(&xfo->xf.node, &chan->dma_q);
 	xfo->xf.flags = RDDMA_BIND_QUEUED;
-printk("PPCDMA_QUEUE_CHAIN bind queued\n");
 
 	/* Launch if DMA engine idle */
 	if (chan->state == DMA_IDLE) {
@@ -562,7 +527,6 @@ printk("PPCDMA_QUEUE_CHAIN bind queued\n");
 			     chan->num);
 		}
 #endif
-printk("PPCDMA_QUEUE_CHAIN call start_dma\n");
 	        chan->bytes_queued += xfo->xf.len;
 	        xfo->xf.flags = RDDMA_BIND_DMA_RUNNING;
 		start_dma(chan, seg);
@@ -575,6 +539,7 @@ static void dma_6460_queue_transfer(struct rddma_dma_descriptor *list)
 {
 	struct ppc_dma_chan *chan;
 	struct my_xfer_object *xfo = (struct my_xfer_object *) list;
+	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n", __FUNCTION__, xfo);
 	if (de->nchans == 1) {
 		ppcdma_queue_chain(&de->mpc10x_dma_chans[first_chan], xfo);
 		return;
@@ -608,7 +573,6 @@ static int setup_rddma_channel(struct platform_device *pdev)
 	struct ppc_dma_chan *chan;
 	struct resource *res;
 
-printk("Welcome to setup_rddma_channel! \n");
 	index = pdev->id;
 	if (index < first_chan || index < 0)
 		return -ELNRNG;
@@ -620,12 +584,8 @@ printk("Welcome to setup_rddma_channel! \n");
 #if 0 /* Jimmy, do we need this?? */
 	chan->device = de;
 #endif
-printk("call platform_get_resource! \n");
 	res = platform_get_resource (pdev, IORESOURCE_MEM, 0);
 	BUG_ON(!res);
-printk("call ioremap! \n");
-printk("res->start = 0x%x \n", res->start);
-printk("res->end = 0x%x \n", res->end);
 	chan->regbase = ioremap_nocache(res->start, res->end - res->start + 1);
 	chan->xfercap = DMA_MAX_XFER;
 	chan->num = index;
@@ -634,7 +594,6 @@ printk("res->end = 0x%x \n", res->end);
 	chan->op_mode = DMA_MODE_PCI_DELAY2;  /* Let's hog the bus! */
 	chan->op_mode |= DMA_MODE_ERR_INT_EN;
 	chan->op_mode |= DMA_MODE_CHAIN_INT_EN;
-printk("set op_mode! \n");
 	dma_set_reg(chan, DMA_MR, chan->op_mode);
 
 	/* Using 32-bit descriptors and addresses for now */
@@ -644,7 +603,6 @@ printk("set op_mode! \n");
 	dma_set_reg(chan, DMA_HNDAR, 0);
 
 	sprintf(chan->name, "fsl-dma.%d", index);
-printk("get irq! \n");
 	res = platform_get_resource (pdev, IORESOURCE_IRQ, 0);
 	BUG_ON(!res);
 	chan->irq = res->start;
@@ -652,17 +610,9 @@ printk("get irq! \n");
 	if (err)
 		goto err_irq;
 
-printk("initialize spinlocks! \n");
 	spin_lock_init(&chan->cleanup_lock);
 	spin_lock_init(&chan->queuelock);
 	INIT_LIST_HEAD(&chan->dma_q);
-	/* This should be made common somewhere in dmaengine.c */
-#if 0
-		ppcdma_chan->common.device = &device->common;
-		ppcdma_chan->common.client = NULL;
-		list_add_tail(&chan->common.device_node,
-			      &device->common.channels);
-#endif
 	chan->state = DMA_IDLE;
 	de->nchans++;
 #ifdef CONFIG_PROC_FS
@@ -698,10 +648,11 @@ static int __init dma_6460_init(void)
 	int err;
 	int i;
 
+printk("IN dma_6460_init!\n");
 	if ( (de = new_dma_engine()) ) {
 		rde = &de->rde;
 		de->next_channel = first_chan;
-		snprintf(rde->name, RDDMA_MAX_DMA_NAME_LEN, "%s", "rddma_rio_dma");
+		snprintf(rde->name, RDDMA_MAX_DMA_NAME_LEN, "%s", dma_name);
 	}
 	else
 		return -ENOMEM;
@@ -710,10 +661,12 @@ static int __init dma_6460_init(void)
 	if (!proc_root_rddma) 
 		proc_root_rddma = proc_mkdir ("rddma", proc_root_driver);
 
-	proc_dev_dir = proc_mkdir ("rddma_rio_dma", proc_root_rddma);
+	proc_dev_dir = proc_mkdir (dma_name, proc_root_rddma);
 #endif
 
+#if 1
 	platform_driver_register(&mpc10x_rddma_driver);
+#endif
 
 	/* Before calling register, make sure probe succeeded */
 
@@ -764,10 +717,7 @@ static int __init dma_6460_init(void)
 
 static void __exit dma_6460_close(void)
 {
-	/* Change this name if you want this DMA engine to
-	 * coexist with the real rio (8641) engine
-	 */
-	rddma_dma_unregister("rddma_rio_dma");
+	rddma_dma_unregister(dma_name);
 }
 
 static int __devinit mpc10x_rddma_probe (struct platform_device *pdev)
@@ -795,5 +745,5 @@ module_param(last_chan, int, 0);
 module_param(nevents, int, 0);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Phil Terry <pterry@micromemory.com>");
+MODULE_AUTHOR("Jimmy Blair <jblair@micromemory.com>");
 MODULE_DESCRIPTION("DMA Engine for local RDDMA on PPC8245");

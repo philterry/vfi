@@ -32,23 +32,23 @@
 #define DMA_PRIORITY_MASK 0x0f000000
 
 /* Per-channel DMA registers */
-#define DMA_MR 0x100
-#define DMA_SR 0x104
-#define DMA_ECLNDAR 0x108
-#define DMA_CLNDAR 0x10c
-#define DMA_SATR 0x110
-#define DMA_SAR 0x114
-#define DMA_DATR 0x118
-#define DMA_DAR 0x11c
-#define DMA_BCR 0x120
-#define DMA_ENLNDAR 0x124
-#define DMA_NLNDAR 0x128
-#define DMA_ECLSDAR 0x130
-#define DMA_CLSDAR 0x134
-#define DMA_ENLSDAR 0x138
-#define DMA_NLSDAR 0x13c
-#define DMA_SSR 0x140
-#define DMA_DSR 0x144
+#define DMA_MR 0x000
+#define DMA_SR 0x004
+#define DMA_ECLNDAR 0x008
+#define DMA_CLNDAR 0x00c
+#define DMA_SATR 0x010
+#define DMA_SAR 0x014
+#define DMA_DATR 0x018
+#define DMA_DAR 0x01c
+#define DMA_BCR 0x020
+#define DMA_ENLNDAR 0x024
+#define DMA_NLNDAR 0x028
+#define DMA_ECLSDAR 0x030
+#define DMA_CLSDAR 0x034
+#define DMA_ENLSDAR 0x038
+#define DMA_NLSDAR 0x03c
+#define DMA_SSR 0x040
+#define DMA_DSR 0x044
 
 /* Memory format of DMA list descriptor 
  * (must be 32-byte aligned)

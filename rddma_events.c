@@ -158,6 +158,7 @@ void rddma_events_start(struct rddma_events *events)
 {
 	struct rddma_event *ep;
 	struct list_head *entry;
+	int wait = 0;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,events);
 
@@ -170,13 +171,15 @@ void rddma_events_start(struct rddma_events *events)
 			list_for_each(entry,&events->kset.list) {
 				ep = to_rddma_event(to_kobj(entry));
 				if (ep->start_event) {
+					wait = 1;
 					events->count++;
 					ep->start_event(ep->bind);
 				}
 			}
 		}
 		spin_unlock(&events->kset.list_lock);
-		wait_for_completion(&events->dma_sync);
+		if (wait)
+			wait_for_completion(&events->dma_sync);
 		up(&events->start_lock);
 	}
 	else {
