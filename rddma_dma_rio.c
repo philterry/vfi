@@ -278,13 +278,14 @@ static void dma_rio_load(struct rddma_src *src)
 	rio->hw.next = DMA_END_OF_CHAIN;
 
 #ifdef LOCAL_DMA_ADDRESS_TEST
-	{
-	/* Jimmy...Address test:  write address into source array */
-	int *p;
-	int i;
-	p = (int *) ((int) src->desc.src.offset);
-	for (i = 0; i < src->desc.src.extent/4; i++)
-		*p++ = (unsigned int) p;
+	if (rddma_is_local(&src->desc.src) &&
+	    rddma_is_local(&src->desc.dst)) {
+		/* Jimmy...Address test:  write address into source array */
+		int *p;
+		int i;
+		p = (int *) ((int) src->desc.src.offset);
+		for (i = 0; i < src->desc.src.extent/4; i++)
+			*p++ = (unsigned int) p;
 	}
 #endif
 }
@@ -387,7 +388,7 @@ static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second
 #ifdef LOCAL_DMA_ADDRESS_TEST
 	xfo->xf.cb = address_test_completion;
 #else
-	xfo->xf.cb = NULL;
+	xfo->xf.cb = rddma_dma_complete;
 #endif
 	xfo->xf.flags = RDDMA_XFO_READY;
 	xfo->xf.len = second->desc.src.extent;
@@ -588,43 +589,7 @@ loop:
 		printk("DMA complete, status = 0x%x\n", status);
 #endif
 err:
-#if 0
-	xfo->xf.flags = RDDMA_BIND_READY;  /* Allows bind to be queued again */
-#else
-	/* Fix me! */
-	/* Decrement src/dst votes in all binds 
-	 * Transfer object is embedded in either bind or xfer struct.
-	 * Could use kobjects to figure out which it is, but for now
-	 * use conditional code
-	 */
-#ifdef PARALLELIZE_BIND_PROCESSING
-	bind = (struct rddma_bind *) dma_desc;
-	xfer = bind->xfer;
-	atomic_dec(&bind->src_votes);
-	atomic_dec(&bind->dst_votes);
-	atomic_dec(&xfer->start_votes);
-	xfo->xf.flags = RDDMA_BIND_READY;
-	/* Loop over binds */
-	list_for_each(entry,&xfer->binds->kset.list) {
-		bind = to_rddma_bind(to_kobj(entry));
-		xfo = (struct my_xfer_object *) bind;
-		if (xfo->xf.flags != RDDMA_BIND_READY)
-			return;
-	}
-
-#endif
-#ifdef SERIALIZE_BIND_PROCESSING
-	xfer = (struct rddma_xfer *) dma_desc;
-	/* Loop over binds */
-	list_for_each(entry, &xfer->binds->kset.list) {
-		bind = to_rddma_bind(to_kobj(entry));
-		atomic_dec(&bind->src_votes);
-		atomic_dec(&bind->dst_votes);
-		atomic_dec(&xfer->start_votes);
-	}
-#endif
-	up(&xfer->dma_sync);
-#endif
+	rddma_dma_complete ((struct rddma_bind *) dma_desc);
 }
 #endif /* LOCAL_DMA_ADDRESS_TEST */
 
