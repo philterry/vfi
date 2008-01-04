@@ -880,10 +880,10 @@ static int setup_rddma_channel(struct platform_device *pdev)
 #else
 	chan->proc_dir = NULL;
 #endif
-	return de->nchans;
+	return 0;
 err_irq:
 	chan->state = DMA_UNINIT;
-	return (0);
+	return (err);
 }
 #endif
 
