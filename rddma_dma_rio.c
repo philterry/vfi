@@ -93,12 +93,18 @@ static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
 static inline void dma_set_reg(struct ppc_dma_chan *chan,
 			       unsigned int offset, u32 value)
 {
+#ifdef DEBUG_ON_6460
+	return; 
+#endif
 	out_be32(chan->regbase + offset, value);
 }
 
 static inline u32 dma_get_reg(struct ppc_dma_chan *chan,
 			      unsigned int offset)
 {
+#ifdef DEBUG_ON_6460
+	return;
+#endif
 	return in_be32(chan->regbase + offset);
 }
 
@@ -372,6 +378,7 @@ static void dma_rio_load_transfer(struct rddma_xfer *xfer)
 	xfo->hw.next_ext = xfo->hw.link_ext = 0;
 	/* striding not supported for now */
 	xfo->hw.src_stride = xfo->hw.dest_stride = 0;
+	xfo->paddr = (u64) virt_to_phys(&xfo->hw);
 	return;
 }
 #endif
@@ -385,6 +392,7 @@ static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second
 	/* Hack for now!  Use link_bind to fill out a "transfer object" */
 	struct seg_desc *seg;
 	struct my_xfer_object *xfo = (struct my_xfer_object *) &second->descriptor;
+	xfo->paddr = (u64) virt_to_phys(&xfo->hw);
 #ifdef LOCAL_DMA_ADDRESS_TEST
 	xfo->xf.cb = address_test_completion;
 #else
@@ -707,6 +715,46 @@ static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
 	struct my_xfer_object *xfo)
 {
 	unsigned long flags;
+#ifdef DEBUG_ON_6460
+	struct seg_desc *sdesc;
+	void *sdesc_phys;
+
+	/* Jimmy, just dump descriptors and return! */
+
+ 	printk("List descriptor at 0x%x (pa), 0x%x (va)\n", ldesc_virt_to_phys(&xfo->hw), &xfo->hw);
+	printk("\tNext list desc extended addr = 0x%x\n", xfo->hw.next_ext);
+	printk("\tNext list desc addr = 0x%x\n",xfo->hw.next);
+	printk("\tFirst link desc extended addr = 0x%x\n", xfo->hw.link_ext);
+	printk("\tFirst link desc addr = 0x%x\n", xfo->hw.link);
+	printk("\tSource stride = 0x%x\n", xfo->hw.src_stride);
+	printk("\tDest stride = 0x%x\n", xfo->hw.dest_stride);
+
+	sdesc = (struct dma_link *) ((u32) phys_to_virt(xfo->hw.link) & 
+		0xffffffe0);
+	sdesc_phys = xfo->hw.link;
+
+print_loop:
+
+ 	printk("List descriptor at 0x%x (pa), 0x%x (va)\n", sdesc_phys, sdesc);
+	printk("\tSource attributes = 0x%x\n", sdesc->hw.src_attr);
+	printk("\tSource address = 0x%x\n",sdesc->hw.saddr);
+	printk("\tDest attributes = 0x%x\n", sdesc->hw.dest_attr);
+	printk("\tDest addr = 0x%x\n", sdesc->hw.daddr);
+	printk("\tNext link desc extended addr = 0x%x\n",sdesc->hw.next_ext);
+	printk("\tNext link desc addr  = 0x%x\n", sdesc->hw.next);
+	printk("\tByte count  = 0x%x\n", sdesc->hw.nbytes);
+	
+	sdesc->hw.next = DMA_END_OF_CHAIN;
+	if (!(sdesc->hw.next == DMA_END_OF_CHAIN)) {
+		sdesc = (struct dma_link *)
+		       	((u32) phys_to_virt(sdesc->hw.next) & 0xffffffe0);
+		sdesc_phys = sdesc->hw.next;
+		goto print_loop;
+	}
+	return 0;
+
+#endif /* DEBUG_ON_6460 */
+ 	
 
 	/* Lock interrupts -- ISR can dequeue */
 	spin_lock_irqsave(&chan->queuelock, flags);
@@ -771,7 +819,7 @@ static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
 }
 #endif
 
-#if defined(CONFIG_FSL_SOC) || defined(CONFIG_FSL_BOOKE)
+#if defined(CONFIG_FSL_SOC) || defined(CONFIG_FSL_BOOKE) || defined(CONFIG_MPC10X_BRIDGE)
 /* Initialize per-channel data structures and h/w.
  * Return number of channels.
  */
