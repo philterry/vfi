@@ -258,6 +258,13 @@ join:
 			params.dst.extent = params.src.extent = PAGE_SIZE;
 	} 
 
+	rddma_bind_load_dsts(parent);
+
+	if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
+		rddma_dma_chain_dump(&parent->dma_chain);
+
+	parent->end_of_chain = parent->dma_chain.prev;
+
 	return parent->dsts;
 
 fail_newdst:
@@ -463,6 +470,8 @@ join2:
 		else
 			params.src.extent = PAGE_SIZE;
 	} 
+
+	rddma_dst_load_srcs(parent);
 
 	return srcs;
 }

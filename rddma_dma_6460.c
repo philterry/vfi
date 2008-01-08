@@ -202,16 +202,6 @@ static void dma_6460_link_bind(struct list_head *first, struct rddma_bind *secon
 	xfo->desc = to_sdesc(second->dma_chain.next);
 printk("Descriptor address in transfer object = 0x%x\n", (unsigned int) xfo->desc);
 }
-/* This is a no-op in parallel case since binds aren't linked together */
-static void dma_6460_unlink_bind(struct list_head *first, struct rddma_bind *second)
-{
-	return;
-}
-static void dma_6460_load_transfer(struct rddma_xfer *xfer)
-{
-	/* Fill out a "transfer object" */
-	return;
-}
 
 static struct rddma_dma_engine *dma_6460_get(struct rddma_dma_engine *rde)
 {
@@ -229,8 +219,6 @@ static struct rddma_dma_ops dma_6460_ops = {
 	.link_src  = dma_6460_link_src,
 	.link_dst  = dma_6460_link_dst,
 	.link_bind = dma_6460_link_bind,
-	.unlink_bind = dma_6460_unlink_bind,
-	.load_transfer = dma_6460_load_transfer,
 	.queue_transfer = dma_6460_queue_transfer,
 	.get       = dma_6460_get,
 	.put       = dma_6460_put,
