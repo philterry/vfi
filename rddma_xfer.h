@@ -18,14 +18,10 @@
 #include <linux/rddma_location.h>
 
 struct rddma_xfer {
-#ifdef SERIALIZE_BIND_PROCESSING
-	struct rddma_dma_descriptor descriptor __attribute__ ((aligned(RDDMA_DESC_ALIGN)));
-#endif
 	struct rddma_desc_param desc;
 	struct kobject kobj;
 	struct rddma_bind *head_bind;
 	struct rddma_binds *binds;
-	struct list_head dma_chain;
 	struct semaphore dma_sync; 
 };
 

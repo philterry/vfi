@@ -185,7 +185,6 @@ static void dma_6460_link_dst(struct list_head *first, struct rddma_dst *second)
 	list_splice(&second->srcs->dma_chain, first->prev);
 }
 
-#ifdef PARALLELIZE_BIND_PROCESSING
 /* Bind doesn't need to be "linked"... Each bind is queued individually
  * Fill out its "transfer object".
  */
@@ -213,59 +212,6 @@ static void dma_6460_load_transfer(struct rddma_xfer *xfer)
 	/* Fill out a "transfer object" */
 	return;
 }
-#endif
-
-#ifdef SERIALIZE_BIND_PROCESSING
-/* Link the DMA chain in the "second" bind to the tail of "first" DMA chain */
-static void dma_6460_link_bind(struct list_head *first, struct rddma_bind *second)
-{
-	struct seg_desc *rio2;
-	struct seg_desc *riolast;
-	unsigned int val;
-	if (!list_empty(first)) {
-		riolast = to_sdesc(first->prev);
-		rio2 = to_sdesc(second->dma_chain.next);
-		val = readl(&riolast->hw.next);
-		val &= ~DMA_END_OF_CHAIN;
-		val |= (rio2->paddr & 0xffffffe0);
-		writel(val, &riolast->hw.next);
-	}
-	list_splice(&second->dma_chain, first->prev);
-}
-
-/* Unlink the DMA chain in the "second" bind from the "first" DMA chain */
-static void dma_6460_unlink_bind(struct list_head *first, struct rddma_bind *second)
-{
-	struct seg_desc *rioend = NULL;
-	struct seg_desc *rioprev = NULL;
-	struct list_head *start = second->dma_chain.next;
-	struct list_head *end = second->end_of_chain;
-	unsigned int val;
-	/* link start->prev to end->next */
-	start->prev->next = end->next;
-	end->next->prev = start->prev;
-	rioend = to_sdesc(end);
-	if (start->prev != first) {
-		rioprev = to_sdesc(start->prev);
-		rioprev->hw.next = rioend->hw.next;
-		rioprev->hw.next_ext = rioend->hw.next_ext;
-	}
-	val = readl(&rioend->hw.next);
-	val |= DMA_END_OF_CHAIN;
-	writel(val, &rioend->hw.next);
-}
-
-static void dma_6460_load_transfer(struct rddma_xfer *xfer)
-{
-	/* Fill out a "transfer object" */
-	struct my_xfer_object *xfo = (struct my_xfer_object *) &xfer->descriptor;
-	xfo->xf.cb = address_test_completion;
-	xfo->xf.flags = RDDMA_XFER_READY;
-	xfo->xf.len = xfer->desc.xfer.extent;
-	xfo->desc = to_sdesc(xfer->dma_chain.next);
-printk("Descriptor address in transfer object = 0x%x\n", (unsigned int) xfo->desc);
-}
-#endif
 
 static struct rddma_dma_engine *dma_6460_get(struct rddma_dma_engine *rde)
 {

@@ -23,22 +23,6 @@
  */
 #define OPTIMIZE_DESCRIPTORS
 
-#if 1
-/* Individually queue binds to DMA engine.
- * This allows multi-channel DMA controllers to
- * run binds in parallel.
- */
-#define PARALLELIZE_BIND_PROCESSING
-#undef SERIALIZE_BIND_PROCESSING
-#else
-/* Link all binds in a transfer into a single
- * DMA chain. DMA is parallelized on multi-channel
- * controllers, but at the transfer level.
- */
-#undef PARALLELIZE_BIND_PROCESSING
-#define SERIALIZE_BIND_PROCESSING
-#endif
-
 extern unsigned int rddma_debug_level;
 /* Debug level is treated as a four-bit level integer, when, and a 28-bit mask, who_what */
 #define RDDMA_DBG_WHEN 0xf

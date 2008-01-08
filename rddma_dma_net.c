@@ -68,76 +68,6 @@ static void dma_net_link_dst(struct list_head *first, struct rddma_dst *second)
 	list_splice(&second->srcs->dma_chain, first->prev);
 }
 
-#ifdef SERIALIZE_BIND_PROCESSING
-/* Link the DMA chain in the "second" bind to the tail of "first" DMA chain */
-static void dma_net_link_bind(struct list_head *first, struct rddma_bind *second)
-{
-	struct seg_desc *rio2;
-	struct seg_desc *riolast;
-	unsigned int val;
-	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
-	if (!list_empty(first)) {
-		riolast = to_sdesc(first->prev);
-		rio2 = to_sdesc(second->dma_chain.next);
-		val = riolast->hw.next;
-		val &= ~DMA_END_OF_CHAIN;
-		val |= rio2->paddr & 0xffffffe0;
-		riolast->hw.next = val;
-	}
-	list_splice(&second->dma_chain, first->prev);
-}
-
-/* Unlink the DMA chain in the "second" bind from the "first" DMA chain */
-static void dma_net_unlink_bind(struct list_head *first, struct rddma_bind *second)
-{
-	struct seg_desc *rioend = NULL;
-	struct seg_desc *rioprev = NULL;
-	struct list_head *start = second->dma_chain.next;
-	struct list_head *end = second->end_of_chain;
-	/* link start->prev to end->next */
-	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
-	start->prev->next = end->next;
-	end->next->prev = start->prev;
-	rioend = to_sdesc(end);
-	if (start->prev != first) {
-		rioprev = to_sdesc(start->prev);
-		rioprev->hw.next = rioend->hw.next;
-		rioprev->hw.next_ext = rioend->hw.next_ext;
-	}
-	rioend->hw.next = DMA_END_OF_CHAIN;
-}
-
-static void dma_net_load_transfer(struct rddma_xfer *xfer)
-{
-	struct my_xfer_object *xfo = (struct my_xfer_object *) &xfer->descriptor;
-	struct seg_desc *seg;
-	/* Fill out a "transfer object" */
-	RDDMA_DEBUG(MY_DEBUG,"%s xfer(%p)\n",__FUNCTION__,xfer);
-#ifdef LOCAL_DMA_ADDRESS_TEST
-	xfo->xf.cb = address_test_completion;
-#else
-	xfo->xf.cb = NULL;
-#endif
-	xfo->xf.flags = RDDMA_XFO_READY;
-	xfo->xf.len = xfer->desc.xfer.extent;
-
-	/* Fill out list descriptor! */
-
-	xfo->hw.next = DMA_END_OF_CHAIN;
-	seg = to_sdesc(xfer->dma_chain.next);
-	xfo->hw.link = seg->paddr;
-	/* list and link descriptors in low memory */
-	xfo->hw.next_ext = xfo->hw.link_ext = 0;
-	/* striding not supported for now */
-	xfo->hw.src_stride = xfo->hw.dest_stride = 0;
-	return;
-}
-#endif
-
-#ifdef PARALLELIZE_BIND_PROCESSING
-/* Bind doesn't need to be "linked"... Each bind is queued individually
- * Fill out its "transfer object".
- */
 static void dma_net_link_bind(struct list_head *first, struct rddma_bind *second)
 {
 	/* Hack for now!  Use link_bind to fill out a "transfer object" */
@@ -163,20 +93,6 @@ static void dma_net_link_bind(struct list_head *first, struct rddma_bind *second
 	xfo->hw.src_stride = xfo->hw.dest_stride = 0;
 	return;
 }
-
-/* This is a no-op in parallel case since binds aren't linked together */
-static void dma_net_unlink_bind(struct list_head *first, struct rddma_bind *second)
-{
-	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
-	return;
-}
-static void dma_net_load_transfer(struct rddma_xfer *xfer)
-{
-	RDDMA_DEBUG(MY_DEBUG,"%s xfer(%p)\n",__FUNCTION__,xfer);
-	/* Fill out a "transfer object" */
-	return;
-}
-#endif
 
 static void dma_net_cancel_transfer(struct rddma_dma_descriptor *desc)
 {
@@ -204,8 +120,6 @@ static struct rddma_dma_ops dma_net_ops = {
 	.link_src  = dma_net_link_src,
 	.link_dst  = dma_net_link_dst,
 	.link_bind = dma_net_link_bind,
-	.unlink_bind = dma_net_unlink_bind,
-	.load_transfer = dma_net_load_transfer,
 	.queue_transfer = dma_net_queue_transfer,
 	.cancel_transfer = dma_net_cancel_transfer,
 	.get       = dma_net_get,

@@ -169,12 +169,6 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_de
 	new->desc.rde = parent->desc.rde;
 	new->desc.ploc = parent;
 
-#ifdef SERIALIZE_BIND_PROCESSING  
-	/* dma chain headed at transfer level, as all binds are linked
-	 * into one continuous chain 
-	 * */
-	INIT_LIST_HEAD(&new->dma_chain);
-#endif
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
@@ -269,11 +263,7 @@ void rddma_xfer_load_binds(struct rddma_xfer *xfer, struct rddma_bind *bind)
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,xfer,bind);
 	/* Added test, and diagnostics: this call sometimes fails, and Oops the kernel */
 	if (xfer->desc.rde && xfer->desc.rde->ops && xfer->desc.rde->ops->link_bind) {
-#ifdef SERIALIZE_BIND_PROCESSING
-		xfer->desc.rde->ops->link_bind(&xfer->dma_chain, bind);
-#else
 		xfer->desc.rde->ops->link_bind(NULL, bind);
-#endif
 
 		return;
 	}

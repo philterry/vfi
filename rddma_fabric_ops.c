@@ -33,6 +33,7 @@
 /*
  * F I N D    O P E R A T I O N S
  */
+extern void rddma_dma_chain_dump(struct list_head *h);
 extern void bind_param_dump(struct rddma_bind_param *);
 
 static struct rddma_location *rddma_fabric_location_find(struct rddma_location *loc, struct rddma_desc_param *desc)
@@ -508,6 +509,13 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 
 	parent->dst_ready_event_id = event_id;
 
+	rddma_bind_load_dsts(parent);
+
+	if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
+		rddma_dma_chain_dump(&parent->dma_chain);
+
+	parent->end_of_chain = parent->dma_chain.prev;
+
 	dev_kfree_skb(skb);
 	rddma_clean_bind(&reply);
 	return dsts;
@@ -654,6 +662,8 @@ static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, str
 		if (sscanf(event_str,"%d",&bind->src_done_event_id) != 1)
 			goto result_fail;
 	}
+
+	rddma_dst_load_srcs(parent);
 
 	rddma_clean_bind(&reply);
 	dev_kfree_skb(skb);

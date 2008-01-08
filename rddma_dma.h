@@ -107,8 +107,6 @@ struct rddma_dma_ops {
 	void (*link_src)(struct list_head *, struct rddma_src *);
 	void (*link_dst)(struct list_head *, struct rddma_dst *);
 	void (*link_bind)(struct list_head *, struct rddma_bind *);
-	void (*unlink_bind)(struct list_head *, struct rddma_bind *);
-	void (*load_transfer)(struct rddma_xfer *);
 	void (*queue_transfer)(struct rddma_dma_descriptor *);
 	void (*cancel_transfer)(struct rddma_dma_descriptor *);
 	struct rddma_dma_chan *(*alloc_chan)(void);

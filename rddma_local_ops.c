@@ -317,14 +317,9 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 				goto fail_dst;
 
 			rddma_xfer_load_binds(xfer,bind);
-	
+
 			if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
-#ifdef SERIALIZE_BIND_PROCESSING
-				rddma_dma_chain_dump(&xfer->dma_chain);
-#else
-			/* Jimmy, "bind" was "xfer" */
-			rddma_dma_chain_dump(&bind->dma_chain);
-#endif
+				rddma_dma_chain_dump(&bind->dma_chain);
 
 			return bind;
 		}
@@ -352,18 +347,8 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 
 	dst = rddma_dst_create(parent,desc);
 	
-	if (dst) {
+	if (dst)
 		srcs = parent->desc.src.ops->srcs_create(dst,desc);
-
-		if (srcs) {
-			rddma_bind_load_dsts(parent);
-
-			if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
-				rddma_dma_chain_dump(&parent->dma_chain);
-
-			parent->end_of_chain = parent->dma_chain.prev;
-		}
-	}
 
 	return dst;
 }
@@ -490,8 +475,6 @@ static struct rddma_src *rddma_local_src_create(struct rddma_dst *parent, struct
 
 	src = rddma_src_create(parent,desc);
 
-	if (src)
-		rddma_dst_load_srcs(parent);
 	return src;
 }
 
