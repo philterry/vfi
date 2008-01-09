@@ -328,7 +328,7 @@ static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second
 #ifdef LOCAL_DMA_ADDRESS_TEST
 	xfo->xf.cb = address_test_completion;
 #else
-	xfo->xf.cb = rddma_dma_complete;
+	xfo->xf.cb = (void (*)(struct rddma_dma_descriptor *))rddma_dma_complete;
 #endif
 	xfo->xf.flags = RDDMA_XFO_READY;
 	xfo->xf.len = second->desc.src.extent;
