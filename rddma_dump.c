@@ -104,16 +104,29 @@ void rddma_dma_chain_dump(struct list_head *h)
 	struct seg_desc *dma_desc;
 	struct list_head *entry;
 	int i;
+	int src_rio_id;
+	int dest_rio_id;
 
 	i = 0;
 
 	list_for_each(entry, h) {
 		dma_desc = to_sdesc(entry);
+		printk("Descriptor %d @ 0x%x, 0x%llx (phys)\n", ++i,
+		       (unsigned int) dma_desc, dma_desc->paddr);
 #ifndef CONFIG_MPC10X_BRIDGE
-		printk("Descriptor %d @ %p, 0x%llx (phys)\n", ++i,
-		       dma_desc, dma_desc->paddr);
-		printk("	Src = 0x%x, Dest = 0x%x, len = 0x%x\n",
-		       dma_desc->hw.saddr, dma_desc->hw.daddr,
+		if (dma_desc->hw.src_attr & DMA_ATTR_BYPASS_ATMU)
+			src_rio_id = (dma_desc->hw.src_attr & 0x000003fc) >> 2;
+		else
+			src_rio_id = -1;
+
+		if (dma_desc->hw.dest_attr & DMA_ATTR_BYPASS_ATMU)
+			dest_rio_id = (dma_desc->hw.dest_attr & 0x000003fc) >> 2;
+		else
+			dest_rio_id = -1;
+
+		printk("	Src = 0x%x @ %d, Dest = 0x%x @ %d, len = 0x%x\n",
+		       dma_desc->hw.saddr, src_rio_id,
+		       dma_desc->hw.daddr, dest_rio_id,
 		       dma_desc->hw.nbytes);
 
 		if (dma_desc->hw.next == 1)
@@ -122,23 +135,23 @@ void rddma_dma_chain_dump(struct list_head *h)
 			printk("	Next = 0x%x\n", dma_desc->hw.next);
 
 #else
-		printk("Descriptor %d @ 0x%x, 0x%llx (phys)\n", ++i,
-		       (unsigned int) dma_desc, dma_desc->paddr);
 		printk("	Src = 0x%x, Dest = 0x%x, len = 0x%x\n",
-		       readl(&dma_desc->hw.saddr), readl(&dma_desc->hw.daddr),
+		       readl(&dma_desc->hw.saddr), 
+		       readl(&dma_desc->hw.daddr), 
 		       readl(&dma_desc->hw.nbytes));
 
 		if (readl(&dma_desc->hw.next) == 1)
 			printk("	<end-of-chain>\n");
 		else
 			printk("	Next = 0x%x\n", readl(&dma_desc->hw.next));
+#endif
+
 		printk("raw dump:\n");
 		{
 			int i;
-			unsigned int *p = dma_desc;
+			unsigned int *p = (unsigned int *) dma_desc;
 			for (i = 0; i < 16; i++)
 				printk("i = %d, val = 0x%x\n",i, *p++);
 		}
-#endif
 	}
 }
