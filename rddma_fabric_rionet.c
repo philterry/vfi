@@ -97,6 +97,15 @@ static inline struct fabric_address *to_fabric_address(struct rddma_fabric_addre
 	return rfa ? container_of(rfa,struct fabric_address,rfa) : NULL;
 }
 
+int get_rio_id (struct rddma_fabric_address *rfa)
+{
+	struct fabric_address *a = to_fabric_address (rfa);
+	if (a)
+		return (a->rio_id);
+	else
+		return -1;
+}
+
 static void fabric_address_release(struct kobject *kobj)
 {
 	struct fabric_address *old = kobj ? container_of(kobj, struct fabric_address, kobj) : NULL;
@@ -902,6 +911,7 @@ static int __init fabric_rionet_init(void)
 	return (rio_register_driver(&rddma_rio_drv));
 }
 
+EXPORT_SYMBOL(get_rio_id);
 module_init(fabric_rionet_init);
 module_exit(fabric_rionet_close);
 

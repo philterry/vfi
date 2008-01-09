@@ -17,6 +17,7 @@
 #include <linux/rddma_src.h>
 #include <linux/rddma_srcs.h>
 #include <linux/rddma_binds.h>
+#include <linux/rddma_fabric.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/version.h>
@@ -28,6 +29,8 @@
 
 #define SPOOL_AND_KICK
 #undef LOCAL_DMA_ADDRESS_TEST
+
+extern int get_rio_id (struct rddma_fabric_address *x);
 
 struct dma_engine {
 	struct rddma_dma_engine rde;
@@ -183,19 +186,23 @@ static struct dma_engine *new_dma_engine(void)
 }
 
 
-/* Next 3 functions are stubs */
 static int rddma_is_local(struct rddma_desc_param *src)
 {
-	return 1;
+	return ((unsigned int) src->ops ==
+	      	(unsigned int) &rddma_local_ops);
 }
 static int rddma_is_bypass_atmu(struct rddma_desc_param *src)
 {
-	return 0;
+	/* That's all we're supporting for now */
+	return 1;
 }
+
 static int rddma_rio_id(struct rddma_desc_param *src)
 {
-	return 0;
+	return (get_rio_id(src->address));
 }
+
+/* Stub for now */
 static u64 rio_to_ocn(int rio_id, u64 addr)
 {
 	return 0;
