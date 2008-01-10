@@ -556,8 +556,11 @@ static struct rddma_dst *rddma_fabric_dst_create(struct rddma_bind *parent, stru
 		int ret = -EINVAL;
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
-				dst = rddma_dst_create(parent,&reply);
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
+				dst = rddma_local_dst_find(parent,&reply);
+				if (NULL == dst)
+					dst = rddma_dst_create(parent,&reply);
+			}
 			rddma_clean_bind(&reply);
 		}
 	}
