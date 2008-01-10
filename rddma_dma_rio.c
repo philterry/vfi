@@ -186,9 +186,9 @@ static struct dma_engine *new_dma_engine(void)
 }
 
 
-static int rddma_is_local(struct rddma_desc_param *src)
+static int rddma_is_local(struct rddma_desc_param *desc)
 {
-	return ((unsigned int) src->ops ==
+	return ((unsigned int) desc->ops ==
 	      	(unsigned int) &rddma_local_ops);
 }
 static int rddma_is_bypass_atmu(struct rddma_desc_param *src)
@@ -266,7 +266,7 @@ static void dma_rio_load(struct rddma_src *src)
 		rio->hw.src_attr |= DMA_ATTR_LOCAL_NOSNOOP;
 	}
 
-	if (rddma_is_local(&src->desc.dst)) {
+	if (rddma_is_local(&src->dst->desc.dst)) {
 		RDDMA_DEBUG(MY_DEBUG,"DMA destination is local, va = 0x%x\n",
 			(u32) src->desc.dst.offset);
 		phys = virt_to_phys((void *) (u32) src->desc.dst.offset);
@@ -274,7 +274,7 @@ static void dma_rio_load(struct rddma_src *src)
 		rio->hw.dest_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
 		rio->hw.dest_attr |= DMA_ATTR_LOCAL_SNOOP;
 	}
-	else if (rddma_is_bypass_atmu(&src->desc.dst)) {
+	else if (rddma_is_bypass_atmu(&src->dst->desc.dst)) {
 		RDDMA_DEBUG(MY_DEBUG,"DMA destination is remote\n");
 		RDDMA_DEBUG(MY_DEBUG,"  RIO id = %d\n",rddma_rio_id(&src->desc.dst));
 		phys = src->desc.dst.offset; /* Assume phys is 34-bit RIO addr */
