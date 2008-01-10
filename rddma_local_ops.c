@@ -715,3 +715,5 @@ struct rddma_ops rddma_local_ops = {
 	.event_start     = rddma_local_event_start,
 };
 
+EXPORT_SYMBOL (rddma_local_ops);
+
