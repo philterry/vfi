@@ -193,7 +193,7 @@ static int rddma_is_local(struct rddma_desc_param *src)
 }
 static int rddma_is_bypass_atmu(struct rddma_desc_param *src)
 {
-	/* That's all we're supporting for now */
+	/* That's all we're supporting for now, ATMU mapping comes later */
 	return 1;
 }
 
@@ -231,11 +231,13 @@ static void dma_rio_load(struct rddma_src *src)
 	rio->paddr = (u64) virt_to_phys(rio);
 
 	if (rddma_is_local(&src->desc.src)) {
+		RDDMA_DEBUG(MY_DEBUG,"DMA source is local, va = 0x%x\n",
+			(u32) src->desc.src.offset);
 		/* Stash upper 4 bits of 36-bit OCN address and
 		 * turn on snooping (for now)
 		 */
 		phys = virt_to_phys((void *) (u32) src->desc.src.offset);
-		rio->hw.saddr = phys & 0xffffffff;
+		rio->hw.saddr = phys & 0x000000ffffffffULL;
 		rio->hw.src_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
 		rio->hw.src_attr |= DMA_ATTR_LOCAL_SNOOP;
 	}
@@ -243,8 +245,10 @@ static void dma_rio_load(struct rddma_src *src)
 		/* Stash upper 2 bits of 34-bit RIO address and
 		 * turn off snooping.  This is OK for "bypass ATMU" case.
 		 */
+		RDDMA_DEBUG(MY_DEBUG,"DMA source is remote\n");
+		RDDMA_DEBUG(MY_DEBUG,"  RIO id = %d\n",rddma_rio_id(&src->desc.src));
 		phys = src->desc.src.offset;
-		rio->hw.saddr = phys & 0xffffffff;
+		rio->hw.saddr = phys & 0x00000000ffffffffULL;
 		rio->hw.src_attr = (phys >> 32) & HIGH_RIO_ADDR_MASK;
 		rio->hw.src_attr |= (DMA_ATTR_BYPASS_ATMU | DMA_ATTR_RIO | 
 			DMA_ATTR_NREAD | DMA_ATTR_HI_FLOW);
@@ -254,23 +258,27 @@ static void dma_rio_load(struct rddma_src *src)
 		/* Stash upper 4 bits of 36-bit OCN address and
 		 * turn off snooping
 		 */
-		printk("Error!! ATMU mapping not supported\n");
+		RDDMA_DEBUG(MY_DEBUG,"Error!! ATMU mapping not supported\n");
 		phys = rio_to_ocn(rddma_rio_id(&src->desc.src), 
 			src->desc.src.offset);
-		rio->hw.saddr = phys & 0xffffffff;
+		rio->hw.saddr = phys & 0x00000000ffffffffULL;
 		rio->hw.src_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
 		rio->hw.src_attr |= DMA_ATTR_LOCAL_NOSNOOP;
 	}
 
 	if (rddma_is_local(&src->desc.dst)) {
+		RDDMA_DEBUG(MY_DEBUG,"DMA destination is local, va = 0x%x\n",
+			(u32) src->desc.dst.offset);
 		phys = virt_to_phys((void *) (u32) src->desc.dst.offset);
-		rio->hw.daddr = phys & 0xffffffff;
+		rio->hw.daddr = phys & 0x00000000ffffffffULL;
 		rio->hw.dest_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
 		rio->hw.dest_attr |= DMA_ATTR_LOCAL_SNOOP;
 	}
 	else if (rddma_is_bypass_atmu(&src->desc.dst)) {
+		RDDMA_DEBUG(MY_DEBUG,"DMA destination is remote\n");
+		RDDMA_DEBUG(MY_DEBUG,"  RIO id = %d\n",rddma_rio_id(&src->desc.dst));
 		phys = src->desc.dst.offset; /* Assume phys is 34-bit RIO addr */
-		rio->hw.daddr = phys & 0xffffffff;
+		rio->hw.daddr = phys & 0x00000000ffffffffULL;
 		rio->hw.dest_attr = (phys >> 32) & HIGH_RIO_ADDR_MASK;
 		rio->hw.dest_attr |= DMA_ATTR_LOCAL_NOSNOOP;
 		rio->hw.dest_attr |= (DMA_ATTR_BYPASS_ATMU | DMA_ATTR_RIO | 
@@ -278,10 +286,10 @@ static void dma_rio_load(struct rddma_src *src)
 		rio->hw.dest_attr |= DMA_ATTR_TID(rddma_rio_id(&src->desc.dst));
 	}
 	else {
-		printk("Error!! ATMU mapping not supported\n");
+		RDDMA_DEBUG(MY_DEBUG,"Error!! ATMU mapping not supported\n");
 		phys = rio_to_ocn(rddma_rio_id(&src->desc.dst), 
 			src->desc.dst.offset);
-		rio->hw.daddr = phys & 0xffffffff;
+		rio->hw.daddr = phys & 0x00000000ffffffffULL;
 		rio->hw.dest_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
 		rio->hw.dest_attr |= DMA_ATTR_LOCAL_NOSNOOP;
 	}
