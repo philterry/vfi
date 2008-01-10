@@ -326,12 +326,14 @@ static void dma_rio_link_dst(struct list_head *first, struct rddma_dst *second)
 {
 	struct seg_desc *rio2;
 	struct seg_desc *riolast;
-	if (!list_empty(first)) {
-		riolast = to_sdesc(first->prev);
-		rio2 = to_sdesc(second->srcs->dma_chain.next);
-		riolast->hw.next = rio2->paddr & ~0x1f;	/* 64-bit safe (0xffffffe0); */
+	if (second->srcs) {
+		if (!list_empty(first)) {
+			riolast = to_sdesc(first->prev);
+			rio2 = to_sdesc(second->srcs->dma_chain.next);
+			riolast->hw.next = rio2->paddr & ~0x1f;	/* 64-bit safe (0xffffffe0); */
+		}
+		list_splice(&second->srcs->dma_chain, first->prev);
 	}
-	list_splice(&second->srcs->dma_chain, first->prev);
 }
 
 static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second)
