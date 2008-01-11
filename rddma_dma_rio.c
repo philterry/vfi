@@ -276,19 +276,19 @@ static void dma_rio_load(struct rddma_src *src)
 	}
 	else if (rddma_is_bypass_atmu(&src->dst->desc.dst)) {
 		RDDMA_DEBUG(MY_DEBUG,"DMA destination is remote\n");
-		RDDMA_DEBUG(MY_DEBUG,"  RIO id = %d\n",rddma_rio_id(&src->desc.dst));
+		RDDMA_DEBUG(MY_DEBUG,"  RIO id = %d\n",rddma_rio_id(&src->dst->desc.dst));
 		phys = src->desc.dst.offset; /* Assume phys is 34-bit RIO addr */
 		rio->hw.daddr = phys & 0x00000000ffffffffULL;
 		rio->hw.dest_attr = (phys >> 32) & HIGH_RIO_ADDR_MASK;
 		rio->hw.dest_attr |= DMA_ATTR_LOCAL_NOSNOOP;
 		rio->hw.dest_attr |= (DMA_ATTR_BYPASS_ATMU | DMA_ATTR_RIO | 
 			DMA_ATTR_NWRITE | DMA_ATTR_HI_FLOW);
-		rio->hw.dest_attr |= DMA_ATTR_TID(rddma_rio_id(&src->desc.dst));
+		rio->hw.dest_attr |= DMA_ATTR_TID(rddma_rio_id(&src->dst->desc.dst));
 	}
 	else {
 		RDDMA_DEBUG(MY_DEBUG,"Error!! ATMU mapping not supported\n");
-		phys = rio_to_ocn(rddma_rio_id(&src->desc.dst), 
-			src->desc.dst.offset);
+		phys = rio_to_ocn(rddma_rio_id(&src->dst->desc.dst), 
+			src->dst->desc.dst.offset);
 		rio->hw.daddr = phys & 0x00000000ffffffffULL;
 		rio->hw.dest_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
 		rio->hw.dest_attr |= DMA_ATTR_LOCAL_NOSNOOP;
