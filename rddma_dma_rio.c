@@ -300,7 +300,7 @@ static void dma_rio_load(struct rddma_src *src)
 
 #ifdef LOCAL_DMA_ADDRESS_TEST
 	if (rddma_is_local(&src->desc.src) &&
-	    rddma_is_local(&src->desc.dst)) {
+	    rddma_is_local(&src->dst->desc.dst)) {
 		/* Jimmy...Address test:  write address into source array */
 		int *p;
 		int i;
