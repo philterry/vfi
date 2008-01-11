@@ -620,8 +620,10 @@ static struct _rddma_event_mgr *rddma_events_init(int first, int last, int hashl
 	evmgr->first_id = first;
 	evmgr->last_id = last;
 	evmgr->hashlen = hashlen;
+	RDDMA_DEBUG(MY_DEBUG,"%s, doorbell init ok\n",__FUNCTION__);
 	return evmgr;
 bad1:
+	RDDMA_DEBUG(MY_DEBUG,"%s, doorbell init failed\n",__FUNCTION__);
 	kfree(evmgr);
 	return (NULL);
 };
@@ -647,6 +649,7 @@ static void rddma_event_dispatch(struct _rddma_event_mgr *evmgr, int id)
 		}
 	}
 	if (depth == -1) {
+		RDDMA_DEBUG(MY_DEBUG,"%s, doorbell not found!\n",__FUNCTION__);
 		return;
 	}
 
@@ -668,6 +671,7 @@ static int rddma_get_event (struct _rddma_event_mgr *evmgr, void (*cb)(void *),v
 	int i;
 	struct event_node *pevent;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	/* 'next' is bin number of next available event.
 	 * It's -1 if all events allocated.
 	 */
@@ -716,6 +720,7 @@ end_search:
 	pevent->cb = cb;
 	pevent->arg = arg;
 	pevent->id = id;
+	RDDMA_DEBUG(MY_DEBUG,"%s, doorbell = %d\n",__FUNCTION__, id);
 	ret = id;
 	evmgr->num_alloc++;
 	if (evmgr->num_alloc > evmgr->high_watermark)
@@ -893,6 +898,7 @@ static int rddma_get_doorbell (void (*cb)(void *),void * arg)
 
 static void rddma_put_doorbell(int id)
 {
+	RDDMA_DEBUG(MY_DEBUG,"%s, doorbell = %d\n",__FUNCTION__, id);
 	rddma_put_event(dbmgr, id);
 	return;
 }
