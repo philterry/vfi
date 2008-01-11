@@ -141,7 +141,8 @@ void rddma_address_unregister(struct rddma_location *loc)
 
 int rddma_doorbell_register(struct rddma_fabric_address *address, void (*callback)(void *), void *var)
 {
-	if (address->ops && address->ops->register_doorbell)
+	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	if (address->ops && address->ops->register_doorbell) 
 		return address->ops->register_doorbell(callback,var);
 	return -EINVAL;
 }
