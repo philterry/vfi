@@ -179,12 +179,14 @@ void rddma_bind_unregister(struct rddma_bind *rddma_bind)
      kobject_unregister(&rddma_bind->kobj);
 }
 
-struct rddma_bind *find_rddma_bind(struct rddma_desc_param *desc)
+struct rddma_bind *find_rddma_bind_in(struct rddma_xfer *xfer, struct rddma_desc_param *desc)
 {
-	struct rddma_xfer *xfer = NULL;
 	struct rddma_bind *bind = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
+
+	if (xfer && xfer->desc.ops)
+		return xfer->desc.ops->bind_find(xfer,desc);
 
 	xfer = find_rddma_xfer(desc);
 
