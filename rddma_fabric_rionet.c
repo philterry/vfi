@@ -139,6 +139,7 @@ static void update_fabric_address(struct fabric_address *fp, unsigned long src_i
 	if (hwaddr) {
 		RDDMA_DEBUG(MY_DEBUG,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
 		memcpy(fp->hw_address,hwaddr,ETH_ALEN);
+		fp->rio_id = hwaddr[5];
 	}
 	
 	if (ndev) {
