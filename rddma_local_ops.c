@@ -534,21 +534,8 @@ static void rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind
 		if (!list_empty (&srcs->kset.list)) {
 			list_for_each_safe (entry, safety, &srcs->kset.list) {
 				struct rddma_src      *src;
-				struct rddma_location *loc;
 				src = to_rddma_src (to_kobj (entry));
-				RDDMA_DEBUG(MY_DEBUG,"-- Delete src %s (kobj %s)...\n", src->desc.src.name, kobject_name (&src->kobj));
-				if ((loc = locate_rddma_location (NULL,&src->desc.src))) {
-					if (loc->desc.ops && loc->desc.ops->src_delete) {
-						loc->desc.ops->src_delete (parent, &src->desc);
-					}
-					else {
-						RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: \"src_delete\" operation undefined!\n");
-					}
-					rddma_location_put(loc);
-				}
-				else {
-					RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: src location cannot be identified!\n");
-				}
+				rddma_src_delete(parent,&src->desc);
 			}
 		}
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Srcs Count: %lx\n", (unsigned long)srcs->kset.kobj.kref.refcount.counter);
@@ -581,27 +568,22 @@ static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bin
 		if (!list_empty (&dsts->kset.list)) {
 			list_for_each_safe (entry, safety, &dsts->kset.list) {
 				struct rddma_dst      *dst;
-				struct rddma_location *loc;
 				dst = to_rddma_dst (to_kobj (entry));
-				RDDMA_DEBUG(MY_DEBUG,"-- Delete dst %s (kobj %s)...\n", dst->desc.dst.name, kobject_name (&dst->kobj));
-				if ((loc = locate_rddma_location (NULL,&dst->desc.dst))) {
-					if (loc->desc.ops && loc->desc.ops->dst_delete) {
-						loc->desc.ops->dst_delete (parent, &dst->desc);
-					}
-					else {
-						RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: \"dst_delete\" operation undefined!\n");
-					}
-					rddma_location_put(loc);
-				}
-				else {
-					RDDMA_DEBUG (MY_DEBUG, "xx Can\'t: dst location cannot be identified!\n");
-				}
+				dst->desc.xfer.ops->dst_delete (parent, &dst->desc);
+				rddma_dst_delete(parent,&dst->desc);
 			}
 		}
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Dsts Count: %lx\n", (unsigned long)dsts->kset.kobj.kref.refcount.counter);
 		rddma_dsts_delete (dsts);
 	}
-	
+}
+static void rddma_local_dst_delete(struct rddma_bind *parent, struct rddma_bind_param *desc)
+{
+	struct rddma_dst *dst;
+
+	dst = find_rddma_dst_in(parent,desc);
+	parent->desc.src.ops->srcs_delete(dst,desc);
+	rddma_dst_delete(parent,desc);
 }
 
 static void rddma_local_done(struct rddma_event *event)
@@ -674,6 +656,17 @@ static int rddma_local_event_start(struct rddma_location *loc, struct rddma_desc
 
 static void rddma_local_bind_delete(struct rddma_xfer *parent, struct rddma_desc_param *desc)
 {
+	struct list_head *entry, *safety;
+	if (!list_empty(&parent->binds->kset.list)) {
+		list_for_each_safe(entry,safety,&parent->binds->kset.list) {
+			struct rddma_bind *bind;
+			bind = to_rddma_bind(to_kobj(entry));
+			if (bind->desc.xfer.offset >= desc->offset &&
+			    bind->desc.xfer.offset <= desc->offset + desc->extent) {
+				bind->desc.dst.ops->dsts_delete(bind,&bind->desc);
+			}
+		}
+	}
 }
 
 static void rddma_local_xfer_delete(struct rddma_location *parent, struct rddma_desc_param *desc)
@@ -694,13 +687,14 @@ struct rddma_ops rddma_local_ops = {
 	.xfer_delete     = rddma_local_xfer_delete,
 	.xfer_find       = rddma_local_xfer_find,
 	.srcs_create     = rddma_local_srcs_create,
+	.srcs_delete     = rddma_local_srcs_delete,
 	.src_create      = rddma_local_src_create,
 	.src_delete      = rddma_src_delete,
 	.src_find        = rddma_local_src_find,
 	.dsts_create     = rddma_local_dsts_create,
 	.dsts_delete     = rddma_local_dsts_delete, 
 	.dst_create      = rddma_local_dst_create,
-	.dst_delete      = rddma_dst_delete,
+	.dst_delete      = rddma_local_dst_delete,
 	.dst_find        = rddma_local_dst_find,
 	.bind_find       = rddma_local_bind_find,
 	.bind_create     = rddma_local_bind_create,

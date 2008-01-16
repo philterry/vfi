@@ -851,6 +851,52 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 	
 }
 
+static void rddma_fabric_srcs_delete(struct rddma_dst *parent, struct rddma_bind_param *desc)
+{
+	struct sk_buff  *skb;
+	struct rddma_location *loc = parent->desc.xfer.ploc;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
+	skb = rddma_fabric_call(loc, 5, "srcs_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
+				desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
+				desc->dst.name,  desc->dst.location,  desc->dst.offset,  desc->dst.extent,
+				desc->src.name,  desc->src.location,  desc->src.offset,  desc->src.extent);
+	if (skb) {
+		struct rddma_bind_param reply;
+		if (!rddma_parse_bind(&reply,skb->data)) {
+			int ret = -EINVAL;
+			dev_kfree_skb(skb);
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
+				rddma_srcs_delete(parent->srcs);
+			rddma_clean_bind(&reply);
+		}
+	}
+}
+
+static void rddma_fabric_dsts_delete(struct rddma_bind *parent, struct rddma_bind_param *desc)
+{
+	struct sk_buff  *skb;
+	struct rddma_location *loc = parent->desc.xfer.ploc;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
+	skb = rddma_fabric_call(loc, 5, "dsts_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
+				desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
+				desc->dst.name,  desc->dst.location,  desc->dst.offset,  desc->dst.extent,
+				desc->src.name,  desc->src.location,  desc->src.offset,  desc->src.extent);
+	if (skb) {
+		struct rddma_bind_param reply;
+		if (!rddma_parse_bind(&reply,skb->data)) {
+			int ret = -EINVAL;
+			dev_kfree_skb(skb);
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
+				rddma_dsts_delete(parent->dsts);
+			rddma_clean_bind(&reply);
+		}
+	}
+}
+
 static void rddma_fabric_done(struct rddma_event *event)
 {
 	/* Nothing to be done here mate */
@@ -933,10 +979,12 @@ struct rddma_ops rddma_fabric_ops = {
 	.xfer_delete     = rddma_fabric_xfer_delete,
 	.xfer_find       = rddma_fabric_xfer_find,
 	.srcs_create     = rddma_fabric_srcs_create,
+	.srcs_delete     = rddma_fabric_srcs_delete,
 	.src_create      = rddma_fabric_src_create,
 	.src_delete      = rddma_fabric_src_delete,
 	.src_find        = rddma_fabric_src_find,
 	.dsts_create     = rddma_fabric_dsts_create,
+	.dsts_delete     = rddma_fabric_dsts_delete,
 	.dst_create      = rddma_fabric_dst_create,
 	.dst_delete      = rddma_fabric_dst_delete,
 	.dst_find        = rddma_fabric_dst_find,

@@ -61,10 +61,15 @@ static inline void rddma_smb_put(struct rddma_smb *rddma_smb)
 	if (rddma_smb) kobject_put(&rddma_smb->kobj);
 }
 
+extern struct rddma_smb *find_rddma_smb_in(struct rddma_location *,struct rddma_desc_param *);
+static inline struct rddma_smb *find_rddma_smb(struct rddma_desc_param *desc)
+{
+	return find_rddma_smb_in(NULL, desc);
+}
+
 extern struct rddma_smb *new_rddma_smb(struct rddma_location *, struct rddma_desc_param *);
 extern int rddma_smb_register(struct rddma_smb *);
 extern void rddma_smb_unregister(struct rddma_smb *);
-extern struct rddma_smb *find_rddma_smb(struct rddma_desc_param *);
 extern struct rddma_smb *rddma_smb_create(struct rddma_location *, struct rddma_desc_param *);
 extern void rddma_smb_delete(struct rddma_smb *);
 extern struct kobj_type rddma_smb_type;

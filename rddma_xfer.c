@@ -209,19 +209,21 @@ void rddma_xfer_unregister(struct rddma_xfer *rddma_xfer)
 	}
 }
 
-struct rddma_xfer *find_rddma_xfer(struct rddma_desc_param *desc)
+struct rddma_xfer *find_rddma_xfer_in(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *xfer = NULL;
-	struct rddma_location *loc;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p) ploc(%p)\n",__FUNCTION__,desc,desc->ploc);
 
-	if (desc->ploc)
-		loc = desc->ploc;
-	else
-		loc = locate_rddma_location(NULL,desc);
-
 	if (loc && loc->desc.ops && loc->desc.ops->xfer_find)
+		return loc->desc.ops->xfer_find(loc,desc);
+
+	if (desc->ploc && desc->ploc->desc.ops && desc->ploc->desc.ops->xfer_find)
+		return desc->ploc->desc.ops->xfer_find(desc->ploc,desc);
+
+	loc = locate_rddma_location(NULL,desc);
+
+	if (loc && loc->desc.ops && loc->desc.ops->xfer_find) 
 		xfer = loc->desc.ops->xfer_find(loc,desc);
 
 	desc->ploc = loc;

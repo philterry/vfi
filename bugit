@@ -59,6 +59,16 @@ $TESTPROG "bind_create://tran.fujitsu.fabric:2000/bufB.fujitsu.fabric#1000?event
 $TESTPROG "bind_create://tran.fujitsu.fabric:2000/bufA.lenovo.fabric#1000?event_name(lenovo)=bufB.lenovo.fabric#1000?event_name(lenovo)"
 $TESTPROG "bind_create://tran.fujitsu.fabric:2000/bufB.fujitsu.fabric#2000?event_name(fujitsu)=bufA.fujitsu.fabric#2000?event_name(fujitsu)"
 
+elif [ "x$1" = "xevent" ] ; then
+$TESTPROG "event_start://fred.lenovo.fabric" &
+$TESTPROG "event_start://george.fujitsu.fabric"
+
+elif [ "x$1" = "xlenovo" ] ; then
+$TESTPROG "event_start://lenovo.lenovo.fabric"
+
+elif [ "x$1" = "xfujitsu" ] ; then
+$TESTPROG "event_start://fujitsu.fujitsu.fabric"
+
 fi
 shift
 done

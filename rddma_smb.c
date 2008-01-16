@@ -195,21 +195,22 @@ void rddma_smb_unregister(struct rddma_smb *rddma_smb)
 	kobject_unregister(&rddma_smb->kobj);
 }
 
-struct rddma_smb *find_rddma_smb(struct rddma_desc_param *desc)
+struct rddma_smb *find_rddma_smb_in(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_smb *smb = NULL;
-	struct rddma_location *loc;
+
+	if (loc)
+		return loc->desc.ops->smb_find(loc,desc);
 
 	if (desc->ploc)
-		loc = desc->ploc;
-	else
-		loc = locate_rddma_location(NULL,desc);
-	
-	if (loc)
-		smb = loc->desc.ops->smb_find(loc,desc);
+		return desc->ploc->desc.ops->smb_find(loc,desc);
 
-	if (!desc->ploc)
+	loc = locate_rddma_location(NULL,desc);
+
+	if (loc) {
+		smb = loc->desc.ops->smb_find(loc,desc);
 		rddma_location_put(loc);
+	}
 
 	return smb;
 }
