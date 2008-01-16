@@ -400,6 +400,9 @@ static int fabric_register(struct rddma_location *loc)
 	
 	fna = find_fabric_address(loc->desc.offset,loc->desc.extent,0,ndev);
 	loc->desc.address = &fna->rfa;
+	if (old) {
+		fna->rio_id = old->rio_id;
+	}
 	fna->reg_loc = rddma_location_get(loc);
 
 	rddma_location_put(old->reg_loc);
