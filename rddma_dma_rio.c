@@ -199,7 +199,7 @@ static int rddma_is_bypass_atmu(struct rddma_desc_param *src)
 
 static int rddma_rio_id(struct rddma_desc_param *src)
 {
-	return (get_rio_id(src->address));
+	return (get_rio_id(src->ploc->desc.address));
 }
 
 /* Stub for now */
