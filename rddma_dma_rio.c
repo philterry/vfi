@@ -27,6 +27,10 @@
 #include <asm/io.h>
 #include "./ringbuf.h"
 
+#ifdef MY_DEBUG
+#include <linux/rio.h>
+#endif
+
 #define SPOOL_AND_KICK
 #undef LOCAL_DMA_ADDRESS_TEST
 
@@ -558,6 +562,11 @@ static void send_completion (struct ppc_dma_chan *chan,
 	complete(&de->dma_callback_sem);
 }
 
+#ifdef MY_DEBUG
+extern	int mpc85xx_rio_error_check(struct rio_mport *rddma_rio_port);
+extern	struct rio_mport *rddma_rio_port;
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
 static irqreturn_t do_interrupt(int irq, void *data, struct pt_regs *ep)
 #else
@@ -612,6 +621,11 @@ printk("DMA interrupt, status = 0x%x\n", status);
 	}
 
 printk("DMA interrupt, chan->state = 0x%x\n", chan->state);
+
+#ifdef MY_DEBUG
+if (te || pe)
+	mpc85xx_rio_error_check(rddma_rio_port);
+#endif
 
 	if (status & DMA_STAT_LIST_INTERRUPT)
 		chan->list_int++;

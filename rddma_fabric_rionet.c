@@ -60,6 +60,11 @@ struct fabric_address {
 
 static struct rio_mport *port;
 
+/* Jimmy hack: Following symbol is exported so the DMA driver can
+ * dump RIO registers 
+ */
+struct rio_mport *rddma_rio_port;
+
 struct event_node {
 	struct list_head node;
 	void (*cb) (void *);
@@ -475,6 +480,7 @@ static int  fabric_rionet_probe(struct rio_dev *rdev,
 
 	first_probe = 1;
 	port = rdev->net->hport;
+rddma_rio_port = port;
 	rio_local_read_config_32(port, RIO_SRC_OPS_CAR, &src_ops);
 	rio_local_read_config_32(port, RIO_DST_OPS_CAR, &dst_ops);
 	if (!is_rddma_rionet_capable(src_ops, dst_ops)) {
@@ -921,6 +927,7 @@ static int __init fabric_rionet_init(void)
 	return (rio_register_driver(&rddma_rio_drv));
 }
 
+EXPORT_SYMBOL(rddma_rio_port);
 EXPORT_SYMBOL(get_rio_id);
 module_init(fabric_rionet_init);
 module_exit(fabric_rionet_close);
