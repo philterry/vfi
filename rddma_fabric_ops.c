@@ -904,23 +904,30 @@ static void rddma_fabric_done(struct rddma_event *event)
 
 static void rddma_fabric_src_done(struct rddma_bind *bind)
 {
+	struct rddma_fabric_address *address;
+	
 	/* Our local DMA engine, has completed a transfer involving a
 	 * remote SMB as the source requiring us to send a done event
 	 * to the remote source so that it may adjust its votes. */
 	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	rddma_bind_src_done(bind);
-	rddma_doorbell_send(bind->desc.src.address,bind->src_done_event_id);
+	address = (bind->desc.src.address) ? : ((bind->desc.src.ploc) ? bind->desc.src.ploc->desc.address : NULL);
+	rddma_doorbell_send(address, bind->src_done_event_id);
 }
 
 static void rddma_fabric_dst_done(struct rddma_bind *bind)
 {
+	struct rddma_fabric_address *address;
+	
 	/* Our local DMA engine, has completed a transfer involving a
 	 * remote SMB as the destination requiring us to send a done
 	 * event to the remote destination so that it may adjust its
 	 * votes. */
 	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	rddma_bind_dst_done(bind);
-	rddma_doorbell_send(bind->desc.dst.address,bind->dst_done_event_id);
+	
+	address = (bind->desc.dst.address) ? : ((bind->desc.dst.ploc) ? bind->desc.dst.ploc->desc.address : NULL);
+	rddma_doorbell_send(address, bind->dst_done_event_id);
 }
 
 static void rddma_fabric_src_ready(struct rddma_bind *bind)

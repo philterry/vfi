@@ -199,6 +199,10 @@ static int rddma_is_bypass_atmu(struct rddma_desc_param *src)
 
 static int rddma_rio_id(struct rddma_desc_param *src)
 {
+	if (!src || !src->ploc) {
+		printk ("xxx %s failed - src (%p), src->ploc (%p)\n", __func__, src, (src) ? src->ploc : 0);
+		return -1;
+	}
 	return (get_rio_id(src->ploc->desc.address));
 }
 
@@ -499,7 +503,7 @@ static void address_test_completion (struct rddma_dma_descriptor *dma_desc)
 	int *p2;
 	int i;
 	int len;
-	printk("DMA complete, status = 0x%x\n", XFO_STATUS(xfo));
+	printk("%s - DMA complete, status = 0x%x\n", __func__, XFO_STATUS(xfo));
 	/* Address test, make sure all vals in destination equal corresponding
 	 * source addresses
 	 */
