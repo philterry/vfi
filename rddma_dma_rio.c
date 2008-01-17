@@ -240,7 +240,7 @@ static void dma_rio_load(struct rddma_src *src)
 		/* Stash upper 4 bits of 36-bit OCN address and
 		 * turn on snooping (for now)
 		 */
-		phys = virt_to_phys((void *) (u32) src->desc.src.offset);
+		phys = src->desc.src.offset;
 		rio->hw.saddr = phys & 0x000000ffffffffULL;
 		rio->hw.src_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
 		rio->hw.src_attr |= DMA_ATTR_LOCAL_SNOOP;
@@ -273,7 +273,7 @@ static void dma_rio_load(struct rddma_src *src)
 	if (rddma_is_local(&src->dst->desc.dst)) {
 		RDDMA_DEBUG(MY_DEBUG,"DMA destination is local, va = 0x%x\n",
 			(u32) src->desc.dst.offset);
-		phys = virt_to_phys((void *) (u32) src->desc.dst.offset);
+		phys = src->desc.dst.offset;
 		rio->hw.daddr = phys & 0x00000000ffffffffULL;
 		rio->hw.dest_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
 		rio->hw.dest_attr |= DMA_ATTR_LOCAL_SNOOP;
@@ -284,9 +284,8 @@ static void dma_rio_load(struct rddma_src *src)
 		phys = src->desc.dst.offset; /* Assume phys is 34-bit RIO addr */
 		rio->hw.daddr = phys & 0x00000000ffffffffULL;
 		rio->hw.dest_attr = (phys >> 32) & HIGH_RIO_ADDR_MASK;
-		rio->hw.dest_attr |= DMA_ATTR_LOCAL_NOSNOOP;
 		rio->hw.dest_attr |= (DMA_ATTR_BYPASS_ATMU | DMA_ATTR_RIO | 
-			DMA_ATTR_NWRITE | DMA_ATTR_HI_FLOW);
+			DMA_ATTR_SWRITE | DMA_ATTR_HI_FLOW);
 		rio->hw.dest_attr |= DMA_ATTR_TID(rddma_rio_id(&src->dst->desc.dst));
 	}
 	else {
