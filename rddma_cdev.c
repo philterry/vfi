@@ -115,7 +115,7 @@ out:
 static ssize_t rddma_real_write(struct mybuffers *mybuf, size_t count, loff_t *offset)
 {
 	int ret;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered count=%d\n",__FUNCTION__, (int)count);
+	RDDMA_DEBUG(MY_DEBUG,"%s: count=%d, calls do_operation (...)\n",__FUNCTION__, (int)count);
 	ret = do_operation(mybuf->buf, mybuf->reply, 1024-sizeof(struct mybuffers));
 
 	if ( ret < 0 ) {

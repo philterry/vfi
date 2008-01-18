@@ -61,7 +61,7 @@ static void fabric_do_rqst(struct work_struct *wo)
 
 	cb->rply_skb = dev_alloc_skb(2048);
 	skb_reserve(cb->rply_skb,128);
-
+	RDDMA_DEBUG (MY_DEBUG, "> %s calls do_operation (...)\n", __func__);
 	ret = do_operation(cb->rqst_skb->data,cb->rply_skb->data,1928);
 	RDDMA_ASSERT(ret < 1928, "reply truncated need reply buffer bigger than 2048!");
 
@@ -155,8 +155,15 @@ void rddma_doorbell_unregister(struct rddma_fabric_address *address, int doorbel
 
 void rddma_doorbell_send(struct rddma_fabric_address *address, int doorbell)
 {
-	if (address && address->ops && address->ops->doorbell)
+	if (address && address->ops && address->ops->doorbell) {
 		address->ops->doorbell(address, doorbell);
+	}
+	else {
+		RDDMA_DEBUG (MY_DEBUG, "xxx %s address (%p), address->ops (%p), address->ops->doorbell (%p)\n", __func__, 
+		        address, 
+		        (address) ? address->ops : NULL,
+		        (address && address->ops) ? address->ops->doorbell : NULL);
+	}
 }
 
 struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, ...)

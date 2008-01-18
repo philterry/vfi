@@ -599,7 +599,7 @@ static int rddma_fabric_src_events(struct rddma_dst *parent, struct rddma_bind_p
 		bind->src_ready_event_id = event_id;
 		
 		event_id = rddma_doorbell_register(bind->desc.xfer.address,
-						   (void (*)(void *))bind->desc.dst.ops->dst_done,
+						   (void (*)(void *))bind->desc.src.ops->src_done,
 						   (void *)bind);
 
 		bind->src_done_event = rddma_event_create(event_list,&desc->src,bind,0,event_id);
