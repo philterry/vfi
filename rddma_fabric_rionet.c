@@ -480,7 +480,12 @@ static int  fabric_rionet_probe(struct rio_dev *rdev,
 
 	first_probe = 1;
 	port = rdev->net->hport;
-rddma_rio_port = port;
+	rddma_rio_port = port;
+	/* Jimmy -- map inbound window, low 1G for now */
+	port->mops->map_inb(port, 0,   /* rio start */
+		0, 		/* mem start */
+		0x40000000,     /* size */
+		0); 		/* flags */
 	rio_local_read_config_32(port, RIO_SRC_OPS_CAR, &src_ops);
 	rio_local_read_config_32(port, RIO_DST_OPS_CAR, &dst_ops);
 	if (!is_rddma_rionet_capable(src_ops, dst_ops)) {

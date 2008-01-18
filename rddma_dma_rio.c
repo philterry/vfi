@@ -587,6 +587,10 @@ printk("DMA interrupt, status = 0x%x\n", status);
 
 	/* Figure out the channel state */
 	cb = status & DMA_STAT_CB;
+#if 0  
+/* Jimmy, wrong!  we do get interrupts with status 0x84, which
+ * is "error" and "running"... fix later
+ */
 	if (cb) {
 		chan->state = DMA_RUNNING;
 		/* Only valid interrupt in which channel continues
@@ -602,6 +606,7 @@ printk("DMA interrupt, status = 0x%x\n", status);
 
 		return (IRQ_HANDLED);
 	}
+#endif
 
 	chan->state = DMA_IDLE;
 
