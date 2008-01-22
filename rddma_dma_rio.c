@@ -306,14 +306,16 @@ static void dma_rio_load(struct rddma_src *src)
 	rio->hw.next = DMA_END_OF_CHAIN;
 
 #ifdef LOCAL_DMA_ADDRESS_TEST
-	if (rddma_is_local(&src->desc.src) &&
-	    rddma_is_local(&src->dst->desc.dst)) {
-		/* Jimmy...Address test:  write address into source array */
+	if (rddma_is_local(&src->desc.src)) {
+		/* Write (32-bit) physical address into source array */
 		int *p;
+		unsigned int phys;
 		int i;
-		p = (int *) ((int) src->desc.src.offset);
-		for (i = 0; i < src->desc.src.extent/4; i++)
-			*p++ = (unsigned int) p;
+		printk("initialize address test data\n");
+		p = (int *) phys_to_virt(src->desc.src.offset);
+		phys = (unsigned int) src->desc.src.offset;
+		for (i = 0; i < src->desc.src.extent/4; i++, phys +=4)
+			*p++ = phys;
 	}
 #endif
 }
@@ -350,7 +352,14 @@ static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second
 	struct my_xfer_object *xfo = (struct my_xfer_object *) &second->descriptor;
 	xfo->paddr = (u64) virt_to_phys(&xfo->hw);
 #ifdef LOCAL_DMA_ADDRESS_TEST
-	xfo->xf.cb = address_test_completion;
+	/* Only if destination is local */
+	if (rddma_is_local(&second->desc.dst)) {
+		printk("add address test!\n");
+		xfo->xf.cb = address_test_completion;
+	}
+	else
+		xfo->xf.cb = (void (*)(struct rddma_dma_descriptor *))rddma_dma_complete;
+
 #else
 	xfo->xf.cb = (void (*)(struct rddma_dma_descriptor *))rddma_dma_complete;
 #endif
@@ -494,7 +503,6 @@ static void dma_rio_put(struct rddma_dma_engine *rde)
 }
 
 #ifdef LOCAL_DMA_ADDRESS_TEST
-/* This is the original test code, before completion thread */
 static void address_test_completion (struct rddma_dma_descriptor *dma_desc)
 {
 	struct my_xfer_object *xfo = (struct my_xfer_object *) dma_desc;
@@ -504,6 +512,7 @@ static void address_test_completion (struct rddma_dma_descriptor *dma_desc)
 	struct list_head *entry;
 	int *p;
 	int *p2;
+	int phys;
 	int i;
 	int len;
 	printk("%s - DMA complete, status = 0x%x\n", __func__, XFO_STATUS(xfo));
@@ -514,20 +523,27 @@ static void address_test_completion (struct rddma_dma_descriptor *dma_desc)
 		0xffffffe0);
 loop:
 	p = phys_to_virt(sdesc->daddr);
-	p2 = phys_to_virt(sdesc->saddr);
+	phys = sdesc->saddr;
 	len = (sdesc->nbytes)/4;
 	/* Compare current segment */
-	for (i = 0; i < len; i++)
-		if (*p != *p2) {
+	/* Destination should contain physical address of source */
+	for (i = 0; i < len; i++) {
+#if 0
+		if (i < 10)
+			printk("data = 0x%x\n",*p);
+#endif
+
+		if (*p != phys) {
 			printk("dma failed\n");
+			printk("data = 0x%x, expected = 0x%x\n",*p, phys);
 			goto err;
 		}
 		else {
-			if (*p2 != (unsigned int) p2)
-				printk("bogus test!\n");
 			p++; 
 			p2++; 
+			phys +=4;
 		}
+	}
         /* Next segment or terminate */
 	if ((sdesc->next & 0x1) == 0) {
 		sdesc = (struct dma_link *) ((u32) phys_to_virt(sdesc->next) & 
