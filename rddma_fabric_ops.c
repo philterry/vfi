@@ -747,7 +747,7 @@ static void rddma_fabric_smb_delete(struct rddma_location *loc, struct rddma_des
 	if (NULL == (smb = to_rddma_smb(kset_find_obj(&loc->smbs->kset,desc->name))) )
 		return;
 
-	skb = rddma_fabric_call(loc, 5, "smb_delete://%s", desc->name);
+	skb = rddma_fabric_call(loc, 5, "smb_delete://%s.%s", desc->name, desc->location);
 	if (skb) {
 		struct rddma_desc_param reply;
 		int ret = -EINVAL;
