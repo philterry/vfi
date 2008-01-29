@@ -147,7 +147,7 @@ struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_bind_par
 
 	rddma_clone_bind(&new->desc, desc);
 	new->kobj.ktype = &rddma_dst_type;
-	kobject_set_name(&new->kobj,"%s.%s#%llx", new->desc.dst.name, new->desc.dst.location, new->desc.dst.offset, new->desc.dst.extent);
+	kobject_set_name(&new->kobj,"%s.%s#%llx", new->desc.dst.name, new->desc.dst.location, new->desc.dst.offset);
 	new->bind = parent;
 	new->kobj.kset = &parent->dsts->kset;
 	rddma_bind_inherit(&new->desc,&parent->desc);
