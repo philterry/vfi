@@ -168,6 +168,8 @@ struct rddma_src *new_rddma_src(struct rddma_dst *parent, struct rddma_bind_para
 		new = alt;
 	}
 	rddma_clone_bind(&new->desc, desc);
+	new->desc.dst.offset = new->desc.dst.extent;
+	new->desc.dst.extent = new->desc.src.extent;
 	new->kobj.ktype = &rddma_src_type;
 	kobject_set_name(&new->kobj,"%s.%s#%llx:%x",new->desc.src.name, new->desc.src.location, new->desc.src.offset, new->desc.src.extent);
 

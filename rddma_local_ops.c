@@ -95,8 +95,8 @@ struct rddma_dst *rddma_local_dst_find(struct rddma_bind *parent, struct rddma_b
 
 	if (!buf) goto out;
 	
-	if (snprintf (buf, 2048, "%s.%s#%llx:%x",
-		      desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent
+	if (snprintf (buf, 2048, "%s.%s#%llx",
+		      desc->dst.name,desc->dst.location,desc->dst.offset
 		    ) >= 2048) {
 		goto fail_printf;
 	}
