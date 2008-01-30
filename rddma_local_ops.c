@@ -354,9 +354,14 @@ static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struc
 
 	dst = rddma_dst_create(parent,desc);
 	
-	if (dst)
+	if (dst) {
 		srcs = parent->desc.src.ops->srcs_create(dst,desc);
-
+		if (!srcs) {
+			rddma_dst_put(dst);
+			dst = NULL;
+		}
+	}
+	
 	return dst;
 }
 
@@ -463,6 +468,8 @@ join2:
 
 		params.dst.extent = params.src.extent;
 		src = parent->desc.xfer.ops->src_create(parent,&params);
+		if (!src)
+			goto fail_newsrc;
 		params.src.offset = 0;
 		params.dst.offset += params.src.extent;
 		if (page + 2 >= last_page && END_SIZE(&smb->desc,&desc->src))
@@ -474,6 +481,11 @@ join2:
 	rddma_dst_load_srcs(parent);
 
 	return srcs;
+
+fail_newsrc:
+	rddma_smb_put(smb);
+	rddma_srcs_delete(srcs);
+	return NULL;
 }
 
 static struct rddma_src *rddma_local_src_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
