@@ -19,6 +19,7 @@
 #include <linux/rddma_binds.h>
 #include <linux/rddma_fabric.h>
 #include <linux/platform_device.h>
+#include <linux/jiffies.h>
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/completion.h>
@@ -594,7 +595,10 @@ static irqreturn_t do_interrupt(int irq, void *data)
 	unsigned int cb, te, pe;
 	struct list_head *desc_node;
 	struct my_xfer_object *pdesc;
+	unsigned int jend;
 
+	jend = jiffies;
+	chan->jtotal += (jend - chan->jstart);
 	status = dma_get_reg(chan, DMA_SR);
 printk("DMA interrupt, status = 0x%x\n", status);
 
@@ -681,6 +685,7 @@ static void start_dma(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
 {
 	chan->state = DMA_RUNNING;
         xfo->xf.flags = (chan->num << 8) | RDDMA_XFO_RUNNING;
+	chan->jstart = jiffies;
 	/* Extended mode, Single write start */
 	dma_set_reg(chan, DMA_CLSDAR, ldesc_virt_to_phys(&xfo->hw));
 	return;
@@ -788,6 +793,8 @@ static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
 			chan->bogus_int);
 	len += sprintf(buf + len, " Number of errors = %d\n", 
 			chan->err_int);
+	len += sprintf(buf + len, " Channel active time = %d msec\n", 
+			chan->jtotal * 1000 / HZ);
 	return len;
 }
 #endif
