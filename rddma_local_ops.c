@@ -63,6 +63,22 @@ static struct rddma_smb *rddma_local_smb_find(struct rddma_location *parent, str
 	return smb;
 }
 
+/**
+* rddma_local_xfer_find - find an rddma_xfer object for a named xfer at the local site.
+* @parent : location where xfer officially resides (right here!)
+* @desc	  : target xfer parameter descriptor
+*
+* This function attempts to find an rddma_xfer object for the xfer described by @desc, 
+* which officially resides at this site, whose location is formally defined by @parent.
+*
+* If no such xfer exists, the function will NOT attempt to create one. This conflicts somewhat
+* with traditional "find" policy.
+*
+* The function returns a pointer to the rddma_xfer object that represents the target xfer in the
+* local tree, or NULL if nonesuch exists. It is the responsibility of the caller to create an xfer
+* in that case.
+*
+**/
 static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&parent->xfers->kset,desc->name));

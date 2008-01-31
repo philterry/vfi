@@ -372,8 +372,34 @@ out:
 	return ret;
 }
 
+/**
+* valid_extents - validate any extents quoted in a bind specification
+* @x - pointer to bind parameter block
+*
+* A bind specification has the following general form:
+*
+*	<xfer>#<xo>:<xe>/<dst-smb>#<do>:<de>=<src-smb>#<so>:<se>
+*
+* This function validates the extent fields <xe>, <de>, and <se> 
+* to ensure, if possible, that all three have the same value.
+*
+* At least one of <xe>, <de>, and <se> must be non-zero. That allows
+* default values to be assigned to unspecified extents by substitution
+* of specified values.
+*
+* All three must have the same value in the end.
+*
+* Note that this function does NOT validate extents against referenced
+* <dst-smb> or <src-smb>: so it would happily pass an extent that is greater
+* than either or both, or extents referring to non-existant SMBs.
+* 
+**/
 static int valid_extents(struct rddma_bind_param *x)
 {
+	/*
+	* Fail if <xe> == <de> == <se> == 0
+	*
+	*/
 	if ( x->xfer.extent == 0 && x->dst.extent == 0 && x->src.extent == 0 )
 		return 0;
 
@@ -391,6 +417,9 @@ static int valid_extents(struct rddma_bind_param *x)
 	if (x->xfer.extent == 0)
 		x->xfer.extent = x->dst.extent;
 
+	/*
+	* Fail if one or more extents differ from the others.
+	*/
 	if (x->xfer.extent != x->dst.extent || x->xfer.extent != x->src.extent || x->dst.extent != x->src.extent)
 		return 0;
 
@@ -661,6 +690,16 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * A bind is specified by three terms:
+ *
+ *	<xfer-spec>/<dst-spec>=<src-spec>
+ *
+ * <xfer-spec> identifies the transfer that the bind will belong to.
+ * <dst-spec> identifies the destination SMB fragment that data is to be copied to
+ * <src-spec> identifies the source SMB fragment that data is to be copied from.
+ *
+ *
  */
 static int bind_create(const char *desc, char *result, int size)
 {
@@ -671,16 +710,34 @@ static int bind_create(const char *desc, char *result, int size)
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
+	/*
+	* Parse <bind-spec> into <xfer-spec>, <dst-spec>, 
+	* and <src-spec>.
+	*
+	*/
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -EINVAL;
 
+	/*
+	* Elementary extent validation to ensure all three extents
+	* are equal in [non-zero] value. Will substitute for zero
+	* if possible. No validation of actual extents against the
+	* SMBs they refer to.
+	*/
 	if ( !valid_extents(&params) )
 		goto out;
 
 	ret = -ENODEV;
 
+	/*
+	* Try to find the xfer object in the tree. This may not be successful,
+	* in which case we will fail to retrieve a bind pointer, and will consequently
+	* return a failure reply.
+	*
+	* Sometimes that just needs to be spelled out.
+	*/
 	if ( (xfer = find_rddma_xfer(&params.xfer) ) ) {
 
 		ret = -EINVAL;

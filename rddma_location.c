@@ -287,6 +287,15 @@ struct rddma_location *find_rddma_name(struct rddma_location *loc, struct rddma_
 * If no such kobject can be found, the function will create one, with all 
 * necessary accoutrements, using rddma_location_create ().
 *
+* The function implements a recursive search for a given location, finding or
+* creating its parent before the original target. A multi-component location of
+* the form <a>.<b>.<c>... will therefore result in an inverted kobject
+* tree of the form:
+*			<c>
+*			   <b>
+*			      <a>
+*
+*
 **/
 struct rddma_location *find_rddma_location(struct rddma_location *loc, struct rddma_desc_param *params)
 {
@@ -324,6 +333,20 @@ struct rddma_location *find_rddma_location(struct rddma_location *loc, struct rd
 	return newloc;
 }
 
+/**
+* locate_rddma_location - find or create an RDDMA location within another. 
+* @loc  - location to be searched
+* @desc - parsed string containing the <loc-spec> to be found.
+*
+* Not at all an unfortunate choice of function name. Oh, no.
+*
+* I have no clear idea why this function exists. It is a wrapper for find_rddma_location
+* that ensures that name, location, offset, and extent fields in @desc are preserved. 
+*
+* As find_rddma_location is itself a recursive function, one must assume that it is
+* somewhat desctructive of name, location, offset, and extent?
+*
+**/
 struct rddma_location *locate_rddma_location(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_location *new_loc;
@@ -334,6 +357,12 @@ struct rddma_location *locate_rddma_location(struct rddma_location *loc, struct 
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,desc,desc->name,desc->location);
 
+	/*
+	* Save the name, location, offset, and extent 
+	* values contained in the @desc descriptor. 
+	* This allows @desc contents to be modified 
+	* temporarily.
+	*/
 	old_locstr = desc->location;
 	old_namestr = desc->name;
 	offset = desc->offset;
@@ -354,6 +383,13 @@ struct rddma_location *locate_rddma_location(struct rddma_location *loc, struct 
 
 	new_loc = find_rddma_location(loc,desc);
 
+	/*
+	* Restore original name, location, offset, and
+	* extent values to the descriptor.
+	*
+	* Take care to eliminate any mangling of the 
+	* original location string.
+	*/
 	desc->location = old_locstr;
 	desc->name = old_namestr;
 	desc->offset = offset;

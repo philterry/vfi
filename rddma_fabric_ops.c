@@ -169,6 +169,20 @@ static struct rddma_mmap *rddma_fabric_mmap_find(struct rddma_smb *parent, struc
 	return NULL;
 }
 
+/**
+* rddma_fabric_xfer_find - find, or create, an rddma_xfer object for a named xfer at a remote location
+* @loc	: location where xfer officially resides
+* @desc	: target xfer parameter descriptor
+*
+* This function finds an rddma_xfer object for the xfer described by @desc, which officially resides
+* at a remote fabric location defined by @loc.
+*
+* If the xfer is found to exist at that site then a stub will be created for the xfer in the local tree.
+*
+* The function returns a pointer to the rddma_xfer object that represents the target xfer in the
+* local tree. It will return NULL if no such xfer exists at the remote site.
+*
+**/
 static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
@@ -176,17 +190,36 @@ static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, str
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
+	/*
+	* Look for an existing stub for the target xfer in the local tree.
+	* 
+	*/
 	if ( (xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->name))) )
 		return xfer;
 
+	/*
+	* If no such xfer object currently exists at that site, then deliver an 
+	* "xfer_find" request to the [remote] destination to look for it there.
+	*/
 	skb = rddma_fabric_call(loc, 5, "xfer_find://%s.%s",
 				desc->name,desc->location
 				);
+	/*
+	* We need a reply...
+	*/
 	if (skb) {
 		struct rddma_desc_param reply;
 		int ret = -EINVAL;
+		/*
+		* Parse the reply into a descriptor...
+		*/
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
+			/*
+			* ...and if the reply indicates success, create a local xfer object
+			* and bind it to the location. Thus our sysfs tree now has local knowledge
+			* of this xfer's existence, though it live somewhere else.
+			*/
 			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
 				reply.extent = 0;
 				reply.offset = 0;
@@ -372,7 +405,7 @@ static struct rddma_bind *rddma_fabric_bind_create(struct rddma_xfer *parent, st
 {
 	struct sk_buff  *skb;
 	struct rddma_bind *bind = NULL;
-	struct rddma_location *loc = parent->desc.ploc;
+	struct rddma_location *loc = parent->desc.ploc;	/* Parent xfer location */
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
@@ -380,6 +413,11 @@ static struct rddma_bind *rddma_fabric_bind_create(struct rddma_xfer *parent, st
 				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
 				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,rddma_get_option(&desc->dst,"event_name"),
 				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent,rddma_get_option(&desc->src,"event_name"));
+	/*
+	* Provided we receive a reply, one that can be parsed into a bind descriptor 
+	* AND that indicates success at the remote site, then we may create a local
+	* stub for the bind and insert it into our local tree.
+	*/
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
