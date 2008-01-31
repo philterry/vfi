@@ -697,9 +697,9 @@ static struct rddma_src *rddma_fabric_src_create(struct rddma_dst *parent, struc
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	skb = rddma_fabric_call(sloc, 5, "src_create://%s.%s#%llx:%x/%s.%s#%llx:%llx=%s.%s#%llx:%x",
+	skb = rddma_fabric_call(sloc, 5, "src_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
 				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
-				desc->dst.name,desc->dst.location,parent->desc.dst.offset,desc->dst.offset,
+				desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent,
 				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
 	if (skb) {
 		struct rddma_bind_param reply;

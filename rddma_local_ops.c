@@ -449,7 +449,8 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	last_page = first_page + NUM_DMA(&smb->desc,&desc->src);
 
 	params.src.offset = START_OFFSET(&smb->desc, &desc->src);
-	params.dst.extent = params.src.extent = START_SIZE(&smb->desc, &desc->src);
+	params.dst.extent = params.dst.offset;
+	params.src.extent = START_SIZE(&smb->desc, &desc->src);
 	for ( page = first_page; page < last_page ; page++ ) {
 		params.src.offset += virt_to_phys(page_address(smb->pages[page]));
 #ifdef OPTIMIZE_DESCRIPTORS
@@ -471,7 +472,7 @@ join2:
 		if (!src)
 			goto fail_newsrc;
 		params.src.offset = 0;
-		params.dst.offset += params.src.extent;
+		params.dst.extent += params.src.extent;
 		if (page + 2 >= last_page && END_SIZE(&smb->desc,&desc->src))
 			params.src.extent = END_SIZE(&smb->desc,&desc->src);
 		else
