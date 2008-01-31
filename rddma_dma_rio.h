@@ -249,6 +249,8 @@ struct ppc_dma_chan {
 	int err_int;
 	int errors;
 	int bytes_queued;
+	int jtotal;
+	int jstart;
 	u64 bytes_tx;
 };
 
