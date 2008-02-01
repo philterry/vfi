@@ -210,14 +210,14 @@ static struct fabric_address *find_fabric_address(unsigned long idx, unsigned lo
 	struct fabric_address *fp = address_table[idx & 15];
 	struct fabric_address *new;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %lx\n",__FUNCTION__,idx);
+	RDDMA_DEBUG(MY_DEBUG,"%s idx %lx, src_idx %lx\n", __FUNCTION__, idx, src_idx);
 	RDDMA_DEBUG_SAFE(MY_DEBUG,hwaddr,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
 	if ( idx == UNKNOWN_IDX) {
 		if ( (new = find_fabric_mac(hwaddr,ndev)) )
 			return new;
 		else
 			return new_fabric_address(idx,0,hwaddr,ndev);
-	}
+		}
 
 	if (fp) {
 		if (fp->idx == idx) {
@@ -390,7 +390,7 @@ static int fabric_register(struct rddma_location *loc)
 	char *ndev_name;
 	struct net_device *ndev = NULL;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"RIONET %s entered\n",__FUNCTION__);
 
 /* 	if (old && old->reg_loc) */
 /* 		return -EEXIST; */
@@ -398,7 +398,7 @@ static int fabric_register(struct rddma_location *loc)
 	if ( (ndev_name = rddma_get_option(&loc->desc,"netdev=")) ) {
 		if ( !(ndev = dev_get_by_name(ndev_name)) )
 			return -ENODEV;
-	}
+		}
 	else if (old && old->ndev)
 		ndev = old->ndev;
 	else if ( !(ndev = dev_get_by_name(netdev_name)) )

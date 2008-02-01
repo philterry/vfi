@@ -163,7 +163,7 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_de
 	new->kobj.ktype = &rddma_xfer_type;
 	kobject_set_name(&new->kobj,"%s", desc->name);
 
-	new->kobj.kset = &parent->xfers->kset;		/* Pointer to parent location xfers kset */
+	new->kobj.kset = &parent->xfers->kset;		/* Pointer to location xfers kset, where this xfer will later hang */
 	new->desc.ops = parent->desc.ops;		/* Pointer to location core ops */
 	new->desc.address = parent->desc.address;	/* Pointer to location address ops */
 	new->desc.rde = parent->desc.rde;		/* Pointer to location DMA engine ops */
@@ -174,6 +174,17 @@ out:
 	return new;
 }
 
+/**
+* rddma_xfer_register - Register an xfer object with sysfs tree
+* @xfer : xfer object to be registered.
+*
+* This function "registers" a new xfer object, to install it within the
+* local RDDMA object hierarchy and the sysfs tree.
+*
+* Once the core xfer object has been registered with sysfs, a "binds/"
+* subdirectory (kset) is created for the xfer and registered too.
+*
+**/
 int rddma_xfer_register(struct rddma_xfer *rddma_xfer)
 {
     int ret = 0;

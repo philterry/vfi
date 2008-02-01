@@ -86,6 +86,26 @@ static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, s
 	return xfer;
 }
 
+/**
+* rddma_local_bind_find - find a bind belonging to a specified xfer
+* @parent : pointer to <xfer> object that bind belongs to
+* @desc   : <xfer> specification string
+*
+* Wha Wha Whaaaaa?... find a bind without naming it? The @parent and @desc arguments tell us 
+* nothing about the bind we are supposed to find, except the identity of the xfer object it 
+* belongs to. 
+*
+* Well, No: binds are named for their offset/extent within the xfer. So what we look for
+* is a bind named "#<xo>:<xe>". 
+*
+* This is only going to work if the offset/extent specified for the xfer are NOT its true
+* offset and extent (which increase as new binds are added to the xfer) but simply the offset and 
+* extent of the damned bind we want to look for. 
+*
+* In other words, something "smart" (read: smarmy) needs to have composed the xfer string; like
+* some other part of the code.
+*
+**/
 static struct rddma_bind *rddma_local_bind_find(struct rddma_xfer *parent, struct rddma_desc_param *desc)
 {
 	struct rddma_bind *bind = NULL;
@@ -192,6 +212,11 @@ static struct rddma_mmap *rddma_local_mmap_create(struct rddma_smb *smb, struct 
 	return rddma_mmap_create(smb,desc);
 }
 
+/**
+* rddma_local_dst_events
+*
+*
+**/
 static int rddma_local_dst_events(struct rddma_bind *bind, struct rddma_bind_param *desc)
 {
 	/* Local destination SMB with a local transfer agent. */
@@ -220,6 +245,22 @@ fail:
 	return -EINVAL;
 }
 
+/**
+* rddma_local_dsts_create - create bind destinations list, and its subsidiaries.
+* @parent : the bind object whose dst components are here being created
+* @desc   : full descriptor of the bind being created
+*
+* This function - which runs on the <dst> site of a bind - creates the list of 
+* destination objects for that bind.
+*
+* Although a bind is defined in terms of a single destination (and source) specification, 
+* it may be split into a number of parts to better match Linux page size at dst and src
+* sites.
+*
+* The dst objects are installed in a list - the dsts list - that is a kset bound to the
+* parent bind.
+*
+**/
 static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	int page, first_page, last_page;
@@ -229,6 +270,11 @@ static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, str
 
 	RDDMA_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
 
+	/*
+	* Invoke the <xfer> dst_events op, and check the result.
+	*
+	*
+	*/
 	if (parent->desc.xfer.ops->dst_events(parent,desc))
 		goto fail_events;
 
@@ -240,11 +286,22 @@ static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, str
 	if (!DESC_VALID(&dsmb->desc,&desc->dst))
 		goto fail_ddesc;
 
+	/*
+	* Decide how best to divvie-up the dst side of the full
+	* bind extent. 
+	*
+	*/
 	first_page = START_PAGE(&dsmb->desc,&desc->dst);
 	last_page = first_page + NUM_DMA(&dsmb->desc,&desc->dst);
 
 	params.dst.offset = START_OFFSET((&dsmb->desc), (&desc->dst));
 	params.src.extent = params.dst.extent = START_SIZE(&dsmb->desc, &desc->dst);
+	
+	/*
+	* And now, for each page of DMA transfers, create one dst object: in effect,
+	* a chain of dst objects that collectively cover the bind extent.
+	*
+	*/
 	for (page = first_page; page < last_page; page++) {
 		params.dst.offset += virt_to_phys(page_address(dsmb->pages[page]));
 #ifdef OPTIMIZE_DESCRIPTORS
@@ -262,6 +319,11 @@ join:
 		}
 #endif
 
+		/*
+		* Whoa - wasn't expecting this... dst_create runs on <xfer>, 
+		* not on <dst>?
+		*
+		*/
 		new = parent->desc.xfer.ops->dst_create(parent,&params);
 		if (NULL == new)
 			goto fail_newdst;
@@ -313,29 +375,95 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 		     desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent, 
 		     desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
 /* Start Atomic */
+	/*
+	* Adjust bind and xfer offset/extent values.
+	*
+	* Unless otherwise specified, the bind should begin at the
+	* current end of the xfer. The xfer extent should then increase
+	* by the bind extent.
+	*
+	* There may be a subtle flaw in this calculation: bind offset
+	* may be predefined in the descriptor, in which case it will 
+	* not be adjusted and may not be contiguous with the xfer. Not 
+	* sure what implications that might carry, if any.
+	*/
 	if (!desc->xfer.offset)
 		desc->xfer.offset = xfer->desc.extent;
 
 	xfer->desc.extent += desc->xfer.extent;
 /* End Atomic */
 
+	/*
+	* Create and register the bind object, and if that succeeds
+	* create its dsts/ subtree.
+	*
+	*/
 	if ( (bind = rddma_bind_create(xfer, desc))) {
+		/*
+		* Once the bind object has been installed in the sysfs
+		* tree, create and register its dsts subtree. Each bind
+		* object has a pointer to a dsts kset: that is what we
+		* try to create here.
+		*
+		* We begin by creating the dsts kobject/kset only, and 
+		* if that proves successful we try to build it out by
+		* populating the dst and src parts of the bind.
+		*
+		* Now: ask yourself why might we need multiple destination 
+		* objects when a bind, by definition, has one destination 
+		* component and one source component?
+		*
+		* The answer is that the complete bind is split into parts, 
+		* whose size is a function of the underlying page size.
+		* This occurs with the destination component, and with the
+		* source component, and allows different page sizes at
+		* different locations to interoperate.
+		*
+		*/
 		if ( (dsts = rddma_dsts_create(bind,desc)) ) {
+			/*
+			* The dsts object is simply a hook, beneath
+			* which we want to sling a series of bind
+			* destination specs (and beneath each of those, 
+			* a series of corresponding bind source specs).
+			*
+			* Before we do any of that, validate that the
+			* destination and source SMBs referenced by the
+			* bind exist, and are usable.
+			*
+			* 1. Destination SMB exists?
+			*
+			*/
 			if ( NULL == (dsmb = find_rddma_smb(&desc->dst)) )
 				goto fail_dsmb;
-
+			/*
+			* 2. Destination offset+extent fits inside it?
+			*/
 			if (!DESC_VALID(&dsmb->desc,&desc->dst))
 				goto fail_ddesc;
-
+			/*
+			* 3. source SMB exists?
+			*/
 			if ( NULL == (ssmb = find_rddma_smb(&desc->src)) )
 				goto fail_ddesc;
-
+			/*
+			* 4. Source offset_extent fits inside it?
+			*/
 			if (!DESC_VALID(&ssmb->desc,&desc->src))
 				goto fail_sdesc;
 
+			/*
+			* src and dst objects must inherit the various
+			* ops (and location) of their bind counterparts.
+			*
+			*/
 			rddma_inherit(&bind->desc.src,&ssmb->desc);
 			rddma_inherit(&bind->desc.dst,&dsmb->desc);
 
+			/*
+			* Create the dsts for real, and what lies beneath it.
+			*
+			*/
 			if ( NULL == bind->desc.dst.ops->dsts_create(bind,desc))
 				goto fail_dst;
 
@@ -363,6 +491,11 @@ fail_dsmb:
 	return NULL;
 }
 
+/**
+*
+*
+*
+**/
 static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_dst *dst;
@@ -610,6 +743,10 @@ static void rddma_local_dst_delete(struct rddma_bind *parent, struct rddma_bind_
 {
 	struct rddma_dst *dst;
 
+	RDDMA_DEBUG (MY_DEBUG, "%s (%s.%s#%llx:%x/%s.%s#%llx:%x=<*>)\n", __func__, 
+		desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, 
+		desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent);
+
 	dst = find_rddma_dst_in(parent,desc);
 	parent->desc.src.ops->srcs_delete(dst,desc);
 	rddma_dst_delete(parent,desc);
@@ -686,6 +823,8 @@ static int rddma_local_event_start(struct rddma_location *loc, struct rddma_desc
 static void rddma_local_bind_delete(struct rddma_xfer *parent, struct rddma_desc_param *desc)
 {
 	struct list_head *entry, *safety;
+	RDDMA_DEBUG (MY_DEBUG, "%s: (%s.%s#%llx:%x)\n", __func__, 
+			desc->name, desc->location, desc->offset, desc->extent);
 	if (!list_empty(&parent->binds->kset.list)) {
 		list_for_each_safe(entry,safety,&parent->binds->kset.list) {
 			struct rddma_bind *bind;

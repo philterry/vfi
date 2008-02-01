@@ -175,17 +175,37 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 	new->kset.kobj.ktype = &rddma_location_type;
 	kobject_set_name(&new->kset.kobj, "%s", new->desc.name);
 
+	/*
+	* Parentage: provide pointer to parent kset in the /sys/rddma hierarchy.
+	* Either we hook-up to a higher-level location, or we hook-up to /sys/rddma
+	* itself.
+	*
+	* Actual hooking does not happen here - see rddma_location_register
+	* for that.
+	*/
 	if (loc)
 		new->kset.kobj.kset = &loc->kset;
 	else
 		new->kset.kobj.kset = &rddma_subsys->kset;
 
+	/*
+	* Node identifiers: the extent and offset fields in the descriptor
+	* are overloaded in this context to provide two degrees of node
+	* identification. Neither of which is documented.
+	*
+	* Just sayin' - these are not really extents or offsets.
+	*/
 	if (!new->desc.extent && loc)
 		new->desc.extent = loc->desc.extent;
 
 	if (!new->desc.offset && loc)
 		new->desc.offset = loc->desc.offset;
 
+	/*
+	* Inherit core operations from parent location, or default to
+	* fabric ops (default_ops(public))
+	*
+	*/
 	if (!new->desc.ops ) {
 		if (loc && loc->desc.ops)
 			new->desc.ops = loc->desc.ops;
@@ -193,16 +213,35 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 			new->desc.ops = &rddma_fabric_ops;
 	}
 
+	/*
+	* Inherit Remote DMA Engine from parent, or leave unspecified.
+	*/
 	if (!new->desc.rde) {
 		if (loc && loc->desc.rde)
 			new->desc.rde = rddma_dma_get(loc->desc.rde);
 	}
 
+	/*
+	* Inherit fabric address ops from parent, or leave unspecified.
+	* The "address" - struct rddma_fabric_address - is not an actual
+	* address, but a set of ops for manipulating fabric addresses.
+	*
+	* JUST a thought: isn't all this inheritance stuff redundant
+	* because parent loc->desc is cloned at the start of this
+	* function?
+	*/
 	if (!new->desc.address) {
 		if (loc && loc->desc.address)
 			new->desc.address = rddma_fabric_get(loc->desc.address);
 	}
 
+	/*
+	* Parentage. Again.
+	*
+	* This time an explicit link to the parent's rddma_location
+	* structure, rather than the convoluted link to its kobject/kset
+	* laid down earlier for the benefit of sysfs. This one is for us.
+	*/
 	new->desc.ploc = loc;
 
 	kobject_init(&new->kset.kobj);
@@ -219,6 +258,11 @@ int rddma_location_register(struct rddma_location *rddma_location)
 	int ret = 0;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,rddma_location);
+	
+	/*
+	* Hook the new kobject into the sysfs hierarchy.
+	*
+	*/
 	if ( (ret = kobject_add(&rddma_location->kset.kobj) ) )
 		goto out;
 
@@ -226,6 +270,11 @@ int rddma_location_register(struct rddma_location *rddma_location)
 
 	ret = -ENOMEM;
 
+	/*
+	* Create ksets for subsidiary SMBs and Xfers, and register those
+	* too. Presume we don't create these when we create the new location
+	* because we want to hook-up the new location first?
+	*/
 	if ( NULL == (rddma_location->smbs = new_rddma_smbs("smbs",rddma_location)) )
 		goto fail_smbs;
 

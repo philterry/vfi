@@ -179,15 +179,41 @@ void rddma_bind_unregister(struct rddma_bind *rddma_bind)
      kobject_unregister(&rddma_bind->kobj);
 }
 
+/*
+* find_rddma_bind_in - find a bind object within some arbitrary xfer.
+* @xfer : xfer to be searched
+* @desc : xfer descriptor identifying the <xfer> component of the bind by name
+* 
+* The @xfer argument may be NULL, in which case the function fill try to find the xfer matching the
+* bind's <xfer> component.
+*
+* Hmmm... trying to find a bind using only the name of its <xfer> component. How is that going to work?
+*
+*/
 struct rddma_bind *find_rddma_bind_in(struct rddma_xfer *xfer, struct rddma_desc_param *desc)
 {
 	struct rddma_bind *bind = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
 
+	/*
+	* If an xfer has been specified up-front, invoke its
+	* bind_find op.
+	*
+	*/
 	if (xfer && xfer->desc.ops)
 		return xfer->desc.ops->bind_find(xfer,desc);
 
+	/*
+	* Otherwise try to find the xfer in the local tree, and
+	* invoke its bind_find function afterwards.
+	*
+	* This might fail - if the xfer does not exist, then 
+	* neither does the bind.
+	*
+	* We will not create a missing xfer automagically.
+	*
+	*/
 	xfer = find_rddma_xfer(desc);
 
 	if (xfer && xfer->desc.ops)

@@ -125,7 +125,7 @@ int __must_check rddma_fabric_tx(struct rddma_fabric_address *address, struct sk
 int rddma_address_register(struct rddma_location *loc)
 {
 	int ret = -EINVAL;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered for \"%s.%s\"\n",__FUNCTION__, loc->desc.name, loc->desc.location);
 
 	if (loc && loc->desc.address && loc->desc.address->ops)
 		ret = loc->desc.address->ops->register_location(loc);
@@ -170,7 +170,7 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 {
 	va_list ap;
 	struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s entered - call \"%s.%s\"\n",__FUNCTION__, (loc) ? loc->desc.name : "<NULL>", (loc) ? loc->desc.location : "<NULL>");
 	if (cb) {
 		struct sk_buff *skb = dev_alloc_skb(2048);
 		skb_reserve(skb,128);
@@ -182,12 +182,13 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 			skb_put(skb,vsprintf(skb->data,f,ap));
 			va_end(ap);
 			skb_put(skb,sprintf(skb->tail, "%crequest(%p)",strstr(skb->data,"?") ? ',' : '?', cb)); 
-			RDDMA_DEBUG(MY_DEBUG,"	%s: %s\n",__FUNCTION__, skb->data);
+			RDDMA_DEBUG(MY_DEBUG,"\t%s: %s\n",__FUNCTION__, skb->data);
 			
 			rddma_address_register(loc);
 
 			if (rddma_fabric_tx(loc->desc.address, skb)) {
 				kfree(cb);
+				RDDMA_DEBUG (MY_DEBUG, "xx\t%s: failed to transmit command over fabric!\n", __func__);
 				return NULL;
 			}
 				
@@ -196,14 +197,21 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 
 			if (wait_event_interruptible_timeout(cb->wq, (cb->rply_skb != NULL), to*HZ) == 0) {
 				kfree(cb);
+				RDDMA_DEBUG (MY_DEBUG, "xx\t%s: TIMEOUT waiting for response!\n", __func__);
 				return NULL;
 			}
 
 			skb = cb->rply_skb;
-			RDDMA_DEBUG(MY_DEBUG,"	%s: %s\n",__FUNCTION__, skb->data);
+			RDDMA_DEBUG (MY_DEBUG, "--\t%s: reply [ %s ]\n",__FUNCTION__, skb->data);
 			kfree(cb);
 			return skb;
 		}
+		else {
+			RDDMA_DEBUG (MY_DEBUG, "xx\t%s: no reply\n", __func__);
+		}
+	}
+	else {
+		RDDMA_DEBUG (MY_DEBUG, "xx\t%s failed to kzalloc a callback tag\n", __func__);
 	}
 	return NULL;
 }

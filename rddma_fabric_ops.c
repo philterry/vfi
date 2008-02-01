@@ -232,6 +232,24 @@ static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, str
 	return xfer;
 }
 
+/**
+* rddma_fabric_bind_find - find a bind belonging to a specified [remote] xfer
+* @parent : pointer to <xfer> object that bind belongs to
+* @desc   : <xfer> specification string
+*
+* Let's reiterate a point made in comments at the local version of this function: the bind
+* we are seeking is not implicitly named. Rather we construct a name using the offset and extent
+* values of the xfer it belongs to... values which, given the dynamic nature of xfer offset
+* and extent, the originator of the bind search should have frigged to match the dimensions of the
+* bind to be found. You pays your money, you takes your chance.
+*
+* What we do know for sure is that if the bind object exists at all, it does so at the <xfer> site.
+* and that is where we deliver this bind_find instruction.
+*
+* The function uses the reply it receives from <xfer> to create a stub for the bind in the local tree.
+* It returns a pointer to that object to the caller.
+*
+**/
 static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
@@ -246,6 +264,11 @@ static struct rddma_bind *rddma_fabric_bind_find(struct rddma_xfer *parent, stru
 
 	skb = rddma_fabric_call(parent->desc.ploc, 5, "bind_find://%s.%s#%llx:%x",
 				desc->name,desc->location,desc->offset,desc->extent);
+	/*
+	* What we get back in reply should be a complete specification of the bind, 
+	* including its <xfer>, <dst>, and <src> components. This allows us to instantiate
+	* a local stub for the bind (just the bind) within our object tree.
+	*/
 	if (skb) {
 		struct rddma_bind_param reply;
 		int ret = -EINVAL;
@@ -401,6 +424,14 @@ static struct rddma_mmap *rddma_fabric_mmap_create(struct rddma_smb *smb, struct
 	return NULL;
 }
 
+/**
+* rddma_fabric_bind_create
+* @parent : pointer to <xfer> object that bind belongs to
+* @desc   : <xfer> specification string
+*
+* bind_create must always run on a bind <xfer> agent.
+*
+**/
 static struct rddma_bind *rddma_fabric_bind_create(struct rddma_xfer *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
@@ -456,6 +487,14 @@ static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, s
 	return xfer;
 }
 
+/**
+* rddma_fabric_dst_events
+* @bind - bind object, subject of operation
+* @desc - descriptor of the bind
+*
+* dst_events must always run on a bind <xfer> agent.
+*
+**/
 static int rddma_fabric_dst_events(struct rddma_bind *bind, struct rddma_bind_param *desc)
 {
 	/* Local destination SMB with a remote transfer agent. */
@@ -492,6 +531,14 @@ static int rddma_fabric_dst_events(struct rddma_bind *bind, struct rddma_bind_pa
 	return -EINVAL;
 }
 
+/**
+* rddma_fabric_dsts_create
+* @parent : parent bind object
+* @desc	  : bind descriptor
+*
+* dsts_create always runs on the bind <dst> location.
+*
+**/
 static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
@@ -504,6 +551,11 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 	char *dst_event_name;
 	char *src_event_name;
 
+	/*
+	* Both the dst and the src must be bound to an event, identified
+	* by name as part of the bind descriptor.
+	*
+	*/
 	dst_event_name = rddma_get_option(&parent->desc.dst,"event_name");
 	src_event_name = rddma_get_option(&parent->desc.src,"event_name");
 
@@ -516,6 +568,15 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 	if (event_id < 0)
 		goto event_fail;
 
+	/*
+	* Create the dsts object, then send dsts_create to
+	* the remote <dst> site.
+	*
+	* We do NOT build-out the dsts subtree further; at least
+	* not directly. The only way we will ever see a subtree is
+	* if the <src> location turns out to be here.
+	* 
+	*/
 	dsts = rddma_dsts_create(parent,desc);
 
 	if (dsts == NULL)
@@ -529,6 +590,13 @@ static struct rddma_dsts *rddma_fabric_dsts_create(struct rddma_bind *parent, st
 				event_id,dst_event_name,
 				desc->src.name,desc->src.location,desc->src.offset,desc->src.extent,
 				src_event_name);
+	/*
+	* We do need to parse the reply, provided it indicates a successful
+	* creation. The reply will specify the bind in terms of its <xfer>, <dst>, 
+	* and <src> components, but should include the identity of any event
+	* associated with the <dst> component. This is the identity of the event
+	* the <dst> location will raise when the <dst> part of a bind has completed.
+	*/
 	if (skb == NULL)
 		goto skb_fail;
 	
@@ -571,6 +639,16 @@ event_fail:
 	return NULL;
 }
 
+/**
+* rddma_fabric_dst_create
+* @parent : bind object that dst belongs to
+* @desc   : bind descriptor, identifying <xfer>, <dst>, and <src> elements of the bind.
+*
+* This function is invoked to deliver a dst_create command to a bind <xfer> agent.
+*
+* dst_create always runs on the bind <xfer> agent.
+*
+**/
 static struct rddma_dst *rddma_fabric_dst_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
@@ -609,6 +687,14 @@ fail_event:
 	return NULL;
 }
 
+/**
+* rddma_fabric_src_events
+* @parent : pointer to <dst> object that bind belongs to
+* @desc   : <bind> specification string
+*
+* src_events must always run on a bind <xfer> agent.
+*
+**/
 static int rddma_fabric_src_events(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	/* Local source SMB with a remote transfer agent. */
@@ -647,6 +733,15 @@ static int rddma_fabric_src_events(struct rddma_dst *parent, struct rddma_bind_p
 	return -EINVAL;
 }
 
+/**
+* rddma_fabric_srcs_create
+* @parent : pointer to <bind> object that srcs belongs to
+* @desc   : <bind> specification string
+*
+*
+* srcs_create must always run on a bind <src> agent.
+*
+**/
 static struct rddma_srcs *rddma_fabric_srcs_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
@@ -727,6 +822,14 @@ out:
 	return NULL;
 }
 
+/**
+* rddma_fabric_src_create
+* @parent : pointer to <dst> object that src belongs to
+* @desc   : <bind> specification string
+*
+* src_create must always run on a bind <xfer> agent.
+*
+**/
 static struct rddma_src *rddma_fabric_src_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
@@ -781,6 +884,7 @@ static void rddma_fabric_smb_delete(struct rddma_location *loc, struct rddma_des
 	struct rddma_smb *smb;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s (%s.%s)\n",__FUNCTION__, desc->name, desc->location);
 
 	if (NULL == (smb = to_rddma_smb(kset_find_obj(&loc->smbs->kset,desc->name))) )
 		return;
@@ -804,6 +908,15 @@ static void rddma_fabric_mmap_delete(struct rddma_smb *smb, struct rddma_desc_pa
 
 }
 
+/**
+* rddma_fabric_bind_delete
+* @xfer
+* @desc
+*
+*
+* bind_delete must always run on the bind <xfer> agent.
+*
+**/
 static void rddma_fabric_bind_delete(struct rddma_xfer *xfer, struct rddma_desc_param *desc)
 {
 	struct sk_buff  *skb;
@@ -844,6 +957,14 @@ static void rddma_fabric_xfer_delete(struct rddma_location *loc, struct rddma_de
 	}
 }
 
+/**
+* rddma_fabric_dst_delete
+* @parent : pointer to <bind> object that dst belongs to
+* @desc   : <bind> specification string
+*
+* dst_delete must always run on the bind <xfer> agent.
+*
+**/
 static void rddma_fabric_dst_delete(struct rddma_bind *bind, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
@@ -866,6 +987,13 @@ static void rddma_fabric_dst_delete(struct rddma_bind *bind, struct rddma_bind_p
 	}
 }
 
+/**
+* rddma_fabric_src_delete
+* @parent : pointer to <dst> object that src belongs to
+* @desc   : <bind> specification string
+*
+* src_delete must always run on the bind <xfer> agent
+**/
 static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
@@ -889,6 +1017,14 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 	
 }
 
+/**
+* rddma_fabric_srcs_delete
+* @parent : pointer to <dst> object that srcs belong to
+* @desc   : <bind> specification string
+*
+* srcs_delete must always run on the bind <src> agent.
+*
+**/
 static void rddma_fabric_srcs_delete(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
@@ -912,6 +1048,15 @@ static void rddma_fabric_srcs_delete(struct rddma_dst *parent, struct rddma_bind
 	}
 }
 
+/**
+* rddma_fabric_dsts_delete
+* @parent
+* @desc
+*
+*
+* dsts_delete must always run on a bind <dst> agent.
+*
+**/
 static void rddma_fabric_dsts_delete(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;

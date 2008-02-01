@@ -159,7 +159,7 @@ struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_bin
 {
 	struct rddma_dsts *dsts = NULL;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
+	RDDMA_DEBUG(MY_DEBUG,"%s: parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
 
 	if (NULL == parent->dsts)
 		dsts = new_rddma_dsts(desc,parent);

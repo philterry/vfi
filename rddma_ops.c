@@ -1371,6 +1371,26 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * A "dsts_create" command is not issued directly by users - or, at least, should not be - 
+ * but rather as an integral part of bind_create: specifically the part that creates the
+ * bind destination sub-tree.
+ *
+ * Now, when we reach here all we can know is that the Xfer agent - which is presumably
+ * some other device on the network (or we wouldn't be here) has created the following 
+ * components of a bind:
+ *
+ * <loc>			The location, created separately
+ *     xfers/
+ *         <xfer>		The transfer, created separately
+ *             binds/
+ *             ...		Other binds we do not care about
+ *                 #<xo>:<xe>	The header for OUR bind, specifying offset and extent within the xfer.
+ *
+ * It is certain that we, here, will not know of the bind header. Our job is to create a 
+ * local stub and a subtree for it, beginning with <dsts>, a list of <dst>, and ultimately 
+ * <srcs> and a list of <src> - although source elements will be created at the <src> site.
+ *
  */
 static int dsts_create(const char *desc, char *result, int size)
 {
@@ -1382,14 +1402,29 @@ static int dsts_create(const char *desc, char *result, int size)
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
+	/*
+	* Parse the bind specification contained in the instruction into its
+	* <xfer>, <dst>, and <src> components.
+	*
+	*/
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
 	
+	/*
+	* Find the bind object in our tree. If the <xfer> agent is local,
+	* it will already be there. If the <xfer> agent is remote, then
+	* we will create a stub for it - provided it exists at the xfer site.
+	*/
 	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
 		ret = -EINVAL;
 
+		/*
+		* With the bind and its components properly identified, 
+		* invoke the dsts_create function at the <dst> site.
+		*
+		*/
 		if (bind->desc.dst.ops && bind->desc.dst.ops->dsts_create)
 			ret = ((dsts = bind->desc.dst.ops->dsts_create(bind, &params)) == NULL);
 
@@ -1582,13 +1617,15 @@ static struct ops {
 
 int do_operation(const char *cmd, char *result, int size)
 {
+	static int nested = 0;
 	int ret = -EINVAL;
 	char *sp1;
 	char test[MAX_OP_LEN + 1];
 	int toklen;
 	int found = 0;
 
-	RDDMA_DEBUG(MY_DEBUG,"#### %s entered with %s, result=%p, size=%d\n",__FUNCTION__,cmd,result, size);
+	nested++;
+	RDDMA_DEBUG (MY_DEBUG,"#### %s (%d) entered with %s, result=%p, size=%d\n",__FUNCTION__,nested,cmd,result, size);
 
 	if ( (sp1 = strstr(cmd,"://")) ) {
 		struct ops *op = &ops[0];
@@ -1613,6 +1650,8 @@ out:
 		ret = snprintf(result,size,"%s,result=10101\n" ,sp1 ? sp1+3 : cmd);
 	}
 
+	RDDMA_DEBUG (MY_DEBUG, "#### [ done_operation (%d) \"%s\" ]\n", nested, cmd);
+	nested--;
 	return ret;
 }
 
