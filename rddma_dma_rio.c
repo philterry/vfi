@@ -19,7 +19,6 @@
 #include <linux/rddma_binds.h>
 #include <linux/rddma_fabric.h>
 #include <linux/platform_device.h>
-#include <linux/jiffies.h>
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/completion.h>
@@ -27,6 +26,11 @@
 #include <linux/proc_fs.h>
 #include <asm/io.h>
 #include "./ringbuf.h"
+#ifdef RDDMA_PERF_JIFFIES
+#include <linux/jiffies.h>
+#else
+#include <asm/time.h>
+#endif
 
 #ifdef MY_DEBUG
 #include <linux/rio.h>
@@ -597,7 +601,11 @@ static irqreturn_t do_interrupt(int irq, void *data)
 	struct my_xfer_object *pdesc;
 	unsigned int jend;
 
+#ifdef RDDMA_PERF_JIFFIES
 	jend = jiffies;
+#else
+	jend = get_tbl();
+#endif
 	chan->jtotal += (jend - chan->jstart);
 	status = dma_get_reg(chan, DMA_SR);
 printk("DMA interrupt, status = 0x%x\n", status);
@@ -685,7 +693,11 @@ static void start_dma(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
 {
 	chan->state = DMA_RUNNING;
         xfo->xf.flags = (chan->num << 8) | RDDMA_XFO_RUNNING;
+#ifdef RDDMA_PERF_JIFFIES
 	chan->jstart = jiffies;
+#else
+	chan->jstart = get_tbl();
+#endif
 	/* Extended mode, Single write start */
 	dma_set_reg(chan, DMA_CLSDAR, ldesc_virt_to_phys(&xfo->hw));
 	return;
@@ -783,6 +795,7 @@ static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
 {
 	int len = 0;
 	int index = (int) data;
+	int active;
 	struct ppc_dma_chan *chan = &de->ppc8641_dma_chans[index];
 
 	len += sprintf(buf + len, " Number of DMA list complete interrupts = %d\n", 
@@ -793,8 +806,21 @@ static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
 			chan->bogus_int);
 	len += sprintf(buf + len, " Number of errors = %d\n", 
 			chan->err_int);
+#ifdef RDDMA_PERF_JIFFIES
+	/* Uses jiffies */
 	len += sprintf(buf + len, " Channel active time = %d msec\n", 
 			chan->jtotal * 1000 / HZ);
+#else
+	/* Assumes time base clock is 50 MHz */
+	active = (chan->jtotal * 1000) / 50000000;
+        if (active > 10)
+		len += sprintf(buf + len, " Channel active time = %d msec\n", 
+			active);
+	else
+		len += sprintf(buf + len, " Channel active time = %d usec\n", 
+			(chan->jtotal * 1000000) / 50000000);
+#endif
+
 	return len;
 }
 #endif
