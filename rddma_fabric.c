@@ -194,7 +194,9 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 		
 			init_waitqueue_head(&cb->wq);
 
-			if (wait_event_interruptible_timeout(cb->wq, (cb->rply_skb != NULL), to*HZ) == 0) {
+
+			/* Jimmy hack!  Increased timeout value 20x */
+			if (wait_event_interruptible_timeout(cb->wq, (cb->rply_skb != NULL), 20*to*HZ) == 0) {
 				kfree(cb);
 				return NULL;
 			}
