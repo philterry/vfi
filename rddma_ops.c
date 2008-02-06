@@ -458,7 +458,7 @@ out:
 			* Note that because mmap identifiers are huge numbers, write
 			* them as hex digits in the response.
 			*/
-			ret = snprintf(result,size,"%s?result(%d),reply(%s),mmap_offset=%lx\n",
+			ret = snprintf(result,size,"%s?result(%d),reply(%s),mmap_offset(%lx)\n",
 				       kobject_name (&mmap->kobj) ? : "<NULL>", ret, 
 				       rddma_get_option(&params,"request"),
 				       (unsigned long)mmap_to_ticket(mmap));
