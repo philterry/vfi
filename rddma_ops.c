@@ -782,28 +782,13 @@ out:
  *
  * This function handles commands of the form:
  *
- *    bind_delete://<xfer>#<xo>:<be>/<dst>#<do>:<be>=<src>#<so>:<be>
+ *    bind_delete://<xfer>#<xo>
  *
- * Where the [xfer]/[dst]=[src] triplet specifies a bind uniquely:
- *
- *	<xfer> - name of transfer the binding belongs to
+ *	<xfer> - name of xfer the binding belongs to
  *	<xo>   - Offset to the start of the bind within the transfer
- *	<be>   - Extent of the bind, in bytes
- *	<dst>  - Destination SMB that data will be copied to
- *	<do>   - Offset within Destination SMB where data will be copied to
- *	<src>  - Source SMB that data will be copied from
- *	<so>   - Offset within Source SMB where data will be copied from
  *
- * Deleting a bind involves four distinct agents: the requesting agent, who
- * receives the original command and who is running this function; the transfer 
- * agent that owns the transfer to which the bind belongs; and the source and 
- * destination agents who manage the SMBs that the bind ties together. 
- *
- * It is the TRANSFER AGENT who must co-ordinate the deletion. 
- *
- * The purpose of this function is to parse the original request into its 
- * xfer/dst/src components, and forward it to the transfer agent for execution.
- * Should the transfer agent be situated locally, command execution will commence.
+ * bind_delete must run on the Xfer agent. This function will find the named xfer 
+ * object in the local tree, and will then invoke its Xfer agent bind_delete operation.
  *
  */
 static int bind_delete(const char *desc, char *result, int size)
@@ -814,7 +799,7 @@ static int bind_delete(const char *desc, char *result, int size)
 	
 	RDDMA_DEBUG (MY_LIFE_DEBUG, "%s: \"%s\"\n", __FUNCTION__, desc);
 	if ( (ret = rddma_parse_desc(&params, desc)) ) {
-		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed to parse bind correctly\n", __FUNCTION__);
+		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed to parse bind_delete correctly\n", __FUNCTION__);
 		goto out;
 	}
 
@@ -970,6 +955,14 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * The dst_delete command is intended to be run as an integral part of a 
+ * larger bind_delete operation: it is NOT meant for casual use by applications.
+ *
+ * dst_delete runs on the <xfer> component of a <bind> that is being deleted.
+ * It is invoked during the dsts_delete action, which runs on the <dst> component of
+ * the <bind>. 
+ *
  */
 static int dst_delete(const char *desc, char *result, int size)
 {
@@ -983,12 +976,11 @@ static int dst_delete(const char *desc, char *result, int size)
 		goto out;
 
 	ret = -ENODEV;
-
 	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
 		ret = -EINVAL;
-		if ( bind->desc.dst.ops && bind->desc.dst.ops->dst_delete ) {
+		if ( bind->desc.xfer.ops && bind->desc.xfer.ops->dst_delete ) {
 			ret = 0;
-			bind->desc.dst.ops->dst_delete(bind, &params);
+			bind->desc.xfer.ops->dst_delete(bind, &params);
 		}
 	}
 
@@ -1071,6 +1063,9 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * This operation is NOT intended to be invoked directly by an application, 
+ * but rather from within the driver during bind_create.
  */
 static int src_create(const char *desc, char *result, int size)
 {
@@ -1146,9 +1141,9 @@ static int src_delete(const char *desc, char *result, int size)
 
 	if ( (dst = find_rddma_dst(&params) ) ) {
 		ret = -EINVAL;
-		if ( dst->desc.dst.ops && dst->desc.dst.ops->src_delete ) {
+		if ( dst->desc.xfer.ops && dst->desc.xfer.ops->src_delete ) {
 			ret = 0;
-			dst->desc.dst.ops->src_delete(dst, &params);
+			dst->desc.xfer.ops->src_delete(dst, &params);
 		}
 	}
 
@@ -1298,9 +1293,9 @@ static int srcs_delete(const char *desc, char *result, int size)
 	ret = -ENODEV;
 	if ( (dst = find_rddma_dst(&params) ) ) {
 		ret = -EINVAL;
-		if ( dst->desc.dst.ops && dst->desc.dst.ops->srcs_delete ) {
+		if ( dst->desc.src.ops && dst->desc.src.ops->srcs_delete  ) {
 			ret = 0;
-			dst->desc.dst.ops->srcs_delete(dst, &params);
+			dst->desc.src.ops->srcs_delete(dst, &params);
 		}
 	}
 
@@ -1416,6 +1411,7 @@ static int dsts_create(const char *desc, char *result, int size)
 	* Find the bind object in our tree. If the <xfer> agent is local,
 	* it will already be there. If the <xfer> agent is remote, then
 	* we will create a stub for it - provided it exists at the xfer site.
+	*
 	*/
 	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
 		ret = -EINVAL;
@@ -1456,6 +1452,10 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * dsts_delete is invoked as part of bind_delete, where it is expressly
+ * delivered to the <dst> agent of a bind being deleted.
+ *
  */
 static int dsts_delete(const char *desc, char *result, int size)
 {
@@ -1469,6 +1469,11 @@ static int dsts_delete(const char *desc, char *result, int size)
 		goto out;
 
 	ret = -ENODEV;
+	/*
+	* Find the target bind in the local object tree, then invoke
+	* its <dst> agent dst_delete operation.
+	*
+	*/
 	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
 		ret = -EINVAL;
 		if ( bind->desc.dst.ops && bind->desc.dst.ops->dsts_delete ) {
@@ -1623,9 +1628,9 @@ int do_operation(const char *cmd, char *result, int size)
 	char test[MAX_OP_LEN + 1];
 	int toklen;
 	int found = 0;
+	int this_nested = ++nested;
 
-	nested++;
-	RDDMA_DEBUG (MY_DEBUG,"#### %s (%d) entered with %s, result=%p, size=%d\n",__FUNCTION__,nested,cmd,result, size);
+	RDDMA_DEBUG (MY_DEBUG,"#### %s (%d) entered with %s, result=%p, size=%d\n",__FUNCTION__,this_nested,cmd,result, size);
 
 	if ( (sp1 = strstr(cmd,"://")) ) {
 		struct ops *op = &ops[0];
@@ -1650,8 +1655,8 @@ out:
 		ret = snprintf(result,size,"%s,result=10101\n" ,sp1 ? sp1+3 : cmd);
 	}
 
-	RDDMA_DEBUG (MY_DEBUG, "#### [ done_operation (%d) \"%s\" ]\n", nested, cmd);
 	nested--;
+	RDDMA_DEBUG (MY_DEBUG, "#### [ done_operation (%d) \"%s\" ]\n", this_nested, cmd);
 	return ret;
 }
 

@@ -155,6 +155,21 @@ void rddma_dsts_unregister(struct rddma_dsts *rddma_dsts)
 		kset_unregister(&rddma_dsts->kset);
 }
 
+/**
+* rddma_dsts_create - create a bind dsts kobject.
+* @parent : pointer to parent bind that dsts is to be slung under
+* @desc   : bind descriptor
+*
+* This function creates - if necessary - a <dsts> kobject and plugs it into a 
+* parent bind.
+*
+* CAUTION:
+* --------
+* It will only create a new object if none exists already, but it will always
+* register the object. That could lead to doubling-up the counts on <dsts> and its
+* relations.
+*
+**/
 struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_dsts *dsts = NULL;

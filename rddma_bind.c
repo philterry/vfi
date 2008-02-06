@@ -176,7 +176,7 @@ int rddma_bind_register(struct rddma_bind *rddma_bind)
 void rddma_bind_unregister(struct rddma_bind *rddma_bind)
 {
     
-     kobject_unregister(&rddma_bind->kobj);
+     	kobject_unregister(&rddma_bind->kobj);
 }
 
 /*
@@ -261,12 +261,20 @@ struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_
 	return new;
 }
 
+/**
+* rddma_bind_delete - remove bind object from Xfer <binds> list
+* @xfer : Xfer object that bind belongs to
+* @desc : Xfer parameter descriptor
+*
+*
+**/
 void rddma_bind_delete(struct rddma_xfer *xfer, struct rddma_desc_param *desc)
 {
 	struct rddma_bind *bind = NULL;
 	char buf[128];
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s from Xfer %s.%s#%llx:%x\n", __func__, 
+	           xfer->desc.name, xfer->desc.location, xfer->desc.offset, xfer->desc.extent);
 
 	if ( snprintf(buf,128,"#%llx:%x", desc->offset, desc->extent) > 128 )
 		goto out;
@@ -279,6 +287,12 @@ out:
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,xfer,desc,bind);
 }
 
+/**
+* rddma_bind_load_dsts - 
+* @bind : parent bind object
+*
+*
+**/
 void rddma_bind_load_dsts(struct rddma_bind *bind)
 {
 	struct list_head * entry;
