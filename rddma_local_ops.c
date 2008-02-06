@@ -467,7 +467,6 @@ join2:
 		}
 #endif
 
-		params.dst.extent = params.src.extent;
 		src = parent->desc.xfer.ops->src_create(parent,&params);
 		if (!src)
 			goto fail_newsrc;
