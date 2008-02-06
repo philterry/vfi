@@ -134,31 +134,53 @@ struct rddma_mmap *find_rddma_mmap(struct rddma_smb *smb, struct rddma_desc_para
 	mmap = to_rddma_mmap(kset_find_obj(&smb->mmaps->kset,buf));
 	return mmap;
 }
+static struct rddma_mmap *frm_by_loc(struct rddma_location *loc,unsigned long tid)
+{
+	struct rddma_location *new_loc;
+	struct rddma_smb *smb;
+	struct rddma_mmap *mmap = NULL;
+
+	spin_lock(&loc->kset.list_lock);
+	list_for_each_entry(new_loc,&loc->kset.list, kset.kobj.entry) {
+		if ((mmap = frm_by_loc(new_loc,tid)))
+			goto outloc;
+	}
+	spin_unlock(&loc->kset.list_lock);
+
+	spin_lock(&loc->smbs->kset.list_lock);
+	list_for_each_entry(smb,&loc->smbs->kset.list,kobj.entry) {
+
+		spin_lock(&smb->mmaps->kset.list_lock);
+		list_for_each_entry(mmap,&smb->mmaps->kset.list,kobj.entry) {
+			if (is_mmap_ticket(mmap,tid))
+				goto out;
+		}
+		spin_unlock(&smb->mmaps->kset.list_lock);
+	}
+	spin_unlock(&loc->smbs->kset.list_lock);
+
+	return NULL;
+out:
+	spin_unlock(&smb->mmaps->kset.list_lock);
+	spin_unlock(&loc->smbs->kset.list_lock);
+	return mmap;
+outloc:
+	spin_unlock(&loc->kset.list_lock);
+	return mmap;
+}
 
 struct rddma_mmap *find_rddma_mmap_by_id(unsigned long tid)
 {
 	struct rddma_location *loc;
-	struct rddma_smb *smb;
-	struct rddma_mmap *mmap;
+	struct rddma_mmap *mmap = NULL;
 	spin_lock(&rddma_subsys->kset.list_lock);
 	list_for_each_entry(loc, &rddma_subsys->kset.list, kset.kobj.entry) {
-		spin_lock(&loc->smbs->kset.list_lock);
-		list_for_each_entry(smb,&loc->smbs->kset.list,kobj.entry) {
-			spin_lock(&smb->mmaps->kset.list_lock);
-			list_for_each_entry(mmap,&smb->mmaps->kset.list,kobj.entry) {
-				if (is_mmap_ticket(mmap,tid)) {
-					spin_unlock(&smb->mmaps->kset.list_lock);
-					spin_unlock(&loc->smbs->kset.list_lock);
-					spin_unlock(&rddma_subsys->kset.list_lock);
-					return mmap;
-				}
-			}
-			spin_unlock(&smb->mmaps->kset.list_lock);
-		}
-		spin_unlock(&loc->smbs->kset.list_lock);
+		if ((mmap = frm_by_loc(loc,tid))) 
+			goto out;
 	}
+out:
 	spin_unlock(&rddma_subsys->kset.list_lock);
-	return NULL;
+	return mmap;
 }
 
 static int rddma_mmap_uevent_filter(struct kset *kset, struct kobject *kobj)
