@@ -404,7 +404,20 @@ static int rddma_fasync(int fd , struct file *filep, int datasync)
 #endif
 static unsigned int rddma_poll(struct file *filep, struct poll_table_struct *poll_table)
 {
-	return 0;
+	unsigned int mask = POLLOUT | POLLWRNORM;
+	struct privdata *priv = filep->private_data;
+
+	if (down_interruptible(&priv->sem))
+		return -ERESTARTSYS;
+
+	poll_wait(filep, &priv->rwq, poll_table);
+
+	if (priv->mybuf)
+		return mask |= POLLIN | POLLRDNORM;
+
+	up(&priv->sem);
+
+	return mask;
 }
 
 /**
