@@ -440,7 +440,12 @@ static struct page* rddma_mmap_nopage (struct vm_area_struct* vma, unsigned long
 		RDDMA_DEBUG (MY_DEBUG, "xx Invalid ticket!\n");
 	}
 #endif
-	return ((!tkt || pg_off >= tkt->n_pg) ? NULL : tkt->pg_tbl[pg_off]);
+	if (!tkt || pg_off >= tkt->n_pg)
+		return NULL;
+	else {
+		get_page(tkt->pg_tbl[pg_off]);
+		return (tkt->pg_tbl[pg_off]);
+	}
 	
 }
 

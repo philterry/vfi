@@ -244,21 +244,24 @@ struct rddma_mmap *rddma_mmap_create(struct rddma_smb *smb, struct rddma_desc_pa
 	unsigned long n_pg = smb->num_pages;
 	unsigned long offset = desc->offset;
 	unsigned long extent = desc->extent;
+	unsigned long firstpage;
+	unsigned long lastpage;
 	struct rddma_mmap* mmap = NULL;
 
 	RDDMA_DEBUG (MY_DEBUG, "rddma_mmap_create: %lu-bytes at offset %lu of %lu-page table %p\n", 
 		extent, offset, n_pg, pg_tbl);
-	offset >>= PAGE_SHIFT;
-	extent = (extent >> PAGE_SHIFT) + ((extent & (PAGE_SIZE-1)) ? 1 : 0);
-	if ((offset + extent) > n_pg) {
+
+	firstpage = (offset >> PAGE_SHIFT);
+	lastpage = ((offset + extent - 1) >> PAGE_SHIFT);
+	if (lastpage >= n_pg) {
 		RDDMA_DEBUG (MY_DEBUG, "xx Requested region exceeds page table.\n"); 
 		return 0;
 	}
 	
 	if ( (mmap = new_rddma_mmap(smb,desc)) ) {
 		if ( !rddma_mmap_register(mmap) ) {
-			mmap->pg_tbl = &pg_tbl[offset];
-			mmap->n_pg = n_pg - offset;
+			mmap->pg_tbl = &pg_tbl[firstpage];
+			mmap->n_pg = lastpage - firstpage + 1;
 		}
 		else {
 			rddma_mmap_put(mmap);
