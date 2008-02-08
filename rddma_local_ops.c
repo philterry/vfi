@@ -791,7 +791,6 @@ static void rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind
 				}
 			}
 		}
-		}
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Srcs Count: %lx\n", (unsigned long)srcs->kset.kobj.kref.refcount.counter);
 		rddma_srcs_delete (srcs);
 	}
@@ -834,7 +833,7 @@ static void rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_
 * dst_delete requests for the <dst> fragments it carries.
 *
 **/
-static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
+static struct rddma_bind *rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct list_head *entry, *safety;
 	struct rddma_dsts *dsts = parent->dsts;
@@ -845,15 +844,45 @@ static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bin
 		RDDMA_DEBUG (MY_DEBUG, "-- Dsts \"%s\"\n", kobject_name (&dsts->kset.kobj));
 		if (!list_empty (&dsts->kset.list)) {
 			list_for_each_safe (entry, safety, &dsts->kset.list) {
-				struct rddma_dst      *dst;
+				struct rddma_dst      	*dst;
 				dst = to_rddma_dst (to_kobj (entry));
 				dst->desc.xfer.ops->dst_delete (parent, &dst->desc);
 				rddma_dst_delete(parent,&dst->desc);
 			}
 		}
+		
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Dsts Count: %lx\n", (unsigned long)dsts->kset.kobj.kref.refcount.counter);
 		rddma_dsts_delete (dsts);
+		
+		/*
+		* HACK ALERT:
+		* -----------
+		* If the <dsts> site is not the same as the <xfer> site then the bind
+		* will have been created on-the-fly during dsts_create, and will have
+		* an imbalanced refcount that will not disappear when <dsts> unravels.
+		*
+		* So: compare the <dst> and <xfer> ops pointers to determine whether 
+		* they run on the same or on different sites. And if different, unregister
+		* the bind.
+		*
+		* Also take care of dubious refcounting: bind count needs to be 2, at least.
+		* Bump it up articifially if necessary. THIS IS A TEMPORARY HACK-OF-HACK.
+		*
+		*/
+		if (parent->desc.xfer.ops != parent->desc.dst.ops) {
+			int bindref = atomic_read (&parent->kobj.kref.refcount);
+			if (bindref < 2) {
+				printk ("-- Whoopsie - bindref %d too small for \"%s\"\n", bindref, kobject_name (&parent->kobj));
+				kobject_get (&parent->kobj);
+			}
+			else {
+				printk ("-- Bindref is now at %d\n", bindref);
+			}
+			rddma_bind_unregister (parent);
+			parent = NULL;
+		}
 	}
+	return (parent);
 }
 
 /**

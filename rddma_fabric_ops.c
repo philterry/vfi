@@ -188,7 +188,7 @@ static struct rddma_xfer *rddma_fabric_xfer_find(struct rddma_location *loc, str
 	struct sk_buff  *skb;
 	struct rddma_xfer *xfer;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG (MY_DEBUG, "%s (%s)\n", __func__, ((desc) ? ((desc->name) ? : "<UNK>") : "<NULL>"));
 
 	/*
 	* Look for an existing stub for the target xfer in the local tree.
@@ -1093,7 +1093,7 @@ static void rddma_fabric_srcs_delete(struct rddma_dst *parent, struct rddma_bind
 * instance of <dsts> is deleted too.
 *
 **/
-static void rddma_fabric_dsts_delete(struct rddma_bind *parent, struct rddma_bind_param *desc)
+static struct rddma_bind *rddma_fabric_dsts_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
 	struct rddma_location *loc = parent->desc.dst.ploc;	/* dsts_delete runs on <dst> */
@@ -1114,6 +1114,7 @@ static void rddma_fabric_dsts_delete(struct rddma_bind *parent, struct rddma_bin
 			rddma_clean_bind(&reply);
 		}
 	}
+	return (parent);
 }
 
 static void rddma_fabric_done(struct rddma_event *event)

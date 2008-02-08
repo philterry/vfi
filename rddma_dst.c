@@ -221,16 +221,21 @@ void rddma_dst_delete (struct rddma_bind *bind, struct rddma_bind_param *desc)
 		    desc->xfer.name, desc->xfer.location,desc->xfer.offset, desc->xfer.extent, 
 		    desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent);
 	
-	if (snprintf (buf, 128, "%s.%s#%llx:%x",
-		      desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent
-		    ) >= 128) {
+	/*
+	* Hah - dst object name is composed "<name>.<loc>#<address>" - there is no
+	* extent suffix.
+	*
+	*/
+	if (snprintf (buf, 128, "%s.%s#%llx",
+		      desc->dst.name, desc->dst.location, desc->dst.offset) >= 128) {
 		RDDMA_DEBUG(MY_DEBUG, "%s buffer not big enough\n",__FUNCTION__);
 	}
 	
 	dst = to_rddma_dst (kset_find_obj (&bind->dsts->kset, buf));
-
+	if (dst) {
 	rddma_dst_put (dst);		/* Put, to counteract the find... */
 	rddma_dst_unregister(dst);
+	}
 }
 
 void rddma_dst_load_srcs(struct rddma_dst *dst)

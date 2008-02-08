@@ -1473,16 +1473,26 @@ static int dsts_delete(const char *desc, char *result, int size)
 	* Find the target bind in the local object tree, then invoke
 	* its <dst> agent dst_delete operation.
 	*
+	* NOTE: for sanity's sake, the bind "get" that is implicit in
+	* this find_rddma_bind call is "put" by the API function. Otherwise
+	* your head will explode if running a local dsts_delete.
 	*/
 	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
 		ret = -EINVAL;
 		if ( bind->desc.dst.ops && bind->desc.dst.ops->dsts_delete ) {
 			ret = 0;
-			bind->desc.dst.ops->dsts_delete(bind, &params);
+			/*
+			* Invoke the <dst> dsts_delete op to delete dsts.
+			* That function returns a pointer to the parent bind
+			* that we MUST take account of. If the return value
+			* is NULL, it means that the bind, too, has been deleted
+			* from the local tree.
+			*/
+			bind = bind->desc.dst.ops->dsts_delete(bind, &params);
 		}
+		
+		if (bind) rddma_bind_put (bind);	/* Counteract get from "find", but only if bind still exists */
 	}
-
-	rddma_bind_put(bind);
 
 out:
 	if (result)
