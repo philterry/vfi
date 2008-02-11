@@ -64,30 +64,34 @@ static struct rddma_location *rddma_fabric_location_find(struct rddma_location *
 		if (!rddma_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(rddma_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0 && reply.extent) {
-				desc->extent = reply.offset;
-				desc->offset = reply.extent;
-				rddma_clean_desc(&reply);
-
-				if (desc->extent == desc->offset) {
-					desc->extent = loc ? loc->desc.extent : 0;
+				if (loc) {
+					if (loc->desc.extent) {
+						desc->offset = reply.offset;
+						desc->extent = loc->desc.extent;
+					}
+					else {
+						desc->offset = reply.offset;
+						loc->desc.extent = desc->extent = reply.offset;
+						desc->ops = &rddma_local_ops;
+					}
 				}
 				else {
-					desc->offset = desc->extent;
-					desc->ops = &rddma_local_ops;
-					if (loc)
-						loc->desc.extent = desc->extent;
+					desc->offset = reply.offset;
+					desc->extent = 0;
 				}
-				
+
+				rddma_clean_desc(&reply);
+
 				if (oldloc) {
 					oldloc->desc.extent = desc->extent;
 					oldloc->desc.offset = desc->offset;
 					return oldloc;
 				}
 
-				oldloc = rddma_location_create(loc,desc);
+				myloc = rddma_location_create(loc,desc);
 				if (loc && loc->desc.address)
-					loc->desc.address->ops->register_location(oldloc);
-				return oldloc;
+					loc->desc.address->ops->register_location(myloc);
+				return myloc;
 			}
 			rddma_clean_desc(&reply);
 		}
