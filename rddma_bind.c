@@ -170,13 +170,19 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_p
 
 int rddma_bind_register(struct rddma_bind *rddma_bind)
 {
-	return kobject_register(&rddma_bind->kobj);
+	int rslt;
+//	printk ("<*** %s IN ***>\n", __func__);
+	rslt = kobject_register(&rddma_bind->kobj);
+//	printk ("<*** %s OUT ***>\n", __func__);
+	return rslt;
 }
 
 void rddma_bind_unregister(struct rddma_bind *rddma_bind)
 {
     
-     	kobject_unregister(&rddma_bind->kobj);
+//	printk ("<*** %s (%s) IN ***>\n", __func__, (rddma_bind) ? kobject_name (&rddma_bind->kobj) : "<NULL>");
+	kobject_unregister(&rddma_bind->kobj);
+//	printk ("<*** %s OOT ***>\n", __func__);
 }
 
 /*
@@ -188,6 +194,10 @@ void rddma_bind_unregister(struct rddma_bind *rddma_bind)
 * bind's <xfer> component.
 *
 * Hmmm... trying to find a bind using only the name of its <xfer> component. How is that going to work?
+*
+* BEWARE:
+* -------
+* A successful search will cause the bind refcount to be incremented.
 *
 */
 struct rddma_bind *find_rddma_bind_in(struct rddma_xfer *xfer, struct rddma_desc_param *desc)
@@ -211,15 +221,18 @@ struct rddma_bind *find_rddma_bind_in(struct rddma_xfer *xfer, struct rddma_desc
 	* This might fail - if the xfer does not exist, then 
 	* neither does the bind.
 	*
-	* We will not create a missing xfer automagically.
-	*
+	* We will not create a missing xfer automagically, 
+	* but we will leave its refcount incremented if the 
+	* search is successful.
 	*/
 	xfer = find_rddma_xfer(desc);
 
-	if (xfer && xfer->desc.ops)
-		bind = xfer->desc.ops->bind_find(xfer,desc);
+	if (xfer) {
+		if (xfer->desc.ops) 
+			bind = xfer->desc.ops->bind_find(xfer,desc);
+		rddma_xfer_put(xfer);
+	}
 
-	rddma_xfer_put(xfer);
 
 	return bind;
 }

@@ -319,11 +319,6 @@ join:
 		}
 #endif
 
-		/*
-		* Whoa - wasn't expecting this... dst_create runs on <xfer>, 
-		* not on <dst>?
-		*
-		*/
 		new = parent->desc.xfer.ops->dst_create(parent,&params);
 		if (NULL == new)
 			goto fail_newdst;
@@ -773,14 +768,34 @@ static void rddma_local_mmap_delete(struct rddma_smb *smb, struct rddma_desc_par
  * The function works by running through the list of <src> fragments in <srcs>, deleting
  * each in turn. It then "deletes" the <srcs> kset itself, by means of a put on its refcount.
  **/
-static void rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
+static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct list_head *entry, *safety;
 	struct rddma_srcs *srcs = parent->srcs;
+	struct rddma_bind *bind = parent->bind;
 	
 	RDDMA_DEBUG (MY_DEBUG,"%s for %s.%s#%llx:%x\n",__FUNCTION__, 
 		     parent->desc.xfer.name, parent->desc.xfer.location,parent->desc.xfer.offset, parent->desc.xfer.extent);
+#if 0	
+	printk ("%s: Dst  - %s.%s#%llx:%x(%p)/%s.%s#%llx:%x(%p)=%s.%s#%llx:%x(%p)\n", 
+	        __func__, 
+	        parent->desc.xfer.name, parent->desc.xfer.location, parent->desc.xfer.offset, parent->desc.xfer.extent, parent->desc.xfer.ops, 
+	        parent->desc.dst.name, parent->desc.dst.location, parent->desc.dst.offset, parent->desc.dst.extent, parent->desc.dst.ops, 
+	        parent->desc.src.name, parent->desc.src.location, parent->desc.src.offset, parent->desc.src.extent, parent->desc.src.ops);
+	printk ("%s: Bind - %s.%s#%llx:%x(%p)/%s.%s#%llx:%x(%p)=%s.%s#%llx:%x(%p)\n", 
+	        __func__, 
+	        bind->desc.xfer.name, bind->desc.xfer.location, bind->desc.xfer.offset, bind->desc.xfer.extent, bind->desc.xfer.ops, 
+	        bind->desc.dst.name, bind->desc.dst.location, bind->desc.dst.offset, bind->desc.dst.extent, bind->desc.dst.ops, 
+	        bind->desc.src.name, bind->desc.src.location, bind->desc.src.offset, bind->desc.src.extent, bind->desc.src.ops);
+	printk ("%s: Desc - %s.%s#%llx:%x(%p)/%s.%s#%llx:%x(%p)=%s.%s#%llx:%x(%p)\n", 
+	        __func__, 
+	        desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, desc->xfer.ops, 
+	        desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent, desc->dst.ops, 
+	        desc->src.name, desc->src.location, desc->src.offset, desc->src.extent, desc->src.ops);
+#endif
+
 	if (srcs) {
+		int dstref = 0;
 		RDDMA_DEBUG (MY_DEBUG, "-- Srcs \"%s\"\n", kobject_name (&srcs->kset.kobj));
 		if (!list_empty (&srcs->kset.list)) {
 			list_for_each_safe (entry, safety, &srcs->kset.list) {
@@ -790,10 +805,66 @@ static void rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind
 					src->desc.xfer.ops->src_delete (parent, &src->desc);
 				}
 			}
+			if (!list_empty (&srcs->kset.list)) {
+				printk ("WTF> Srcs %s kset is not yet empty!\n", kobject_name (&srcs->kset.kobj));
+				list_for_each_safe (entry, safety, &srcs->kset.list) {
+					struct kobject 		*kobj;
+					int i;
+					kobj = to_kobj (entry);
+					i = atomic_read (&kobj->kref.refcount);
+					printk ("--- \"%s\" [%x]\n", kobject_name (kobj), i);
+				}
+			}
 		}
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Srcs Count: %lx\n", (unsigned long)srcs->kset.kobj.kref.refcount.counter);
 		rddma_srcs_delete (srcs);
+		
+		/*
+		* Clean-up on-the-fly bind hierarchy
+		*
+		* This clause only runs if <src> is remote from <xfer>. 
+		* BUT: it ought only to run if <src> is also remote from <dst>, 
+		* but we have no way to know that (the plocs and ops are screwed,
+		* so when one or other is remote from <xfer>, both appear to be
+		* remote at the same location).
+		*
+		*/
+		dstref = atomic_read (&parent->kobj.kref.refcount);
+//		printk ("%s: Parent Refcount is %d\n", __func__, dstref);
+		if (parent->desc.src.ops != parent->desc.xfer.ops && dstref == 2) {
+			struct rddma_dsts *dsts = (bind) ? bind->dsts : NULL;
+			
+//			printk ("<*** %s - unravel on-the-fly bind...dst IN ***>\n", __func__);
+//			printk ("-- %s: Bind (%p), Dsts (%p), Dst (%p)\n", __func__, bind, dsts, parent);
+			rddma_dst_unregister (parent);
+			parent = NULL;
+			
+			/*
+			* Examine the dsts list, and if it is empty, delete
+			* first <dsts> then <bind>.
+			*
+			*/
+			if (dsts && list_empty (&dsts->kset.list)) {
+				int bindref = atomic_read (&bind->kobj.kref.refcount);
+				/*
+				* HACK ATTACK> make sure the bind has a refcount of 
+				* three before we unregister the dsts and the bind.
+				*
+				*/
+				if (bindref < 3) {
+//					printk ("-- Whoopsie - bindref %d too small for \"%s\"\n", bindref, kobject_name (&bind->kobj));
+					while (bindref < 3) {
+						kobject_get (&bind->kobj);
+						bindref++;
+					}
+				}
+				rddma_dsts_unregister (dsts);
+				rddma_bind_unregister (bind);
+			}
+//			printk ("<*** %s - unravel on-the-fly bind...dst OUT ***>\n", __func__);
+		}
 	}
+	return (parent);
 }
 
 /**
@@ -847,7 +918,18 @@ static struct rddma_bind *rddma_local_dsts_delete (struct rddma_bind *parent, st
 				struct rddma_dst      	*dst;
 				dst = to_rddma_dst (to_kobj (entry));
 				dst->desc.xfer.ops->dst_delete (parent, &dst->desc);
-				rddma_dst_delete(parent,&dst->desc);
+			}
+			
+			if (!list_empty (&dsts->kset.list)) {
+				printk ("WTF> Dsts %s kset is not yet empty!\n", kobject_name (&dsts->kset.kobj));
+				list_for_each_safe (entry, safety, &dsts->kset.list) {
+					struct kobject 		*kobj;
+					int i;
+					kobj = to_kobj (entry);
+					i = atomic_read (&kobj->kref.refcount);
+					printk ("--- \"%s\" [%x]\n", kobject_name (kobj), i);
+				}
+				
 			}
 		}
 		
@@ -905,6 +987,12 @@ static void rddma_local_dst_delete(struct rddma_bind *parent, struct rddma_bind_
 	RDDMA_DEBUG (MY_DEBUG, "%s (%s.%s#%llx:%x/%s.%s#%llx:%x=<*>)\n", __func__, 
 		desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, 
 		desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent);
+/*
+	printk ("-- Parent bind: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", 
+		parent->desc.xfer.name, parent->desc.xfer.location, parent->desc.xfer.offset, parent->desc.xfer.extent, 
+		parent->desc.dst.name, parent->desc.dst.location, parent->desc.dst.offset, parent->desc.dst.extent, 
+		parent->desc.src.name, parent->desc.src.location, parent->desc.src.offset, parent->desc.src.extent);
+*/
 
 	dst = find_rddma_dst_in(parent,desc);
 	parent->desc.src.ops->srcs_delete(dst,desc);

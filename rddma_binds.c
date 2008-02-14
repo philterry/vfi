@@ -21,7 +21,7 @@
 static void rddma_binds_release(struct kobject *kobj)
 {
     struct rddma_binds *p = to_rddma_binds(kobj);
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+    RDDMA_DEBUG(MY_LIFE_DEBUG,"XXX %s %p\n",__FUNCTION__,p);
     kfree(p);
 }
 
@@ -124,20 +124,20 @@ struct rddma_binds *new_rddma_binds(char *name, struct rddma_xfer *parent)
 
 int rddma_binds_register(struct rddma_binds *rddma_binds)
 {
-    int ret = 0;
+	int ret = 0;
 
-    if ( (ret = kset_register(&rddma_binds->kset) ) )
-	goto out;
-
-      return ret;
-
-out:
-    return ret;
+//	printk ("<*** %s IN ***>\n", __func__);
+	ret = kset_register(&rddma_binds->kset);
+//	printk ("<*** %s OOT ***>\n", __func__);
+	return ret;
 }
 
 void rddma_binds_unregister(struct rddma_binds *rddma_binds)
 {
     
-     kset_unregister(&rddma_binds->kset);
+//	printk ("<*** %s IN ***>\n", __func__);
+	kset_unregister(&rddma_binds->kset);
+//	printk ("<*** %s OOT ***>\n", __func__);
+	
 }
 

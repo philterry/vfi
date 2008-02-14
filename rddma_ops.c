@@ -1145,9 +1145,9 @@ static int src_delete(const char *desc, char *result, int size)
 			ret = 0;
 			dst->desc.xfer.ops->src_delete(dst, &params);
 		}
+		rddma_dst_put(dst);
 	}
 
-	rddma_dst_put(dst);
 
 out:
 	if (result)
@@ -1226,6 +1226,26 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * This function, which runs as part of bind creation, is responsible
+ * for creating the set of bind <src> fragments needed to satisfy a given
+ * <dst> fragment.
+ *
+ * To elaborate: a <bind> defines a transfer of <extent> bytes from a
+ * <src> SMB to a <dst> SMB. The <extent> will be sub-divided first into
+ * smaller <dst> fragments, whose individual size depends on the page size
+ * at the recipient site, and then for each of those, into <src> fragments
+ * chosen to suit page size at the source site. Thus a single <bind> flowers
+ * into multiple <dsts>, and each <dst> into multiple <srcs>.
+ *
+ * This operation, srcs_create, decides upon the number and size of <src> 
+ * fragments that need to feed a single <dst> fragment. It will create a 
+ * <srcs> container, and cause the creation of the required <src> set.
+ *
+ * The creation of <srcs> will always run on the bind <src> agent, though
+ * creation of <src> fragments (and pretty much everything else) runs on
+ * the <xfer> agent.
+ *
  */
 static int srcs_create(const char *desc, char *result, int size)
 {
@@ -1278,6 +1298,20 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * This functions deletes the set of source fragments belonging to a 
+ * specific bind destination fragment.
+ *
+ * The <srcs> component of a given bind is one of only two ONLY parts of 
+ * a bind that are not "owned" by the <xfer> agent, and the only part that
+ * is owned by the <src> agent. The individual <src> fragments slung beneath
+ * <srcs> are themselves owned by the <xfer> agent, as will be the <dst> parent
+ * fragment.
+ *
+ * This makes things a little tricky when <xfer> != <src>, since all higher-level
+ * [and lower-level] objects in the bind hierarchy will only exist in the local
+ * tree as proxies, created on-the-fly during srcs_create.
+ *
  */
 static int srcs_delete(const char *desc, char *result, int size)
 {
@@ -1291,15 +1325,22 @@ static int srcs_delete(const char *desc, char *result, int size)
 		goto out;
 
 	ret = -ENODEV;
+	/*
+	* Find the <dst> whose <srcs> are to be deleted.
+	*
+	* CAUTION: this call embedds further finds for xfer and
+	* bind, and gives rise to refcount anomalies when <src> is
+	* remote from <xfer>.
+	*/
 	if ( (dst = find_rddma_dst(&params) ) ) {
 		ret = -EINVAL;
 		if ( dst->desc.src.ops && dst->desc.src.ops->srcs_delete  ) {
 			ret = 0;
-			dst->desc.src.ops->srcs_delete(dst, &params);
+			dst = dst->desc.src.ops->srcs_delete(dst, &params);
 		}
+		if (dst) rddma_dst_put(dst);	/* Counteract get from find, but only if dst still exists */
 	}
 
-	rddma_dst_put(dst);
 
 out:
 	if (result)

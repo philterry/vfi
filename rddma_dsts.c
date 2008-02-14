@@ -137,22 +137,21 @@ struct rddma_dsts *new_rddma_dsts(struct rddma_bind_param *params, struct rddma_
 
 int rddma_dsts_register(struct rddma_dsts *rddma_dsts)
 {
-    int ret = 0;
+    	int ret = 0;
 
-    if ( (ret = kset_register(&rddma_dsts->kset) ) )
-	goto out;
-
-      return ret;
-
-out:
-    return ret;
+//	printk ("<*** %s IN ***>\n", __func__);
+	ret = kset_register(&rddma_dsts->kset);
+//	printk ("<*** %s OOT ***>\n", __func__);
+	return ret;
 }
 
 void rddma_dsts_unregister(struct rddma_dsts *rddma_dsts)
 {
     
+//	printk ("<*** %s IN ***>\n", __func__);
 	if (rddma_dsts)
 		kset_unregister(&rddma_dsts->kset);
+//	printk ("<*** %s OOT ***>\n", __func__);
 }
 
 /**
@@ -163,11 +162,6 @@ void rddma_dsts_unregister(struct rddma_dsts *rddma_dsts)
 * This function creates - if necessary - a <dsts> kobject and plugs it into a 
 * parent bind.
 *
-* CAUTION:
-* --------
-* It will only create a new object if none exists already, but it will always
-* register the object. That could lead to doubling-up the counts on <dsts> and its
-* relations.
 *
 **/
 struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
@@ -176,13 +170,17 @@ struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_bin
 
 	RDDMA_DEBUG(MY_DEBUG,"%s: parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
 
-	if (NULL == parent->dsts)
-		dsts = new_rddma_dsts(desc,parent);
-
-	if (dsts) {
-		if (rddma_dsts_register(dsts))
-			goto fail_reg;
-		parent->dsts = dsts;
+	/*
+	* If the parent bind has no dsts object yet, then create one and
+	* register it with sysfs.
+	*
+	*/
+	if (NULL == parent->dsts) {
+		if ((dsts = new_rddma_dsts(desc,parent))) {
+			if (rddma_dsts_register(dsts))
+				goto fail_reg;
+			parent->dsts = dsts;
+		}
 	}
 
 	return parent->dsts;

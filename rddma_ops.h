@@ -50,7 +50,7 @@ struct rddma_ops {
 	struct rddma_dst *             (*dst_find)(struct rddma_bind *,     struct rddma_bind_param *);
 
 	struct rddma_srcs *         (*srcs_create)(struct rddma_dst *,      struct rddma_bind_param *);
-	void                        (*srcs_delete)(struct rddma_dst *,      struct rddma_bind_param *);
+	struct rddma_dst *          (*srcs_delete)(struct rddma_dst *,      struct rddma_bind_param *);
 	struct rddma_srcs *           (*srcs_find)(struct rddma_dst *,      struct rddma_bind_param *);
 
 	struct rddma_src *           (*src_create)(struct rddma_dst *,      struct rddma_bind_param *);

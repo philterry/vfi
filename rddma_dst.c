@@ -159,38 +159,79 @@ out:
 
 int rddma_dst_register(struct rddma_dst *rddma_dst)
 {
-    int ret = 0;
+	int ret = 0;
 
-    if ( (ret = kobject_register(&rddma_dst->kobj) ) )
-	goto out;
-
-      return ret;
-
-out:
-    return ret;
+//	printk ("<*** %s IN ***>\n", __func__);
+	ret = kobject_register(&rddma_dst->kobj);
+//	printk ("<*** %s OOT ***>\n", __func__);
+	return ret;
 }
 
 void rddma_dst_unregister(struct rddma_dst *rddma_dst)
 {
-    
+//	printk ("<*** %s IN ***>\n", __func__);
 	if (rddma_dst)
 		kobject_unregister(&rddma_dst->kobj);
+//	printk ("<*** %s OOT ***>\n", __func__);
 }
 
+/**
+* find_rddma_dst_in - find an rddma_dst object in a specified bind
+* @bind : pointer to parent bind. May be NULL.
+* @desc : bind descriptor
+*
+* This function searches the local object tree for a <dst> object
+* described in @desc.
+*
+* If @bind is non-zero, the function will search within that bind; 
+* otherwise it searches the entire tree.
+*
+**/
 struct rddma_dst *find_rddma_dst_in(struct rddma_bind *bind, struct rddma_bind_param *desc)
 {
 	struct rddma_dst *dst = NULL;
+	int put_bind = 0;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
 
-	if (bind == NULL)
-		bind = find_rddma_bind(&desc->xfer);
+	/*
+	* If no bind was provided for the caller, then search the 
+	* object tree for the bind described by @desc.
+	*
+	* Note that finding a bind will increment its reference count.
+	* We will need to negate that before we leave, so that behavior
+	* is consistent for all calls to this function.
+	*
+	*/
+/*
+	printk ("## %s Desc %s.%s#%llx.%x(%p)/%s.%s#%llx.%x(%p)=%s.%s#%llx.%x(%p)\n", __func__, 
+	        desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, desc->xfer.ploc, 
+	        desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent, desc->dst.ploc, 
+	        desc->src.name, desc->src.location, desc->src.offset, desc->src.extent, desc->src.ploc);
+*/
+	
+	if (bind == NULL) {
+		if ((put_bind = bind = find_rddma_bind(&desc->xfer))) {
+/*
+			printk ("## %s Bind %s.%s#%llx.%x(%p)/%s.%s#%llx.%x(%p)=%s.%s#%llx.%x(%p)\n", __func__, 
+				bind->desc.xfer.name, bind->desc.xfer.location, bind->desc.xfer.offset, bind->desc.xfer.extent, bind->desc.xfer.ploc, 
+				bind->desc.dst.name, bind->desc.dst.location, bind->desc.dst.offset, bind->desc.dst.extent, bind->desc.dst.ploc, 
+				bind->desc.src.name, bind->desc.src.location, bind->desc.src.offset, bind->desc.src.extent, bind->desc.src.ploc);
+*/
+		}
+	}
 	
 	if (bind)
 		rddma_dsts_create(bind,desc);
 
+	/*
+	* Search for the <dst> at the <xfer> site.
+	*
+	*/
 	if (bind && bind->desc.xfer.ops)
 		dst = bind->desc.xfer.ops->dst_find(bind,desc);
+
+	if (put_bind) rddma_bind_put (bind);
 
 	return dst;
 }
@@ -233,8 +274,8 @@ void rddma_dst_delete (struct rddma_bind *bind, struct rddma_bind_param *desc)
 	
 	dst = to_rddma_dst (kset_find_obj (&bind->dsts->kset, buf));
 	if (dst) {
-	rddma_dst_put (dst);		/* Put, to counteract the find... */
-	rddma_dst_unregister(dst);
+		rddma_dst_put (dst);		/* Put, to counteract the find... */
+		rddma_dst_unregister(dst);
 	}
 }
 

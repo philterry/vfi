@@ -1003,12 +1003,32 @@ static void rddma_fabric_dst_delete(struct rddma_bind *bind, struct rddma_bind_p
 	struct sk_buff  *skb;
 	struct rddma_location *loc = bind->desc.xfer.ploc;	/* dst_delete runs on <xfer> */
 	
+	/*
+	* HACK ALERT:
+	* -----------
+	* When deleting <dst> over fabric, we want to place a hold on deleting the local
+	* instance until we return. We want to do this just in case both <dst> and <src>
+	* are co-located somewhere outside the <xfer> agent - in which case an srcs_delete
+	* will be sent back here meantime that we do NOT want to destroy the hierarchy that
+	* we are currently working on.
+	*
+	* A simple find is sufficient to bump-up the refcount. We shall undo it in a moment.
+	*
+	*/
+	struct rddma_dst *dst = NULL;
+	
+	
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-
+//	printk ("<*** %s find dst before fabric call IN ***>\n", __func__);
+	dst = find_rddma_dst_in (bind, desc);
+//	printk ("<*** %s find dst before fabric call OUT ***>\n", __func__);
+	
 	skb = rddma_fabric_call(loc, 5, "dst_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x", 
 	                        desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
 	                        desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent,
 	                        desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
+	
+	if (dst) rddma_dst_put (dst);
 	if (skb) {
 		struct rddma_bind_param reply;
 		if (!rddma_parse_bind(&reply,skb->data)) {
@@ -1034,10 +1054,35 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 	struct rddma_location *loc = parent->desc.xfer.ploc;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-
-	skb = rddma_fabric_call(loc, 5, "src_delete://%s.%s/%s.%s=%s.%s", desc->xfer.name,desc->xfer.location,
-				desc->dst.name,desc->dst.location,
-				desc->src.name,desc->src.location);
+/*
+	printk ("-- Parent: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", 
+		parent->desc.xfer.name, parent->desc.xfer.location, parent->desc.xfer.offset, parent->desc.xfer.extent,
+	        parent->desc.dst.name, parent->desc.dst.location, parent->desc.dst.offset, parent->desc.dst.extent,
+	        parent->desc.src.name, parent->desc.src.location, parent->desc.src.offset, parent->desc.src.extent);
+	printk ("--   Desc: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", 
+		desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
+	        desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent,
+	        desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
+*/
+	
+	/*
+	* Compose and deliver src_delete command.
+	*
+	* Note the unusual composition of the bind parameters to be embedded in the command; how the <dst>
+	* section is built from the parent spec, while <xfer> and <src> are built from the descriptor explicitly
+	* passed to us. That is a bugfix to ensure that <xfer> is sent the same source bind specification on
+	* src_delete that it was with src_create - when <src> is remote, the <dst> component in the explicit 
+	* bind descriptor contains a base <dst> offset, not <dst> SMB address. 
+	*
+	* I have no idea how the discrepancy arose - probably because the srcs_delete code does not perform
+	* xfer/bind/dst find calls the way that srcs_create does? 
+	*
+	*/
+	skb = rddma_fabric_call(loc, 5, "src_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x", 
+	                        desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
+	                        parent->desc.dst.name, parent->desc.dst.location, parent->desc.dst.offset, parent->desc.dst.extent,
+	                        desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
+	
 	if (skb) {
 		struct rddma_bind_param reply;
 		if (!rddma_parse_bind(&reply,skb->data)) {
@@ -1059,7 +1104,7 @@ static void rddma_fabric_src_delete(struct rddma_dst *parent, struct rddma_bind_
 * srcs_delete must always run on the bind <src> agent.
 *
 **/
-static void rddma_fabric_srcs_delete(struct rddma_dst *parent, struct rddma_bind_param *desc)
+static struct rddma_dst *rddma_fabric_srcs_delete(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct sk_buff  *skb;
 	struct rddma_location *loc = parent->desc.src.ploc;	/* srcs_delete runs on <src> */
@@ -1080,6 +1125,7 @@ static void rddma_fabric_srcs_delete(struct rddma_dst *parent, struct rddma_bind
 			rddma_clean_bind(&reply);
 		}
 	}
+	return (parent);
 }
 
 /**
