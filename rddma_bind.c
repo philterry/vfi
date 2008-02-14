@@ -170,30 +170,69 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_p
 
 int rddma_bind_register(struct rddma_bind *rddma_bind)
 {
-	return kobject_register(&rddma_bind->kobj);
+	int rslt;
+//	printk ("<*** %s IN ***>\n", __func__);
+	rslt = kobject_register(&rddma_bind->kobj);
+//	printk ("<*** %s OUT ***>\n", __func__);
+	return rslt;
 }
 
 void rddma_bind_unregister(struct rddma_bind *rddma_bind)
 {
     
-     kobject_unregister(&rddma_bind->kobj);
+//	printk ("<*** %s (%s) IN ***>\n", __func__, (rddma_bind) ? kobject_name (&rddma_bind->kobj) : "<NULL>");
+	kobject_unregister(&rddma_bind->kobj);
+//	printk ("<*** %s OOT ***>\n", __func__);
 }
 
+/*
+* find_rddma_bind_in - find a bind object within some arbitrary xfer.
+* @xfer : xfer to be searched
+* @desc : xfer descriptor identifying the <xfer> component of the bind by name
+* 
+* The @xfer argument may be NULL, in which case the function fill try to find the xfer matching the
+* bind's <xfer> component.
+*
+* Hmmm... trying to find a bind using only the name of its <xfer> component. How is that going to work?
+*
+* BEWARE:
+* -------
+* A successful search will cause the bind refcount to be incremented.
+*
+*/
 struct rddma_bind *find_rddma_bind_in(struct rddma_xfer *xfer, struct rddma_desc_param *desc)
 {
 	struct rddma_bind *bind = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
 
+	/*
+	* If an xfer has been specified up-front, invoke its
+	* bind_find op.
+	*
+	*/
 	if (xfer && xfer->desc.ops)
 		return xfer->desc.ops->bind_find(xfer,desc);
 
+	/*
+	* Otherwise try to find the xfer in the local tree, and
+	* invoke its bind_find function afterwards.
+	*
+	* This might fail - if the xfer does not exist, then 
+	* neither does the bind.
+	*
+	* We will not create a missing xfer automagically, 
+	* but we will leave its refcount incremented if the 
+	* search is successful.
+	*/
 	xfer = find_rddma_xfer(desc);
 
-	if (xfer && xfer->desc.ops)
-		bind = xfer->desc.ops->bind_find(xfer,desc);
+	if (xfer) {
+		if (xfer->desc.ops) 
+			bind = xfer->desc.ops->bind_find(xfer,desc);
+		rddma_xfer_put(xfer);
+	}
 
-	rddma_xfer_put(xfer);
 
 	return bind;
 }
@@ -235,12 +274,20 @@ struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_
 	return new;
 }
 
+/**
+* rddma_bind_delete - remove bind object from Xfer <binds> list
+* @xfer : Xfer object that bind belongs to
+* @desc : Xfer parameter descriptor
+*
+*
+**/
 void rddma_bind_delete(struct rddma_xfer *xfer, struct rddma_desc_param *desc)
 {
 	struct rddma_bind *bind = NULL;
 	char buf[128];
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s from Xfer %s.%s#%llx:%x\n", __func__, 
+	           xfer->desc.name, xfer->desc.location, xfer->desc.offset, xfer->desc.extent);
 
 	if ( snprintf(buf,128,"#%llx:%x", desc->offset, desc->extent) > 128 )
 		goto out;
@@ -253,6 +300,12 @@ out:
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,xfer,desc,bind);
 }
 
+/**
+* rddma_bind_load_dsts - 
+* @bind : parent bind object
+*
+*
+**/
 void rddma_bind_load_dsts(struct rddma_bind *bind)
 {
 	struct list_head * entry;

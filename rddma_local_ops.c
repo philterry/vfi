@@ -63,6 +63,22 @@ static struct rddma_smb *rddma_local_smb_find(struct rddma_location *parent, str
 	return smb;
 }
 
+/**
+* rddma_local_xfer_find - find an rddma_xfer object for a named xfer at the local site.
+* @parent : location where xfer officially resides (right here!)
+* @desc	  : target xfer parameter descriptor
+*
+* This function attempts to find an rddma_xfer object for the xfer described by @desc, 
+* which officially resides at this site, whose location is formally defined by @parent.
+*
+* If no such xfer exists, the function will NOT attempt to create one. This conflicts somewhat
+* with traditional "find" policy.
+*
+* The function returns a pointer to the rddma_xfer object that represents the target xfer in the
+* local tree, or NULL if nonesuch exists. It is the responsibility of the caller to create an xfer
+* in that case.
+*
+**/
 static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *xfer = to_rddma_xfer(kset_find_obj(&parent->xfers->kset,desc->name));
@@ -70,6 +86,26 @@ static struct rddma_xfer *rddma_local_xfer_find(struct rddma_location *parent, s
 	return xfer;
 }
 
+/**
+* rddma_local_bind_find - find a bind belonging to a specified xfer
+* @parent : pointer to <xfer> object that bind belongs to
+* @desc   : <xfer> specification string
+*
+* Wha Wha Whaaaaa?... find a bind without naming it? The @parent and @desc arguments tell us 
+* nothing about the bind we are supposed to find, except the identity of the xfer object it 
+* belongs to. 
+*
+* Well, No: binds are named for their offset/extent within the xfer. So what we look for
+* is a bind named "#<xo>:<xe>". 
+*
+* This is only going to work if the offset/extent specified for the xfer are NOT its true
+* offset and extent (which increase as new binds are added to the xfer) but simply the offset and 
+* extent of the damned bind we want to look for. 
+*
+* In other words, something "smart" (read: smarmy) needs to have composed the xfer string; like
+* some other part of the code.
+*
+**/
 static struct rddma_bind *rddma_local_bind_find(struct rddma_xfer *parent, struct rddma_desc_param *desc)
 {
 	struct rddma_bind *bind = NULL;
@@ -176,6 +212,11 @@ static struct rddma_mmap *rddma_local_mmap_create(struct rddma_smb *smb, struct 
 	return rddma_mmap_create(smb,desc);
 }
 
+/**
+* rddma_local_dst_events
+*
+*
+**/
 static int rddma_local_dst_events(struct rddma_bind *bind, struct rddma_bind_param *desc)
 {
 	/* Local destination SMB with a local transfer agent. */
@@ -204,6 +245,22 @@ fail:
 	return -EINVAL;
 }
 
+/**
+* rddma_local_dsts_create - create bind destinations list, and its subsidiaries.
+* @parent : the bind object whose dst components are here being created
+* @desc   : full descriptor of the bind being created
+*
+* This function - which runs on the <dst> site of a bind - creates the list of 
+* destination objects for that bind.
+*
+* Although a bind is defined in terms of a single destination (and source) specification, 
+* it may be split into a number of parts to better match Linux page size at dst and src
+* sites.
+*
+* The dst objects are installed in a list - the dsts list - that is a kset bound to the
+* parent bind.
+*
+**/
 static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	int page, first_page, last_page;
@@ -213,6 +270,11 @@ static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, str
 
 	RDDMA_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
 
+	/*
+	* Invoke the <xfer> dst_events op, and check the result.
+	* A whole nother can o' worms to be explored, later...
+	*
+	*/
 	if (parent->desc.xfer.ops->dst_events(parent,desc))
 		goto fail_events;
 
@@ -224,11 +286,22 @@ static struct rddma_dsts *rddma_local_dsts_create(struct rddma_bind *parent, str
 	if (!DESC_VALID(&dsmb->desc,&desc->dst))
 		goto fail_ddesc;
 
+	/*
+	* Decide how best to divvie-up the dst side of the full
+	* bind extent. 
+	*
+	*/
 	first_page = START_PAGE(&dsmb->desc,&desc->dst);
 	last_page = first_page + NUM_DMA(&dsmb->desc,&desc->dst);
 
 	params.dst.offset = START_OFFSET((&dsmb->desc), (&desc->dst));
 	params.src.extent = params.dst.extent = START_SIZE(&dsmb->desc, &desc->dst);
+	
+	/*
+	* And now, for each page of DMA transfers, create one dst object: in effect,
+	* a chain of dst objects that collectively cover the bind extent.
+	*
+	*/
 	for (page = first_page; page < last_page; page++) {
 		params.dst.offset += virt_to_phys(page_address(dsmb->pages[page]));
 #ifdef OPTIMIZE_DESCRIPTORS
@@ -297,29 +370,95 @@ static struct rddma_bind *rddma_local_bind_create(struct rddma_xfer *xfer, struc
 		     desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent, 
 		     desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
 /* Start Atomic */
+	/*
+	* Adjust bind and xfer offset/extent values.
+	*
+	* Unless otherwise specified, the bind should begin at the
+	* current end of the xfer. The xfer extent should then increase
+	* by the bind extent.
+	*
+	* There may be a subtle flaw in this calculation: bind offset
+	* may be predefined in the descriptor, in which case it will 
+	* not be adjusted and may not be contiguous with the xfer. Not 
+	* sure what implications that might carry, if any.
+	*/
 	if (!desc->xfer.offset)
 		desc->xfer.offset = xfer->desc.extent;
 
 	xfer->desc.extent += desc->xfer.extent;
 /* End Atomic */
 
+	/*
+	* Create and register the bind object, and if that succeeds
+	* create its dsts/ subtree.
+	*
+	*/
 	if ( (bind = rddma_bind_create(xfer, desc))) {
+		/*
+		* Once the bind object has been installed in the sysfs
+		* tree, create and register its dsts subtree. Each bind
+		* object has a pointer to a dsts kset: that is what we
+		* try to create here.
+		*
+		* We begin by creating the dsts kobject/kset only, and 
+		* if that proves successful we try to build it out by
+		* populating the dst and src parts of the bind.
+		*
+		* Now: ask yourself why might we need multiple destination 
+		* objects when a bind, by definition, has one destination 
+		* component and one source component?
+		*
+		* The answer is that the complete bind is split into parts, 
+		* whose size is a function of the underlying page size.
+		* This occurs with the destination component, and with the
+		* source component, and allows different page sizes at
+		* different locations to interoperate.
+		*
+		*/
 		if ( (dsts = rddma_dsts_create(bind,desc)) ) {
+			/*
+			* The dsts object is simply a hook, beneath
+			* which we want to sling a series of bind
+			* destination specs (and beneath each of those, 
+			* a series of corresponding bind source specs).
+			*
+			* Before we do any of that, validate that the
+			* destination and source SMBs referenced by the
+			* bind exist, and are usable.
+			*
+			* 1. Destination SMB exists?
+			*
+			*/
 			if ( NULL == (dsmb = find_rddma_smb(&desc->dst)) )
 				goto fail_dsmb;
-
+			/*
+			* 2. Destination offset+extent fits inside it?
+			*/
 			if (!DESC_VALID(&dsmb->desc,&desc->dst))
 				goto fail_ddesc;
-
+			/*
+			* 3. source SMB exists?
+			*/
 			if ( NULL == (ssmb = find_rddma_smb(&desc->src)) )
 				goto fail_ddesc;
-
+			/*
+			* 4. Source offset_extent fits inside it?
+			*/
 			if (!DESC_VALID(&ssmb->desc,&desc->src))
 				goto fail_sdesc;
 
+			/*
+			* src and dst objects must inherit the various
+			* ops (and location) of their bind counterparts.
+			*
+			*/
 			rddma_inherit(&bind->desc.src,&ssmb->desc);
 			rddma_inherit(&bind->desc.dst,&dsmb->desc);
 
+			/*
+			* Create the dsts for real, and what lies beneath it.
+			*
+			*/
 			if ( NULL == bind->desc.dst.ops->dsts_create(bind,desc))
 				goto fail_dst;
 
@@ -347,6 +486,19 @@ fail_dsmb:
 	return NULL;
 }
 
+/**
+* rddma_local_dst_create
+* @parent : parent bind object
+* @desc   : bind descriptor
+*
+* This function creates a <dst> component of a bind, which is typically some fragment of the 
+* complete bind extent chosen to suit the page size at the <dst> site.
+*
+* dst_create is invoked by the <dst> agent as part of dsts_create, but must run on the <xfer> agent.
+* This function, then, is specifically written to run on a bind <xfer> agent.
+*
+*
+**/
 static struct rddma_dst *rddma_local_dst_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_dst *dst;
@@ -424,6 +576,35 @@ event_name_fail:
 	return -EINVAL;
 }
 
+/**
+* rddma_local_srcs_create - create bind <srcs> kset on local tree
+* @parent : pointer to bind <dst> to which these <srcs> are to be attached
+* @desc   : descriptor of governing bind
+*
+* This function creates the <srcs> kobject for a bind. It is intended to run, as a
+* local function, on the bind <src> node.
+*
+* <srcs> is a kset of <src> fragments that describe individual DMA transactions
+* to be raised to send <dst>-extent bytes from <src> to <dst>-extent bytes on <dst>.
+* 
+* There is one <srcs> (and perhaps multiple <src>) associated with every <dst> in a
+* bind; just as there is one <dsts> (and perhaps multiple <dst>) associated with the
+* bind itself.
+*
+* <dst> fragments are sized to match the page size of the <dst> machine, wherever that 
+* might be. The same must happen with <src>: the <dst>-extent to which it is matched
+* must be broken down into <src> fragments whose individual size is a function of page 
+* size on the <src> machine.
+*
+* It is for this reason - that <src> fragment size can be calculated correctly - that
+* <srcs> is created on the bind <src> machine. A loop is set-up to create <src> fragments
+* whose collective size matches the extent of the parent <dst>.
+*
+* <src> fragments are NOT created here, but at the <xfer> agent. This function causes their
+* creation.
+* 
+*
+**/
 static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 /* 	srcs_create://tp.x:2000/d.p#uuuuu000:1000=s.r#c000:1000 */
@@ -435,16 +616,37 @@ static struct rddma_srcs *rddma_local_srcs_create(struct rddma_dst *parent, stru
 	struct rddma_bind_param params = *desc;
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
+	/*
+	* Create the <srcs> kset and install it in the
+	* local instance of its parent <dst>. 
+	*
+	*/
 	srcs = rddma_srcs_create(parent,desc);
 
 	if (srcs == NULL)
 		return NULL;
 
+	/*
+	* Source-related events stuff. Not yet figured what
+	* this does...
+	*
+	*/
 	if (parent->desc.xfer.ops->src_events(parent,desc))
 		return NULL;
 
+	/*
+	* Find the local representation of the <smb> we are
+	* pulling data out of. This node we are running on
+	* is home to the <smb>, otherwise we wouldn't be here.
+	*
+	*/
 	smb = find_rddma_smb(&desc->src);
 
+	/*
+	* Now for page calculations. Calculate page address
+	* for the start of the <src> and the number of pages
+	* that need to be transferred.
+	*/
 	first_page = START_PAGE(&smb->desc,&desc->src);
 	last_page = first_page + NUM_DMA(&smb->desc,&desc->src);
 
@@ -488,6 +690,20 @@ fail_newsrc:
 	return NULL;
 }
 
+/**
+* rddma_local_src_create - create a bind <src> component
+* @parent : bind <dst> with which this <src> is to be associated
+* @desc   : descriptor of overall bind
+*
+* This function creates a single <src> component that is one of the <srcs> associated
+* with a specific <dst> in a bind. All <dst>=<src> are broken down into fragments related
+* to the page size on the respective <dst> and <src> sites. They are linked together in
+* <dsts> and <srcs> lists - where those lists are constructed at the relevant sites.
+*
+* Individual <src> (and <dst>) fragments are always built by the <xfer> agent, which 
+* is where this local function is expected to be running.
+*
+**/
 static struct rddma_src *rddma_local_src_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 /* 	src_create://tp.x:2000/d.p#uuuuu000:800=s.r#xxxxx800:800 */
@@ -530,45 +746,165 @@ static void rddma_local_mmap_delete(struct rddma_smb *smb, struct rddma_desc_par
 }
 
 /**
- * rddma_local_srcs_delete
+ * rddma_local_srcs_delete - delete bind <dst> fragment <srcs> and any <src> subsidiaries
+ * @parent : bind to which target <srcs> belongs
+ * @desc   : bind parameter descriptor
  *
+ * This function - which must run local to the <src> node in a <bind> - will delete the
+ * <srcs> associated with a specific bind <dst> fragment, and any <src> fragments slung
+ * beneath it.
  *
+ * To recap: a <bind> comprises a block of some <src> SMB to be transferred to a similar-sized
+ * block of a <dst> SMB. The block size - extent of the bind - is divvied-up at the <dst>> site
+ * into <dst> fragments that match the <dst> page size. Each <dst> fragment has an associated
+ * set of <src> fragments whose quantity, and individual extents, are a reflection of <src>
+ * page size. The <src> fragments associated with a particular <dst> fragment are collated
+ * under a <srcs> object at the <src> location (although the individual <src> fragments are
+ * "owned" by the bind <xfer> agent).
+ *
+ * So: since <srcs> is owned by the <src> agent, that is where this function must run, even
+ * though the actual <src> fragments are owned by the <xfer> agent.
+ *
+ * The function works by running through the list of <src> fragments in <srcs>, deleting
+ * each in turn. It then "deletes" the <srcs> kset itself, by means of a put on its refcount.
  **/
-static void rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
+static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct list_head *entry, *safety;
 	struct rddma_srcs *srcs = parent->srcs;
+	struct rddma_bind *bind = parent->bind;
 	
 	RDDMA_DEBUG (MY_DEBUG,"%s for %s.%s#%llx:%x\n",__FUNCTION__, 
 		     parent->desc.xfer.name, parent->desc.xfer.location,parent->desc.xfer.offset, parent->desc.xfer.extent);
+#if 0	
+	printk ("%s: Dst  - %s.%s#%llx:%x(%p)/%s.%s#%llx:%x(%p)=%s.%s#%llx:%x(%p)\n", 
+	        __func__, 
+	        parent->desc.xfer.name, parent->desc.xfer.location, parent->desc.xfer.offset, parent->desc.xfer.extent, parent->desc.xfer.ops, 
+	        parent->desc.dst.name, parent->desc.dst.location, parent->desc.dst.offset, parent->desc.dst.extent, parent->desc.dst.ops, 
+	        parent->desc.src.name, parent->desc.src.location, parent->desc.src.offset, parent->desc.src.extent, parent->desc.src.ops);
+	printk ("%s: Bind - %s.%s#%llx:%x(%p)/%s.%s#%llx:%x(%p)=%s.%s#%llx:%x(%p)\n", 
+	        __func__, 
+	        bind->desc.xfer.name, bind->desc.xfer.location, bind->desc.xfer.offset, bind->desc.xfer.extent, bind->desc.xfer.ops, 
+	        bind->desc.dst.name, bind->desc.dst.location, bind->desc.dst.offset, bind->desc.dst.extent, bind->desc.dst.ops, 
+	        bind->desc.src.name, bind->desc.src.location, bind->desc.src.offset, bind->desc.src.extent, bind->desc.src.ops);
+	printk ("%s: Desc - %s.%s#%llx:%x(%p)/%s.%s#%llx:%x(%p)=%s.%s#%llx:%x(%p)\n", 
+	        __func__, 
+	        desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, desc->xfer.ops, 
+	        desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent, desc->dst.ops, 
+	        desc->src.name, desc->src.location, desc->src.offset, desc->src.extent, desc->src.ops);
+#endif
+
 	if (srcs) {
+		int dstref = 0;
 		RDDMA_DEBUG (MY_DEBUG, "-- Srcs \"%s\"\n", kobject_name (&srcs->kset.kobj));
 		if (!list_empty (&srcs->kset.list)) {
 			list_for_each_safe (entry, safety, &srcs->kset.list) {
 				struct rddma_src      *src;
 				src = to_rddma_src (to_kobj (entry));
-				rddma_src_delete(parent,&src->desc);
+				if (src && src->desc.xfer.ops->src_delete) {
+					src->desc.xfer.ops->src_delete (parent, &src->desc);
+				}
+			}
+			if (!list_empty (&srcs->kset.list)) {
+				printk ("WTF> Srcs %s kset is not yet empty!\n", kobject_name (&srcs->kset.kobj));
+				list_for_each_safe (entry, safety, &srcs->kset.list) {
+					struct kobject 		*kobj;
+					int i;
+					kobj = to_kobj (entry);
+					i = atomic_read (&kobj->kref.refcount);
+					printk ("--- \"%s\" [%x]\n", kobject_name (kobj), i);
+				}
 			}
 		}
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Srcs Count: %lx\n", (unsigned long)srcs->kset.kobj.kref.refcount.counter);
 		rddma_srcs_delete (srcs);
+		
+		/*
+		* Clean-up on-the-fly bind hierarchy
+		*
+		* This clause only runs if <src> is remote from <xfer>. 
+		* BUT: it ought only to run if <src> is also remote from <dst>, 
+		* but we have no way to know that (the plocs and ops are screwed,
+		* so when one or other is remote from <xfer>, both appear to be
+		* remote at the same location).
+		*
+		*/
+		dstref = atomic_read (&parent->kobj.kref.refcount);
+//		printk ("%s: Parent Refcount is %d\n", __func__, dstref);
+		if (parent->desc.src.ops != parent->desc.xfer.ops && dstref == 2) {
+			struct rddma_dsts *dsts = (bind) ? bind->dsts : NULL;
+			
+//			printk ("<*** %s - unravel on-the-fly bind...dst IN ***>\n", __func__);
+//			printk ("-- %s: Bind (%p), Dsts (%p), Dst (%p)\n", __func__, bind, dsts, parent);
+			rddma_dst_unregister (parent);
+			parent = NULL;
+			
+			/*
+			* Examine the dsts list, and if it is empty, delete
+			* first <dsts> then <bind>.
+			*
+			*/
+			if (dsts && list_empty (&dsts->kset.list)) {
+				int bindref = atomic_read (&bind->kobj.kref.refcount);
+				/*
+				* HACK ATTACK> make sure the bind has a refcount of 
+				* three before we unregister the dsts and the bind.
+				*
+				*/
+				if (bindref < 3) {
+//					printk ("-- Whoopsie - bindref %d too small for \"%s\"\n", bindref, kobject_name (&bind->kobj));
+					while (bindref < 3) {
+						kobject_get (&bind->kobj);
+						bindref++;
+					}
+				}
+				rddma_dsts_unregister (dsts);
+				rddma_bind_unregister (bind);
+			}
+//			printk ("<*** %s - unravel on-the-fly bind...dst OUT ***>\n", __func__);
+		}
 	}
+	return (parent);
+}
+
+/**
+* rddma_local_src_delete - Delete bind <src> fragment
+* 
+*
+*
+**/
+static void rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
+{	
+	RDDMA_DEBUG (MY_DEBUG, "%s (%s.%s#%llx:%x/%s.%s#%llx:%x=<*>)\n", __func__, 
+	             desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, 
+	             desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent);
+	printk ("-- Parent bind: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", 
+	        parent->desc.xfer.name, parent->desc.xfer.location, parent->desc.xfer.offset, parent->desc.xfer.extent, 
+	        parent->desc.dst.name, parent->desc.dst.location, parent->desc.dst.offset, parent->desc.dst.extent, 
+	        parent->desc.src.name, parent->desc.src.location, parent->desc.src.offset, parent->desc.src.extent);
+	
+	rddma_src_delete (parent, desc);
 }
 
 
 /**
 * rddma_local_dsts_delete - Delete bind destinations
+* @parent : pointer to bind object being deleted
+* @desc   : descriptor of bind being deleted
 *
-* This function is invoked as part of rddma_local_bind_delete with the express
-* intent of running through the list of sub-bind destinations associated with
-* a given bind and issuing "dst_delete" requests for each sub-bind encountered.
+* This function runs, locally, on the <dst> agent of a bind that is being deleted.
+* The <dst> agent is the keeper of the <dsts> list of individual <dst> fragments 
+* that make up the parent bind.
 *
-* This function should be run the the Transfer Agent that owns the transfer to
-* which the bind belongs. The "dst_delete" requests, on the other hand, must
-* be executed by the Destination Agent.
+* The function is run as an integral part of a bind_delete operation being co-ordinated
+* by the bind <xfer> agent.
+*
+* <dsts> is a list of <dst> fragments - each being "owned" by the bind <xfer> agent - that
+* divide the bind extent into <dst> page-sized fragments. <dsts> is deleted by first issuing
+* dst_delete requests for the <dst> fragments it carries.
 *
 **/
-static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
+static struct rddma_bind *rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct list_head *entry, *safety;
 	struct rddma_dsts *dsts = parent->dsts;
@@ -579,19 +915,84 @@ static void rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bin
 		RDDMA_DEBUG (MY_DEBUG, "-- Dsts \"%s\"\n", kobject_name (&dsts->kset.kobj));
 		if (!list_empty (&dsts->kset.list)) {
 			list_for_each_safe (entry, safety, &dsts->kset.list) {
-				struct rddma_dst      *dst;
+				struct rddma_dst      	*dst;
 				dst = to_rddma_dst (to_kobj (entry));
 				dst->desc.xfer.ops->dst_delete (parent, &dst->desc);
-				rddma_dst_delete(parent,&dst->desc);
+			}
+			
+			if (!list_empty (&dsts->kset.list)) {
+				printk ("WTF> Dsts %s kset is not yet empty!\n", kobject_name (&dsts->kset.kobj));
+				list_for_each_safe (entry, safety, &dsts->kset.list) {
+					struct kobject 		*kobj;
+					int i;
+					kobj = to_kobj (entry);
+					i = atomic_read (&kobj->kref.refcount);
+					printk ("--- \"%s\" [%x]\n", kobject_name (kobj), i);
+				}
+				
 			}
 		}
+		
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Dsts Count: %lx\n", (unsigned long)dsts->kset.kobj.kref.refcount.counter);
 		rddma_dsts_delete (dsts);
+		
+		/*
+		* HACK ALERT:
+		* -----------
+		* If the <dsts> site is not the same as the <xfer> site then the bind
+		* will have been created on-the-fly during dsts_create, and will have
+		* an imbalanced refcount that will not disappear when <dsts> unravels.
+		*
+		* So: compare the <dst> and <xfer> ops pointers to determine whether 
+		* they run on the same or on different sites. And if different, unregister
+		* the bind.
+		*
+		* Also take care of dubious refcounting: bind count needs to be 2, at least.
+		* Bump it up articifially if necessary. THIS IS A TEMPORARY HACK-OF-HACK.
+		*
+		*/
+		if (parent->desc.xfer.ops != parent->desc.dst.ops) {
+			int bindref = atomic_read (&parent->kobj.kref.refcount);
+			if (bindref < 2) {
+				printk ("-- Whoopsie - bindref %d too small for \"%s\"\n", bindref, kobject_name (&parent->kobj));
+				kobject_get (&parent->kobj);
+			}
+			else {
+				printk ("-- Bindref is now at %d\n", bindref);
+			}
+			rddma_bind_unregister (parent);
+			parent = NULL;
+		}
 	}
+	return (parent);
 }
+
+/**
+* rddma_local_dst_delete - Delete bind <dst> fragment and its <srcs> subsidiaries
+* @parent : pointer to parent bind object
+* @desc   : bind parameter descriptor
+*
+* This function - which runs locally at a bind <xfer> site - will cause the deletion
+* of a bind <dst> fragment and its <srcs>/<src> subsidiaries.
+*
+* This function is invoked as an integral part of a higher-level bind_delete operation 
+* as a consequence of dsts_delete, which runs on the bind <dst> site.  
+*
+*
+**/
 static void rddma_local_dst_delete(struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_dst *dst;
+
+	RDDMA_DEBUG (MY_DEBUG, "%s (%s.%s#%llx:%x/%s.%s#%llx:%x=<*>)\n", __func__, 
+		desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, 
+		desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent);
+/*
+	printk ("-- Parent bind: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", 
+		parent->desc.xfer.name, parent->desc.xfer.location, parent->desc.xfer.offset, parent->desc.xfer.extent, 
+		parent->desc.dst.name, parent->desc.dst.location, parent->desc.dst.offset, parent->desc.dst.extent, 
+		parent->desc.src.name, parent->desc.src.location, parent->desc.src.offset, parent->desc.src.extent);
+*/
 
 	dst = find_rddma_dst_in(parent,desc);
 	parent->desc.src.ops->srcs_delete(dst,desc);
@@ -666,9 +1067,27 @@ static int rddma_local_event_start(struct rddma_location *loc, struct rddma_desc
 	return 0;
 }
 
+/**
+* rddma_local_bind_delete - delete a bind associated with an xfer
+* @parent : pointer to the <xfer> that the target <bind> belongs to.
+* @desc   : descriptor for <xfer>. Its embedded offset is the primary means of bind selection.
+*
+* This function - which runs ONLY on the Xfer agent associated with the target bind - will
+* delete the specified bind and all of its subsidiaries.
+*
+* 
+**/
 static void rddma_local_bind_delete(struct rddma_xfer *parent, struct rddma_desc_param *desc)
 {
 	struct list_head *entry, *safety;
+	RDDMA_DEBUG (MY_DEBUG, "%s: (%s.%s#%llx:%x)\n", __func__, 
+			desc->name, desc->location, desc->offset, desc->extent);
+	/*
+	* Every <xfer> has a <binds> kset that lists the various binds 
+	* that exist for this transfer. Run through that list and delete
+	* any binds whose offset lies within the offset/extent range of the
+	* delete specification.
+	*/
 	if (!list_empty(&parent->binds->kset.list)) {
 		list_for_each_safe(entry,safety,&parent->binds->kset.list) {
 			struct rddma_bind *bind;
@@ -677,6 +1096,7 @@ static void rddma_local_bind_delete(struct rddma_xfer *parent, struct rddma_desc
 			    bind->desc.xfer.offset <= desc->offset + desc->extent) {
 				bind->desc.dst.ops->dsts_delete(bind,&bind->desc);
 			}
+			rddma_bind_delete (parent, &bind->desc.xfer);
 		}
 	}
 }
@@ -701,7 +1121,7 @@ struct rddma_ops rddma_local_ops = {
 	.srcs_create     = rddma_local_srcs_create,
 	.srcs_delete     = rddma_local_srcs_delete,
 	.src_create      = rddma_local_src_create,
-	.src_delete      = rddma_src_delete,
+	.src_delete      = rddma_local_src_delete,
 	.src_find        = rddma_local_src_find,
 	.dsts_create     = rddma_local_dsts_create,
 	.dsts_delete     = rddma_local_dsts_delete, 

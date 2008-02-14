@@ -185,21 +185,20 @@ out:
 
 int rddma_src_register(struct rddma_src *rddma_src)
 {
-    int ret = 0;
-
-    if ( (ret = kobject_register(&rddma_src->kobj) ) )
-	goto out;
-
-      return ret;
-
-out:
-    return ret;
+	int ret = 0;
+	
+//	printk ("<*** %s IN ***>\n", __func__);
+	ret = kobject_register(&rddma_src->kobj);
+//	printk ("<*** %s OOT ***>\n", __func__);
+	return ret;
 }
 
 void rddma_src_unregister(struct rddma_src *rddma_src)
 {
     
-     kobject_unregister(&rddma_src->kobj);
+//	printk ("<*** %s IN ***>\n", __func__);
+	kobject_unregister(&rddma_src->kobj);
+//	printk ("<*** %s OOT ***>\n", __func__);
 }
 
 struct rddma_src *find_rddma_src(struct rddma_desc_param *desc, struct rddma_dst *parent)
@@ -238,12 +237,15 @@ void rddma_src_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
 		    desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent, 
 		    desc->src.name, desc->src.location,desc->src.offset, desc->src.extent);
 	
-	if (snprintf (buf, 128, "#%llx:%x", desc->src.offset, desc->src.extent) >= 128) {
+	if (snprintf (buf, 128, "%s.%s#%llx:%x", desc->src.name, desc->src.location, desc->src.offset, desc->src.extent) >= 128) {
 		RDDMA_DEBUG(MY_DEBUG, "%s: buffer not big enough\n",__FUNCTION__);
 	}
 	
 	src = to_rddma_src (kset_find_obj (&parent->srcs->kset, buf));
-
+	if (!src) {
+		RDDMA_DEBUG (MY_DEBUG, "xxx %s failed to find \"%s\"\n", __func__, buf);
+		return;
+	}
 	rddma_src_put (src);		/* Put, to counteract the find... */
 	rddma_src_unregister(src);
 }

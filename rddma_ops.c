@@ -372,8 +372,34 @@ out:
 	return ret;
 }
 
+/**
+* valid_extents - validate any extents quoted in a bind specification
+* @x - pointer to bind parameter block
+*
+* A bind specification has the following general form:
+*
+*	<xfer>#<xo>:<xe>/<dst-smb>#<do>:<de>=<src-smb>#<so>:<se>
+*
+* This function validates the extent fields <xe>, <de>, and <se> 
+* to ensure, if possible, that all three have the same value.
+*
+* At least one of <xe>, <de>, and <se> must be non-zero. That allows
+* default values to be assigned to unspecified extents by substitution
+* of specified values.
+*
+* All three must have the same value in the end.
+*
+* Note that this function does NOT validate extents against referenced
+* <dst-smb> or <src-smb>: so it would happily pass an extent that is greater
+* than either or both, or extents referring to non-existant SMBs.
+* 
+**/
 static int valid_extents(struct rddma_bind_param *x)
 {
+	/*
+	* Fail if <xe> == <de> == <se> == 0
+	*
+	*/
 	if ( x->xfer.extent == 0 && x->dst.extent == 0 && x->src.extent == 0 )
 		return 0;
 
@@ -391,6 +417,9 @@ static int valid_extents(struct rddma_bind_param *x)
 	if (x->xfer.extent == 0)
 		x->xfer.extent = x->dst.extent;
 
+	/*
+	* Fail if one or more extents differ from the others.
+	*/
 	if (x->xfer.extent != x->dst.extent || x->xfer.extent != x->src.extent || x->dst.extent != x->src.extent)
 		return 0;
 
@@ -661,6 +690,16 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * A bind is specified by three terms:
+ *
+ *	<xfer-spec>/<dst-spec>=<src-spec>
+ *
+ * <xfer-spec> identifies the transfer that the bind will belong to.
+ * <dst-spec> identifies the destination SMB fragment that data is to be copied to
+ * <src-spec> identifies the source SMB fragment that data is to be copied from.
+ *
+ *
  */
 static int bind_create(const char *desc, char *result, int size)
 {
@@ -671,16 +710,34 @@ static int bind_create(const char *desc, char *result, int size)
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
+	/*
+	* Parse <bind-spec> into <xfer-spec>, <dst-spec>, 
+	* and <src-spec>.
+	*
+	*/
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -EINVAL;
 
+	/*
+	* Elementary extent validation to ensure all three extents
+	* are equal in [non-zero] value. Will substitute for zero
+	* if possible. No validation of actual extents against the
+	* SMBs they refer to.
+	*/
 	if ( !valid_extents(&params) )
 		goto out;
 
 	ret = -ENODEV;
 
+	/*
+	* Try to find the xfer object in the tree. This may not be successful,
+	* in which case we will fail to retrieve a bind pointer, and will consequently
+	* return a failure reply.
+	*
+	* Sometimes that just needs to be spelled out.
+	*/
 	if ( (xfer = find_rddma_xfer(&params.xfer) ) ) {
 
 		ret = -EINVAL;
@@ -725,28 +782,13 @@ out:
  *
  * This function handles commands of the form:
  *
- *    bind_delete://<xfer>#<xo>:<be>/<dst>#<do>:<be>=<src>#<so>:<be>
+ *    bind_delete://<xfer>#<xo>
  *
- * Where the [xfer]/[dst]=[src] triplet specifies a bind uniquely:
- *
- *	<xfer> - name of transfer the binding belongs to
+ *	<xfer> - name of xfer the binding belongs to
  *	<xo>   - Offset to the start of the bind within the transfer
- *	<be>   - Extent of the bind, in bytes
- *	<dst>  - Destination SMB that data will be copied to
- *	<do>   - Offset within Destination SMB where data will be copied to
- *	<src>  - Source SMB that data will be copied from
- *	<so>   - Offset within Source SMB where data will be copied from
  *
- * Deleting a bind involves four distinct agents: the requesting agent, who
- * receives the original command and who is running this function; the transfer 
- * agent that owns the transfer to which the bind belongs; and the source and 
- * destination agents who manage the SMBs that the bind ties together. 
- *
- * It is the TRANSFER AGENT who must co-ordinate the deletion. 
- *
- * The purpose of this function is to parse the original request into its 
- * xfer/dst/src components, and forward it to the transfer agent for execution.
- * Should the transfer agent be situated locally, command execution will commence.
+ * bind_delete must run on the Xfer agent. This function will find the named xfer 
+ * object in the local tree, and will then invoke its Xfer agent bind_delete operation.
  *
  */
 static int bind_delete(const char *desc, char *result, int size)
@@ -757,7 +799,7 @@ static int bind_delete(const char *desc, char *result, int size)
 	
 	RDDMA_DEBUG (MY_LIFE_DEBUG, "%s: \"%s\"\n", __FUNCTION__, desc);
 	if ( (ret = rddma_parse_desc(&params, desc)) ) {
-		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed to parse bind correctly\n", __FUNCTION__);
+		RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed to parse bind_delete correctly\n", __FUNCTION__);
 		goto out;
 	}
 
@@ -913,6 +955,14 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * The dst_delete command is intended to be run as an integral part of a 
+ * larger bind_delete operation: it is NOT meant for casual use by applications.
+ *
+ * dst_delete runs on the <xfer> component of a <bind> that is being deleted.
+ * It is invoked during the dsts_delete action, which runs on the <dst> component of
+ * the <bind>. 
+ *
  */
 static int dst_delete(const char *desc, char *result, int size)
 {
@@ -926,12 +976,11 @@ static int dst_delete(const char *desc, char *result, int size)
 		goto out;
 
 	ret = -ENODEV;
-
 	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
 		ret = -EINVAL;
-		if ( bind->desc.dst.ops && bind->desc.dst.ops->dst_delete ) {
+		if ( bind->desc.xfer.ops && bind->desc.xfer.ops->dst_delete ) {
 			ret = 0;
-			bind->desc.dst.ops->dst_delete(bind, &params);
+			bind->desc.xfer.ops->dst_delete(bind, &params);
 		}
 	}
 
@@ -1014,6 +1063,9 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * This operation is NOT intended to be invoked directly by an application, 
+ * but rather from within the driver during bind_create.
  */
 static int src_create(const char *desc, char *result, int size)
 {
@@ -1089,13 +1141,13 @@ static int src_delete(const char *desc, char *result, int size)
 
 	if ( (dst = find_rddma_dst(&params) ) ) {
 		ret = -EINVAL;
-		if ( dst->desc.dst.ops && dst->desc.dst.ops->src_delete ) {
+		if ( dst->desc.xfer.ops && dst->desc.xfer.ops->src_delete ) {
 			ret = 0;
-			dst->desc.dst.ops->src_delete(dst, &params);
+			dst->desc.xfer.ops->src_delete(dst, &params);
 		}
+		rddma_dst_put(dst);
 	}
 
-	rddma_dst_put(dst);
 
 out:
 	if (result)
@@ -1174,6 +1226,26 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * This function, which runs as part of bind creation, is responsible
+ * for creating the set of bind <src> fragments needed to satisfy a given
+ * <dst> fragment.
+ *
+ * To elaborate: a <bind> defines a transfer of <extent> bytes from a
+ * <src> SMB to a <dst> SMB. The <extent> will be sub-divided first into
+ * smaller <dst> fragments, whose individual size depends on the page size
+ * at the recipient site, and then for each of those, into <src> fragments
+ * chosen to suit page size at the source site. Thus a single <bind> flowers
+ * into multiple <dsts>, and each <dst> into multiple <srcs>.
+ *
+ * This operation, srcs_create, decides upon the number and size of <src> 
+ * fragments that need to feed a single <dst> fragment. It will create a 
+ * <srcs> container, and cause the creation of the required <src> set.
+ *
+ * The creation of <srcs> will always run on the bind <src> agent, though
+ * creation of <src> fragments (and pretty much everything else) runs on
+ * the <xfer> agent.
+ *
  */
 static int srcs_create(const char *desc, char *result, int size)
 {
@@ -1226,6 +1298,20 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * This functions deletes the set of source fragments belonging to a 
+ * specific bind destination fragment.
+ *
+ * The <srcs> component of a given bind is one of only two ONLY parts of 
+ * a bind that are not "owned" by the <xfer> agent, and the only part that
+ * is owned by the <src> agent. The individual <src> fragments slung beneath
+ * <srcs> are themselves owned by the <xfer> agent, as will be the <dst> parent
+ * fragment.
+ *
+ * This makes things a little tricky when <xfer> != <src>, since all higher-level
+ * [and lower-level] objects in the bind hierarchy will only exist in the local
+ * tree as proxies, created on-the-fly during srcs_create.
+ *
  */
 static int srcs_delete(const char *desc, char *result, int size)
 {
@@ -1239,15 +1325,22 @@ static int srcs_delete(const char *desc, char *result, int size)
 		goto out;
 
 	ret = -ENODEV;
+	/*
+	* Find the <dst> whose <srcs> are to be deleted.
+	*
+	* CAUTION: this call embedds further finds for xfer and
+	* bind, and gives rise to refcount anomalies when <src> is
+	* remote from <xfer>.
+	*/
 	if ( (dst = find_rddma_dst(&params) ) ) {
 		ret = -EINVAL;
-		if ( dst->desc.dst.ops && dst->desc.dst.ops->srcs_delete ) {
+		if ( dst->desc.src.ops && dst->desc.src.ops->srcs_delete  ) {
 			ret = 0;
-			dst->desc.dst.ops->srcs_delete(dst, &params);
+			dst = dst->desc.src.ops->srcs_delete(dst, &params);
 		}
+		if (dst) rddma_dst_put(dst);	/* Counteract get from find, but only if dst still exists */
 	}
 
-	rddma_dst_put(dst);
 
 out:
 	if (result)
@@ -1314,6 +1407,26 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * A "dsts_create" command is not issued directly by users - or, at least, should not be - 
+ * but rather as an integral part of bind_create: specifically the part that creates the
+ * bind destination sub-tree.
+ *
+ * Now, when we reach here all we can know is that the Xfer agent - which is presumably
+ * some other device on the network (or we wouldn't be here) has created the following 
+ * components of a bind:
+ *
+ * <loc>			The location, created separately
+ *     xfers/
+ *         <xfer>		The transfer, created separately
+ *             binds/
+ *             ...		Other binds we do not care about
+ *                 #<xo>:<xe>	The header for OUR bind, specifying offset and extent within the xfer.
+ *
+ * It is certain that we, here, will not know of the bind header. Our job is to create a 
+ * local stub and a subtree for it, beginning with <dsts>, a list of <dst>, and ultimately 
+ * <srcs> and a list of <src> - although source elements will be created at the <src> site.
+ *
  */
 static int dsts_create(const char *desc, char *result, int size)
 {
@@ -1325,14 +1438,30 @@ static int dsts_create(const char *desc, char *result, int size)
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
 
+	/*
+	* Parse the bind specification contained in the instruction into its
+	* <xfer>, <dst>, and <src> components.
+	*
+	*/
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
 	ret = -ENODEV;
 	
+	/*
+	* Find the bind object in our tree. If the <xfer> agent is local,
+	* it will already be there. If the <xfer> agent is remote, then
+	* we will create a stub for it - provided it exists at the xfer site.
+	*
+	*/
 	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
 		ret = -EINVAL;
 
+		/*
+		* With the bind and its components properly identified, 
+		* invoke the dsts_create function at the <dst> site.
+		*
+		*/
 		if (bind->desc.dst.ops && bind->desc.dst.ops->dsts_create)
 			ret = ((dsts = bind->desc.dst.ops->dsts_create(bind, &params)) == NULL);
 
@@ -1364,6 +1493,10 @@ out:
  * terminating null) or negative if an error.
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
+ *
+ * dsts_delete is invoked as part of bind_delete, where it is expressly
+ * delivered to the <dst> agent of a bind being deleted.
+ *
  */
 static int dsts_delete(const char *desc, char *result, int size)
 {
@@ -1377,15 +1510,30 @@ static int dsts_delete(const char *desc, char *result, int size)
 		goto out;
 
 	ret = -ENODEV;
+	/*
+	* Find the target bind in the local object tree, then invoke
+	* its <dst> agent dst_delete operation.
+	*
+	* NOTE: for sanity's sake, the bind "get" that is implicit in
+	* this find_rddma_bind call is "put" by the API function. Otherwise
+	* your head will explode if running a local dsts_delete.
+	*/
 	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
 		ret = -EINVAL;
 		if ( bind->desc.dst.ops && bind->desc.dst.ops->dsts_delete ) {
 			ret = 0;
-			bind->desc.dst.ops->dsts_delete(bind, &params);
+			/*
+			* Invoke the <dst> dsts_delete op to delete dsts.
+			* That function returns a pointer to the parent bind
+			* that we MUST take account of. If the return value
+			* is NULL, it means that the bind, too, has been deleted
+			* from the local tree.
+			*/
+			bind = bind->desc.dst.ops->dsts_delete(bind, &params);
 		}
+		
+		if (bind) rddma_bind_put (bind);	/* Counteract get from "find", but only if bind still exists */
 	}
-
-	rddma_bind_put(bind);
 
 out:
 	if (result)
@@ -1525,13 +1673,15 @@ static struct ops {
 
 int do_operation(const char *cmd, char *result, int size)
 {
+	static int nested = 0;
 	int ret = -EINVAL;
 	char *sp1;
 	char test[MAX_OP_LEN + 1];
 	int toklen;
 	int found = 0;
+	int this_nested = ++nested;
 
-	RDDMA_DEBUG(MY_DEBUG,"#### %s entered with %s, result=%p, size=%d\n",__FUNCTION__,cmd,result, size);
+	RDDMA_DEBUG (MY_DEBUG,"#### %s (%d) entered with %s, result=%p, size=%d\n",__FUNCTION__,this_nested,cmd,result, size);
 
 	if ( (sp1 = strstr(cmd,"://")) ) {
 		struct ops *op = &ops[0];
@@ -1556,6 +1706,8 @@ out:
 		ret = snprintf(result,size,"%s,result=10101\n" ,sp1 ? sp1+3 : cmd);
 	}
 
+	nested--;
+	RDDMA_DEBUG (MY_DEBUG, "#### [ done_operation (%d) \"%s\" ]\n", this_nested, cmd);
 	return ret;
 }
 
