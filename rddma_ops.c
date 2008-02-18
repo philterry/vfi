@@ -1271,7 +1271,15 @@ static int srcs_create(const char *desc, char *result, int size)
 
 		bind = rddma_dst_parent(dst);
 		event_id = bind->src_done_event->event_id;
-		rddma_bind_put(bind);
+
+		/*
+		* TJA> Remove superfluous bind put.
+		*
+		* This put is unnecessary, and damaging - it causes an imbalance
+		* in The Force that is noticed at delete time.
+		*/
+//		printk ("<*** %s bind put after srcs_create opcall ***>\n", __func__);
+//		rddma_bind_put(bind);
 	}
 
 	rddma_dst_put(dst);
@@ -1382,9 +1390,9 @@ static int srcs_find(const char *desc, char *result, int size)
 		ret = -EINVAL;
 		if (dst->desc.dst.ops && dst->desc.dst.ops->srcs_find)
 			ret = ((srcs = dst->desc.dst.ops->srcs_find(dst,&params)) == NULL);
+		rddma_dst_put(dst);
 	}
 
-	rddma_dst_put(dst);
 
 out:
 	if (result)

@@ -994,9 +994,16 @@ static void rddma_local_dst_delete(struct rddma_bind *parent, struct rddma_bind_
 		parent->desc.src.name, parent->desc.src.location, parent->desc.src.offset, parent->desc.src.extent);
 */
 
-	dst = find_rddma_dst_in(parent,desc);
-	parent->desc.src.ops->srcs_delete(dst,desc);
-	rddma_dst_delete(parent,desc);
+	/*
+	* INVESTIGATE: the find call will, if successful, leave
+	* the dst refcount incremented - need to ensure that this
+	* additional refcount is successfully countermanded somewhere
+	* in the dst_delete chain.
+	*/
+	if ((dst = find_rddma_dst_in(parent,desc))) {
+		parent->desc.src.ops->srcs_delete(dst,desc);
+		rddma_dst_delete(parent,desc);
+	}
 }
 
 static void rddma_local_done(struct rddma_event *event)
