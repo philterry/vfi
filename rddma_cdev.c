@@ -142,6 +142,40 @@ static void queue_to_read(struct privdata *priv, struct mybuffers *mybuf)
 	kfree(mybuf);
 }
 
+struct def_work {
+	struct mybuffers *mybuf;
+	size_t count;
+	struct privdata *priv;
+	struct work_struct work;
+	struct workqueue_struct *woq;
+};
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+static void def_write(void *data)
+{
+	struct def_work *work = (struct def_work *) data;
+#else
+static void def_write(struct work_struct *wk)
+{
+	struct def_work *work = container_of(wk,struct def_work,work);
+#endif
+	loff_t offset = 0;
+	int ret;
+
+	ret = rddma_real_write(work->mybuf,work->count,&offset);
+	
+	if ( ret < 0 ) {
+		kfree(work->mybuf->buf);
+		kfree(work->mybuf);
+		return;
+	}
+	
+	work->mybuf->size = ret;
+	queue_to_read(work->priv,work->mybuf);
+	destroy_workqueue(work->woq);
+	kfree(work);
+}
+
 /**
  * rddma_write - Write a command to the rddma driver.
  * @filep - the open filep structure
@@ -168,6 +202,8 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 	struct mybuffers *mybuf;
 	char *buffer = kzalloc(count+1,GFP_KERNEL);
 	struct privdata *priv = filep->private_data;
+	struct def_work *work;
+	char name[10];
 
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if ( (ret = copy_from_user(buffer,buf,count)) ) {
@@ -179,16 +215,33 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 	mybuf->buf = strsep(&buffer,"\n");
 	mybuf->reply = (char *)(mybuf+1);
 
-	ret = rddma_real_write(mybuf,count,offset);
-	
-	if ( ret < 0 ) {
-		kfree(mybuf->buf);
-		kfree(mybuf);
-		return ret;
+	if (filep->f_flags & O_NONBLOCK) {
+		work = kzalloc(sizeof(struct def_work),GFP_KERNEL);
+		sprintf(name,"%p",work);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+		INIT_WORK(&work->work,def_write, (void *) work);
+#else
+		INIT_WORK(&work->work,def_write);
+		work->woq = create_singlethread_workqueue(name);
+#endif
+		work->mybuf = mybuf;
+		work->count = count;
+		work->priv = priv;
+		queue_work(work->woq,&work->work);
+		*offset += count;
 	}
+	else {
+		ret = rddma_real_write(mybuf,count,offset);
 	
-	mybuf->size = ret;
-	queue_to_read(priv,mybuf);
+		if ( ret < 0 ) {
+			kfree(mybuf->buf);
+			kfree(mybuf);
+			return ret;
+		}
+	
+		mybuf->size = ret;
+		queue_to_read(priv,mybuf);
+	}
 
 	return count;
 }
