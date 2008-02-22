@@ -203,7 +203,6 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 	char *buffer = kzalloc(count+1,GFP_KERNEL);
 	struct privdata *priv = filep->private_data;
 	struct def_work *work;
-	char name[10];
 
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if ( (ret = copy_from_user(buffer,buf,count)) ) {
@@ -217,13 +216,12 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 
 	if (filep->f_flags & O_NONBLOCK) {
 		work = kzalloc(sizeof(struct def_work),GFP_KERNEL);
-		sprintf(name,"%p",work);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 		INIT_WORK(&work->work,def_write, (void *) work);
 #else
 		INIT_WORK(&work->work,def_write);
-		work->woq = create_singlethread_workqueue(name);
 #endif
+		work->woq = create_singlethread_workqueue("rddma_write");
 		work->mybuf = mybuf;
 		work->count = count;
 		work->priv = priv;
@@ -371,7 +369,6 @@ static void aio_def_write(struct work_struct *wk)
 static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, unsigned long nr_iovs, loff_t offset)
 {
 	struct privdata *priv = iocb->ki_filp->private_data;
-	char name[10];
 	struct aio_def_work *work;
 	int i = 0;
 	int ret = 0;
@@ -383,13 +380,12 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 	}
 
 	work = kzalloc(sizeof(struct aio_def_work),GFP_KERNEL);
-	sprintf(name,"%p",work);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 	INIT_WORK(&work->work,aio_def_write, (void *) work);
 #else
 	INIT_WORK(&work->work,aio_def_write);
-	work->woq = create_singlethread_workqueue(name);
 #endif
+	work->woq = create_singlethread_workqueue("rddma_aio_write");
 	work->iocb = iocb;
 	work->iovs = kzalloc(sizeof(struct kvec)*nr_iovs, GFP_KERNEL);
 	while ( i < nr_iovs) {
