@@ -141,6 +141,50 @@ static void queue_to_read(struct privdata *priv, struct mybuffers *mybuf)
 	kfree(mybuf->buf);
 	kfree(mybuf);
 }
+struct def_work {
+	struct mybuffers *mybuf;
+	struct privdata *priv;
+	size_t count;
+
+	struct work_struct work;
+	struct workqueue_struct *woq;
+};
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+static void write_disposeq(void *data)
+{
+	struct def_work *work = (struct def_work *) data;
+#else
+static void write_disposeq(struct work_struct *wk)
+{
+	struct def_work *work = container_of(wk,struct def_work,work);
+#endif
+	destroy_workqueue(work->woq);
+	kfree(work);
+}
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+static void def_write(void *data)
+{
+	struct def_work *work = (struct def_work *) data;
+#else
+static void def_write(struct work_struct *wk)
+{
+	struct def_work *work = container_of(wk,struct def_work,work);
+#endif
+	int ret;
+	loff_t offset;
+	ret = rddma_real_write(work->mybuf,work->count,&offset);
+	
+	work->mybuf->size = ret;
+	queue_to_read(work->priv,work->mybuf);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+	PREPARE_WORK(&work->work, write_disposeq, (void *) work);
+#else
+	PREPARE_WORK(&work->work, write_disposeq);
+#endif
+	schedule_work(&work->work);
+}
 
 /**
  * rddma_write - Write a command to the rddma driver.
@@ -168,6 +212,7 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 	struct mybuffers *mybuf;
 	char *buffer = kzalloc(count+1,GFP_KERNEL);
 	struct privdata *priv = filep->private_data;
+	struct def_work *work;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if ( (ret = copy_from_user(buffer,buf,count)) ) {
@@ -179,16 +224,27 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 	mybuf->buf = strsep(&buffer,"\n");
 	mybuf->reply = (char *)(mybuf+1);
 
-	ret = rddma_real_write(mybuf,count,offset);
-	
-	if ( ret < 0 ) {
-		kfree(mybuf->buf);
-		kfree(mybuf);
-		return ret;
+	if (filep->f_flags & O_NONBLOCK) {
+		work = kzalloc(sizeof(struct def_work),GFP_KERNEL);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+		INIT_WORK(&work->work,def_write, (void *) work);
+#else
+		INIT_WORK(&work->work,def_write);
+#endif
+		work->woq = create_workqueue("rddma_aio_write");
+		work->mybuf = mybuf;
+		work->count = count;
+		work->priv = priv;
+
+		queue_work(work->woq,&work->work);
+		*offset += count;
 	}
+	else {
+		ret = rddma_real_write(mybuf,count,offset);
 	
-	mybuf->size = ret;
-	queue_to_read(priv,mybuf);
+		mybuf->size = ret;
+		queue_to_read(priv,mybuf);
+	}
 
 	return count;
 }
@@ -202,6 +258,19 @@ struct aio_def_work {
 	struct workqueue_struct *woq;
 	struct page **uctx;
 };
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+static void aio_disposeq(void *data)
+{
+	struct aio_def_work *work = (struct aio_def_work *) data;
+#else
+static void aio_disposeq(struct work_struct *wk)
+{
+	struct aio_def_work *work = container_of(wk,struct aio_def_work,work);
+#endif
+	destroy_workqueue(work->woq);
+	kfree(work);
+}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 static void aio_def_write(void *data)
@@ -311,14 +380,17 @@ static void aio_def_write(struct work_struct *wk)
 	aio_complete(work->iocb,count,work->iocb->ki_pos);
 #endif
 
-	destroy_workqueue(work->woq);
-	kfree(work);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+	PREPARE_WORK(&work->work, aio_disposeq, (void *) &cb->wo);
+#else
+	PREPARE_WORK(&work->work, aio_disposeq);
+#endif
+	schedule_work(&work->work);
 }
 
 static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, unsigned long nr_iovs, loff_t offset)
 {
 	struct privdata *priv = iocb->ki_filp->private_data;
-	char name[10];
 	struct aio_def_work *work;
 	int i = 0;
 	int ret = 0;
@@ -330,13 +402,12 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 	}
 
 	work = kzalloc(sizeof(struct aio_def_work),GFP_KERNEL);
-	sprintf(name,"%p",work);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 	INIT_WORK(&work->work,aio_def_write, (void *) work);
 #else
 	INIT_WORK(&work->work,aio_def_write);
-	work->woq = create_singlethread_workqueue(name);
 #endif
+	work->woq = create_workqueue("rddma_aio_write");
 	work->iocb = iocb;
 	work->iovs = kzalloc(sizeof(struct kvec)*nr_iovs, GFP_KERNEL);
 	while ( i < nr_iovs) {

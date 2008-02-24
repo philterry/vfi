@@ -37,7 +37,7 @@ struct call_back_tag {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 static void fabric_disposeq(void *data)
 {
-	struct work_struct *wo = (struct work_struct *) data;
+	struct call_back_tag *cb = (struct call_back_tag *) data;
 #else
 static void fabric_disposeq(struct work_struct *wo)
 {
@@ -50,7 +50,7 @@ static void fabric_disposeq(struct work_struct *wo)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 static void fabric_do_rqst(void *data)
 {
-	struct work_struct *wo = (struct work_struct *) data;
+	struct call_back_tag *cb = (struct call_back_tag *) data;
 #else
 static void fabric_do_rqst(struct work_struct *wo)
 {
@@ -75,7 +75,7 @@ static void fabric_do_rqst(struct work_struct *wo)
 	rddma_fabric_put(cb->sender);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	PREPARE_WORK(&cb->wo, fabric_disposeq, (void *) &cb->wo);
+	PREPARE_WORK(&cb->wo, fabric_disposeq, (void *) cb);
 #else
 	PREPARE_WORK(&cb->wo, fabric_disposeq);
 #endif
@@ -85,7 +85,7 @@ static void fabric_do_rqst(struct work_struct *wo)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 static void fabric_sched_rqst(void *data)
 {
-	struct work_struct *wo = (struct work_struct *) data;
+	struct call_back_tag *cb = (struct call_back_tag *) data;
 #else
 static void fabric_sched_rqst(struct work_struct *wo)
 {
@@ -94,7 +94,7 @@ static void fabric_sched_rqst(struct work_struct *wo)
 	cb->woq = create_workqueue("fab_rqst");
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	PREPARE_WORK(&cb->wo, fabric_do_rqst, (void *) &cb->wo);
+	PREPARE_WORK(&cb->wo, fabric_do_rqst, (void *) cb);
 #else
 	PREPARE_WORK(&cb->wo, fabric_do_rqst);
 #endif
@@ -240,7 +240,7 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 		cb->check = cb;
 		if ( (cb->sender = rddma_fabric_get(sender)) ) {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-			INIT_WORK(&cb->wo, fabric_sched_rqst, (void *) &cb->wo);
+			INIT_WORK(&cb->wo, fabric_sched_rqst, (void *) cb);
 #else
 			INIT_WORK(&cb->wo, fabric_sched_rqst);
 #endif
