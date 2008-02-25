@@ -41,8 +41,8 @@ static void fabric_disposeq(void *data)
 #else
 static void fabric_disposeq(struct work_struct *wo)
 {
-#endif
 	struct call_back_tag *cb = container_of(wo, struct call_back_tag, wo);
+#endif
 	destroy_workqueue(cb->woq);
 	kfree(cb);
 }
