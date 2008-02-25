@@ -156,50 +156,6 @@ static void write_disposeq(struct work_struct *wk)
 	destroy_workqueue(work->woq);
 	kfree(work);
 }
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void def_write(void *data)
-{
-	struct def_work *work = (struct def_work *) data;
-#else
-static void def_write(struct work_struct *wk)
-{
-	struct def_work *work = container_of(wk,struct def_work,work);
-#endif
-	int ret;
-	loff_t offset;
-	ret = rddma_real_write(work->mybuf,work->count,&offset);
-	
-	work->mybuf->size = ret;
-	queue_to_read(work->priv,work->mybuf);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	PREPARE_WORK(&work->work, write_disposeq, (void *) work);
-#else
-	PREPARE_WORK(&work->work, write_disposeq);
-#endif
-	schedule_work(&work->work);
-}
-
-struct def_work {
-	struct mybuffers *mybuf;
-	size_t count;
-	struct privdata *priv;
-	struct work_struct work;
-	struct workqueue_struct *woq;
-};
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void disposeq(void *data)
-{
-	struct def_work *work = (struct def_work *) data;
-#else
-static void disposeq(struct work_struct *wk)
-{
-	struct def_work *work = container_of(wk,struct def_work,work);
-#endif
-	destroy_workqueue(work->woq);
-	kfree(work);
-}
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 static void def_write(void *data)
 {
@@ -218,9 +174,9 @@ static void def_write(struct work_struct *wk)
 	queue_to_read(work->priv,work->mybuf);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	PREPARE_WORK(&work->work, disposeq, (void *) work);
+	PREPARE_WORK(&work->work, write_disposeq, (void *) work);
 #else
-	PREPARE_WORK(&work->work, disposeq);
+	PREPARE_WORK(&work->work, write_disposeq);
 #endif
 	schedule_work(&work->work);
 }
