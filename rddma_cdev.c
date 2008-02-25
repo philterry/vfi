@@ -116,10 +116,6 @@ static ssize_t rddma_real_write(struct mybuffers *mybuf, size_t count, loff_t *o
 	RDDMA_DEBUG(MY_DEBUG,"%s: count=%d, calls do_operation (...)\n",__FUNCTION__, (int)count);
 	ret = do_operation(mybuf->buf, mybuf->reply, 1024-sizeof(struct mybuffers));
 
-	if ( ret < 0 ) {
-		return ret;
-	}
-
 	*offset += count;
 	return ret;
 }
@@ -184,6 +180,51 @@ static void def_write(struct work_struct *wk)
 	schedule_work(&work->work);
 }
 
+struct def_work {
+	struct mybuffers *mybuf;
+	size_t count;
+	struct privdata *priv;
+	struct work_struct work;
+	struct workqueue_struct *woq;
+};
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+static void disposeq(void *data)
+{
+	struct def_work *work = (struct def_work *) data;
+#else
+static void disposeq(struct work_struct *wk)
+{
+	struct def_work *work = container_of(wk,struct def_work,work);
+#endif
+	destroy_workqueue(work->woq);
+	kfree(work);
+}
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+static void def_write(void *data)
+{
+	struct def_work *work = (struct def_work *) data;
+#else
+static void def_write(struct work_struct *wk)
+{
+	struct def_work *work = container_of(wk,struct def_work,work);
+#endif
+	loff_t offset = 0;
+	int ret;
+
+	ret = rddma_real_write(work->mybuf,work->count,&offset);
+		
+	work->mybuf->size = ret;
+	queue_to_read(work->priv,work->mybuf);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
+	PREPARE_WORK(&work->work, disposeq, (void *) work);
+#else
+	PREPARE_WORK(&work->work, disposeq);
+#endif
+	schedule_work(&work->work);
+}
+
 /**
  * rddma_write - Write a command to the rddma driver.
  * @filep - the open filep structure
@@ -229,11 +270,10 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 #else
 		INIT_WORK(&work->work,def_write);
 #endif
-		work->woq = create_workqueue("rddma_write");
+		work->woq = create_singlethread_workqueue("rddma_write");
 		work->mybuf = mybuf;
 		work->count = count;
 		work->priv = priv;
-
 		queue_work(work->woq,&work->work);
 		*offset += count;
 	}
@@ -405,7 +445,7 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 #else
 	INIT_WORK(&work->work,aio_def_write);
 #endif
-	work->woq = create_workqueue("rddma_aio_write");
+	work->woq = create_singlethread_workqueue("rddma_aio_write");
 	work->iocb = iocb;
 	work->iovs = kzalloc(sizeof(struct kvec)*nr_iovs, GFP_KERNEL);
 	while ( i < nr_iovs) {

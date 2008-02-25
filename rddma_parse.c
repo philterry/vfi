@@ -292,6 +292,21 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	return ret;
 }
 
+/**
+* rddma_parse_desc - duplicate, then parse, command string
+* @d    - descriptor to receive results
+* @desc - string to be parsed
+*
+* This function provides the front-end command string parser. 
+* It duplicates the original @desc string, and parses the duplicate, 
+* saving the results in the caller-provided @d.
+*
+* Duplication allows the string to be sliced and diced without
+* affecting the original, and allows the string to be safely
+* discarded later via its dewscriptor. In short, every descriptor
+* ought to refer to its own copy of a string.
+*
+**/
 int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 {
 	int ret = -EINVAL;
@@ -314,7 +329,21 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
  * parsed.
  *@desc: A string describing a transfer.
  *
- * A transfer is a string of the form desc_param/bind_param.
+ * A bind is defined by three terms, with optional parameters embedded in
+ * each. The general form is:
+ *
+ *	<xfer-spec>/<dst-spec>=<src-spec>
+ *
+ * Where the three terms are fully-qualified Xfer, Destination, and Source
+ * specifications.
+ *
+ * We parse a bind by isolating its three required terms, then parsing each
+ * of those as a separate descriptor.
+ *
+ * As illustrated above, the <xfer-spec> term is terminated by a '/', the
+ * <dst-spec> term is terminated by '=', and the <src-spec> term is terminated
+ * by the end-of-string.
+ *
  */
 int rddma_parse_bind(struct rddma_bind_param *x, const char *desc)
 {
@@ -330,8 +359,15 @@ int rddma_parse_bind(struct rddma_bind_param *x, const char *desc)
 	if ( myxfer == NULL ) 
 		return -ENOMEM;
 
+	/*
+	* Separate <xfer-spec> from <dst-spec>=<src-spec>
+	*/
 	name_remainder(myxfer, '/', &mydst);
 
+	/*
+	* Separate <dst-spec> from <src-spec> and parse
+	* each as a standalone descriptor.
+	*/
 	if (mydst) {
 		name_remainder(mydst, '=', &mysrc);
 
@@ -346,6 +382,9 @@ int rddma_parse_bind(struct rddma_bind_param *x, const char *desc)
 			goto out;
 	}
 
+	/*
+	* Parse <xfer-spec> as a standalone descriptor.
+	*/
 	ret = rddma_parse_desc( &x->xfer, myxfer );
 out:
 	kfree(myxfer);

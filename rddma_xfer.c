@@ -163,17 +163,28 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_de
 	new->kobj.ktype = &rddma_xfer_type;
 	kobject_set_name(&new->kobj,"%s", desc->name);
 
-	new->kobj.kset = &parent->xfers->kset;
-	new->desc.ops = parent->desc.ops;
-	new->desc.address = parent->desc.address;
-	new->desc.rde = parent->desc.rde;
-	new->desc.ploc = parent;
+	new->kobj.kset = &parent->xfers->kset;		/* Pointer to location xfers kset, where this xfer will later hang */
+	new->desc.ops = parent->desc.ops;		/* Pointer to location core ops */
+	new->desc.address = parent->desc.address;	/* Pointer to location address ops */
+	new->desc.rde = parent->desc.rde;		/* Pointer to location DMA engine ops */
+	new->desc.ploc = parent;			/* Pointer to complete location object */
 
 out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
 }
 
+/**
+* rddma_xfer_register - Register an xfer object with sysfs tree
+* @xfer : xfer object to be registered.
+*
+* This function "registers" a new xfer object, to install it within the
+* local RDDMA object hierarchy and the sysfs tree.
+*
+* Once the core xfer object has been registered with sysfs, a "binds/"
+* subdirectory (kset) is created for the xfer and registered too.
+*
+**/
 int rddma_xfer_register(struct rddma_xfer *rddma_xfer)
 {
     int ret = 0;
@@ -209,38 +220,93 @@ void rddma_xfer_unregister(struct rddma_xfer *rddma_xfer)
 	}
 }
 
+/**
+* find_rddma_xfer_in - find, or create, an Xfer object at a specified location.
+* @loc  - location where Xfer is to be sought.
+* @desc - string descriptor of Xfer specification
+*
+* The @loc argument, which specifies which location the Xfer is to be found or
+* located at, may be NULL; in which case the location chain embedded in @desc 
+* will be found/created first.
+*
+* If @loc is specified by the caller, it is TAKEN ON TRUST that the location provided
+* matches the location specified in the <xfer-spec>.
+* 
+**/
 struct rddma_xfer *find_rddma_xfer_in(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *xfer = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p) ploc(%p)\n",__FUNCTION__,desc,desc->ploc);
 
+	/*
+	* If an explicit location has been specified for the target xfer, 
+	* then use that location's xfer_find op to complete the search.
+	*/
 	if (loc && loc->desc.ops && loc->desc.ops->xfer_find)
 		return loc->desc.ops->xfer_find(loc,desc);
 
+	/*
+	* If a prior location has been found for this descriptor - if its ploc
+	* field is non-zero - then invoke the xfer_find op for that location.
+	*/
 	if (desc->ploc && desc->ploc->desc.ops && desc->ploc->desc.ops->xfer_find)
 		return desc->ploc->desc.ops->xfer_find(desc->ploc,desc);
 
+	/*
+	* If we reach here, it means that we do not yet know where to look
+	* for the xfer. So find out where the xfer lives, and then use the
+	* resultant location xfer_find op to find the xfer object itself.
+	*/
 	loc = locate_rddma_location(NULL,desc);
 
 	if (loc && loc->desc.ops && loc->desc.ops->xfer_find) 
 		xfer = loc->desc.ops->xfer_find(loc,desc);
 
+	/*
+	* Save the result of the location search in the xfer
+	* descriptor. 
+	*/
 	desc->ploc = loc;
 
 	return xfer;
 }
 
+/**
+* rddma_xfer_create - create xfer object in location object tree
+* @loc	: location where xfer is to be created
+* @desc	: xfer parameter descriptor
+*
+* This function creates a new rddma_xfer object, described by @desc, 
+* and binds it to the location @loc.
+*
+* If successful, one side-effect is a new entry in the location's kobject
+* tree named for the new xfer.
+*
+**/
 struct rddma_xfer *rddma_xfer_create(struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *new;
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
 
+	/*
+	* First, check that no such xfer entry already exists at this 
+	* location. If one does - one with the same name - then do not
+	* create a new xfer, just return a pointer to the extant xfer.
+	*/
 	new = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->name));
 	
+	/*
+	* For "new" read "old"...
+	*/
 	if (new) {
 		RDDMA_DEBUG(MY_DEBUG,"%s found %p %s locally in %p %s\n",__FUNCTION__,new,desc->name,loc,loc->desc.name);
 	}
+	/*
+	* If no existing xfer kobject could be found with that name,
+	* then create one here and bind it to the location.
+	*
+	*/
 	else {
 		new = new_rddma_xfer(loc,desc);
 		if (new)
