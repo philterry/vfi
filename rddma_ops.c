@@ -1553,7 +1553,7 @@ int do_operation(const char *cmd, char *result, int size)
 	}
 out:
 	if (!found) {
-		ret = snprintf(result,size,"%s,result=10101\n" ,sp1 ? sp1+3 : cmd);
+		ret = snprintf(result,size,"%s?result(10101)\n" ,sp1 ? sp1+3 : cmd);
 	}
 
 	return ret;
