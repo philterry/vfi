@@ -472,16 +472,14 @@ static unsigned int rddma_poll(struct file *filep, struct poll_table_struct *pol
 	unsigned int mask = POLLOUT | POLLWRNORM;
 	struct privdata *priv = filep->private_data;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	if (down_interruptible(&priv->sem))
 		return -ERESTARTSYS;
 
 	poll_wait(filep, &priv->rwq, poll_table);
 
 	if (priv->mybuf || !list_empty(&priv->list))
-		return mask |= POLLIN | POLLRDNORM;
+		mask |= POLLIN | POLLRDNORM;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s mybuf(%p) list_empty(%d)\n",__FUNCTION__,priv->mybuf,list_empty(&priv->list));
 	up(&priv->sem);
 
 	return mask;
