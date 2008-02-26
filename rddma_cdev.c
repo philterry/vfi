@@ -71,7 +71,7 @@ static ssize_t rddma_read(struct file *filep, char __user *buf, size_t count, lo
 	if (down_interruptible(&priv->sem))
 		return -ERESTARTSYS;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s buf(%p),count(%d),offset(%d)\n",__FUNCTION__,buf,count,*offset);
 
 	while (!mycount) {
 		if (!priv->mybuf) {
@@ -205,13 +205,24 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 {
 	int ret;
 	struct mybuffers *mybuf;
-	char *buffer = kzalloc(count+1,GFP_KERNEL);
+	char *buffer;
 	struct privdata *priv = filep->private_data;
 	struct def_work *work;
 
+	if (down_interruptible(&priv->sem)) 
+		return -ERESTARTSYS;
+
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+
+	buffer = kzalloc(count+1,GFP_KERNEL);
+	if (buffer == NULL) {
+		up(&priv->sem);
+		return -ENOMEM;
+	}
+
 	if ( (ret = copy_from_user(buffer,buf,count)) ) {
 		kfree(buffer);
+		up(&priv->sem);
 		return -EFAULT;
 	}
 
@@ -232,11 +243,12 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 		work->priv = priv;
 		queue_work(work->woq,&work->work);
 		*offset += count;
+		up(&priv->sem);
 	}
 	else {
 		ret = rddma_real_write(mybuf,count,offset);
-	
 		mybuf->size = ret;
+		up(&priv->sem);
 		queue_to_read(priv,mybuf);
 	}
 
@@ -480,8 +492,8 @@ static unsigned int rddma_poll(struct file *filep, struct poll_table_struct *pol
 	if (priv->mybuf || !list_empty(&priv->list))
 		mask |= POLLIN | POLLRDNORM;
 
+	RDDMA_DEBUG(MY_DEBUG,"%s mybuf(%p), !list_empty(%d)\n",__FUNCTION__,priv->mybuf,!list_empty(&priv->list));
 	up(&priv->sem);
-
 	return mask;
 }
 
