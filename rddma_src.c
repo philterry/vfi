@@ -187,18 +187,18 @@ int rddma_src_register(struct rddma_src *rddma_src)
 {
 	int ret = 0;
 	
-//	printk ("<*** %s IN ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
 	ret = kobject_register(&rddma_src->kobj);
-//	printk ("<*** %s OOT ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return ret;
 }
 
 void rddma_src_unregister(struct rddma_src *rddma_src)
 {
     
-//	printk ("<*** %s IN ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
 	kobject_unregister(&rddma_src->kobj);
-//	printk ("<*** %s OOT ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
 struct rddma_src *find_rddma_src(struct rddma_desc_param *desc, struct rddma_dst *parent)

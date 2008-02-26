@@ -139,19 +139,19 @@ int rddma_dsts_register(struct rddma_dsts *rddma_dsts)
 {
     	int ret = 0;
 
-//	printk ("<*** %s IN ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
 	ret = kset_register(&rddma_dsts->kset);
-//	printk ("<*** %s OOT ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return ret;
 }
 
 void rddma_dsts_unregister(struct rddma_dsts *rddma_dsts)
 {
     
-//	printk ("<*** %s IN ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
 	if (rddma_dsts)
 		kset_unregister(&rddma_dsts->kset);
-//	printk ("<*** %s OOT ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
 /**

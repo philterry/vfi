@@ -922,6 +922,7 @@ static int dst_create(const char *desc, char *result, int size)
 			ret = ((dst = bind->desc.xfer.ops->dst_create(bind, &params)) == NULL);
 	}
 
+	RDDMA_KTRACE ("<*** %s bind put after dst_create opcall ***>\n", __func__);
 	rddma_bind_put(bind);
 
 out:		
@@ -984,6 +985,7 @@ static int dst_delete(const char *desc, char *result, int size)
 		}
 	}
 
+	RDDMA_KTRACE ("<*** %s bind put after dst_delete opcall ***>\n", __func__);
 	rddma_bind_put(bind);
 
 out:
@@ -1030,6 +1032,7 @@ static int dst_find(const char *desc, char *result, int size)
 			ret = ((dst = bind->desc.dst.ops->dst_find(bind,&params)) == NULL);
 	}
 
+	RDDMA_KTRACE ("<*** %s bind put after dst_find opcall ***>\n", __func__);
 	rddma_bind_put(bind);
 
 out:
@@ -1475,7 +1478,7 @@ static int dsts_create(const char *desc, char *result, int size)
 
 		event_id = bind->dst_done_event->event_id;
 	}
-
+	RDDMA_KTRACE ("<*** %s bind put after dsts_create opcall ***>\n", __func__);
 	rddma_bind_put(bind);
 
 out:		
@@ -1540,7 +1543,10 @@ static int dsts_delete(const char *desc, char *result, int size)
 			bind = bind->desc.dst.ops->dsts_delete(bind, &params);
 		}
 		
-		if (bind) rddma_bind_put (bind);	/* Counteract get from "find", but only if bind still exists */
+		if (bind) {
+			RDDMA_KTRACE ("<*** %s bind put after dsts_delete opcall ***>\n", __func__);
+			rddma_bind_put (bind);	/* Counteract get from "find", but only if bind still exists */
+		}
 	}
 
 out:
@@ -1585,6 +1591,7 @@ static int dsts_find(const char *desc, char *result, int size)
 			ret = ((dsts = bind->desc.dst.ops->dsts_find(bind,&params)) == NULL);
 	}
 
+	RDDMA_KTRACE ("<*** %s bind put after dsts_find opcall ***>\n", __func__);
 	rddma_bind_put(bind);
 
 out:

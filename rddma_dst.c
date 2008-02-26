@@ -161,18 +161,18 @@ int rddma_dst_register(struct rddma_dst *rddma_dst)
 {
 	int ret = 0;
 
-//	printk ("<*** %s IN ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
 	ret = kobject_register(&rddma_dst->kobj);
-//	printk ("<*** %s OOT ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return ret;
 }
 
 void rddma_dst_unregister(struct rddma_dst *rddma_dst)
 {
-//	printk ("<*** %s IN ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
 	if (rddma_dst)
 		kobject_unregister(&rddma_dst->kobj);
-//	printk ("<*** %s OOT ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
 /**
@@ -231,7 +231,10 @@ struct rddma_dst *find_rddma_dst_in(struct rddma_bind *bind, struct rddma_bind_p
 	if (bind && bind->desc.xfer.ops)
 		dst = bind->desc.xfer.ops->dst_find(bind,desc);
 
-	if (put_bind) rddma_bind_put (bind);
+	if (put_bind) {
+		RDDMA_KTRACE ("<*** %s bind put after dst_find opcall ***>\n", __func__);
+		rddma_bind_put (bind);
+	}
 
 	return dst;
 }

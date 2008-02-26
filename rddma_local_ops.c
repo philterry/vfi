@@ -834,8 +834,8 @@ static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, stru
 		if (parent->desc.src.ops != parent->desc.xfer.ops && dstref == 2) {
 			struct rddma_dsts *dsts = (bind) ? bind->dsts : NULL;
 			
-//			printk ("<*** %s - unravel on-the-fly bind...dst IN ***>\n", __func__);
-//			printk ("-- %s: Bind (%p), Dsts (%p), Dst (%p)\n", __func__, bind, dsts, parent);
+			RDDMA_KTRACE ("<*** %s - unravel on-the-fly bind...dst IN ***>\n", __func__);
+			RDDMA_KTRACE ("-- %s: Bind (%p), Dsts (%p), Dst (%p)\n", __func__, bind, dsts, parent);
 			rddma_dst_unregister (parent);
 			parent = NULL;
 			
@@ -852,7 +852,7 @@ static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, stru
 				*
 				*/
 				if (bindref < 3) {
-//					printk ("-- Whoopsie - bindref %d too small for \"%s\"\n", bindref, kobject_name (&bind->kobj));
+					RDDMA_KTRACE ("-- Whoopsie - bindref %d too small for \"%s\"\n", bindref, kobject_name (&bind->kobj));
 					while (bindref < 3) {
 						kobject_get (&bind->kobj);
 						bindref++;
@@ -861,7 +861,10 @@ static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, stru
 				rddma_dsts_unregister (dsts);
 				rddma_bind_unregister (bind);
 			}
-//			printk ("<*** %s - unravel on-the-fly bind...dst OUT ***>\n", __func__);
+			RDDMA_KTRACE ("<*** %s - unravel on-the-fly bind...dst OUT ***>\n", __func__);
+		}
+		else {
+			RDDMA_KTRACE ("<*** %s - did NOT unravel any on-the-fly bind ***>\n", __func__);
 		}
 	}
 	return (parent);

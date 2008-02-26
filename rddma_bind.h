@@ -90,13 +90,13 @@ static inline struct rddma_bind *to_rddma_bind(struct kobject *kobj)
 
 static inline struct rddma_bind *rddma_bind_get(struct rddma_bind *rddma_bind)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_bind);
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "<*** %s %s ***>\n", __func__, (rddma_bind) ? kobject_name (&rddma_bind->kobj) : "<NULL>");
 	return to_rddma_bind(kobject_get(&rddma_bind->kobj));
 }
 
 static inline void rddma_bind_put(struct rddma_bind *rddma_bind)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_bind);
+	RDDMA_DEBUG (MY_LIFE_DEBUG, "<*** %s %s ***>\n", __func__, (rddma_bind) ? kobject_name (&rddma_bind->kobj) : "<NULL>");
 	if (rddma_bind)
 		kobject_put(&rddma_bind->kobj);
 }

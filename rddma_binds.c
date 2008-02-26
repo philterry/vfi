@@ -126,18 +126,18 @@ int rddma_binds_register(struct rddma_binds *rddma_binds)
 {
 	int ret = 0;
 
-//	printk ("<*** %s IN ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
 	ret = kset_register(&rddma_binds->kset);
-//	printk ("<*** %s OOT ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return ret;
 }
 
 void rddma_binds_unregister(struct rddma_binds *rddma_binds)
 {
     
-//	printk ("<*** %s IN ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
 	kset_unregister(&rddma_binds->kset);
-//	printk ("<*** %s OOT ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 	
 }
 

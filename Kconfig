@@ -43,4 +43,19 @@ config RDDMA_DMA_6460
 	---help---
 	  Enable support for Rincon DMA over Rapid I/O.
 
+config RDDMA_KOBJ_DEBUG
+	bool "Rincon RDDMA kobject debugging"
+	depends on RDDMA
+	default n
+	---help---
+	  Enable additional debug traces that track kobject/kset refcount changes
+	  as they occur, and that provide some context to where they occur.
+
+	  This feature produces a wheen of otherwise-useless messages in the system
+	  log, so should be DISABLED by DEFAULT, and used only when you're trying to
+	  find leaks in RDDMA put/get refcounting.
+
+	  Use an expression like the one below to extract these messages out of a log:
+	  
+	  	grep -P "kobject_|kset_|\\*\\*\\*\\>"
 endmenu

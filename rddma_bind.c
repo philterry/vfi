@@ -171,18 +171,18 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_p
 int rddma_bind_register(struct rddma_bind *rddma_bind)
 {
 	int rslt;
-//	printk ("<*** %s IN ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
 	rslt = kobject_register(&rddma_bind->kobj);
-//	printk ("<*** %s OUT ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return rslt;
 }
 
 void rddma_bind_unregister(struct rddma_bind *rddma_bind)
 {
     
-//	printk ("<*** %s (%s) IN ***>\n", __func__, (rddma_bind) ? kobject_name (&rddma_bind->kobj) : "<NULL>");
+	RDDMA_KTRACE ("<*** %s (%s) IN ***>\n", __func__, (rddma_bind) ? kobject_name (&rddma_bind->kobj) : "<NULL>");
 	kobject_unregister(&rddma_bind->kobj);
-//	printk ("<*** %s OOT ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
 /*

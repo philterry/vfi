@@ -99,6 +99,13 @@ static void rddma_debug(char *format, ...)
 #define RDDMA_DEBUG_SAFE(l,c,f,arg...) do {} while (0)
 #endif
 
+#ifdef CONFIG_RDDMA_KOBJ_DEBUG
+#define RDDMA_KTRACE(arg...) printk (arg)
+#else
+#define RDDMA_KTRACE(arg...) do {} while (0)
+#endif
+
+
 /* Helper for printing sysfs attributes... define your show function (...char *buffer...) with {int left = PAGE_SIZE;int size = 0; .... return size;} */
 /* then ... can include ATTR_PRINTF("format string",...); */
 #define ATTR_PRINTF(f,arg...) size += snprintf(buffer+size,left,f, ## arg); left -=size

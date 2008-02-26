@@ -1019,9 +1019,9 @@ static void rddma_fabric_dst_delete(struct rddma_bind *bind, struct rddma_bind_p
 	
 	
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-//	printk ("<*** %s find dst before fabric call IN ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s find dst before fabric call IN ***>\n", __func__);
 	dst = find_rddma_dst_in (bind, desc);
-//	printk ("<*** %s find dst before fabric call OUT ***>\n", __func__);
+	RDDMA_KTRACE ("<*** %s find dst before fabric call OUT ***>\n", __func__);
 	
 	skb = rddma_fabric_call(loc, 5, "dst_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x", 
 	                        desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
