@@ -1718,7 +1718,11 @@ int do_operation(const char *cmd, char *result, int size)
 	}
 out:
 	if (!found) {
-		ret = snprintf(result,size,"%s?result(10101)\n" ,sp1 ? sp1+3 : cmd);
+		int reply = 0;
+		char *request = strstr(cmd,"request");
+		if (request)
+			sscanf(request,"request(%x)",&reply);
+		ret = snprintf(result,size,"%s%cresult(10101),reply(%x)\n" ,sp1 ? sp1+3 : cmd, request ? ',' : '?',reply);
 	}
 
 	nested--;
