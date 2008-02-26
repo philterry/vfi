@@ -375,7 +375,7 @@ static void aio_def_write(struct work_struct *wk)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	PREPARE_WORK(&work->work, aio_disposeq, (void *) &cb->wo);
+	PREPARE_WORK(&work->work, aio_disposeq, (void *) work);
 #else
 	PREPARE_WORK(&work->work, aio_disposeq);
 #endif

@@ -54,9 +54,9 @@ static void fabric_do_rqst(void *data)
 #else
 static void fabric_do_rqst(struct work_struct *wo)
 {
+	struct call_back_tag *cb = container_of(wo, struct call_back_tag, wo);
 #endif
 	int ret = 0;
-	struct call_back_tag *cb = container_of(wo, struct call_back_tag, wo);
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	cb->rply_skb = dev_alloc_skb(2048);
@@ -89,8 +89,8 @@ static void fabric_sched_rqst(void *data)
 #else
 static void fabric_sched_rqst(struct work_struct *wo)
 {
-#endif
 	struct call_back_tag *cb = container_of(wo, struct call_back_tag, wo);
+#endif
 	cb->woq = create_workqueue("fab_rqst");
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
