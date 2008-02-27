@@ -71,7 +71,7 @@ static ssize_t rddma_read(struct file *filep, char __user *buf, size_t count, lo
 	if (down_interruptible(&priv->sem))
 		return -ERESTARTSYS;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s buf(%p),count(%d),offset(%d)\n",__FUNCTION__,buf,count,*offset);
+	RDDMA_DEBUG(MY_DEBUG,"%s buf(%p),count(%d),offset(%lld)\n",__FUNCTION__,buf,count,*offset);
 
 	while (!mycount) {
 		if (!priv->mybuf) {
