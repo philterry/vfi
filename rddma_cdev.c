@@ -172,6 +172,7 @@ static void def_write(struct work_struct *wk)
 		
 	work->mybuf->size = ret;
 	queue_to_read(work->priv,work->mybuf);
+	kobject_put(&work->priv->kobj); 
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 	PREPARE_WORK(&work->work, write_disposeq, (void *) work);
@@ -241,6 +242,7 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 		work->mybuf = mybuf;
 		work->count = count;
 		work->priv = priv;
+		kobject_get(&priv->kobj);
 		queue_work(work->woq,&work->work);
 		*offset += count;
 		up(&priv->sem);
