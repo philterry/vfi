@@ -1208,13 +1208,9 @@ static void rddma_local_bind_delete(struct rddma_xfer *parent, struct rddma_desc
 		list_for_each_safe(entry,safety,&parent->binds->kset.list) {
 			struct rddma_bind *bind;
 			bind = to_rddma_bind(to_kobj(entry));
-			printk ("--- %s: [%llx.%x]\n", __func__, bind->desc.xfer.offset, bind->desc.xfer.extent);
 			if (bind->desc.xfer.offset >= desc->offset &&
 			    bind->desc.xfer.offset <= desc->offset + desc->extent) {
 				bind->desc.dst.ops->dsts_delete(bind,&bind->desc);
-			}
-			else {
-				printk ("~~~> [%llx.%x] has no dsts!\n", bind->desc.xfer.offset, bind->desc.xfer.extent);
 			}
 			rddma_bind_delete (parent, &bind->desc.xfer);
 		}
