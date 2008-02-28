@@ -213,8 +213,24 @@ static struct rddma_mmap *rddma_local_mmap_create(struct rddma_smb *smb, struct 
 }
 
 /**
-* rddma_local_dst_events
+* rddma_local_dst_events - create events for bind <dst>
+* @bind : bind object
+* @desc : bind descriptor
 *
+* This function creates two <dst> events - dst_ready and dst_done - when <dst> and
+* <xfer> occupy the same network location.
+*
+* There is no need, in this case, to use fabric doorbells to deliver signals: all we
+* need do is create two pure event objects with rigged identifiers, bound where necessary
+* to "start" functions that are aware of that.
+*
+* The dst_ready event is sent from <xfer> to <dst> to trigger a bind transfer action.
+* It uses the <dst>->dst_ready() op to deliver the signal. We specify <dst> here to show
+* intent, although in practise - since <dst> and <xfer> are co-located and local - it
+* always boils down to rddma_local_dst_ready().
+*
+* The dst_done event does not have a "start" op. That is because the RDDMA DMA layer knows
+* how to deliver the event - all it needs is the event pointer to do so.
 *
 **/
 static int rddma_local_dst_events(struct rddma_bind *bind, struct rddma_bind_param *desc)
@@ -243,6 +259,32 @@ static int rddma_local_dst_events(struct rddma_bind *bind, struct rddma_bind_par
 
 fail:
 	return -EINVAL;
+}
+
+/**
+* rddma_local_dst_ev_delete - delete <dst> events
+* @bind : bind object that events belong to
+* @desc : bind descriptor
+*
+* This function compliments rddma_local_dst_events() by deleting the two <dst> events that
+* function creates. Pointers to dst_ready and dst_done events are required to be present in @bind.
+*
+* This "local" function will run when <dst> and <xfer> share the same location.
+*
+**/
+static void rddma_local_dst_ev_delete (struct rddma_bind *bind, struct rddma_bind_param *desc)
+{
+	RDDMA_DEBUG (MY_DEBUG, "%s: for %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", __func__,
+	             desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
+	             desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent,
+	             desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
+	RDDMA_DEBUG (MY_DEBUG, "dst_ready (%p, %08x), dst_done (%p, %08x)\n",
+	             bind->dst_ready_event, bind->dst_ready_event_id,
+	             bind->dst_done_event, bind->dst_done_event_id);
+	rddma_event_delete (bind->dst_ready_event);
+	rddma_event_delete (bind->dst_done_event);
+	bind->dst_ready_event = bind->dst_done_event = NULL;
+	bind->dst_ready_event_id = bind->dst_done_event_id = 0;
 }
 
 /**
@@ -538,6 +580,29 @@ static struct rddma_xfer *rddma_local_xfer_create(struct rddma_location *loc, st
 	return xfer;
 }
 
+/**
+* rddma_local_src_events - create events for bind <src>
+* @dst  : parent <dst> object
+* @desc : bind descriptor
+*
+* This function creates two <src> events - src_ready and src_done - when <src> and
+* <xfer> occupy the same network location.
+*
+* There is no need, in this case, to use fabric doorbells to deliver signals: all we
+* need do is create two pure event objects with rigged identifiers, bound where necessary
+* to "start" functions that are aware of that.
+*
+* The src_ready event is sent from <xfer> to <src> to trigger a bind transfer action.
+* It uses the <src>->src_ready() op to deliver the signal. We specify <src> here to show
+* intent, although in practise - since <src> and <xfer> are co-located and local - it
+* always boils down to rddma_local_src_ready().
+*
+* The src_done event does not have a "start" op. That is because the RDDMA DMA layer knows
+* how to deliver the event - all it needs is the event pointer to do so.
+*
+* The @dst argument points to the <dst> with which this <src> is associated: it is required
+* that @dst parent point at the <bind> that owns both.
+**/
 static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	/* Local source SMB with a local transfer agent. */
@@ -574,6 +639,28 @@ static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_pa
 dones_fail:
 event_name_fail:				   
 	return -EINVAL;
+}
+
+/**
+*
+*
+*
+**/
+static void rddma_local_src_ev_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
+{
+	struct rddma_bind *bind = rddma_dst_parent (parent);
+	
+	RDDMA_DEBUG (MY_DEBUG, "%s: for %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", __func__,
+	             desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
+	             desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent,
+	             desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
+	RDDMA_DEBUG (MY_DEBUG, "src_ready (%p, %08x), src_done (%p, %08x)\n",
+	             bind->src_ready_event, bind->src_ready_event_id,
+	             bind->src_done_event, bind->src_done_event_id);
+	rddma_event_delete (bind->src_ready_event);
+	rddma_event_delete (bind->src_done_event);
+	bind->src_ready_event = bind->src_done_event = NULL;
+	bind->src_ready_event_id = bind->src_done_event_id = 0;
 }
 
 /**
@@ -817,6 +904,17 @@ static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, stru
 			}
 		}
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Srcs Count: %lx\n", (unsigned long)srcs->kset.kobj.kref.refcount.counter);
+
+		if (parent->desc.xfer.ops->src_ev_delete) {
+			parent->desc.xfer.ops->src_ev_delete (parent, desc);
+		}
+		else {
+			printk ("xxx %s: bind xfer has no src_ev_delete() op!\n", __func__);
+		}
+		
+		
+
+		
 		rddma_srcs_delete (srcs);
 		
 		/*
@@ -937,6 +1035,14 @@ static struct rddma_bind *rddma_local_dsts_delete (struct rddma_bind *parent, st
 		}
 		
 		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Dsts Count: %lx\n", (unsigned long)dsts->kset.kobj.kref.refcount.counter);
+
+		if (parent->desc.xfer.ops->dst_ev_delete) {
+			parent->desc.xfer.ops->dst_ev_delete (parent, desc);
+		}
+		else {
+			printk ("xxx %s: bind xfer has no dst_ev_delete() op!\n", __func__);
+		}
+		
 		rddma_dsts_delete (dsts);
 		
 		/*
@@ -1148,6 +1254,8 @@ struct rddma_ops rddma_local_ops = {
 	.dst_ready       = rddma_local_dst_ready,
 	.dst_events      = rddma_local_dst_events,
 	.src_events      = rddma_local_src_events,
+	.dst_ev_delete	 = rddma_local_dst_ev_delete,
+	.src_ev_delete	 = rddma_local_src_ev_delete,
 	.event_start     = rddma_local_event_start,
 };
 

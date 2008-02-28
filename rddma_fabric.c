@@ -141,16 +141,23 @@ void rddma_address_unregister(struct rddma_location *loc)
 
 int rddma_doorbell_register(struct rddma_fabric_address *address, void (*callback)(void *), void *var)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
-	if (address->ops && address->ops->register_doorbell) 
-		return address->ops->register_doorbell(callback,var);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
+	if (address->ops && address->ops->register_doorbell) {
+		int ret = address->ops->register_doorbell(callback,var);
+		RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
+		return ret;
+	}
+	RDDMA_KTRACE ("<*** xxx %s - did nothing, OUT ***>\n", __func__);
 	return -EINVAL;
 }
 
 void rddma_doorbell_unregister(struct rddma_fabric_address *address, int doorbell)
 {
+	RDDMA_KTRACE ("<*** %s doorbell %08x IN ***>\n", __func__, doorbell); 
 	if (address && address->ops && address->ops->unregister_doorbell)
 		address->ops->unregister_doorbell(doorbell);
+	RDDMA_KTRACE ("<*** %s doorbell %08x OUT ***>\n", __func__, doorbell);
+	
 }
 
 void rddma_doorbell_send(struct rddma_fabric_address *address, int doorbell)

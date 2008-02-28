@@ -498,11 +498,22 @@ static struct rddma_xfer *rddma_fabric_xfer_create(struct rddma_location *loc, s
 }
 
 /**
-* rddma_fabric_dst_events
+* rddma_fabric_dst_events - create <dst> events when <xfer> is remote
 * @bind - bind object, subject of operation
 * @desc - descriptor of the bind
 *
-* dst_events must always run on a bind <xfer> agent.
+* This function creates two <dst> events - dst_ready, and dst_done - when the
+* bind <xfer> and <dst> are located at different network locations.
+*
+* It is always the <xfer> dst_events() op that is invoked, but this function always
+* runs at the <dst> site, and is only ever invoked by rddma_local_dsts_create().
+*
+* Since <xfer> and <dst> occupy different locations, events are raised by delivering
+* doorbells:
+*
+* - <xfer> will issue the dst_ready doorbell whose identity is embedded in @desc as "event_id(x)"
+* - <dst> will raise the dst_done doorbell whose identity is allocated here, and reported to <xfer>
+*   in fabric command replies.
 *
 **/
 static int rddma_fabric_dst_events(struct rddma_bind *bind, struct rddma_bind_param *desc)
@@ -517,6 +528,12 @@ static int rddma_fabric_dst_events(struct rddma_bind *bind, struct rddma_bind_pa
 
 	bind->dst_ready_event = NULL;
 	
+	/*
+	* The common event name is embedded in the command string as an
+	* "event_name(n)" qualifier. The dst_ready doorbell identifier, allocated
+	* by <xfer>, is embedded in the command as an "event_id(x)" qualifier.
+	*
+	*/
 	event_str = rddma_get_option(&desc->dst,"event_id");
 	event_name = rddma_get_option(&desc->dst,"event_name");
 
@@ -530,6 +547,11 @@ static int rddma_fabric_dst_events(struct rddma_bind *bind, struct rddma_bind_pa
 		bind->dst_ready_event = rddma_event_create(event_list,&desc->xfer,bind,bind->desc.xfer.ops->dst_ready,event_id);
 		bind->dst_ready_event_id = event_id;
 		
+		/*
+		* The dst_done event identifier must be obtained by registering a new
+		* doorbell. The event id is returned by the registration function.
+		*
+		*/
 		event_id = rddma_doorbell_register(bind->desc.xfer.address,
 						   (void (*)(void *))bind->desc.dst.ops->dst_done,
 						   (void *)bind);
@@ -539,6 +561,34 @@ static int rddma_fabric_dst_events(struct rddma_bind *bind, struct rddma_bind_pa
 		return 0;
 	}
 	return -EINVAL;
+}
+
+/**
+* rddma_fabric_dst_ev_delete - delete <dst> events when <xfer> is remote
+* @bind : parent bind object
+* @desc : bind descriptor
+*
+* This function complements rddma_fabric_dst_events() by providing the means to
+* delete two <dst> events when <xfer> lives elsewhere on the network.
+*
+* It is always the <xfer> dst_ev_delete() op that is invoked, but this function always
+* runs at the <dst> site, and is only ever invoked by rddma_local_dsts_delete().
+*
+**/
+static void rddma_fabric_dst_ev_delete (struct rddma_bind *bind, struct rddma_bind_param *desc)
+{
+	RDDMA_DEBUG (MY_DEBUG, "%s: for %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", __func__,
+	             desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
+	             desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent,
+	             desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
+	RDDMA_DEBUG (MY_DEBUG, "dst_ready (%p, %08x), dst_done (%p, %08x)\n",
+	             bind->dst_ready_event, bind->dst_ready_event_id,
+	             bind->dst_done_event, bind->dst_done_event_id);
+	rddma_event_delete (bind->dst_ready_event);
+	rddma_event_delete (bind->dst_done_event);
+	rddma_doorbell_unregister (bind->desc.xfer.address, bind->dst_done_event_id);
+	bind->dst_ready_event = bind->dst_done_event = NULL;
+	bind->dst_ready_event_id = bind->dst_done_event_id = 0;
 }
 
 /**
@@ -754,6 +804,32 @@ static int rddma_fabric_src_events(struct rddma_dst *parent, struct rddma_bind_p
 	}
 	return -EINVAL;
 }
+
+/**
+*
+*
+*
+**/
+static void rddma_fabric_src_ev_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
+{
+	struct rddma_bind *bind = rddma_dst_parent (parent);
+	
+	RDDMA_DEBUG (MY_DEBUG, "%s: for %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", __func__,
+	             desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
+	             desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent,
+	             desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
+	RDDMA_DEBUG (MY_DEBUG, "src_ready (%p, %08x), src_done (%p, %08x)\n",
+	             bind->src_ready_event, bind->src_ready_event_id,
+	             bind->src_done_event, bind->src_done_event_id);
+	rddma_event_delete (bind->src_ready_event);
+	rddma_event_delete (bind->src_done_event);
+	rddma_doorbell_unregister (bind->desc.xfer.address, bind->src_done_event_id);
+	bind->src_ready_event = bind->src_done_event = NULL;
+	bind->src_ready_event_id = bind->src_done_event_id = 0;
+}
+
+
+
 
 /**
 * rddma_fabric_srcs_create
@@ -1108,6 +1184,7 @@ static struct rddma_dst *rddma_fabric_srcs_delete(struct rddma_dst *parent, stru
 {
 	struct sk_buff  *skb;
 	struct rddma_location *loc = parent->desc.src.ploc;	/* srcs_delete runs on <src> */
+	struct rddma_bind *bind = rddma_dst_parent (parent);
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
@@ -1120,8 +1197,10 @@ static struct rddma_dst *rddma_fabric_srcs_delete(struct rddma_dst *parent, stru
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			int ret = -EINVAL;
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
+				rddma_doorbell_unregister (bind->desc.xfer.address, bind->src_ready_event_id);
 				rddma_srcs_delete(parent->srcs);
+			}
 			rddma_clean_bind(&reply);
 		}
 	}
@@ -1159,8 +1238,10 @@ static struct rddma_bind *rddma_fabric_dsts_delete (struct rddma_bind *parent, s
 		if (!rddma_parse_bind(&reply,skb->data)) {
 			int ret = -EINVAL;
 			dev_kfree_skb(skb);
-			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(rddma_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
+				rddma_doorbell_unregister (parent->desc.xfer.address, parent->dst_ready_event_id);
 				rddma_dsts_delete(parent->dsts);
+			}
 			rddma_clean_bind(&reply);
 		}
 	}
@@ -1275,6 +1356,8 @@ struct rddma_ops rddma_fabric_ops = {
 	.dst_ready       = rddma_fabric_dst_ready,
 	.src_events      = rddma_fabric_src_events,
 	.dst_events      = rddma_fabric_dst_events,
+	.src_ev_delete   = rddma_fabric_src_ev_delete,
+	.dst_ev_delete   = rddma_fabric_dst_ev_delete,
 	.event_start     = rddma_fabric_event_start,
 };
 

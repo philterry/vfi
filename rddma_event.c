@@ -179,7 +179,7 @@ struct rddma_event *rddma_event_create(struct rddma_events *parent, struct rddma
 {
 	struct rddma_event *new; 
 
-	RDDMA_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p) bind(%p) f(%p) id(%d)\n",__FUNCTION__,parent,desc,bind,f,id);
+	RDDMA_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p) bind(%p) f(%p) id(%08x)\n",__FUNCTION__,parent,desc,bind,f,id);
 
 	if ( (new = new_rddma_event(parent, desc, bind, f, id)) ) {
 		if (rddma_event_register(new)) {
@@ -190,9 +190,11 @@ struct rddma_event *rddma_event_create(struct rddma_events *parent, struct rddma
 	return new;
 }
 
-void rddma_event_delete(struct rddma_event *rddma_event)
+void rddma_event_delete (struct rddma_event *rddma_event)
 {
-	rddma_event_unregister(rddma_event);
+	RDDMA_KTRACE ("<*** %s (%p) Id: %08x IN ***>\n", __func__, rddma_event, (rddma_event) ? rddma_event->event_id : 0xffffffff);
+	rddma_event_unregister (rddma_event);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
 void rddma_event_send(struct rddma_event *event)

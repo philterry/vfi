@@ -687,11 +687,15 @@ static int rddma_get_event (struct _rddma_event_mgr *evmgr, void (*cb)(void *),v
 	struct event_node *pevent;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
+	
 	/* 'next' is bin number of next available event.
 	 * It's -1 if all events allocated.
 	 */
-	if (evmgr->next == -1)
+	if (evmgr->next == -1) {
+		RDDMA_KTRACE ("<*** xxx %s: All events allocated ***>\n", __func__);
 		return ret;
+	}
 
 	down(&evmgr->sem);
 	bin = evmgr->next;
@@ -701,6 +705,7 @@ static int rddma_get_event (struct _rddma_event_mgr *evmgr, void (*cb)(void *),v
 			GFP_KERNEL);
 		if (pevent == NULL) { /* Memory error */
 			up(&evmgr->sem);
+			RDDMA_KTRACE ("<*** xxx %s: Memory error ***>\n", __func__);
 			return ret;
 		}
 		/* Find another number that fits on this chain */
@@ -720,6 +725,7 @@ end_search:
 			evmgr->next = -1; /* All event numbers allocated */
 			up(&evmgr->sem);
 			kfree (pevent);
+			RDDMA_KTRACE ("<*** xxx %s: All event numbers allocated ***>\n", __func__);
 			return ret;
 		}
 		pevent->id = -1;
@@ -747,11 +753,13 @@ end_search:
 			if (evmgr->event_harray[i].node.next == NULL) {
 				evmgr->next = i;
 				up(&evmgr->sem);
+				RDDMA_KTRACE ("<*** %s: Allocated %08x (bin %d) ***>\n", __func__, ret, i);
 				return (ret);
 			}
 		}
 		evmgr->next = -1;
 		up(&evmgr->sem);
+		RDDMA_KTRACE ("<*** %s: Allocated %08x (last bin) ***>\n", __func__, ret);
 		return (ret);
 	}
 
@@ -787,6 +795,7 @@ done:
 	evmgr->next = i;
 
 	up(&evmgr->sem);
+	RDDMA_KTRACE ("<*** %s: Allocated %08x ***>\n", __func__, ret);
 	return ret;
 }
 
@@ -798,8 +807,11 @@ int rddma_put_event(struct _rddma_event_mgr *evmgr, int id)
 	struct event_node *pdb;
 	void *node_free = NULL;
 
-	if ((id < evmgr->first_id) || (id > evmgr->last_id))
+	RDDMA_KTRACE ("<*** %s, id %08x IN ***>\n", __func__, id);
+	if ((id < evmgr->first_id) || (id > evmgr->last_id)) {
+		RDDMA_KTRACE ("<*** xxx %s: Out-of-band [%08x:%08x] ***>\n", __func__, evmgr->first_id, evmgr->last_id);
 		return -1;
+	}
 
 	down(&evmgr->sem);
 
@@ -815,6 +827,7 @@ int rddma_put_event(struct _rddma_event_mgr *evmgr, int id)
 	if (depth == -1) {
 		/* attempted to free unallocated doorbell */
 		up(&evmgr->sem);
+		RDDMA_KTRACE ("<*** xxx %s: Doorbell not allocated ***>\n", __func__);
 		return -1;
 	}
 	/* Doorbell in list 'bin' at 'depth' */
@@ -866,7 +879,7 @@ int rddma_put_event(struct _rddma_event_mgr *evmgr, int id)
 
 	if (node_free)
 		kfree(node_free);
-
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return 0;
 }
 
@@ -906,15 +919,18 @@ static int doorbell_send (struct rddma_fabric_address *address, int info)
  */
 static int rddma_get_doorbell (void (*cb)(void *),void * arg)
 {
-
-	return (rddma_get_event(dbmgr, cb, arg));
-
+	int rslt = 0;
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
+	rslt = rddma_get_event (dbmgr, cb, arg);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
+	return rslt;	
 }
 
 static void rddma_put_doorbell(int id)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s, doorbell = %d\n",__FUNCTION__, id);
-	rddma_put_event(dbmgr, id);
+	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
+	rddma_put_event (dbmgr, id);
+	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return;
 }
 
