@@ -52,6 +52,8 @@ struct rddma_desc_param {
 	char *location;
 	u64  offset;
 	unsigned int extent;
+	char *soffset;		/* Pointer to offset string */
+	char *sextent;		/* Pointer to extent string */
 	char **query;
 	char **end;
 /* private: */

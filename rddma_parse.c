@@ -230,6 +230,8 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 
 	d->extent = 0;
 	d->offset = 0;
+	d->soffset = NULL;
+	d->sextent = NULL;
 	d->location = NULL;
 	d->ops = NULL;
 	d->rde = NULL;
@@ -265,11 +267,13 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 
 	if (sextent) {
 		d->extent = simple_strtoul(sextent,&sextent,16);
+		d->sextent = sextent;
  		RDDMA_ASSERT(('\0' == *sextent),"Dodgy extent string(%d) contains %s", (ret = (sextent - d->name)), sextent); 
 	}
 
 	if (soffset) {
 		d->offset = simple_strtoul(soffset,&soffset,16);
+		d->soffset = soffset;
  		RDDMA_ASSERT(('\0' == *soffset),"Dodgy offset string(%d) contains %s", (ret = (soffset - d->name)), soffset); 
 	}
 
@@ -412,6 +416,8 @@ int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
 			new->location = new->buf + (old->location - old->buf);
 		new->name = new->buf + (old->name - old->buf);
 		new->query = (char **)(new->buf + ((char *)old->query - old->buf));
+		new->soffset = ((old->soffset) ? ((char *)old->soffset - old->buf) : NULL);
+		new->sextent = ((old->sextent) ? ((char *)old->sextent - old->buf) : NULL);
 		i = 0;
 		while (old->query[i]) {
 			new->query[i] = new->buf + (old->query[i] - old->buf);

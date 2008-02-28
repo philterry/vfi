@@ -810,6 +810,18 @@ static int bind_delete(const char *desc, char *result, int size)
 	*/
 	if ( (xfer = find_rddma_xfer (&params) ) ) {
 		ret = -EINVAL;
+		/*
+		* Check specified bind offset/extent values and substitute
+		* or reject where necessary.
+		*
+		*/
+		if (!params.soffset) params.offset = 0;
+		if (!params.sextent) params.extent = xfer->desc.extent;
+		if (!params.extent) {
+			RDDMA_DEBUG (MY_LIFE_DEBUG, "xx %s failed: bind extent 0 not permitted!\n", __func__);
+			goto out;
+		}
+		
 		if ( xfer->desc.ops && xfer->desc.ops->bind_delete ) {
 			ret = 0;
 			xfer->desc.ops->bind_delete (xfer, &params);
