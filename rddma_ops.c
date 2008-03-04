@@ -493,7 +493,7 @@ out:
 				       (unsigned long)mmap_to_ticket(mmap));
 		}
 		else {
-			ret = snprintf(result,size,"smb_mmap://%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
+			ret = snprintf(result,size,"smb_mmap://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
 		}
 	}
 	
