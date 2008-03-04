@@ -367,7 +367,13 @@ int rddma_parse_bind(struct rddma_bind_param *x, const char *desc)
 	/*
 	* Separate <xfer-spec> from <dst-spec>=<src-spec>
 	*/
-	name_remainder(myxfer, '/', &mydst);
+	mydst = strstr(myxfer,"://");
+	if (mydst)
+		mydst = mydst+3;
+	else
+		mydst = myxfer;
+
+	name_remainder(mydst, '/', &mydst);
 
 	/*
 	* Separate <dst-spec> from <src-spec> and parse
