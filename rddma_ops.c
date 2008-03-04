@@ -66,11 +66,11 @@ static int location_create(const char *desc, char *result, int size)
 fail:
 	if (result) {
 		if (ret)
-			ret = snprintf(result,size,"%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"location_create://%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.name, params.offset, params.extent, ret,
 				       rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"location_create://%s#%llx:%x?result(%d),reply(%s)\n",
 				       new_loc->desc.name, new_loc->desc.offset,new_loc->desc.extent, ret,
 				       rddma_get_option(&params,"request"));
 	}
@@ -118,7 +118,7 @@ static int location_delete(const char *desc, char *result, int size)
 	}
 out:
 	if (result)
-		ret = snprintf(result,size,"%s?result(%d),reply(%s)\n", params.name, ret, rddma_get_option(&params,"request"));
+		ret = snprintf(result,size,"location_delete://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
 	rddma_clean_desc(&params);
 
 	return ret;
@@ -166,11 +166,11 @@ static int location_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (ret)
-			ret = snprintf(result,size,"%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"location_find://%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.name,params.offset,params.extent,
 				       ret, rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"location_find://%s#%llx:%x?result(%d),reply(%s)\n",
 				       new_loc->desc.name,new_loc->desc.offset,new_loc->desc.extent,
 				       ret, rddma_get_option(&params,"request"));
 	}
@@ -213,8 +213,8 @@ static int location_put(const char *desc, char *result, int size)
 	}
 out:
 	if (result)
-		ret = snprintf(result,size,"%s?result(%d),reply(%s)\n",
-			       params.name,
+		ret = snprintf(result,size,"location_put://%s.%s?result(%d),reply(%s)\n",
+			       params.name, params.location,
 			       ret, rddma_get_option(&params,"request"));
 	rddma_clean_desc(&params);
 
@@ -263,11 +263,11 @@ static int smb_create(const char *desc, char *result, int size)
 out:		
 	if (result) {
 		if (smb)
-			ret = snprintf(result,size,"%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"smb_create://%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       smb->desc.name, smb->desc.location,smb->desc.offset, smb->desc.extent,
 				       ret, rddma_get_option(&params,"request"));
 		else 
-			ret = snprintf(result,size,"%s.%s?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"smb_create://%s.%s?result(%d),reply(%s)\n",
 				       params.name, params.location,
 				       ret, rddma_get_option(&params,"request"));
 	}
@@ -314,7 +314,7 @@ static int smb_delete(const char *desc, char *result, int size)
 
 out:
 	if (result) 
-		ret = snprintf(result,size,"%s?result(%d),reply(%s)\n", params.name, ret, rddma_get_option(&params,"request"));
+		ret = snprintf(result,size,"smb_delete://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
 
 	rddma_clean_desc(&params);
 
@@ -361,10 +361,10 @@ static int smb_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (smb)
-			ret = snprintf(result,size,"%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"smb_find://%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       smb->desc.name, smb->desc.location,smb->desc.offset, smb->desc.extent, ret, rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"%s.%s?result(%d),reply(%s)\n", params.name, params.location, ret, rddma_get_option(&params,"request"));
+			ret = snprintf(result,size,"smb_find://%s.%s?result(%d),reply(%s)\n", params.name, params.location, ret, rddma_get_option(&params,"request"));
 	}
 
 	rddma_clean_desc(&params);
@@ -493,7 +493,7 @@ out:
 				       (unsigned long)mmap_to_ticket(mmap));
 		}
 		else {
-			ret = snprintf(result,size,"%s?result(%d),reply(%s)\n", params.name, ret, rddma_get_option(&params,"request"));
+			ret = snprintf(result,size,"smb_mmap://%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
 		}
 	}
 	
@@ -533,7 +533,7 @@ static int smb_unmmap (const char* desc, char* result, int size)
 
 out:		
 	if (result) {
-		ret = snprintf(result,size,"%s?result(%d),reply(%s)\n", params.name, ret, rddma_get_option(&params,"request"));
+		ret = snprintf(result,size,"smb_unmap://%s.%s?result(%d),reply(%s)\n", params.name, params.location, ret, rddma_get_option(&params,"request"));
 	}
 	
 	rddma_clean_desc(&params);
@@ -577,7 +577,7 @@ static int xfer_create(const char *desc, char *result, int size)
 
 out:		
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"xfer_create://%s.%s#%llx:%x?result(%d),reply(%s)\n",
 			       params.name, params.location,params.offset, params.extent,
 			       ret,rddma_get_option(&params,"request"));
 
@@ -622,7 +622,7 @@ static int xfer_delete(const char *desc, char *result, int size)
 
 out:
 	if (result) 
-		ret = snprintf(result,size,"%s.%s?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"xfer_delete://%s.%s?result(%d),reply(%s)\n",
 			       params.name, params.location,ret, rddma_get_option(&params,"request"));
 
 	rddma_clean_desc(&params);
@@ -666,11 +666,11 @@ static int xfer_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (xfer)
-			ret = snprintf(result,size,"%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"xfer_find://%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.name, params.location,xfer->desc.offset, xfer->desc.extent,
 				       ret,rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"%s.%s?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"xfer_find://%s.%s?result(%d),reply(%s)\n",
 				       params.name, params.location,
 				       ret,rddma_get_option(&params,"request"));
 	}
@@ -750,13 +750,13 @@ static int bind_create(const char *desc, char *result, int size)
 out:		
 	if (result) {
 		if (bind)
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"bind_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       bind->desc.xfer.name, bind->desc.xfer.location, bind->desc.xfer.offset, bind->desc.xfer.extent,
 				       bind->desc.dst.name,  bind->desc.dst.location,  bind->desc.dst.offset,  bind->desc.dst.extent,
 				       bind->desc.src.name,  bind->desc.src.location,  bind->desc.src.offset,  bind->desc.src.extent,
 				       ret,rddma_get_option(&params.src,"request"));
 		else
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"bind_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name, params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name,params.dst.location, params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -840,7 +840,7 @@ static int bind_delete(const char *desc, char *result, int size)
 
 out:
 	if (result) 
-		ret = snprintf(result,size,"%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"bind_delete://%s.%s#%llx:%x?result(%d),reply(%s)\n",
 			       params.name, params.location,params.offset, params.extent,
 			       ret,rddma_get_option(&params,"request"));
 
@@ -885,13 +885,13 @@ static int bind_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (bind)
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"bind_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       bind->desc.xfer.name, bind->desc.xfer.location,bind->desc.xfer.offset, bind->desc.xfer.extent,
 				       bind->desc.dst.name, bind->desc.dst.location,bind->desc.dst.offset, bind->desc.dst.extent,
 				       bind->desc.src.name, bind->desc.src.location,bind->desc.src.offset, bind->desc.src.extent,
 				       ret,rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s=%s.%s#?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"bind_find://%s.%s#%llx:%x/%s.%s=%s.%s#?result(%d),reply(%s)\n",
 				       params.name, params.location, params.offset, params.extent,
 				       params.name, params.location,
 				       params.name, params.location,
@@ -940,13 +940,13 @@ static int dst_create(const char *desc, char *result, int size)
 out:		
 	if (result) {
 		if (dst)
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_name(%s),result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"dst_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_name(%s),result(%d),reply(%s)\n",
 				       dst->desc.xfer.name,dst->desc.xfer.location,dst->desc.xfer.offset,dst->desc.xfer.extent,
 				       dst->desc.dst.name,dst->desc.dst.location,dst->desc.dst.offset,dst->desc.dst.extent,
 				       dst->desc.src.name,dst->desc.src.location,dst->desc.src.offset,dst->desc.src.extent,
 				       rddma_get_option(&params.src,"event_name"),ret,rddma_get_option(&params.src,"request"));
 		else
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_name(%s),result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"dst_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_name(%s),result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset,params.xfer.extent,
 				       params.dst.name,params.dst.location,params.dst.offset,params.dst.extent,
 				       params.src.name,params.src.location,params.src.offset,params.src.extent,
@@ -1002,7 +1002,7 @@ static int dst_delete(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"dst_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset,params.xfer.extent,
 				       params.dst.name,params.dst.location,params.dst.offset,params.dst.extent,
 				       params.src.name,params.src.location,params.src.offset,params.src.extent,
@@ -1050,13 +1050,13 @@ static int dst_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (dst)
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"dst_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       dst->desc.xfer.name,dst->desc.xfer.location,dst->desc.xfer.offset, dst->desc.xfer.extent,
 				       dst->desc.dst.name, dst->desc.dst.location,dst->desc.dst.offset, dst->desc.dst.extent,
 				       dst->desc.src.name, dst->desc.src.location,dst->desc.src.offset, dst->desc.src.extent,
 				       ret,rddma_get_option(&params.src,"request"));
 		else
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"dst_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1112,13 +1112,13 @@ static int src_create(const char *desc, char *result, int size)
 out:		
 	if (result) {
 		if (src)
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"src_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       src->desc.xfer.name, src->desc.xfer.location,src->desc.xfer.offset, src->desc.xfer.extent,
 				       src->desc.dst.name, src->desc.dst.location,src->desc.dst.offset, src->desc.dst.extent,
 				       src->desc.src.name, src->desc.src.location,src->desc.src.offset, src->desc.src.extent,
 				       ret,rddma_get_option(&params.src,"request"));
 		else
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"src_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1166,7 +1166,7 @@ static int src_delete(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"src_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1213,13 +1213,13 @@ static int src_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (src)
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"src_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       src->desc.xfer.name, src->desc.xfer.location,src->desc.xfer.offset, src->desc.xfer.extent,
 				       src->desc.dst.name, src->desc.dst.location,src->desc.dst.offset, src->desc.dst.extent,
 				       src->desc.src.name, src->desc.src.location,src->desc.src.offset, src->desc.src.extent,
 				       ret,rddma_get_option(&params.src,"request"));
 		else
-			ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			ret = snprintf(result,size,"src_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1301,7 +1301,7 @@ static int srcs_create(const char *desc, char *result, int size)
 
 out:		
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_id(%d),result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"srcs_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_id(%d),result(%d),reply(%s)\n",
 			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 			       params.src.name, params.src.location,params.src.offset, params.src.extent,event_id,
@@ -1367,7 +1367,7 @@ static int srcs_delete(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"srcs_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1411,7 +1411,7 @@ static int srcs_find(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"srcs_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 			       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1495,7 +1495,7 @@ static int dsts_create(const char *desc, char *result, int size)
 
 out:		
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x?event_id(%d)=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"dsts_create://%s.%s#%llx:%x/%s.%s#%llx:%x?event_id(%d)=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 			       event_id,
@@ -1563,7 +1563,7 @@ static int dsts_delete(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"dsts_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1608,7 +1608,7 @@ static int dsts_find(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"dsts_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 			       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1642,7 +1642,7 @@ static int event_start(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"%s.%s?result(%d),reply(%s)\n",
+		ret = snprintf(result,size,"event_start://%s.%s?result(%d),reply(%s)\n",
 			       params.name,params.location,
 			       ret,rddma_get_option(&params,"request"));
 	rddma_clean_desc(&params);
@@ -1734,7 +1734,7 @@ out:
 		char *request = strstr(cmd,"request");
 		if (request)
 			sscanf(request,"request(%x)",&reply);
-		ret = snprintf(result,size,"%s%cresult(10101),reply(%x)\n" ,sp1 ? sp1+3 : cmd, request ? ',' : '?',reply);
+		ret = snprintf(result,size,"%s%cresult(10101),reply(%x)\n" , cmd, request ? ',' : '?',reply);
 	}
 
 	nested--;

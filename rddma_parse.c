@@ -238,7 +238,8 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	d->address = NULL;
 	d->ploc = NULL;
 	d->buf = desc;
-	d->name = desc;
+	ops = strstr(desc,"://");
+	d->name = ops ? ops+3 : desc;
 
 	name_remainder(d->name,     '?', &d->query[0]);
 	name_remainder(d->name,     '.', &d->location);
