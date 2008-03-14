@@ -1650,6 +1650,57 @@ out:
 	return ret;
 }
 
+
+
+
+
+
+
+static int event_chain(const char *desc, char *result, int size)
+{
+	struct rddma_desc_param params;
+	struct rddma_location *loc;
+	int ret = -EINVAL;
+
+	RDDMA_DEBUG (MY_DEBUG,
+		     "#### %s entered with desc = %s, result=%p, size=%d\n",
+		     __FUNCTION__,desc,result,size);
+
+
+	if ( (ret = rddma_parse_desc(&params,desc)) ) {
+		goto out;
+	}
+
+	if ( params.location && *params.location ) {
+		if ( (loc = locate_rddma_location(NULL,&params))) {
+			if (loc && loc->desc.ops && loc->desc.ops->event_chain) {
+				ret = loc->desc.ops->event_chain(loc,&params);
+			}
+			rddma_location_put(loc);
+		}
+	}
+	else if (params.ops) {
+		ret = params.ops->event_chain(NULL,&params);
+	}
+
+out:
+	if (result)
+		ret = snprintf(result,size,"event_chain://%s.%s?result(%d),reply(%s)\n",
+			       params.name,params.location,
+			       ret,rddma_get_option(&params,"request"));
+	rddma_clean_desc(&params);
+
+	return ret;
+}
+
+
+
+
+
+
+
+
+
 #define MAX_OP_LEN 15		/* length of location_create */
 static struct ops {
 	char *cmd;
@@ -1683,6 +1734,7 @@ static struct ops {
 	{"dsts_delete", dsts_delete},
 	{"dsts_find", dsts_find},
 	{"event_start",event_start},
+	{"event_chain",event_chain},
 	{0,0},
 };
 
@@ -1712,7 +1764,6 @@ int do_operation(const char *cmd, char *result, int size)
 
 	if ( (sp1 = strstr(cmd,"://")) ) {
 		struct ops *op = &ops[0];
-		
 		toklen = sp1 - cmd;
 		if (toklen > MAX_OP_LEN)
 			goto out;

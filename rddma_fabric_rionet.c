@@ -187,7 +187,7 @@ static struct fabric_address *find_fabric_mac(char *hwaddr, struct net_device *n
 	struct fabric_address *fp, *new;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	for (i = 0, fp = address_table[i]; i < 16 ; i++, fp = address_table[i]) {
+	for (i = 0, fp = address_table[i]; i < 16 && hwaddr; i++, fp = address_table[i]) {
 		if (!fp)
 			continue;
 

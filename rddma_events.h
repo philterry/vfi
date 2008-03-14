@@ -4,11 +4,14 @@
 #include <linux/rddma.h>
 #include <linux/rddma_subsys.h>
 
+
 struct rddma_events {
 	int count;
 	struct semaphore start_lock;
 	struct completion dma_sync;
 	struct kset kset;
+	struct rddma_events *next;
+	struct rddma_events *prev;
 };
 
 static inline struct rddma_events *to_rddma_events(struct kobject *kobj)

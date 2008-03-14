@@ -68,6 +68,7 @@ struct rddma_ops {
 	void		          (*dst_ev_delete)(struct rddma_bind *,     struct rddma_bind_param *);
 	void		          (*src_ev_delete)(struct rddma_dst *,      struct rddma_bind_param *);
 	int                         (*event_start)(struct rddma_location *, struct rddma_desc_param *);
+	int                         (*event_chain)(struct rddma_location *, struct rddma_desc_param *);
 };
 
 

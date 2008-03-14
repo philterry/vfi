@@ -1179,9 +1179,55 @@ static int rddma_local_event_start(struct rddma_location *loc, struct rddma_desc
 	event_list = find_rddma_events(rddma_subsys->events,desc->name);
 	if (event_list == NULL )
 		return -EINVAL;
-	rddma_events_start(event_list);
+
+	/* Loop through the event chain if any */
+	while (event_list) {
+		RDDMA_DEBUG(MY_DEBUG,"--TSH-- %s: Starting event\n",__FUNCTION__);
+		rddma_events_start(event_list);
+		event_list = event_list->next;
+	}
+
 	return 0;
 }
+
+
+
+static int rddma_local_event_chain(struct rddma_location *loc, struct rddma_desc_param *desc)
+{
+
+	char                *event_name;
+	struct rddma_events *event_list_this;
+	struct rddma_events *event_list_next;
+
+	RDDMA_DEBUG (MY_DEBUG,
+		     "#### %s entered \n",
+
+		     __FUNCTION__);
+
+	/* Find the event_name in the desc */
+	event_name = rddma_get_option(desc, "event_name");
+	if (event_name == NULL) 
+		return -EINVAL;
+
+	/* Lookup this event */
+	event_list_this = find_rddma_events(rddma_subsys->events, desc->name);
+	if (event_list_this == NULL)
+		return -EINVAL;
+
+	/* Lookup next event */
+	event_list_next = find_rddma_events(rddma_subsys->events, event_name);
+	if (event_list_next == NULL)
+		return -EINVAL;
+
+	/* Make this event point to next event */
+	event_list_this->next = event_list_next;
+	event_list_next->prev = event_list_this;
+
+	return 0;
+}
+
+
+
 
 /**
 * rddma_local_bind_delete - delete a bind associated with an xfer
@@ -1260,6 +1306,7 @@ struct rddma_ops rddma_local_ops = {
 	.dst_ev_delete	 = rddma_local_dst_ev_delete,
 	.src_ev_delete	 = rddma_local_src_ev_delete,
 	.event_start     = rddma_local_event_start,
+	.event_chain     = rddma_local_event_chain,
 };
 
 EXPORT_SYMBOL (rddma_local_ops);
