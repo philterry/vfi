@@ -39,7 +39,7 @@
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int location_create(const char *desc, char *result, int size)
+static int location_create(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_location *new_loc = NULL;
@@ -53,24 +53,24 @@ static int location_create(const char *desc, char *result, int size)
 	ret = -EINVAL;
 
 	if ( params.location && *params.location ) {
-		if ( (loc = locate_rddma_location(NULL,&params))) {
+		if ( !(ret = locate_rddma_location(&loc, NULL, &params))) {
 			if (loc && loc->desc.ops && loc->desc.ops->location_create) {
-				ret = (new_loc = loc->desc.ops->location_create(loc,&params)) == NULL;
+				ret = loc->desc.ops->location_create(&new_loc, loc, &params);
 			}
 			rddma_location_put(loc);
 		}
 	}
 	else if (params.ops) {
-		ret = (new_loc = params.ops->location_create(NULL,&params)) == NULL;
+		ret = params.ops->location_create(&new_loc, NULL, &params);
 	}
 fail:
 	if (result) {
 		if (ret)
-			ret = snprintf(result,size,"location_create://%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"location_create://%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.name, params.offset, params.extent, ret,
 				       rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"location_create://%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"location_create://%s#%llx:%x?result(%d),reply(%s)\n",
 				       new_loc->desc.name, new_loc->desc.offset,new_loc->desc.extent, ret,
 				       rddma_get_option(&params,"request"));
 	}
@@ -91,7 +91,7 @@ fail:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int location_delete(const char *desc, char *result, int size)
+static int location_delete(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_location *loc = NULL;
@@ -101,24 +101,20 @@ static int location_delete(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_desc(&params, desc)) )
 		goto out;
 
-	ret = -EINVAL;
-
 	if ( params.location && *params.location) {
-		if ( (loc = locate_rddma_location(NULL,&params) ) ) {
+		if ( !(ret = locate_rddma_location(&loc, NULL, &params) ) ) {
 			if ( loc && loc->desc.ops && loc->desc.ops->location_delete ) {
-				ret = 0;
 				loc->desc.ops->location_delete(loc, &params);
 			}
 			rddma_location_put(loc);
 		}
 	}
 	else if (params.ops) {
-		ret = 0;
 		params.ops->location_delete(NULL,&params);
 	}
 out:
 	if (result)
-		ret = snprintf(result,size,"location_delete://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
+		*size = snprintf(result,*size,"location_delete://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
 	rddma_clean_desc(&params);
 
 	return ret;
@@ -135,7 +131,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int location_find(const char *desc, char *result, int size)
+static int location_find(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_location *new_loc = NULL;
@@ -150,27 +146,27 @@ static int location_find(const char *desc, char *result, int size)
 
 	ret = -EINVAL;
 	if (params.location && *params.location ) {
-		if ( (loc = locate_rddma_location(NULL,&params)) ) {
-			if (loc->desc.ops) {
-				ret = ((new_loc = loc->desc.ops->location_find(loc,&params)) == NULL);
+		if ( !(ret = locate_rddma_location(&loc,NULL,&params)) ) {
+			if (loc && loc->desc.ops) {
+				ret = loc->desc.ops->location_find(&new_loc,loc,&params);
 			}
 			rddma_location_put(loc);
 		}
 	}
 	else {
 		if (params.ops)
-			ret = (new_loc = params.ops->location_find(NULL,&params)) == NULL;
+			ret = params.ops->location_find(&new_loc,NULL,&params);
 		else
-			ret = (new_loc = find_rddma_name(NULL, &params)) == NULL;
+			ret = find_rddma_name(&new_loc,NULL, &params);
 	}
 out:
 	if (result) {
 		if (ret)
-			ret = snprintf(result,size,"location_find://%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"location_find://%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.name,params.offset,params.extent,
 				       ret, rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"location_find://%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"location_find://%s#%llx:%x?result(%d),reply(%s)\n",
 				       new_loc->desc.name,new_loc->desc.offset,new_loc->desc.extent,
 				       ret, rddma_get_option(&params,"request"));
 	}
@@ -190,7 +186,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int location_put(const char *desc, char *result, int size)
+static int location_put(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_location *loc = NULL;
@@ -203,9 +199,8 @@ static int location_put(const char *desc, char *result, int size)
 	ret = -EINVAL;
 
 	if (params.location && *params.location) {
-		if ( (loc = locate_rddma_location(NULL,&params) ) ) {
+		if ( !(ret = locate_rddma_location(&loc,NULL,&params) ) ) {
 			if ( loc && loc->desc.ops && loc->desc.ops->location_put ) {
-				ret = 0;
 				loc->desc.ops->location_put(loc, &params);
 			}
 			rddma_location_put(loc);
@@ -213,7 +208,7 @@ static int location_put(const char *desc, char *result, int size)
 	}
 out:
 	if (result)
-		ret = snprintf(result,size,"location_put://%s.%s?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"location_put://%s.%s?result(%d),reply(%s)\n",
 			       params.name, params.location,
 			       ret, rddma_get_option(&params,"request"));
 	rddma_clean_desc(&params);
@@ -233,7 +228,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int smb_create(const char *desc, char *result, int size)
+static int smb_create(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_smb *smb = NULL;
@@ -252,10 +247,10 @@ static int smb_create(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (loc = locate_rddma_location(NULL,&params) ) ) {
+	if ( !(ret = locate_rddma_location(&loc,NULL,&params) ) ) {
 		ret = -EINVAL;
-		if (loc->desc.ops && loc->desc.ops->smb_create)
-			ret = ((smb = loc->desc.ops->smb_create(loc, &params)) == NULL);
+		if (loc && loc->desc.ops && loc->desc.ops->smb_create)
+			ret = loc->desc.ops->smb_create(&smb,loc, &params);
 	}
 
 	rddma_location_put(loc);
@@ -263,11 +258,11 @@ static int smb_create(const char *desc, char *result, int size)
 out:		
 	if (result) {
 		if (smb)
-			ret = snprintf(result,size,"smb_create://%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"smb_create://%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       smb->desc.name, smb->desc.location,smb->desc.offset, smb->desc.extent,
 				       ret, rddma_get_option(&params,"request"));
 		else 
-			ret = snprintf(result,size,"smb_create://%s.%s?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"smb_create://%s.%s?result(%d),reply(%s)\n",
 				       params.name, params.location,
 				       ret, rddma_get_option(&params,"request"));
 	}
@@ -288,7 +283,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int smb_delete(const char *desc, char *result, int size)
+static int smb_delete(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_location *loc;
@@ -301,10 +296,9 @@ static int smb_delete(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (loc = locate_rddma_location(NULL,&params) ) ) {
+	if ( !(ret = locate_rddma_location(&loc,NULL,&params) ) ) {
 		ret = -EINVAL;
-		if ( loc->desc.ops && loc->desc.ops->smb_delete ) {
-			ret = 0;
+		if ( loc && loc->desc.ops && loc->desc.ops->smb_delete ) {
 			loc->desc.ops->smb_delete(loc, &params);
 		}
 	}
@@ -314,7 +308,7 @@ static int smb_delete(const char *desc, char *result, int size)
 
 out:
 	if (result) 
-		ret = snprintf(result,size,"smb_delete://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
+		*size = snprintf(result,*size,"smb_delete://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
 
 	rddma_clean_desc(&params);
 
@@ -332,7 +326,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int smb_find(const char *desc, char *result, int size)
+static int smb_find(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_smb *smb = NULL;
@@ -349,11 +343,11 @@ static int smb_find(const char *desc, char *result, int size)
 	if (!params.location)  
 		goto out;
 
-	if ( (loc = locate_rddma_location(NULL,&params)) ) {
+	if ( !(ret = locate_rddma_location(&loc,NULL,&params)) ) {
 		ret = -EINVAL;
 		
-		if (loc->desc.ops && loc->desc.ops->smb_find)
-			ret = ((smb = loc->desc.ops->smb_find(loc,&params)) == NULL);
+		if (loc && loc->desc.ops && loc->desc.ops->smb_find)
+			ret = loc->desc.ops->smb_find(&smb,loc,&params);
 	}
 
 	rddma_location_put(loc);
@@ -361,10 +355,10 @@ static int smb_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (smb)
-			ret = snprintf(result,size,"smb_find://%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"smb_find://%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       smb->desc.name, smb->desc.location,smb->desc.offset, smb->desc.extent, ret, rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"smb_find://%s.%s?result(%d),reply(%s)\n", params.name, params.location, ret, rddma_get_option(&params,"request"));
+			*size = snprintf(result,*size,"smb_find://%s.%s?result(%d),reply(%s)\n", params.name, params.location, ret, rddma_get_option(&params,"request"));
 	}
 
 	rddma_clean_desc(&params);
@@ -452,7 +446,7 @@ static int valid_extents(struct rddma_bind_param *x)
  * for what happens next.
  *
  */
-static int smb_mmap (const char* desc, char* result, int size)
+static int smb_mmap (const char* desc, char* result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_smb *smb = NULL;
@@ -471,11 +465,11 @@ static int smb_mmap (const char* desc, char* result, int size)
 
 	ret = -ENODEV;
 
-	if ( (smb = find_rddma_smb(&params)) ) {
+	if ( (ret = find_rddma_smb(&smb,&params)) ) {
 		ret = -EINVAL;
 		
-		if (smb->desc.ops && smb->desc.ops->mmap_create)
-			ret = ((mmap = smb->desc.ops->mmap_create (smb, &params)) == NULL);
+		if (smb && smb->desc.ops && smb->desc.ops->mmap_create)
+			ret = smb->desc.ops->mmap_create (&mmap,smb, &params);
 	}
 
 	rddma_smb_put(smb);
@@ -487,13 +481,13 @@ out:
 			* Note that because mmap identifiers are huge numbers, write
 			* them as hex digits in the response.
 			*/
-			ret = snprintf(result,size,"%s?result(%d),reply(%s),mmap_offset(%lx)\n",
+			*size = snprintf(result,*size,"%s?result(%d),reply(%s),mmap_offset(%lx)\n",
 				       kobject_name (&mmap->kobj) ? : "<NULL>", ret, 
 				       rddma_get_option(&params,"request"),
 				       (unsigned long)mmap_to_ticket(mmap));
 		}
 		else {
-			ret = snprintf(result,size,"smb_mmap://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
+			*size = snprintf(result,*size,"smb_mmap://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
 		}
 	}
 	
@@ -502,7 +496,7 @@ out:
 	return ret;
 }
 
-static int smb_unmmap (const char* desc, char* result, int size)
+static int smb_unmmap (const char* desc, char* result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_smb *smb = NULL;
@@ -520,11 +514,10 @@ static int smb_unmmap (const char* desc, char* result, int size)
 
 	ret = -ENODEV;
 
-	if ( (smb = find_rddma_smb(&params)) ) {
+	if ( !(ret = find_rddma_smb(&smb,&params)) ) {
 		ret = -EINVAL;
 		
-		if (smb->desc.ops && smb->desc.ops->mmap_delete) {
-			ret = 0;
+		if (smb && smb->desc.ops && smb->desc.ops->mmap_delete) {
 			smb->desc.ops->mmap_delete(smb,&params);
 		}
 	}
@@ -533,7 +526,7 @@ static int smb_unmmap (const char* desc, char* result, int size)
 
 out:		
 	if (result) {
-		ret = snprintf(result,size,"smb_unmap://%s.%s?result(%d),reply(%s)\n", params.name, params.location, ret, rddma_get_option(&params,"request"));
+		*size = snprintf(result,*size,"smb_unmap://%s.%s?result(%d),reply(%s)\n", params.name, params.location, ret, rddma_get_option(&params,"request"));
 	}
 	
 	rddma_clean_desc(&params);
@@ -552,7 +545,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int xfer_create(const char *desc, char *result, int size)
+static int xfer_create(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
@@ -566,18 +559,18 @@ static int xfer_create(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (location = locate_rddma_location(NULL,&params) ) ) {
+	if ( !(ret = locate_rddma_location(&location,NULL,&params) ) ) {
 		ret = -EINVAL;
 		
-		if (location->desc.ops && location->desc.ops->xfer_create)
-			ret = ((xfer = location->desc.ops->xfer_create(location, &params)) == NULL);
+		if (location && location->desc.ops && location->desc.ops->xfer_create)
+			ret = location->desc.ops->xfer_create(&xfer,location, &params);
 	}
 
 	rddma_location_put(location);
 
 out:		
 	if (result)
-		ret = snprintf(result,size,"xfer_create://%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"xfer_create://%s.%s#%llx:%x?result(%d),reply(%s)\n",
 			       params.name, params.location,params.offset, params.extent,
 			       ret,rddma_get_option(&params,"request"));
 
@@ -597,7 +590,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int xfer_delete(const char *desc, char *result, int size)
+static int xfer_delete(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_location *loc;
@@ -610,10 +603,9 @@ static int xfer_delete(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (loc = locate_rddma_location(NULL,&params) ) ) {
+	if ( !(ret = locate_rddma_location(&loc,NULL,&params) ) ) {
 		ret = -EINVAL;
-		if ( loc->desc.ops && loc->desc.ops->xfer_delete ) {
-			ret = 0;
+		if ( loc && loc->desc.ops && loc->desc.ops->xfer_delete ) {
 			loc->desc.ops->xfer_delete(loc, &params);
 		}
 	}
@@ -622,7 +614,7 @@ static int xfer_delete(const char *desc, char *result, int size)
 
 out:
 	if (result) 
-		ret = snprintf(result,size,"xfer_delete://%s.%s?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"xfer_delete://%s.%s?result(%d),reply(%s)\n",
 			       params.name, params.location,ret, rddma_get_option(&params,"request"));
 
 	rddma_clean_desc(&params);
@@ -641,7 +633,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int xfer_find(const char *desc, char *result, int size)
+static int xfer_find(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
@@ -655,10 +647,10 @@ static int xfer_find(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (location = locate_rddma_location(NULL,&params)) ) {
+	if ( !(ret = locate_rddma_location(&location,NULL,&params)) ) {
 		ret = -EINVAL;
-		if (location->desc.ops && location->desc.ops->xfer_find)
-			ret = ((xfer = location->desc.ops->xfer_find(location,&params)) == NULL);
+		if (location && location->desc.ops && location->desc.ops->xfer_find)
+			ret = location->desc.ops->xfer_find(&xfer,location,&params);
 	}
 
 	rddma_location_put(location);
@@ -666,11 +658,11 @@ static int xfer_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (xfer)
-			ret = snprintf(result,size,"xfer_find://%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"xfer_find://%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.name, params.location,xfer->desc.offset, xfer->desc.extent,
 				       ret,rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"xfer_find://%s.%s?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"xfer_find://%s.%s?result(%d),reply(%s)\n",
 				       params.name, params.location,
 				       ret,rddma_get_option(&params,"request"));
 	}
@@ -701,7 +693,7 @@ out:
  *
  *
  */
-static int bind_create(const char *desc, char *result, int size)
+static int bind_create(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
@@ -738,11 +730,11 @@ static int bind_create(const char *desc, char *result, int size)
 	*
 	* Sometimes that just needs to be spelled out.
 	*/
-	if ( (xfer = find_rddma_xfer(&params.xfer) ) ) {
+	if ( !(ret = find_rddma_xfer(&xfer,&params.xfer) ) ) {
 
 		ret = -EINVAL;
-		if (xfer->desc.ops && xfer->desc.ops->bind_create)
-			ret = ((bind = xfer->desc.ops->bind_create(xfer, &params)) == NULL);
+		if (xfer && xfer->desc.ops && xfer->desc.ops->bind_create)
+			ret = xfer->desc.ops->bind_create(&bind,xfer, &params);
 	}
 
 	rddma_xfer_put(xfer);
@@ -750,13 +742,13 @@ static int bind_create(const char *desc, char *result, int size)
 out:		
 	if (result) {
 		if (bind)
-			ret = snprintf(result,size,"bind_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"bind_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       bind->desc.xfer.name, bind->desc.xfer.location, bind->desc.xfer.offset, bind->desc.xfer.extent,
 				       bind->desc.dst.name,  bind->desc.dst.location,  bind->desc.dst.offset,  bind->desc.dst.extent,
 				       bind->desc.src.name,  bind->desc.src.location,  bind->desc.src.offset,  bind->desc.src.extent,
 				       ret,rddma_get_option(&params.src,"request"));
 		else
-			ret = snprintf(result,size,"bind_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"bind_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name, params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name,params.dst.location, params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -791,7 +783,7 @@ out:
  * object in the local tree, and will then invoke its Xfer agent bind_delete operation.
  *
  */
-static int bind_delete(const char *desc, char *result, int size)
+static int bind_delete(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
@@ -808,7 +800,7 @@ static int bind_delete(const char *desc, char *result, int size)
 	/*
 	* Identify the xfer agent and instruct it to perform the bind_delete.
 	*/
-	if ( (xfer = find_rddma_xfer (&params) ) ) {
+	if ( !(ret = find_rddma_xfer (&xfer,&params) ) ) {
 		ret = -EINVAL;
 		/*
 		* Check specified bind offset/extent values and substitute
@@ -822,8 +814,7 @@ static int bind_delete(const char *desc, char *result, int size)
 			goto out;
 		}
 		
-		if ( xfer->desc.ops && xfer->desc.ops->bind_delete ) {
-			ret = 0;
+		if ( xfer && xfer->desc.ops && xfer->desc.ops->bind_delete ) {
 			xfer->desc.ops->bind_delete (xfer, &params);
 		}
 		else {
@@ -840,7 +831,7 @@ static int bind_delete(const char *desc, char *result, int size)
 
 out:
 	if (result) 
-		ret = snprintf(result,size,"bind_delete://%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"bind_delete://%s.%s#%llx:%x?result(%d),reply(%s)\n",
 			       params.name, params.location,params.offset, params.extent,
 			       ret,rddma_get_option(&params,"request"));
 
@@ -860,7 +851,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int bind_find(const char *desc, char *result, int size)
+static int bind_find(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_xfer *xfer = NULL;
@@ -874,10 +865,10 @@ static int bind_find(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (xfer = find_rddma_xfer(&params)) ) {
+	if ( !(ret = find_rddma_xfer(&xfer,&params)) ) {
 		ret = -EINVAL;
-		if (xfer->desc.ops && xfer->desc.ops->bind_find)
-			ret = ((bind = xfer->desc.ops->bind_find(xfer,&params)) == NULL);
+		if (xfer && xfer->desc.ops && xfer->desc.ops->bind_find)
+			ret = xfer->desc.ops->bind_find(&bind,xfer,&params);
 	}
 
 	rddma_xfer_put(xfer);
@@ -885,13 +876,13 @@ static int bind_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (bind)
-			ret = snprintf(result,size,"bind_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"bind_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       bind->desc.xfer.name, bind->desc.xfer.location,bind->desc.xfer.offset, bind->desc.xfer.extent,
 				       bind->desc.dst.name, bind->desc.dst.location,bind->desc.dst.offset, bind->desc.dst.extent,
 				       bind->desc.src.name, bind->desc.src.location,bind->desc.src.offset, bind->desc.src.extent,
 				       ret,rddma_get_option(&params,"request"));
 		else
-			ret = snprintf(result,size,"bind_find://%s.%s#%llx:%x/%s.%s=%s.%s#?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"bind_find://%s.%s#%llx:%x/%s.%s=%s.%s#?result(%d),reply(%s)\n",
 				       params.name, params.location, params.offset, params.extent,
 				       params.name, params.location,
 				       params.name, params.location,
@@ -914,7 +905,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int dst_create(const char *desc, char *result, int size)
+static int dst_create(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_dst *dst = NULL;
@@ -928,10 +919,10 @@ static int dst_create(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
+	if ( !(ret = find_rddma_bind(&bind,&params.xfer) ) ) {
 		ret = -EINVAL;
-		if (bind->desc.xfer.ops && bind->desc.xfer.ops->dst_create)
-			ret = ((dst = bind->desc.xfer.ops->dst_create(bind, &params)) == NULL);
+		if (bind && bind->desc.xfer.ops && bind->desc.xfer.ops->dst_create)
+			ret = bind->desc.xfer.ops->dst_create(&dst,bind, &params);
 	}
 
 	RDDMA_KTRACE ("<*** %s bind put after dst_create opcall ***>\n", __func__);
@@ -940,13 +931,13 @@ static int dst_create(const char *desc, char *result, int size)
 out:		
 	if (result) {
 		if (dst)
-			ret = snprintf(result,size,"dst_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_name(%s),result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"dst_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_name(%s),result(%d),reply(%s)\n",
 				       dst->desc.xfer.name,dst->desc.xfer.location,dst->desc.xfer.offset,dst->desc.xfer.extent,
 				       dst->desc.dst.name,dst->desc.dst.location,dst->desc.dst.offset,dst->desc.dst.extent,
 				       dst->desc.src.name,dst->desc.src.location,dst->desc.src.offset,dst->desc.src.extent,
 				       rddma_get_option(&params.src,"event_name"),ret,rddma_get_option(&params.src,"request"));
 		else
-			ret = snprintf(result,size,"dst_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_name(%s),result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"dst_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_name(%s),result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset,params.xfer.extent,
 				       params.dst.name,params.dst.location,params.dst.offset,params.dst.extent,
 				       params.src.name,params.src.location,params.src.offset,params.src.extent,
@@ -977,7 +968,7 @@ out:
  * the <bind>. 
  *
  */
-static int dst_delete(const char *desc, char *result, int size)
+static int dst_delete(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_bind *bind = NULL;
@@ -989,10 +980,9 @@ static int dst_delete(const char *desc, char *result, int size)
 		goto out;
 
 	ret = -ENODEV;
-	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
+	if ( !(ret = find_rddma_bind(&bind,&params.xfer) ) ) {
 		ret = -EINVAL;
-		if ( bind->desc.xfer.ops && bind->desc.xfer.ops->dst_delete ) {
-			ret = 0;
+		if ( bind && bind->desc.xfer.ops && bind->desc.xfer.ops->dst_delete ) {
 			bind->desc.xfer.ops->dst_delete(bind, &params);
 		}
 	}
@@ -1002,7 +992,7 @@ static int dst_delete(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"dst_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"dst_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset,params.xfer.extent,
 				       params.dst.name,params.dst.location,params.dst.offset,params.dst.extent,
 				       params.src.name,params.src.location,params.src.offset,params.src.extent,
@@ -1024,7 +1014,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int dst_find(const char *desc, char *result, int size)
+static int dst_find(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_dst *dst = NULL;
@@ -1038,10 +1028,10 @@ static int dst_find(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (bind = find_rddma_bind(&params.xfer)) ) {
+	if ( !(ret = find_rddma_bind(&bind,&params.xfer)) ) {
 		ret = -EINVAL;
-		if (bind->desc.dst.ops && bind->desc.dst.ops->dst_find)
-			ret = ((dst = bind->desc.dst.ops->dst_find(bind,&params)) == NULL);
+		if (bind && bind->desc.dst.ops && bind->desc.dst.ops->dst_find)
+			ret = bind->desc.dst.ops->dst_find(&dst,bind,&params);
 	}
 
 	RDDMA_KTRACE ("<*** %s bind put after dst_find opcall ***>\n", __func__);
@@ -1050,13 +1040,13 @@ static int dst_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (dst)
-			ret = snprintf(result,size,"dst_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"dst_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       dst->desc.xfer.name,dst->desc.xfer.location,dst->desc.xfer.offset, dst->desc.xfer.extent,
 				       dst->desc.dst.name, dst->desc.dst.location,dst->desc.dst.offset, dst->desc.dst.extent,
 				       dst->desc.src.name, dst->desc.src.location,dst->desc.src.offset, dst->desc.src.extent,
 				       ret,rddma_get_option(&params.src,"request"));
 		else
-			ret = snprintf(result,size,"dst_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"dst_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1082,7 +1072,7 @@ out:
  * This operation is NOT intended to be invoked directly by an application, 
  * but rather from within the driver during bind_create.
  */
-static int src_create(const char *desc, char *result, int size)
+static int src_create(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_src *src = NULL;
@@ -1096,15 +1086,15 @@ static int src_create(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	dst = find_rddma_dst(&params);
+	ret = find_rddma_dst(&dst,&params);
 
-	if (NULL == dst)
+	if (ret || dst == NULL)
 		goto out;
 
 	ret = -EINVAL;
 
 	if (dst->desc.xfer.ops && dst->desc.xfer.ops->src_create)
-		ret = ((src = dst->desc.xfer.ops->src_create(dst, &params)) == NULL);
+		ret = dst->desc.xfer.ops->src_create(&src,dst, &params);
 
 
 	rddma_dst_put(dst);
@@ -1112,13 +1102,13 @@ static int src_create(const char *desc, char *result, int size)
 out:		
 	if (result) {
 		if (src)
-			ret = snprintf(result,size,"src_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"src_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       src->desc.xfer.name, src->desc.xfer.location,src->desc.xfer.offset, src->desc.xfer.extent,
 				       src->desc.dst.name, src->desc.dst.location,src->desc.dst.offset, src->desc.dst.extent,
 				       src->desc.src.name, src->desc.src.location,src->desc.src.offset, src->desc.src.extent,
 				       ret,rddma_get_option(&params.src,"request"));
 		else
-			ret = snprintf(result,size,"src_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"src_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1141,7 +1131,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int src_delete(const char *desc, char *result, int size)
+static int src_delete(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_dst *dst = NULL;
@@ -1154,10 +1144,9 @@ static int src_delete(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (dst = find_rddma_dst(&params) ) ) {
+	if ( !(ret = find_rddma_dst(&dst, &params) ) ) {
 		ret = -EINVAL;
-		if ( dst->desc.xfer.ops && dst->desc.xfer.ops->src_delete ) {
-			ret = 0;
+		if ( dst && dst->desc.xfer.ops && dst->desc.xfer.ops->src_delete ) {
 			dst->desc.xfer.ops->src_delete(dst, &params);
 		}
 		rddma_dst_put(dst);
@@ -1166,7 +1155,7 @@ static int src_delete(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"src_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"src_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1188,7 +1177,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int src_find(const char *desc, char *result, int size)
+static int src_find(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_src *src = NULL;
@@ -1202,10 +1191,10 @@ static int src_find(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 
-	if ( (dst = find_rddma_dst(&params)) ) {
+	if ( !(ret = find_rddma_dst(&dst,&params)) ) {
 		ret = -EINVAL;
-		if (dst->desc.dst.ops && dst->desc.dst.ops->src_find)
-			ret = ((src = dst->desc.dst.ops->src_find(dst,&params)) == NULL);
+		if (dst && dst->desc.dst.ops && dst->desc.dst.ops->src_find)
+			ret = dst->desc.dst.ops->src_find(&src,dst,&params);
 	}
 
 	rddma_dst_put(dst);
@@ -1213,13 +1202,13 @@ static int src_find(const char *desc, char *result, int size)
 out:
 	if (result) {
 		if (src)
-			ret = snprintf(result,size,"src_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"src_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       src->desc.xfer.name, src->desc.xfer.location,src->desc.xfer.offset, src->desc.xfer.extent,
 				       src->desc.dst.name, src->desc.dst.location,src->desc.dst.offset, src->desc.dst.extent,
 				       src->desc.src.name, src->desc.src.location,src->desc.src.offset, src->desc.src.extent,
 				       ret,rddma_get_option(&params.src,"request"));
 		else
-			ret = snprintf(result,size,"src_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			*size = snprintf(result,*size,"src_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1262,7 +1251,7 @@ out:
  * the <xfer> agent.
  *
  */
-static int srcs_create(const char *desc, char *result, int size)
+static int srcs_create(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_srcs *srcs = NULL;
@@ -1278,11 +1267,11 @@ static int srcs_create(const char *desc, char *result, int size)
 
 	ret = -ENODEV;
 	
-	if ( (dst = find_rddma_dst(&params) ) ) {
+	if ( !(ret = find_rddma_dst(&dst,&params) ) ) {
 		ret = -EINVAL;
 
-		if (dst->desc.src.ops && dst->desc.src.ops->srcs_create)
-			ret = ((srcs = dst->desc.src.ops->srcs_create(dst, &params)) == NULL);
+		if (dst && dst->desc.src.ops && dst->desc.src.ops->srcs_create)
+			ret = dst->desc.src.ops->srcs_create(&srcs,dst, &params);
 
 		bind = rddma_dst_parent(dst);
 		event_id = bind->src_done_event->event_id;
@@ -1301,7 +1290,7 @@ static int srcs_create(const char *desc, char *result, int size)
 
 out:		
 	if (result)
-		ret = snprintf(result,size,"srcs_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_id(%d),result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"srcs_create://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?event_id(%d),result(%d),reply(%s)\n",
 			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 			       params.src.name, params.src.location,params.src.offset, params.src.extent,event_id,
@@ -1336,7 +1325,7 @@ out:
  * tree as proxies, created on-the-fly during srcs_create.
  *
  */
-static int srcs_delete(const char *desc, char *result, int size)
+static int srcs_delete(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_dst *dst = NULL;
@@ -1355,19 +1344,19 @@ static int srcs_delete(const char *desc, char *result, int size)
 	* bind, and gives rise to refcount anomalies when <src> is
 	* remote from <xfer>.
 	*/
-	if ( (dst = find_rddma_dst(&params) ) ) {
+	if ( !(ret = find_rddma_dst(&dst,&params) ) ) {
 		ret = -EINVAL;
-		if ( dst->desc.src.ops && dst->desc.src.ops->srcs_delete  ) {
-			ret = 0;
+		if ( dst && dst->desc.src.ops && dst->desc.src.ops->srcs_delete  ) {
 			dst = dst->desc.src.ops->srcs_delete(dst, &params);
 		}
-		if (dst) rddma_dst_put(dst);	/* Counteract get from find, but only if dst still exists */
+		if (dst) 
+			rddma_dst_put(dst);	/* Counteract get from find, but only if dst still exists */
 	}
 
 
 out:
 	if (result)
-		ret = snprintf(result,size,"srcs_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"srcs_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1389,7 +1378,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int srcs_find(const char *desc, char *result, int size)
+static int srcs_find(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_srcs *srcs = NULL;
@@ -1401,17 +1390,17 @@ static int srcs_find(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
-	if ( (dst = find_rddma_dst(&params)) ) {
+	if ( !(ret = find_rddma_dst(&dst,&params)) ) {
 		ret = -EINVAL;
-		if (dst->desc.dst.ops && dst->desc.dst.ops->srcs_find)
-			ret = ((srcs = dst->desc.dst.ops->srcs_find(dst,&params)) == NULL);
+		if (dst && dst->desc.dst.ops && dst->desc.dst.ops->srcs_find)
+			ret = dst->desc.dst.ops->srcs_find(&srcs,dst,&params);
 		rddma_dst_put(dst);
 	}
 
 
 out:
 	if (result)
-		ret = snprintf(result,size,"srcs_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"srcs_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 			       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1451,7 +1440,7 @@ out:
  * <srcs> and a list of <src> - although source elements will be created at the <src> site.
  *
  */
-static int dsts_create(const char *desc, char *result, int size)
+static int dsts_create(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_dsts *dsts = NULL;
@@ -1477,7 +1466,7 @@ static int dsts_create(const char *desc, char *result, int size)
 	* we will create a stub for it - provided it exists at the xfer site.
 	*
 	*/
-	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
+	if ( !(ret = find_rddma_bind(&bind,&params.xfer) ) ) {
 		ret = -EINVAL;
 
 		/*
@@ -1485,8 +1474,8 @@ static int dsts_create(const char *desc, char *result, int size)
 		* invoke the dsts_create function at the <dst> site.
 		*
 		*/
-		if (bind->desc.dst.ops && bind->desc.dst.ops->dsts_create)
-			ret = ((dsts = bind->desc.dst.ops->dsts_create(bind, &params)) == NULL);
+		if (bind && bind->desc.dst.ops && bind->desc.dst.ops->dsts_create)
+			ret = bind->desc.dst.ops->dsts_create(&dsts,bind, &params);
 
 		event_id = bind->dst_done_event->event_id;
 	}
@@ -1495,7 +1484,7 @@ static int dsts_create(const char *desc, char *result, int size)
 
 out:		
 	if (result)
-		ret = snprintf(result,size,"dsts_create://%s.%s#%llx:%x/%s.%s#%llx:%x?event_id(%d)=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"dsts_create://%s.%s#%llx:%x/%s.%s#%llx:%x?event_id(%d)=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 			       event_id,
@@ -1521,7 +1510,7 @@ out:
  * delivered to the <dst> agent of a bind being deleted.
  *
  */
-static int dsts_delete(const char *desc, char *result, int size)
+static int dsts_delete(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_bind *bind = NULL;
@@ -1532,7 +1521,6 @@ static int dsts_delete(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
-	ret = -ENODEV;
 	/*
 	* Find the target bind in the local object tree, then invoke
 	* its <dst> agent dst_delete operation.
@@ -1541,10 +1529,8 @@ static int dsts_delete(const char *desc, char *result, int size)
 	* this find_rddma_bind call is "put" by the API function. Otherwise
 	* your head will explode if running a local dsts_delete.
 	*/
-	if ( (bind = find_rddma_bind(&params.xfer) ) ) {
-		ret = -EINVAL;
-		if ( bind->desc.dst.ops && bind->desc.dst.ops->dsts_delete ) {
-			ret = 0;
+	if ( !(ret = find_rddma_bind(&bind,&params.xfer) ) ) {
+		if ( bind && bind->desc.dst.ops && bind->desc.dst.ops->dsts_delete ) {
 			/*
 			* Invoke the <dst> dsts_delete op to delete dsts.
 			* That function returns a pointer to the parent bind
@@ -1563,7 +1549,7 @@ static int dsts_delete(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"dsts_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"dsts_delete://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 				       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 				       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 				       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1585,7 +1571,7 @@ out:
  * Passing a null result pointer is valid if you only need the success
  * or failure return code.
  */
-static int dsts_find(const char *desc, char *result, int size)
+static int dsts_find(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
 	struct rddma_dsts *dsts = NULL;
@@ -1597,10 +1583,10 @@ static int dsts_find(const char *desc, char *result, int size)
 	if ( (ret = rddma_parse_bind(&params, desc)) )
 		goto out;
 
-	if ( (bind = find_rddma_bind(&params.xfer)) ) {
+	if ( !(ret = find_rddma_bind(&bind,&params.xfer)) ) {
 		ret = -EINVAL;
-		if (bind->desc.dst.ops && bind->desc.dst.ops->dsts_find)
-			ret = ((dsts = bind->desc.dst.ops->dsts_find(bind,&params)) == NULL);
+		if (bind && bind->desc.dst.ops && bind->desc.dst.ops->dsts_find)
+			ret = bind->desc.dst.ops->dsts_find(&dsts,bind,&params);
 	}
 
 	RDDMA_KTRACE ("<*** %s bind put after dsts_find opcall ***>\n", __func__);
@@ -1608,7 +1594,7 @@ static int dsts_find(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"dsts_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"dsts_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x?result(%d),reply(%s)\n",
 			       params.xfer.name,params.xfer.location,params.xfer.offset, params.xfer.extent,
 			       params.dst.name, params.dst.location,params.dst.offset, params.dst.extent,
 			       params.src.name, params.src.location,params.src.offset, params.src.extent,
@@ -1618,7 +1604,7 @@ out:
 	return ret;
 }
 
-static int event_start(const char *desc, char *result, int size)
+static int event_start(const char *desc, char *result, int *size)
 {
 	struct rddma_desc_param params;
 	struct rddma_location *loc;
@@ -1629,7 +1615,7 @@ static int event_start(const char *desc, char *result, int size)
 	}
 
 	if ( params.location && *params.location ) {
-		if ( (loc = locate_rddma_location(NULL,&params))) {
+		if ( !(ret = locate_rddma_location(&loc,NULL,&params))) {
 			if (loc && loc->desc.ops && loc->desc.ops->event_start) {
 				ret = loc->desc.ops->event_start(loc,&params);
 			}
@@ -1642,7 +1628,7 @@ static int event_start(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"event_start://%s.%s?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"event_start://%s.%s?result(%d),reply(%s)\n",
 			       params.name,params.location,
 			       ret,rddma_get_option(&params,"request"));
 	rddma_clean_desc(&params);
@@ -1656,7 +1642,7 @@ out:
 
 
 
-static int event_chain(const char *desc, char *result, int size)
+static int event_chain(const char *desc, char *result, int *size)
 {
 	struct rddma_desc_param params;
 	struct rddma_location *loc;
@@ -1664,7 +1650,7 @@ static int event_chain(const char *desc, char *result, int size)
 
 	RDDMA_DEBUG (MY_DEBUG,
 		     "#### %s entered with desc = %s, result=%p, size=%d\n",
-		     __FUNCTION__,desc,result,size);
+		     __FUNCTION__,desc,result,*size);
 
 
 	if ( (ret = rddma_parse_desc(&params,desc)) ) {
@@ -1672,7 +1658,7 @@ static int event_chain(const char *desc, char *result, int size)
 	}
 
 	if ( params.location && *params.location ) {
-		if ( (loc = locate_rddma_location(NULL,&params))) {
+		if ( !(ret = locate_rddma_location(&loc,NULL,&params))) {
 			if (loc && loc->desc.ops && loc->desc.ops->event_chain) {
 				ret = loc->desc.ops->event_chain(loc,&params);
 			}
@@ -1685,7 +1671,7 @@ static int event_chain(const char *desc, char *result, int size)
 
 out:
 	if (result)
-		ret = snprintf(result,size,"event_chain://%s.%s?result(%d),reply(%s)\n",
+		*size = snprintf(result,*size,"event_chain://%s.%s?result(%d),reply(%s)\n",
 			       params.name,params.location,
 			       ret,rddma_get_option(&params,"request"));
 	rddma_clean_desc(&params);
@@ -1704,7 +1690,7 @@ out:
 #define MAX_OP_LEN 15		/* length of location_create */
 static struct ops {
 	char *cmd;
-	int (*f)(const char *, char *, int);
+	int (*f)(const char *, char *, int *);
 } ops [] = {
 	{"location_create", location_create},
 	{"location_delete", location_delete},
@@ -1750,7 +1736,7 @@ static struct ops {
  * or negative if there is an error.
  */
 
-int do_operation(const char *cmd, char *result, int size)
+int do_operation(const char *cmd, char *result, int *size)
 {
 	static int nested = 0;
 	int ret = -EINVAL;
@@ -1760,7 +1746,7 @@ int do_operation(const char *cmd, char *result, int size)
 	int found = 0;
 	int this_nested = ++nested;
 
-	RDDMA_DEBUG (MY_DEBUG,"#### %s (%d) entered with %s, result=%p, size=%d\n",__FUNCTION__,this_nested,cmd,result, size);
+	RDDMA_DEBUG (MY_DEBUG,"#### %s (%d) entered with %s, result=%p, size=%d\n",__FUNCTION__,this_nested,cmd,result, *size);
 
 	if ( (sp1 = strstr(cmd,"://")) ) {
 		struct ops *op = &ops[0];
@@ -1785,7 +1771,7 @@ out:
 		char *request = strstr(cmd,"request");
 		if (request)
 			sscanf(request,"request(%x)",&reply);
-		ret = snprintf(result,size,"%s%cresult(10101),reply(%x)\n" , cmd, request ? ',' : '?',reply);
+		*size = snprintf(result,*size,"%s%cresult(10101),reply(%x)\n" , cmd, request ? ',' : '?',reply);
 	}
 
 	nested--;

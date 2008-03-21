@@ -17,45 +17,51 @@
 #include <linux/rddma_bind.h>
 
 struct rddma_location;
+struct rddma_smb;
+struct rddma_mmap;
+struct rddma_srcs;
+struct rddma_dsts;
+struct rddma_dst;
+struct rddma_src;
 
 struct rddma_ops {
-	struct rddma_location * (*location_create)(struct rddma_location *, struct rddma_desc_param *);
+	int (*location_create)(struct rddma_location **, struct rddma_location *, struct rddma_desc_param *);
 	void                    (*location_delete)(struct rddma_location *, struct rddma_desc_param *);
-	struct rddma_location *   (*location_find)(struct rddma_location *, struct rddma_desc_param *);
+	int (*location_find)(struct rddma_location **, struct rddma_location *, struct rddma_desc_param *);
 	void                       (*location_put)(struct rddma_location *, struct rddma_desc_param *);
 
 
-	struct rddma_smb *           (*smb_create)(struct rddma_location *, struct rddma_desc_param *);
+	int (*smb_create)(struct rddma_smb **, struct rddma_location *, struct rddma_desc_param *);
 	void                         (*smb_delete)(struct rddma_location *, struct rddma_desc_param *);
-	struct rddma_smb *             (*smb_find)(struct rddma_location *, struct rddma_desc_param *);
+	int (*smb_find)(struct rddma_smb **, struct rddma_location *, struct rddma_desc_param *);
 
-	struct rddma_mmap *         (*mmap_create)(struct rddma_smb *,      struct rddma_desc_param *);
+	int (*mmap_create)(struct rddma_mmap **, struct rddma_smb *,      struct rddma_desc_param *);
 	void                        (*mmap_delete)(struct rddma_smb *,      struct rddma_desc_param *);
-	struct rddma_mmap *           (*mmap_find)(struct rddma_smb *,      struct rddma_desc_param *);
+	int (*mmap_find)(struct rddma_mmap **, struct rddma_smb *,      struct rddma_desc_param *);
 
-	struct rddma_xfer *         (*xfer_create)(struct rddma_location *, struct rddma_desc_param *);
+	int (*xfer_create)(struct rddma_xfer **, struct rddma_location *, struct rddma_desc_param *);
 	void                        (*xfer_delete)(struct rddma_location *, struct rddma_desc_param *);
-	struct rddma_xfer *           (*xfer_find)(struct rddma_location *, struct rddma_desc_param *);
+	int (*xfer_find)(struct rddma_xfer **, struct rddma_location *, struct rddma_desc_param *);
 
-	struct rddma_bind *         (*bind_create)(struct rddma_xfer *,     struct rddma_bind_param *);
+	int (*bind_create)(struct rddma_bind **, struct rddma_xfer *,     struct rddma_bind_param *);
 	void                        (*bind_delete)(struct rddma_xfer *,     struct rddma_desc_param *);
-	struct rddma_bind *           (*bind_find)(struct rddma_xfer *,     struct rddma_desc_param *);
+	int (*bind_find)(struct rddma_bind **, struct rddma_xfer *,     struct rddma_desc_param *);
 	
-	struct rddma_dsts *         (*dsts_create)(struct rddma_bind *,     struct rddma_bind_param *);
+	int (*dsts_create)(struct rddma_dsts **, struct rddma_bind *,     struct rddma_bind_param *);
 	struct rddma_bind *         (*dsts_delete)(struct rddma_bind *,     struct rddma_bind_param *);
-	struct rddma_dsts *           (*dsts_find)(struct rddma_bind *,     struct rddma_bind_param *);
+	int (*dsts_find)(struct rddma_dsts **, struct rddma_bind *,     struct rddma_bind_param *);
 
-	struct rddma_dst *           (*dst_create)(struct rddma_bind *,     struct rddma_bind_param *);
+	int (*dst_create)(struct rddma_dst **, struct rddma_bind *,     struct rddma_bind_param *);
 	void                         (*dst_delete)(struct rddma_bind *,     struct rddma_bind_param *);
-	struct rddma_dst *             (*dst_find)(struct rddma_bind *,     struct rddma_bind_param *);
+	int (*dst_find)(struct rddma_dst **, struct rddma_bind *,     struct rddma_bind_param *);
 
-	struct rddma_srcs *         (*srcs_create)(struct rddma_dst *,      struct rddma_bind_param *);
+	int (*srcs_create)(struct rddma_srcs **, struct rddma_dst *,      struct rddma_bind_param *);
 	struct rddma_dst *          (*srcs_delete)(struct rddma_dst *,      struct rddma_bind_param *);
-	struct rddma_srcs *           (*srcs_find)(struct rddma_dst *,      struct rddma_bind_param *);
+	int (*srcs_find)(struct rddma_srcs **, struct rddma_dst *,      struct rddma_bind_param *);
 
-	struct rddma_src *           (*src_create)(struct rddma_dst *,      struct rddma_bind_param *);
+	int (*src_create)(struct rddma_src **, struct rddma_dst *,      struct rddma_bind_param *);
 	void                         (*src_delete)(struct rddma_dst *,      struct rddma_bind_param *);
-	struct rddma_src *             (*src_find)(struct rddma_dst *,      struct rddma_bind_param *);
+	int (*src_find)(struct rddma_src **, struct rddma_dst *,      struct rddma_bind_param *);
 
 	void                           (*src_done)(struct rddma_bind *);
 	void                           (*dst_done)(struct rddma_bind *);
@@ -75,6 +81,6 @@ struct rddma_ops {
 extern struct rddma_ops rddma_local_ops;
 extern struct rddma_ops rddma_fabric_ops;
 
-extern int do_operation (const char *, char *, int);
+extern int do_operation (const char *, char *, int *);
 
 #endif	/* RDDMA_OPS_H */

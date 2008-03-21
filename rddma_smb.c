@@ -150,12 +150,13 @@ struct kobj_type rddma_smb_type = {
 	.default_attrs = rddma_smb_default_attrs,
 };
 
-struct rddma_smb *new_rddma_smb(struct rddma_location *loc, struct rddma_desc_param *desc)
+int new_rddma_smb(struct rddma_smb **smb, struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_smb *new = kzalloc(sizeof(struct rddma_smb), GFP_KERNEL);
     
+	*smb = new;
 	if (NULL == new)
-		goto out;
+		return -ENOMEM;
 
 	rddma_clone_desc(&new->desc, desc);
 	new->size = new->desc.extent;
@@ -167,9 +168,9 @@ struct rddma_smb *new_rddma_smb(struct rddma_location *loc, struct rddma_desc_pa
 	new->desc.ops = loc->desc.ops;
 	new->desc.rde = loc->desc.rde;
 	new->desc.ploc = loc;
-out:
+
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return new;
+	return 0;
 }
 
 int rddma_smb_register(struct rddma_smb *rddma_smb)
@@ -178,8 +179,8 @@ int rddma_smb_register(struct rddma_smb *rddma_smb)
 
 	if ( (ret = kobject_register(&rddma_smb->kobj) ) )
 		goto out;
-
-	if ( (rddma_smb->mmaps = new_rddma_mmaps(rddma_smb, "mmaps")) )
+	ret = new_rddma_mmaps(&rddma_smb->mmaps,rddma_smb, "mmaps");
+	if ( rddma_smb->mmaps )
 		if ( (ret = rddma_mmaps_register(rddma_smb->mmaps)) )
 			goto mmaps;
 	return ret;
@@ -195,24 +196,29 @@ void rddma_smb_unregister(struct rddma_smb *rddma_smb)
 	kobject_unregister(&rddma_smb->kobj);
 }
 
-struct rddma_smb *find_rddma_smb_in(struct rddma_location *loc, struct rddma_desc_param *desc)
+int find_rddma_smb_in(struct rddma_smb **smb, struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	struct rddma_smb *smb = NULL;
+	int ret;
+	struct rddma_location *tmploc;
 
 	if (loc)
-		return loc->desc.ops->smb_find(loc,desc);
+		return loc->desc.ops->smb_find(smb,loc,desc);
 
 	if (desc->ploc)
-		return desc->ploc->desc.ops->smb_find(loc,desc);
+		return desc->ploc->desc.ops->smb_find(smb,loc,desc);
 
-	loc = locate_rddma_location(NULL,desc);
+	*smb = NULL;
 
-	if (loc) {
-		smb = loc->desc.ops->smb_find(loc,desc);
-		rddma_location_put(loc);
+	ret = locate_rddma_location(&tmploc, NULL,desc);
+	if (ret)
+		return ret;
+
+	if (tmploc) {
+		ret = loc->desc.ops->smb_find(smb,tmploc,desc);
+		rddma_location_put(tmploc);
 	}
 
-	return smb;
+	return ret;
 }
 
 /**
@@ -228,22 +234,22 @@ struct rddma_smb *find_rddma_smb_in(struct rddma_location *loc, struct rddma_des
 * the SMB itself.
 *
 **/
-struct rddma_smb *rddma_smb_create(struct rddma_location *loc, struct rddma_desc_param *desc)
+int rddma_smb_create(struct rddma_smb **smb,struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	struct rddma_smb *smb = new_rddma_smb(loc,desc);
+	int ret = new_rddma_smb(smb,loc,desc);
 
-	if ( NULL == smb)
+	if ( ret || NULL == *smb)
 		goto out;
 
-	if ( (rddma_smb_register(smb)) ) 
+	if ( (rddma_smb_register(*smb)) ) 
 		goto fail_reg;
 	
-	return smb;
+	return 0;
 
 fail_reg:
-	rddma_smb_put(smb);
+	rddma_smb_put(*smb);
 out:
-	return NULL;
+	return -EINVAL;
 }
 
 

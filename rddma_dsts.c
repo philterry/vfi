@@ -116,12 +116,14 @@ static struct kset_uevent_ops rddma_dsts_uevent_ops = {
  	.uevent = rddma_dsts_uevent, 
 };
 
-struct rddma_dsts *new_rddma_dsts(struct rddma_bind_param *params, struct rddma_bind *parent)
+int new_rddma_dsts(struct rddma_dsts **dsts,struct rddma_bind_param *params, struct rddma_bind *parent)
 {
 	struct rddma_dsts *new = kzalloc(sizeof(struct rddma_dsts), GFP_KERNEL);
     
+	*dsts = new;
+
 	if (NULL == new)
-		return new;
+		return -ENOMEM;
     
 	kobject_set_name(&new->kset.kobj,"%s.%s#%llx:%x=%s.%s#%llx:%x",
 						    params->dst.name,params->dst.location,params->dst.offset,params->dst.extent,
@@ -132,7 +134,7 @@ struct rddma_dsts *new_rddma_dsts(struct rddma_bind_param *params, struct rddma_
 	INIT_LIST_HEAD(&new->dma_chain);
 
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return new;
+	return 0;
 }
 
 int rddma_dsts_register(struct rddma_dsts *rddma_dsts)
@@ -164,29 +166,27 @@ void rddma_dsts_unregister(struct rddma_dsts *rddma_dsts)
 *
 *
 **/
-struct rddma_dsts *rddma_dsts_create(struct rddma_bind *parent, struct rddma_bind_param *desc)
+int rddma_dsts_create(struct rddma_dsts **dsts, struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
-	struct rddma_dsts *dsts = NULL;
-
+	int ret;
 	RDDMA_DEBUG(MY_DEBUG,"%s: parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
 
-	/*
-	* If the parent bind has no dsts object yet, then create one and
-	* register it with sysfs.
-	*
-	*/
-	if (NULL == parent->dsts) {
-		if ((dsts = new_rddma_dsts(desc,parent))) {
-			if (rddma_dsts_register(dsts))
-				goto fail_reg;
-			parent->dsts = dsts;
-		}
+	if (parent->dsts) {
+		*dsts = parent->dsts;
+		return 0;
 	}
 
-	return parent->dsts;
-fail_reg:
-	rddma_dsts_put(dsts);
-	return NULL;
+	ret = new_rddma_dsts(dsts,desc,parent);
+	if (ret) 
+		return ret;
+
+	ret = rddma_dsts_register(*dsts);
+	if (ret){
+		rddma_dsts_put(*dsts);
+		*dsts = NULL;
+	}
+
+	return ret;
 }
 
 void rddma_dsts_delete(struct rddma_dsts *dsts)

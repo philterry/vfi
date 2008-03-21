@@ -47,7 +47,7 @@ static inline void rddma_subsys_put(struct rddma_subsys *rddma_subsys)
 	if (rddma_subsys) kset_put(&rddma_subsys->kset);
 }
 
-extern struct rddma_subsys *new_rddma_subsys(char *name);
+extern int new_rddma_subsys(struct rddma_subsys **, char *name);
 extern int rddma_subsys_register(struct rddma_subsys *);
 extern void rddma_subsys_unregister(struct rddma_subsys *);
 extern struct kobj_type rddma_subsys_type;

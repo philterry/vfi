@@ -205,12 +205,13 @@ static struct kset_uevent_ops rddma_subsys_uevent_ops = {
  	.uevent = rddma_subsys_uevent, 
 };
 
-struct rddma_subsys *new_rddma_subsys(char *name)
+int new_rddma_subsys(struct rddma_subsys **subsys, char *name)
 {
     struct rddma_subsys *new = kzalloc(sizeof(struct rddma_subsys), GFP_KERNEL);
     
+    *subsys = new;
     if (NULL == new)
-	return new;
+	return -ENOMEM;
 
     if ( rddma_parse_desc( &new->desc, name) )
 	    goto out;
@@ -220,11 +221,12 @@ struct rddma_subsys *new_rddma_subsys(char *name)
     new->kset.kobj.ktype = &rddma_subsys_type;
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return new;
+    return 0;
 out:
     rddma_subsys_put(new);
+    *subsys = NULL;
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,NULL);
-    return NULL;
+    return -EINVAL;
 }
 
 int rddma_subsys_register(struct rddma_subsys *parent)
@@ -239,7 +241,7 @@ int rddma_subsys_register(struct rddma_subsys *parent)
 		return ret;
 	}
 
-	readies = rddma_readies_create(parent,"events");
+	ret = rddma_readies_create(&readies,parent,"events");
 
 	if (readies == NULL)
 		goto out;

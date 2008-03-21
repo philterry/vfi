@@ -149,12 +149,13 @@ struct kobj_type rddma_src_type = {
     .default_attrs = rddma_src_default_attrs,
 };
 
-struct rddma_src *new_rddma_src(struct rddma_dst *parent, struct rddma_bind_param *desc)
+int new_rddma_src(struct rddma_src **src, struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_src *new = kzalloc(sizeof(struct rddma_src) + RDDMA_DESC_ALIGN - 1, GFP_KERNEL);
 
+	*src = new;
 	if (NULL == new)
-		goto out;
+		return -ENOMEM;
 
 	/* DMA descriptors are embedded in the rddma_src struct, so
 	 * align the struct to what the DMA hardware requires
@@ -178,9 +179,9 @@ struct rddma_src *new_rddma_src(struct rddma_dst *parent, struct rddma_bind_para
 	new->desc.src.rde = parent->desc.src.rde;
 	new->dst = parent;
 	rddma_bind_inherit(&new->desc,&parent->desc);
-out:
+
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p %p\n",__FUNCTION__,new,parent->srcs);
-	return new;
+	return 0;
 }
 
 int rddma_src_register(struct rddma_src *rddma_src)
@@ -201,30 +202,33 @@ void rddma_src_unregister(struct rddma_src *rddma_src)
 	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
-struct rddma_src *find_rddma_src(struct rddma_desc_param *desc, struct rddma_dst *parent)
+int find_rddma_src(struct rddma_src **src, struct rddma_desc_param *desc, struct rddma_dst *parent)
 {
 	char name[128];
 	sprintf(name,"#%llx:%x",desc->offset,desc->extent);
-	return to_rddma_src(kset_find_obj(&parent->srcs->kset, name));
+	*src = to_rddma_src(kset_find_obj(&parent->srcs->kset, name));
+	return *src == NULL;
 }
 
-struct rddma_src *rddma_src_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
+int rddma_src_create(struct rddma_src **src, struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
-	struct rddma_src *new = new_rddma_src(parent,desc);
-	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,new);
+	int ret;
 
-	if (NULL == new)
-		goto out;
+	ret  = new_rddma_src(src,parent,desc);
 
-	if (rddma_src_register(new))
-		goto fail_reg;
+	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,*src);
 
-	return new;
+	if (ret)
+		return ret;
 
-fail_reg:
-	rddma_src_put(new);
-out:
-	return NULL;
+	ret = rddma_src_register(*src);
+
+	if (ret) {
+		rddma_src_put(*src);
+		*src = NULL;
+	}
+
+	return ret;
 }
 
 void rddma_src_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)

@@ -48,15 +48,15 @@ static inline struct rddma_bind *rddma_dst_parent(struct rddma_dst *dst)
 }
 
 
-extern struct rddma_dst *new_rddma_dst(struct rddma_bind *, struct rddma_bind_param *);
+extern int new_rddma_dst(struct rddma_dst **, struct rddma_bind *, struct rddma_bind_param *);
 extern int rddma_dst_register(struct rddma_dst *);
 extern void rddma_dst_unregister(struct rddma_dst *);
-extern struct rddma_dst *find_rddma_dst_in(struct rddma_bind *, struct rddma_bind_param *);
-static inline struct rddma_dst *find_rddma_dst(struct rddma_bind_param *desc)
+extern int find_rddma_dst_in(struct rddma_dst **, struct rddma_bind *, struct rddma_bind_param *);
+static inline int find_rddma_dst(struct rddma_dst **dst, struct rddma_bind_param *desc)
 {
-	return find_rddma_dst_in(0,desc);
+	return find_rddma_dst_in(dst,0,desc);
 }
-extern struct rddma_dst *rddma_dst_create(struct rddma_bind *, struct rddma_bind_param *);
+extern int rddma_dst_create(struct rddma_dst **, struct rddma_bind *, struct rddma_bind_param *);
 extern void rddma_dst_delete(struct rddma_bind *, struct rddma_bind_param *);
 extern void rddma_dst_load_srcs(struct rddma_dst *);
 extern struct kobj_type rddma_dst_type;

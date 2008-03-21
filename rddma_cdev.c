@@ -113,8 +113,9 @@ out:
 static ssize_t rddma_real_write(struct mybuffers *mybuf, size_t count, loff_t *offset)
 {
 	int ret;
+	int size = 1024-sizeof(struct mybuffers);
 	RDDMA_DEBUG(MY_DEBUG,"%s: count=%d, calls do_operation (...)\n",__FUNCTION__, (int)count);
-	ret = do_operation(mybuf->buf, mybuf->reply, 1024-sizeof(struct mybuffers));
+	ret = do_operation(mybuf->buf, mybuf->reply, &size);
 
 	*offset += count;
 	return ret;
@@ -577,13 +578,14 @@ static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
 {
 	struct rddma_mmap *tkt;
 	u32 req_size;
+	int ret;
 	RDDMA_DEBUG (MY_DEBUG, "** RDDMA_MMAP *******\n");
 	RDDMA_DEBUG (MY_DEBUG, "Pg: %08lx, Id: %08lx\n", vma->vm_pgoff, (vma->vm_pgoff << PAGE_SHIFT));
 	/*
 	* Use mmap page offset to locate a ticket created earlier.
 	* This ticket tells us what we really need to map to.
 	*/
-	tkt = find_rddma_mmap_by_id(vma->vm_pgoff<<PAGE_SHIFT);
+	ret = find_rddma_mmap_by_id(&tkt,vma->vm_pgoff<<PAGE_SHIFT);
 	if (!tkt) {
 		RDDMA_DEBUG (MY_DEBUG, "xx Could not locate suitable mmap ticket!\n");
 		return -EINVAL;

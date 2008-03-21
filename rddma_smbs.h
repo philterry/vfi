@@ -36,7 +36,7 @@ static inline void rddma_smbs_put(struct rddma_smbs *rddma_smbs)
 	if (rddma_smbs) kset_put(&rddma_smbs->kset);
 }
 
-extern struct rddma_smbs *new_rddma_smbs(char *name, struct rddma_location *);
+extern int new_rddma_smbs(struct rddma_smbs **, char *name, struct rddma_location *);
 extern int rddma_smbs_register(struct rddma_smbs *);
 extern void rddma_smbs_unregister(struct rddma_smbs *);
 extern struct kobj_type rddma_smbs_type;

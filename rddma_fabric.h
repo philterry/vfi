@@ -176,7 +176,7 @@ extern void rddma_doorbell_send(struct rddma_fabric_address *, int);
  * to a location and return with the result of that request as an
  * skb. The invocation should be blocking with a timeout.
 */
-extern struct sk_buff *rddma_fabric_call(struct rddma_location *, int, char *, ...) __attribute__((format(printf, 3,4)));
+extern int rddma_fabric_call(struct sk_buff **, struct rddma_location *, int, char *, ...) __attribute__((format(printf, 4,5)));
 
 /*
  * Now for the upcalls

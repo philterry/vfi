@@ -164,13 +164,16 @@ struct kobj_type rddma_location_type = {
     .default_attrs = rddma_location_default_attrs,
 };
 
-struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rddma_desc_param *desc)
+int new_rddma_location(struct rddma_location **newloc, struct rddma_location *loc, struct rddma_desc_param *desc)
 {
 	struct rddma_location *new = kzalloc(sizeof(struct rddma_location), GFP_KERNEL);
  	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
    
+	*newloc = new;
+
 	if (NULL == new)
-		goto out;
+		return -ENOMEM;
+
 	rddma_clone_desc(&new->desc, desc);
 	new->kset.kobj.ktype = &rddma_location_type;
 	kobject_set_name(&new->kset.kobj, "%s", new->desc.name);
@@ -248,9 +251,8 @@ struct rddma_location *new_rddma_location(struct rddma_location *loc, struct rdd
 	INIT_LIST_HEAD(&new->kset.list);
 	spin_lock_init(&new->kset.list_lock);
 
-out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return new;
+	return 0;
 }
 
 int rddma_location_register(struct rddma_location *rddma_location)
@@ -275,10 +277,12 @@ int rddma_location_register(struct rddma_location *rddma_location)
 	* too. Presume we don't create these when we create the new location
 	* because we want to hook-up the new location first?
 	*/
-	if ( NULL == (rddma_location->smbs = new_rddma_smbs("smbs",rddma_location)) )
+	ret= new_rddma_smbs(&rddma_location->smbs,"smbs",rddma_location);
+	if ( NULL == rddma_location->smbs)
 		goto fail_smbs;
 
-	if ( NULL == (rddma_location->xfers = new_rddma_xfers("xfers",rddma_location)) )
+	ret = new_rddma_xfers(&rddma_location->xfers,"xfers",rddma_location);
+	if ( NULL == rddma_location->xfers)
 		goto fail_xfers;
 
 	if ( (ret = rddma_smbs_register(rddma_location->smbs)) )
@@ -311,16 +315,15 @@ void rddma_location_unregister(struct rddma_location *rddma_location)
 	kobject_unregister(&rddma_location->kset.kobj);
 }
 
-struct rddma_location *find_rddma_name(struct rddma_location *loc, struct rddma_desc_param *params)
+int find_rddma_name(struct rddma_location **newloc, struct rddma_location *loc, struct rddma_desc_param *params)
 {
-	struct rddma_location *newloc;
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,params,params->name,params->location);
 	if (loc)
-		newloc = to_rddma_location(kset_find_obj(&loc->kset,params->name));
+		*newloc = to_rddma_location(kset_find_obj(&loc->kset,params->name));
 	else
-		newloc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name));
-	RDDMA_DEBUG_SAFE(MY_DEBUG,newloc,"%s -> %p %s,%s\n",__FUNCTION__,newloc,newloc->desc.name,newloc->desc.location);
-	return newloc;
+		*newloc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name));
+	RDDMA_DEBUG_SAFE(MY_DEBUG,*newloc,"%s -> %p %s,%s\n",__FUNCTION__,*newloc,(*newloc)->desc.name,(*newloc)->desc.location);
+	return *newloc != 0;
 }
 
 /**
@@ -346,16 +349,17 @@ struct rddma_location *find_rddma_name(struct rddma_location *loc, struct rddma_
 *
 *
 **/
-struct rddma_location *find_rddma_location(struct rddma_location *loc, struct rddma_desc_param *params)
+int find_rddma_location(struct rddma_location **newloc, struct rddma_location *loc, struct rddma_desc_param *params)
 {
-	struct rddma_location *newloc = NULL;
+	int ret = 0;
+	*newloc = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,params,params->name,params->location);
 
 	if (loc) {
-		newloc = loc->desc.ops->location_find(loc,params);
+		ret = loc->desc.ops->location_find(newloc,loc,params);
 		RDDMA_DEBUG(MY_DEBUG,"%s %p %s %p %s -> %p\n",__FUNCTION__,loc,loc->desc.name,params,params->name,newloc);
-		return newloc;
+		return ret;
 	}
 
 	if (params->location && *params->location) {
@@ -364,22 +368,18 @@ struct rddma_location *find_rddma_location(struct rddma_location *loc, struct rd
 
 		if ( !rddma_parse_desc(&tmpparams,params->location) ) {
 			RDDMA_DEBUG(MY_DEBUG,"%s %s,%s\n",__FUNCTION__,tmpparams.name,tmpparams.location);
-/* 			if (tmpparams.location && *tmpparams.location) { */
-				if ( (tmploc = find_rddma_location(loc,&tmpparams)) ) {
-					newloc = tmploc->desc.ops->location_find(tmploc,params);
-					rddma_location_put(tmploc);
-				}
-/* 			} */
-/* 			else */
-/* 				newloc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,tmpparams.name));		 */
+			if ( (ret = find_rddma_location(&tmploc,loc,&tmpparams)) ) {
+				ret = tmploc->desc.ops->location_find(newloc,tmploc,params);
+				rddma_location_put(tmploc);
+			}
 			rddma_clean_desc(&tmpparams);
 		}
 	}
 	else
-		newloc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name));
+		*newloc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name));
 
-	RDDMA_DEBUG_SAFE(MY_DEBUG,newloc,"%s -> %p %s,%s\n",__FUNCTION__,newloc,newloc->desc.name,newloc->desc.location);
-	return newloc;
+	RDDMA_DEBUG_SAFE(MY_DEBUG,*newloc,"%s -> %p %s,%s\n",__FUNCTION__,*newloc,(*newloc)->desc.name,(*newloc)->desc.location);
+	return *newloc != 0;
 }
 
 /**
@@ -396,13 +396,13 @@ struct rddma_location *find_rddma_location(struct rddma_location *loc, struct rd
 * somewhat desctructive of name, location, offset, and extent?
 *
 **/
-struct rddma_location *locate_rddma_location(struct rddma_location *loc, struct rddma_desc_param *desc)
+int locate_rddma_location(struct rddma_location **new_loc,struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	struct rddma_location *new_loc;
 	char *old_locstr, *old_namestr;
 	char *new_locstr = NULL;
 	u64 offset;
 	unsigned int extent;
+	int ret;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,desc,desc->name,desc->location);
 
@@ -430,7 +430,7 @@ struct rddma_location *locate_rddma_location(struct rddma_location *loc, struct 
 		}
 	}
 
-	new_loc = find_rddma_location(loc,desc);
+	ret = find_rddma_location(new_loc,loc,desc);
 
 	/*
 	* Restore original name, location, offset, and
@@ -446,29 +446,29 @@ struct rddma_location *locate_rddma_location(struct rddma_location *loc, struct 
 	if (new_locstr)
 		*new_locstr = '.';
 
-	return new_loc;
+	return ret;
 }
 
-struct rddma_location *rddma_location_create(struct rddma_location *loc, struct rddma_desc_param *desc)
+int rddma_location_create(struct rddma_location **newloc, struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	struct rddma_location *new;
+	int ret;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
 
-	new = new_rddma_location(loc,desc);
+	ret = new_rddma_location(newloc,loc,desc);
 
-	if (NULL == new)
+	if (ret || NULL == *newloc)
 		goto out;
 
-	if ( ( rddma_location_register(new)) )
+	if ( ( rddma_location_register(*newloc)) )
 		goto fail_reg;
 
-	return new;
+	return 0;
 
 fail_reg:
-	rddma_location_put(new);
+	rddma_location_put(*newloc);
 out:
-	return NULL;
+	return -EINVAL;
 }
 
 void rddma_location_delete(struct rddma_location *loc)

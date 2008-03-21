@@ -43,13 +43,13 @@ static inline void rddma_location_put(struct rddma_location *rddma_location)
 	if (rddma_location) kobject_put(&rddma_location->kset.kobj);
 }
 
-extern struct rddma_location *new_rddma_location(struct rddma_location *, struct rddma_desc_param *);
+extern int new_rddma_location(struct rddma_location **, struct rddma_location *, struct rddma_desc_param *);
 extern int rddma_location_register(struct rddma_location *);
 extern void rddma_location_unregister(struct rddma_location *);
-extern struct rddma_location *find_rddma_name(struct rddma_location *, struct rddma_desc_param *);
-extern struct rddma_location *find_rddma_location(struct rddma_location *, struct rddma_desc_param *);
-extern struct rddma_location *locate_rddma_location(struct rddma_location *, struct rddma_desc_param *);
-extern struct rddma_location *rddma_location_create(struct rddma_location *,struct rddma_desc_param *);
+extern int find_rddma_name(struct rddma_location **, struct rddma_location *, struct rddma_desc_param *);
+extern int find_rddma_location(struct rddma_location **, struct rddma_location *, struct rddma_desc_param *);
+extern int locate_rddma_location(struct rddma_location  **, struct rddma_location *, struct rddma_desc_param *);
+extern int rddma_location_create(struct rddma_location **, struct rddma_location *,struct rddma_desc_param *);
 extern void rddma_location_delete(struct rddma_location *);
 extern struct kobj_type rddma_location_type;
 #endif /* RDDMA_LOCATION_H */

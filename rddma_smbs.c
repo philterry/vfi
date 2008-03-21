@@ -105,12 +105,14 @@ static struct kset_uevent_ops rddma_smbs_uevent_ops = {
  	.uevent = rddma_smbs_uevent, 
 };
 
-struct rddma_smbs *new_rddma_smbs(char *name, struct rddma_location *parent)
+int new_rddma_smbs(struct rddma_smbs **smbs, char *name, struct rddma_location *parent)
 {
     struct rddma_smbs *new = kzalloc(sizeof(struct rddma_smbs), GFP_KERNEL);
     
+    *smbs = new;
+
     if (NULL == new)
-	return new;
+	return -ENOMEM;
 
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &rddma_smbs_type;
@@ -118,7 +120,7 @@ struct rddma_smbs *new_rddma_smbs(char *name, struct rddma_location *parent)
     new->kset.kobj.parent = &parent->kset.kobj;
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return new;
+    return 0;
 }
 
 int rddma_smbs_register(struct rddma_smbs *rddma_smbs)

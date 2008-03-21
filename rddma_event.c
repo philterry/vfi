@@ -112,11 +112,12 @@ struct kobj_type rddma_event_type = {
     .default_attrs = rddma_event_default_attrs,
 };
 
-struct rddma_event *find_rddma_event(struct rddma_events *parent, int id)
+int find_rddma_event(struct rddma_event **event, struct rddma_events *parent, int id)
 {
 	char buf[20];
 	sprintf(buf,"%x",id);
-	return to_rddma_event(kset_find_obj(&parent->kset,buf));
+	*event = to_rddma_event(kset_find_obj(&parent->kset,buf));
+	return *event == NULL;
 }
 
 static int rddma_event_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -141,25 +142,27 @@ static struct kset_uevent_ops rddma_event_uevent_ops = {
 	.uevent = rddma_event_uevent,
 };
 
-struct rddma_event *new_rddma_event(struct rddma_events *parent, struct rddma_desc_param *desc, struct rddma_bind *bind, void (*f)(struct rddma_bind *),int id)
+int new_rddma_event(struct rddma_event **event, struct rddma_events *parent, struct rddma_desc_param *desc, struct rddma_bind *bind, void (*f)(struct rddma_bind *),int id)
 {
-    struct rddma_event *new = kzalloc(sizeof(struct rddma_event), GFP_KERNEL);
+	struct rddma_event *new = kzalloc(sizeof(struct rddma_event), GFP_KERNEL);
     
-    RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-    if (NULL == new)
-	goto out;
+	*event = new;
 
-    rddma_clone_desc(&new->desc,desc);
-    kobject_set_name(&new->kobj,"%p:%x", desc,id);
-    new->kobj.ktype = &rddma_event_type;
-    new->kobj.kset = &parent->kset;
-    new->start_event = f;
-    new->bind = bind;
-    new->event_id = id;
-out:
-    RDDMA_DEBUG(MY_DEBUG,"%s returns %p\n",__FUNCTION__,new);
-    return new;
+	if (NULL == new)
+		return -ENOMEM;
+
+	rddma_clone_desc(&new->desc,desc);
+	kobject_set_name(&new->kobj,"%p:%x", desc,id);
+	new->kobj.ktype = &rddma_event_type;
+	new->kobj.kset = &parent->kset;
+	new->start_event = f;
+	new->bind = bind;
+	new->event_id = id;
+
+	RDDMA_DEBUG(MY_DEBUG,"%s returns %p\n",__FUNCTION__,new);
+	return 0;
 }
 
 int rddma_event_register(struct rddma_event *rddma_event)
@@ -175,19 +178,25 @@ void rddma_event_unregister(struct rddma_event *rddma_event)
 		kobject_unregister(&rddma_event->kobj);
 }
 
-struct rddma_event *rddma_event_create(struct rddma_events *parent, struct rddma_desc_param *desc, struct rddma_bind *bind, void (*f)(struct rddma_bind *),int id)
+int rddma_event_create(struct rddma_event **new, struct rddma_events *parent, struct rddma_desc_param *desc,
+		       struct rddma_bind *bind, void (*f)(struct rddma_bind *),int id)
 {
-	struct rddma_event *new; 
+	int ret;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p) bind(%p) f(%p) id(%08x)\n",__FUNCTION__,parent,desc,bind,f,id);
 
-	if ( (new = new_rddma_event(parent, desc, bind, f, id)) ) {
-		if (rddma_event_register(new)) {
-			rddma_event_put(new);
-			return NULL;
-		}
+	ret = new_rddma_event(new,parent, desc, bind, f, id);
+
+	if (ret) 
+		return ret;
+
+	if (rddma_event_register(*new)) {
+			rddma_event_put(*new);
+			*new = NULL;
+			return -EINVAL;
 	}
-	return new;
+
+	return 0;
 }
 
 void rddma_event_delete (struct rddma_event *rddma_event)

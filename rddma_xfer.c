@@ -152,12 +152,14 @@ struct kobj_type rddma_xfer_type = {
     .default_attrs = rddma_xfer_default_attrs,
 };
 
-struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_desc_param *desc)
+int new_rddma_xfer(struct rddma_xfer **xfer, struct rddma_location *parent, struct rddma_desc_param *desc)
 {
 	struct rddma_xfer *new = kzalloc(sizeof(struct rddma_xfer), GFP_KERNEL);
     
+	*xfer = new;
+	
 	if (NULL == new)
-		goto out;
+		return -ENOMEM;
 
 	rddma_clone_desc(&new->desc, desc);
 	new->kobj.ktype = &rddma_xfer_type;
@@ -169,9 +171,8 @@ struct rddma_xfer *new_rddma_xfer(struct rddma_location *parent, struct rddma_de
 	new->desc.rde = parent->desc.rde;		/* Pointer to location DMA engine ops */
 	new->desc.ploc = parent;			/* Pointer to complete location object */
 
-out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return new;
+	return 0;
 }
 
 /**
@@ -194,9 +195,13 @@ int rddma_xfer_register(struct rddma_xfer *rddma_xfer)
 	    goto out;
     }
 
+    ret = new_rddma_binds(&rddma_xfer->binds,"binds",rddma_xfer);
+    if (ret) 
+	    goto fail_binds;
+
     ret = -ENOMEM;
 
-    if ( NULL == (rddma_xfer->binds = new_rddma_binds("binds",rddma_xfer)))
+    if ( NULL == rddma_xfer->binds)
 	    goto fail_binds;
 
     if ( (ret = rddma_binds_register(rddma_xfer->binds)) )
@@ -233,10 +238,9 @@ void rddma_xfer_unregister(struct rddma_xfer *rddma_xfer)
 * matches the location specified in the <xfer-spec>.
 * 
 **/
-struct rddma_xfer *find_rddma_xfer_in(struct rddma_location *loc, struct rddma_desc_param *desc)
+int find_rddma_xfer_in(struct rddma_xfer **xfer,struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	struct rddma_xfer *xfer = NULL;
-
+	int ret;
 	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p) ploc(%p)\n",__FUNCTION__,desc,desc->ploc);
 
 	/*
@@ -244,24 +248,23 @@ struct rddma_xfer *find_rddma_xfer_in(struct rddma_location *loc, struct rddma_d
 	* then use that location's xfer_find op to complete the search.
 	*/
 	if (loc && loc->desc.ops && loc->desc.ops->xfer_find)
-		return loc->desc.ops->xfer_find(loc,desc);
+		return loc->desc.ops->xfer_find(xfer,loc,desc);
 
 	/*
 	* If a prior location has been found for this descriptor - if its ploc
 	* field is non-zero - then invoke the xfer_find op for that location.
 	*/
 	if (desc->ploc && desc->ploc->desc.ops && desc->ploc->desc.ops->xfer_find)
-		return desc->ploc->desc.ops->xfer_find(desc->ploc,desc);
+		return desc->ploc->desc.ops->xfer_find(xfer,desc->ploc,desc);
 
 	/*
 	* If we reach here, it means that we do not yet know where to look
 	* for the xfer. So find out where the xfer lives, and then use the
 	* resultant location xfer_find op to find the xfer object itself.
 	*/
-	loc = locate_rddma_location(NULL,desc);
-
-	if (loc && loc->desc.ops && loc->desc.ops->xfer_find) 
-		xfer = loc->desc.ops->xfer_find(loc,desc);
+	ret = locate_rddma_location(&loc,NULL,desc);
+	if (ret)
+		return ret;
 
 	/*
 	* Save the result of the location search in the xfer
@@ -269,7 +272,10 @@ struct rddma_xfer *find_rddma_xfer_in(struct rddma_location *loc, struct rddma_d
 	*/
 	desc->ploc = loc;
 
-	return xfer;
+	if (loc && loc->desc.ops && loc->desc.ops->xfer_find) 
+		return loc->desc.ops->xfer_find(xfer,loc,desc);
+
+	return -EINVAL;
 }
 
 /**
@@ -284,9 +290,9 @@ struct rddma_xfer *find_rddma_xfer_in(struct rddma_location *loc, struct rddma_d
 * tree named for the new xfer.
 *
 **/
-struct rddma_xfer *rddma_xfer_create(struct rddma_location *loc, struct rddma_desc_param *desc)
+int rddma_xfer_create(struct rddma_xfer **xfer, struct rddma_location *loc, struct rddma_desc_param *desc)
 {
-	struct rddma_xfer *new;
+	int ret;
 	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
 
 	/*
@@ -294,13 +300,10 @@ struct rddma_xfer *rddma_xfer_create(struct rddma_location *loc, struct rddma_de
 	* location. If one does - one with the same name - then do not
 	* create a new xfer, just return a pointer to the extant xfer.
 	*/
-	new = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->name));
+	*xfer = to_rddma_xfer(kset_find_obj(&loc->xfers->kset,desc->name));
 	
-	/*
-	* For "new" read "old"...
-	*/
-	if (new) {
-		RDDMA_DEBUG(MY_DEBUG,"%s found %p %s locally in %p %s\n",__FUNCTION__,new,desc->name,loc,loc->desc.name);
+	if (*xfer) {
+		RDDMA_DEBUG(MY_DEBUG,"%s found %p %s locally in %p %s\n",__FUNCTION__,*xfer,desc->name,loc,loc->desc.name);
 	}
 	/*
 	* If no existing xfer kobject could be found with that name,
@@ -308,13 +311,15 @@ struct rddma_xfer *rddma_xfer_create(struct rddma_location *loc, struct rddma_de
 	*
 	*/
 	else {
-		new = new_rddma_xfer(loc,desc);
-		if (new)
-			if (rddma_xfer_register(new))
-				return NULL;
+		ret = new_rddma_xfer(xfer,loc,desc);
+		if (ret)
+			return ret;
+		if (*xfer)
+			if ( (ret = rddma_xfer_register(*xfer)))
+				return ret;
 	}
 
-	return new;
+	return 0;
 }
 
 void rddma_xfer_delete(struct rddma_location *loc, struct rddma_desc_param *desc)

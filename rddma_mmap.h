@@ -52,12 +52,12 @@ static inline void rddma_mmap_put(struct rddma_mmap *rddma_mmap)
     kobject_put(&rddma_mmap->kobj);
 }
 
-extern struct rddma_mmap *new_rddma_mmap(struct rddma_smb *, struct rddma_desc_param *);
+extern int new_rddma_mmap(struct rddma_mmap **, struct rddma_smb *, struct rddma_desc_param *);
 extern int rddma_mmap_register(struct rddma_mmap *);
 extern void rddma_mmap_unregister(struct rddma_mmap *);
-extern struct rddma_mmap *find_rddma_mmap_by_id(unsigned long);
-extern struct rddma_mmap *find_rddma_mmap(struct rddma_smb *, struct rddma_desc_param *);
-extern struct rddma_mmap *rddma_mmap_create(struct rddma_smb *, struct rddma_desc_param *);
+extern int find_rddma_mmap_by_id(struct rddma_mmap **, unsigned long);
+extern int find_rddma_mmap(struct rddma_mmap **, struct rddma_smb *, struct rddma_desc_param *);
+extern int rddma_mmap_create(struct rddma_mmap **, struct rddma_smb *, struct rddma_desc_param *);
 extern void rddma_mmap_delete(struct rddma_smb *, struct rddma_desc_param *);
 extern struct kobj_type rddma_mmap_type;
 #endif /* RDDMA_MMAP_H */

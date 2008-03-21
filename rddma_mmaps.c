@@ -65,9 +65,10 @@ struct kobj_type rddma_mmaps_type = {
     .sysfs_ops = &rddma_mmaps_sysfs_ops,
 };
 
-struct rddma_mmaps *find_rddma_mmaps(char *name)
+int find_rddma_mmaps(struct rddma_mmaps **mmaps, char *name)
 {
-	return NULL;
+	*mmaps = NULL;
+	return -EINVAL;
 }
 
 static int rddma_mmaps_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -92,19 +93,21 @@ static struct kset_uevent_ops rddma_mmaps_uevent_ops = {
 	.uevent = rddma_mmaps_uevent,
 };
 
-struct rddma_mmaps *new_rddma_mmaps(struct rddma_smb *parent, char *name)
+int new_rddma_mmaps(struct rddma_mmaps **mmaps, struct rddma_smb *parent, char *name)
 {
     struct rddma_mmaps *new = kzalloc(sizeof(struct rddma_mmaps), GFP_KERNEL);
     
+    *mmaps = new;
+
     if (NULL == new)
-	return new;
+	return -ENOMEM;
 
     kobject_set_name(&new->kset.kobj,"%s",name);
     new->kset.kobj.ktype = &rddma_mmaps_type;
     new->kset.uevent_ops = &rddma_mmaps_uevent_ops;
     new->kset.kobj.parent = &parent->kobj;
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p %s %p\n",__FUNCTION__,new, kobject_name(&new->kset.kobj),parent);
-    return new;
+    return 0;
 }
 
 int rddma_mmaps_register(struct rddma_mmaps *rddma_mmaps)

@@ -105,12 +105,14 @@ static struct kset_uevent_ops rddma_xfers_uevent_ops = {
  	.uevent = rddma_xfers_uevent, 
 };
 
-struct rddma_xfers *new_rddma_xfers(char *name, struct rddma_location *parent)
+int new_rddma_xfers(struct rddma_xfers **xfers, char *name, struct rddma_location *parent)
 {
     struct rddma_xfers *new = kzalloc(sizeof(struct rddma_xfers), GFP_KERNEL);
     
+    *xfers = new;
+
     if (NULL == new)
-	return new;
+	return -ENOMEM;
 
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &rddma_xfers_type;
@@ -118,7 +120,7 @@ struct rddma_xfers *new_rddma_xfers(char *name, struct rddma_location *parent)
     new->kset.kobj.parent = &parent->kset.kobj;
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return new;
+    return 0;
 }
 
 int rddma_xfers_register(struct rddma_xfers *rddma_xfers)

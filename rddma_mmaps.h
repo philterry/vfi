@@ -33,9 +33,9 @@ static inline void rddma_mmaps_put(struct rddma_mmaps *rddma_mmaps)
     kset_put(&rddma_mmaps->kset);
 }
 
-extern struct rddma_mmaps *new_rddma_mmaps(struct rddma_smb *,char *name);
+extern int new_rddma_mmaps(struct rddma_mmaps **, struct rddma_smb *,char *name);
 extern int rddma_mmaps_register(struct rddma_mmaps *);
 extern void rddma_mmaps_unregister(struct rddma_mmaps *);
-extern struct rddma_mmaps *find_rddma_mmaps(char *);
+extern int find_rddma_mmaps(struct rddma_mmaps **, char *);
 extern struct kobj_type rddma_mmaps_type;
 #endif /* RDDMA_MMAPS_H */

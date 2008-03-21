@@ -72,14 +72,16 @@ struct kobj_type rddma_readies_type = {
     .default_attrs = rddma_readies_default_attrs,
 };
 
-struct rddma_events *find_rddma_readies(struct rddma_subsys *parent, char *name)
+int find_rddma_readies(struct rddma_events **events, struct rddma_subsys *parent, char *name)
 {
-    return to_rddma_events(kset_find_obj(&parent->events->kset,name));
+    *events = to_rddma_events(kset_find_obj(&parent->events->kset,name));
+    return *events == NULL;
 }
 
-struct rddma_events *find_rddma_dones(struct rddma_subsys *parent, char *name)
+int find_rddma_dones(struct rddma_events **events, struct rddma_subsys *parent, char *name)
 {
-    return to_rddma_events(kset_find_obj(&parent->events->kset,name));
+    *events = to_rddma_events(kset_find_obj(&parent->events->kset,name));
+    return *events == NULL;
 }
 
 static int rddma_readies_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -104,19 +106,21 @@ static struct kset_uevent_ops rddma_readies_uevent_ops = {
 	.uevent = rddma_readies_uevent,
 };
 
-struct rddma_readies *new_rddma_readies(struct rddma_subsys *parent, char *name)
+int new_rddma_readies(struct rddma_readies **newreadies, struct rddma_subsys *parent, char *name)
 {
     struct rddma_readies *new = kzalloc(sizeof(struct rddma_readies), GFP_KERNEL);
-    
+
+    *newreadies = new;
+
     if (NULL == new)
-	return new;
+	return -ENOMEM;
 
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &rddma_readies_type;
     new->kset.uevent_ops = &rddma_readies_uevent_ops;
     new->kset.kobj.parent = &parent->kset.kobj;
 
-    return new;
+    return 0;
 }
 
 int rddma_readies_register(struct rddma_readies *rddma_readies)
@@ -130,17 +134,23 @@ void rddma_readies_unregister(struct rddma_readies *rddma_readies)
 		kset_unregister(&rddma_readies->kset);
 }
 
-struct rddma_readies *rddma_readies_create(struct rddma_subsys *parent, char *name)
+int rddma_readies_create(struct rddma_readies **new, struct rddma_subsys *parent, char *name)
 {
-	struct rddma_readies *new; 
+	int ret;
 
-	if ( (new = new_rddma_readies(parent, name)) ) {
-		if (rddma_readies_register(new)) {
-			rddma_readies_put(new);
-			return NULL;
-		}
+	ret = new_rddma_readies(new, parent, name);
+
+	if (ret) 
+		return ret;
+
+	ret = rddma_readies_register(*new);
+	
+	if (ret) {
+		rddma_readies_put(*new);
+		return -EINVAL;
 	}
-	return new;
+
+	return 0;
 }
 
 void rddma_readies_delete(struct rddma_readies *rddma_readies)

@@ -106,12 +106,14 @@ static struct kset_uevent_ops rddma_binds_uevent_ops = {
  	.uevent = rddma_binds_uevent, 
 };
 
-struct rddma_binds *new_rddma_binds(char *name, struct rddma_xfer *parent)
+int new_rddma_binds(struct rddma_binds **binds,char *name, struct rddma_xfer *parent)
 {
     struct rddma_binds *new = kzalloc(sizeof(struct rddma_binds), GFP_KERNEL);
     
+    *binds = new;
+
     if (NULL == new)
-	return new;
+	return -ENOMEM;
 
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &rddma_binds_type;
@@ -119,7 +121,7 @@ struct rddma_binds *new_rddma_binds(char *name, struct rddma_xfer *parent)
     new->kset.kobj.parent = &parent->kobj;
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return new;
+    return 0;
 }
 
 int rddma_binds_register(struct rddma_binds *rddma_binds)

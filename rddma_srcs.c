@@ -116,12 +116,13 @@ static struct kset_uevent_ops rddma_srcs_uevent_ops = {
  	.uevent = rddma_srcs_uevent, 
 };
 
-struct rddma_srcs *new_rddma_srcs(struct rddma_bind_param *desc, struct rddma_dst *parent)
+int new_rddma_srcs(struct rddma_srcs **srcs, struct rddma_bind_param *desc, struct rddma_dst *parent)
 {
     struct rddma_srcs *new = kzalloc(sizeof(struct rddma_srcs), GFP_KERNEL);
     
+    *srcs = new;
     if (NULL == new)
-	return new;
+	return -ENOMEM;
 
     kobject_set_name(&new->kset.kobj,"%s.%s#%llx:%x",desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
     new->kset.kobj.ktype = &rddma_srcs_type;
@@ -132,7 +133,7 @@ struct rddma_srcs *new_rddma_srcs(struct rddma_bind_param *desc, struct rddma_ds
     parent->srcs = new;
 
     RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return new;
+    return 0;
 }
 
 int rddma_srcs_register(struct rddma_srcs *rddma_srcs)
@@ -154,25 +155,23 @@ void rddma_srcs_unregister(struct rddma_srcs *rddma_srcs)
 	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
-struct rddma_srcs *rddma_srcs_create(struct rddma_dst *parent, struct rddma_bind_param *desc)
+int rddma_srcs_create(struct rddma_srcs **srcs, struct rddma_dst *parent, struct rddma_bind_param *desc)
 {
-	struct rddma_srcs *new;
-
+	int ret;
 	RDDMA_DEBUG(MY_DEBUG,"%s parent_dst(%p) desc(%p)\n",__FUNCTION__,parent,desc);
 
-	new = new_rddma_srcs(desc,parent);
+	ret = new_rddma_srcs(srcs,desc,parent);
 
-	if (NULL == new)
-		goto out;
+	if (ret)
+		return ret;
 
-	if (rddma_srcs_register(new))
-		goto fail_reg;
+	ret = rddma_srcs_register(*srcs);
+	if (ret) {
+		rddma_srcs_put(*srcs);
+		*srcs = NULL;
+	}
 
-	return new;
-fail_reg:
-	rddma_srcs_put(new);
-out:
-	return NULL;
+	return ret;
 }
 
 void rddma_srcs_delete(struct rddma_srcs *srcs)

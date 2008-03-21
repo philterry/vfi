@@ -42,15 +42,15 @@ static inline void rddma_xfer_put(struct rddma_xfer *rddma_xfer)
 	if (rddma_xfer) kobject_put(&rddma_xfer->kobj);
 }
 
-extern struct rddma_xfer *new_rddma_xfer(struct rddma_location *, struct rddma_desc_param *);
+extern int new_rddma_xfer(struct rddma_xfer **, struct rddma_location *, struct rddma_desc_param *);
 extern int rddma_xfer_register(struct rddma_xfer *);
 extern void rddma_xfer_unregister(struct rddma_xfer *);
-extern struct rddma_xfer *find_rddma_xfer_in(struct rddma_location *, struct rddma_desc_param *);
-static inline struct rddma_xfer *find_rddma_xfer(struct rddma_desc_param *desc)
+extern int find_rddma_xfer_in(struct rddma_xfer **, struct rddma_location *, struct rddma_desc_param *);
+static inline int find_rddma_xfer(struct rddma_xfer **xfer,struct rddma_desc_param *desc)
 {
-	return find_rddma_xfer_in(0, desc);
+	return find_rddma_xfer_in(xfer, 0, desc);
 }
-extern struct rddma_xfer *rddma_xfer_create(struct rddma_location *, struct rddma_desc_param *);
+extern int rddma_xfer_create(struct rddma_xfer **, struct rddma_location *, struct rddma_desc_param *);
 extern void rddma_xfer_start(struct rddma_xfer *);
 extern void rddma_xfer_delete(struct rddma_location *, struct rddma_desc_param *);
 extern void rddma_xfer_load_binds(struct rddma_xfer *, struct rddma_bind *);

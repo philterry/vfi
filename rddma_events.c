@@ -74,10 +74,11 @@ struct kobj_type rddma_events_type = {
     .default_attrs = rddma_events_default_attrs,
 };
 
-struct rddma_events *find_rddma_events(struct rddma_readies *p, char *name)
+int find_rddma_events(struct rddma_events **events, struct rddma_readies *p, char *name)
 {
 	RDDMA_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,p,name);
-	return to_rddma_events(kset_find_obj(&p->kset,name));
+	*events = to_rddma_events(kset_find_obj(&p->kset,name));
+	return *events == NULL;
 }
 
 static int rddma_events_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -102,14 +103,16 @@ static struct kset_uevent_ops rddma_events_uevent_ops = {
 	.uevent = rddma_events_uevent,
 };
 
-struct rddma_events *new_rddma_events(struct rddma_readies *parent, char *name)
+int new_rddma_events(struct rddma_events **events, struct rddma_readies *parent, char *name)
 {
     struct rddma_events *new = kzalloc(sizeof(struct rddma_events), GFP_KERNEL);
     
     RDDMA_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,parent,name);
     
+    *events = new;
+
     if (NULL == new)
-	return new;
+	return -ENOMEM;
 
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &rddma_events_type;
@@ -118,7 +121,7 @@ struct rddma_events *new_rddma_events(struct rddma_readies *parent, char *name)
     init_MUTEX(&new->start_lock);
     init_completion(&new->dma_sync);
 
-    return new;
+    return 0;
 }
 
 int rddma_events_register(struct rddma_events *rddma_events)
@@ -134,18 +137,27 @@ void rddma_events_unregister(struct rddma_events *rddma_events)
 		kset_unregister(&rddma_events->kset);
 }
 
-struct rddma_events *rddma_events_create(struct rddma_readies *parent, char *name)
+int rddma_events_create(struct rddma_events **events, struct rddma_readies *parent, char *name)
 {
 	struct rddma_events *new; 
+	int ret;
 	RDDMA_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,parent,name);
-	if ( (new = new_rddma_events(parent, name)) ) {
-		if (rddma_events_register(new)) {
-			rddma_events_put(new);
-			return NULL;
-		}
+
+	ret = new_rddma_events(&new, parent, name);
+
+	*events = new;
+
+	if ( ret ) 
+		return ret;
+
+	if (rddma_events_register(new)) {
+		rddma_events_put(new);
+		*events = NULL;
+		return -EINVAL;
 	}
+
 	RDDMA_DEBUG(MY_DEBUG,"%s returns(%p)\n",__FUNCTION__,new);
-	return new;
+	return 0;
 }
 
 void rddma_events_delete(struct rddma_events *rddma_events)

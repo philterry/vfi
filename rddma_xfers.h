@@ -36,7 +36,7 @@ static inline void rddma_xfers_put(struct rddma_xfers *rddma_xfers)
 	if (rddma_xfers) kset_put(&rddma_xfers->kset);
 }
 
-extern struct rddma_xfers *new_rddma_xfers(char *name, struct rddma_location *);
+extern int new_rddma_xfers(struct rddma_xfers **, char *name, struct rddma_location *);
 extern int rddma_xfers_register(struct rddma_xfers *);
 extern void rddma_xfers_unregister(struct rddma_xfers *);
 extern struct kobj_type rddma_xfers_type;

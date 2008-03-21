@@ -37,10 +37,10 @@ static inline void rddma_dsts_put(struct rddma_dsts *rddma_dsts)
 	if (rddma_dsts) kset_put(&rddma_dsts->kset);
 }
 
-extern struct rddma_dsts *new_rddma_dsts(struct rddma_bind_param *, struct rddma_bind *);
+extern int new_rddma_dsts(struct rddma_dsts **, struct rddma_bind_param *, struct rddma_bind *);
 extern int rddma_dsts_register(struct rddma_dsts *);
 extern void rddma_dsts_unregister(struct rddma_dsts *);
-extern struct rddma_dsts *rddma_dsts_create(struct rddma_bind *, struct rddma_bind_param *);
+extern int rddma_dsts_create(struct rddma_dsts **, struct rddma_bind *, struct rddma_bind_param *);
 extern void rddma_dsts_delete(struct rddma_dsts *);
 extern struct kobj_type rddma_dsts_type;
 #endif /* RDDMA_DSTS_H */

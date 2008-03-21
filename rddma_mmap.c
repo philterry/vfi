@@ -126,13 +126,12 @@ struct kobj_type rddma_mmap_type = {
     .default_attrs = rddma_mmap_default_attrs,
 };
 
-struct rddma_mmap *find_rddma_mmap(struct rddma_smb *smb, struct rddma_desc_param *desc)
+int find_rddma_mmap(struct rddma_mmap **mmap, struct rddma_smb *smb, struct rddma_desc_param *desc)
 {
 	char buf[512];
-	struct rddma_mmap *mmap;
 	snprintf(buf,512,"%d#%llx:%x",current->pid,desc->offset,desc->extent);
-	mmap = to_rddma_mmap(kset_find_obj(&smb->mmaps->kset,buf));
-	return mmap;
+	*mmap = to_rddma_mmap(kset_find_obj(&smb->mmaps->kset,buf));
+	return *mmap == NULL;
 }
 static struct rddma_mmap *frm_by_loc(struct rddma_location *loc,unsigned long tid)
 {
@@ -169,18 +168,20 @@ outloc:
 	return mmap;
 }
 
-struct rddma_mmap *find_rddma_mmap_by_id(unsigned long tid)
+int find_rddma_mmap_by_id(struct rddma_mmap **mmap, unsigned long tid)
 {
 	struct rddma_location *loc;
-	struct rddma_mmap *mmap = NULL;
+	int ret = 0;
+
 	spin_lock(&rddma_subsys->kset.list_lock);
 	list_for_each_entry(loc, &rddma_subsys->kset.list, kset.kobj.entry) {
-		if ((mmap = frm_by_loc(loc,tid))) 
+		if ((*mmap = frm_by_loc(loc,tid))) 
 			goto out;
 	}
+	ret = -EINVAL;
 out:
 	spin_unlock(&rddma_subsys->kset.list_lock);
-	return mmap;
+	return ret;
 }
 
 static int rddma_mmap_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -205,18 +206,20 @@ static struct kset_uevent_ops rddma_mmap_uevent_ops = {
 	.uevent = rddma_mmap_uevent,
 };
 
-struct rddma_mmap *new_rddma_mmap(struct rddma_smb *parent, struct rddma_desc_param *desc)
+int new_rddma_mmap(struct rddma_mmap **mmap, struct rddma_smb *parent, struct rddma_desc_param *desc)
 {
     struct rddma_mmap *new = kzalloc(sizeof(struct rddma_mmap), GFP_KERNEL);
     
+    *mmap = new;
+
     if (NULL == new)
-	return new;
+	return -ENOMEM;
 
     kobject_set_name(&new->kobj,"%d#%llx:%x",current->pid, desc->offset,desc->extent);
     new->kobj.ktype = &rddma_mmap_type;
     new->kobj.kset = &parent->mmaps->kset;
 
-    return new;
+    return 0;
 }
 
 int rddma_mmap_register(struct rddma_mmap *rddma_mmap)
@@ -238,7 +241,7 @@ void rddma_mmap_unregister(struct rddma_mmap *rddma_mmap)
      kobject_unregister(&rddma_mmap->kobj);
 }
 
-struct rddma_mmap *rddma_mmap_create(struct rddma_smb *smb, struct rddma_desc_param *desc)
+int rddma_mmap_create(struct rddma_mmap **mmap, struct rddma_smb *smb, struct rddma_desc_param *desc)
 {
 	struct page **pg_tbl = smb->pages;
 	unsigned long n_pg = smb->num_pages;
@@ -246,7 +249,7 @@ struct rddma_mmap *rddma_mmap_create(struct rddma_smb *smb, struct rddma_desc_pa
 	unsigned long extent = desc->extent;
 	unsigned long firstpage;
 	unsigned long lastpage;
-	struct rddma_mmap* mmap = NULL;
+	int ret;
 
 	RDDMA_DEBUG (MY_DEBUG, "rddma_mmap_create: %lu-bytes at offset %lu of %lu-page table %p\n", 
 		extent, offset, n_pg, pg_tbl);
@@ -257,25 +260,27 @@ struct rddma_mmap *rddma_mmap_create(struct rddma_smb *smb, struct rddma_desc_pa
 		RDDMA_DEBUG (MY_DEBUG, "xx Requested region exceeds page table.\n"); 
 		return 0;
 	}
-	
-	if ( (mmap = new_rddma_mmap(smb,desc)) ) {
-		if ( !rddma_mmap_register(mmap) ) {
-			mmap->pg_tbl = &pg_tbl[firstpage];
-			mmap->n_pg = lastpage - firstpage + 1;
+	ret = new_rddma_mmap(mmap,smb,desc);
+	if (!ret) {
+		ret = rddma_mmap_register(*mmap);
+		if (!ret) {
+			(*mmap)->pg_tbl = &pg_tbl[firstpage];
+			(*mmap)->n_pg = lastpage - firstpage + 1;
 		}
 		else {
-			rddma_mmap_put(mmap);
-			mmap = NULL;
+			rddma_mmap_put(*mmap);
+			*mmap = NULL;
 		}
 	}
-	RDDMA_DEBUG_SAFE (MY_DEBUG, mmap, "-- Assigned %lu pages at %p\n",mmap->n_pg, mmap->pg_tbl);
-	return mmap;
+	RDDMA_DEBUG_SAFE (MY_DEBUG, *mmap, "-- Assigned %lu pages at %p\n",(*mmap)->n_pg, (*mmap)->pg_tbl);
+
+	return ret;
 }
 
 void rddma_mmap_delete(struct rddma_smb *smb, struct rddma_desc_param *desc)
 {
-	struct rddma_mmap *mmap = find_rddma_mmap(smb,desc);
-	
-	
+	struct rddma_mmap *mmap;
+	int ret;
+	ret = find_rddma_mmap(&mmap,smb,desc);
 	rddma_mmap_unregister(mmap);
 }

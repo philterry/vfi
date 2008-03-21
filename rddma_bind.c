@@ -137,12 +137,14 @@ struct kobj_type rddma_bind_type = {
 * xfer. 
 *
 **/
-struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_param *desc)
+int new_rddma_bind(struct rddma_bind **bind, struct rddma_xfer *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_bind *new = kzalloc(sizeof(struct rddma_bind), GFP_KERNEL);
 	
+	*bind = new;
+
 	if (NULL == new)
-	return new;
+		return -ENOMEM;
 	
 	rddma_clone_bind(&new->desc, desc);
 	
@@ -165,7 +167,7 @@ struct rddma_bind *new_rddma_bind(struct rddma_xfer *parent, struct rddma_bind_p
 	INIT_LIST_HEAD(&new->dma_chain);
 
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return new;
+	return 0;
 }
 
 int rddma_bind_register(struct rddma_bind *rddma_bind)
@@ -200,10 +202,9 @@ void rddma_bind_unregister(struct rddma_bind *rddma_bind)
 * A successful search will cause the bind refcount to be incremented.
 *
 */
-struct rddma_bind *find_rddma_bind_in(struct rddma_xfer *xfer, struct rddma_desc_param *desc)
+int find_rddma_bind_in(struct rddma_bind **bind, struct rddma_xfer *xfer, struct rddma_desc_param *desc)
 {
-	struct rddma_bind *bind = NULL;
-
+	int ret;
 	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
 
 	/*
@@ -212,7 +213,7 @@ struct rddma_bind *find_rddma_bind_in(struct rddma_xfer *xfer, struct rddma_desc
 	*
 	*/
 	if (xfer && xfer->desc.ops)
-		return xfer->desc.ops->bind_find(xfer,desc);
+		return xfer->desc.ops->bind_find(bind,xfer,desc);
 
 	/*
 	* Otherwise try to find the xfer in the local tree, and
@@ -225,16 +226,20 @@ struct rddma_bind *find_rddma_bind_in(struct rddma_xfer *xfer, struct rddma_desc
 	* but we will leave its refcount incremented if the 
 	* search is successful.
 	*/
-	xfer = find_rddma_xfer(desc);
+	ret = find_rddma_xfer(&xfer,desc);
+	if (ret)
+		return ret;
+
+	ret = -EINVAL;
 
 	if (xfer) {
 		if (xfer->desc.ops) 
-			bind = xfer->desc.ops->bind_find(xfer,desc);
+			ret = xfer->desc.ops->bind_find(bind,xfer,desc);
 		rddma_xfer_put(xfer);
 	}
 
 
-	return bind;
+	return ret;
 }
 
 /**
@@ -251,10 +256,11 @@ struct rddma_bind *find_rddma_bind_in(struct rddma_xfer *xfer, struct rddma_desc
 * or a new bind created by new_rddma_bind ().
 *
 **/
-struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_param *desc)
+int rddma_bind_create(struct rddma_bind **newbind, struct rddma_xfer *xfer, struct rddma_bind_param *desc)
 {
 	struct rddma_bind *new;
 	char buf[128];
+	int ret;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s xfer(%p) desc(%p)\n",__FUNCTION__,xfer,desc);
 
@@ -264,14 +270,20 @@ struct rddma_bind *rddma_bind_create(struct rddma_xfer *xfer, struct rddma_bind_
 
 	if (new) {
 		RDDMA_DEBUG(MY_DEBUG,"%s found %p locally in %p\n",__FUNCTION__,new,xfer);
-		return new;
+		*newbind = new;
+		return 0;
 	}
 
-	if ( (new = new_rddma_bind(xfer,desc)) )
-		if (rddma_bind_register(new))
-			return NULL;
+	ret = new_rddma_bind(newbind,xfer,desc);
 
-	return new;
+	if (ret)
+		return ret;
+
+	ret = rddma_bind_register(*newbind);
+	if (ret)
+		return -EINVAL;
+
+	return 0;
 }
 
 /**

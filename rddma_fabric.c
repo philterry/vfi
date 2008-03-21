@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      RDDMA_DBG_FABRIC | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_FABRIC | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_ERROR(x) ( 0x80000000 | 0x00020000 | ((x) & 0xffff))
 
 #include <linux/rddma.h>
 #include <linux/rddma_subsys.h>
@@ -57,13 +58,14 @@ static void fabric_do_rqst(struct work_struct *wo)
 	struct call_back_tag *cb = container_of(wo, struct call_back_tag, wo);
 #endif
 	int ret = 0;
+	int size = 1928;
 	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	cb->rply_skb = dev_alloc_skb(2048);
 	skb_reserve(cb->rply_skb,128);
 	RDDMA_DEBUG (MY_DEBUG, "> %s calls do_operation (...)\n", __func__);
-	ret = do_operation(cb->rqst_skb->data,cb->rply_skb->data,1928);
-	RDDMA_ASSERT(ret < 1928, "reply truncated need reply buffer bigger than 2048!");
+	ret = do_operation(cb->rqst_skb->data,cb->rply_skb->data,&size);
+	RDDMA_ASSERT(size < 1928, "reply truncated need reply buffer bigger than 2048!");
 
 	dev_kfree_skb(cb->rqst_skb);
 	
@@ -173,15 +175,16 @@ void rddma_doorbell_send(struct rddma_fabric_address *address, int doorbell)
 	}
 }
 
-struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, ...)
+int rddma_fabric_call(struct sk_buff **retskb, struct rddma_location *loc, int to, char *f, ...)
 {
 	va_list ap;
 	struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
 	RDDMA_DEBUG(MY_DEBUG,"%s entered - call \"%s.%s\"\n",__FUNCTION__, (loc) ? loc->desc.name : "<NULL>", (loc) ? loc->desc.location : "<NULL>");
+	*retskb = NULL;
 	if (cb) {
 		struct sk_buff *skb = dev_alloc_skb(2048);
-		skb_reserve(skb,128);
 		if (skb) {
+			skb_reserve(skb,128);
 			cb->check = cb;
 			cb->rply_skb = NULL;
 			
@@ -196,7 +199,7 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 			if (rddma_fabric_tx(loc->desc.address, skb)) {
 				kfree(cb);
 				RDDMA_DEBUG (MY_DEBUG, "xx\t%s: failed to transmit command over fabric!\n", __func__);
-				return NULL;
+				return MY_ERROR(__LINE__);
 			}
 				
 		
@@ -211,13 +214,14 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 			if (wait_event_interruptible_timeout(cb->wq, (cb->rply_skb != NULL), to*HZ) == 0) {
 				kfree(cb);
 				RDDMA_DEBUG (MY_DEBUG, "xx\t%s: TIMEOUT waiting for response!\n", __func__);
-				return NULL;
+				return MY_ERROR(__LINE__);
 			}
 
 			skb = cb->rply_skb;
 			RDDMA_DEBUG (MY_DEBUG, "--\t%s: reply [ %s ]\n",__FUNCTION__, skb->data);
 			kfree(cb);
-			return skb;
+			*retskb = skb;
+			return 0;
 		}
 		else {
 			RDDMA_DEBUG (MY_DEBUG, "xx\t%s: no reply\n", __func__);
@@ -226,7 +230,7 @@ struct sk_buff *rddma_fabric_call(struct rddma_location *loc, int to, char *f, .
 	else {
 		RDDMA_DEBUG (MY_DEBUG, "xx\t%s failed to kzalloc a callback tag\n", __func__);
 	}
-	return NULL;
+	return MY_ERROR(__LINE__);
 }
 
 /* Upcalls */

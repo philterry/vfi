@@ -44,11 +44,11 @@ static inline void rddma_src_put(struct rddma_src *rddma_src)
 		kobject_put(&rddma_src->kobj);
 }
 
-extern struct rddma_src *new_rddma_src(struct rddma_dst *, struct rddma_bind_param *);
+extern int new_rddma_src(struct rddma_src **, struct rddma_dst *, struct rddma_bind_param *);
 extern int rddma_src_register(struct rddma_src *);
 extern void rddma_src_unregister(struct rddma_src *);
-extern struct rddma_src *find_rddma_src(struct rddma_desc_param *, struct rddma_dst *);
-extern struct rddma_src *rddma_src_create(struct rddma_dst *, struct rddma_bind_param *);
+extern int find_rddma_src(struct rddma_src **, struct rddma_desc_param *, struct rddma_dst *);
+extern int rddma_src_create(struct rddma_src **, struct rddma_dst *, struct rddma_bind_param *);
 extern void rddma_src_delete(struct rddma_dst *, struct rddma_bind_param *);
 extern struct kobj_type rddma_src_type;
 #endif /* RDDMA_SRC_H */

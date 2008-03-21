@@ -47,7 +47,7 @@ static int  __init rddma_init(void)
 {
 	int ret = -ENOMEM;
 
-	rddma_subsys = new_rddma_subsys("rddma");
+	ret = new_rddma_subsys(&rddma_subsys, "rddma");
 
 	if ( NULL == rddma_subsys )
 		return ret;

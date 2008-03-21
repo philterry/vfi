@@ -138,12 +138,14 @@ struct kobj_type rddma_dst_type = {
     .default_attrs = rddma_dst_default_attrs,
 };
 
-struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_bind_param *desc)
+int new_rddma_dst(struct rddma_dst **dst, struct rddma_bind *parent, struct rddma_bind_param *desc)
 {
 	struct rddma_dst *new = kzalloc(sizeof(struct rddma_dst), GFP_KERNEL);
     
+	*dst = new;
+
 	if (NULL == new)
-		goto out;
+		return -ENOMEM;
 
 	rddma_clone_bind(&new->desc, desc);
 	new->kobj.ktype = &rddma_dst_type;
@@ -152,9 +154,8 @@ struct rddma_dst *new_rddma_dst(struct rddma_bind *parent, struct rddma_bind_par
 	new->kobj.kset = &parent->dsts->kset;
 	rddma_bind_inherit(&new->desc,&parent->desc);
 
-out:
 	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return new;
+	return 0;
 }
 
 int rddma_dst_register(struct rddma_dst *rddma_dst)
@@ -187,73 +188,54 @@ void rddma_dst_unregister(struct rddma_dst *rddma_dst)
 * otherwise it searches the entire tree.
 *
 **/
-struct rddma_dst *find_rddma_dst_in(struct rddma_bind *bind, struct rddma_bind_param *desc)
+int find_rddma_dst_in(struct rddma_dst **dst,struct rddma_bind *bind, struct rddma_bind_param *desc)
 {
-	struct rddma_dst *dst = NULL;
-	int put_bind = 0;
+	int ret;
+	struct rddma_bind *mybind = bind;
+	struct rddma_dsts *dsts;
+
+	*dst = NULL;
 
 	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
 
-	/*
-	* If no bind was provided for the caller, then search the 
-	* object tree for the bind described by @desc.
-	*
-	* Note that finding a bind will increment its reference count.
-	* We will need to negate that before we leave, so that behavior
-	* is consistent for all calls to this function.
-	*
-	*/
-/*
-	printk ("## %s Desc %s.%s#%llx.%x(%p)/%s.%s#%llx.%x(%p)=%s.%s#%llx.%x(%p)\n", __func__, 
-	        desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, desc->xfer.ploc, 
-	        desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent, desc->dst.ploc, 
-	        desc->src.name, desc->src.location, desc->src.offset, desc->src.extent, desc->src.ploc);
-*/
-	
-	if (bind == NULL) {
-		if ((put_bind = bind = find_rddma_bind(&desc->xfer))) {
-/*
-			printk ("## %s Bind %s.%s#%llx.%x(%p)/%s.%s#%llx.%x(%p)=%s.%s#%llx.%x(%p)\n", __func__, 
-				bind->desc.xfer.name, bind->desc.xfer.location, bind->desc.xfer.offset, bind->desc.xfer.extent, bind->desc.xfer.ploc, 
-				bind->desc.dst.name, bind->desc.dst.location, bind->desc.dst.offset, bind->desc.dst.extent, bind->desc.dst.ploc, 
-				bind->desc.src.name, bind->desc.src.location, bind->desc.src.offset, bind->desc.src.extent, bind->desc.src.ploc);
-*/
-		}
+	if (mybind == NULL) {
+		ret = find_rddma_bind(&mybind,&desc->xfer);
+		if (ret)
+			return ret;
 	}
-	
-	if (bind)
-		rddma_dsts_create(bind,desc);
+
+	rddma_dsts_create(&dsts,mybind,desc);
 
 	/*
 	* Search for the <dst> at the <xfer> site.
 	*
 	*/
-	if (bind && bind->desc.xfer.ops)
-		dst = bind->desc.xfer.ops->dst_find(bind,desc);
+	if (mybind->desc.xfer.ops)
+		ret = mybind->desc.xfer.ops->dst_find(dst,mybind,desc);
 
-	if (put_bind) {
+	if (!bind) {
 		RDDMA_KTRACE ("<*** %s bind put after dst_find opcall ***>\n", __func__);
-		rddma_bind_put (bind);
+		rddma_bind_put (mybind);
 	}
 
-	return dst;
+	return ret ? ret : *dst == NULL;
 }
 
-struct rddma_dst *rddma_dst_create(struct rddma_bind *bind, struct rddma_bind_param *desc)
+int rddma_dst_create(struct rddma_dst **dst, struct rddma_bind *bind, struct rddma_bind_param *desc)
 {
-	struct rddma_dst *new = new_rddma_dst(bind,desc);
+	int ret;
 
-	if (NULL == new)
-		goto out;
+	ret = new_rddma_dst(dst,bind,desc);
 
-	if (rddma_dst_register(new))
-		goto fail_reg;
+	if (ret)
+		return ret;
 
-	return new;
-fail_reg:
-	rddma_dst_put(new);
-out:
-	return NULL;
+	ret = rddma_dst_register(*dst);
+
+	if (ret) 
+		rddma_dst_put(*dst);
+
+	return ret;
 }
 
 void rddma_dst_delete (struct rddma_bind *bind, struct rddma_bind_param *desc)
