@@ -12,18 +12,18 @@
 #define MY_DEBUG      RDDMA_DBG_OPS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_OPS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma_drv.h>
-#include <linux/rddma_parse.h>
-#include <linux/rddma_location.h>
-#include <linux/rddma_ops.h>
-#include <linux/rddma_smb.h>
-#include <linux/rddma_src.h>
-#include <linux/rddma_dst.h>
-#include <linux/rddma_xfer.h>
-#include <linux/rddma_bind.h>
-#include <linux/rddma_mmap.h>
-#include <linux/rddma_events.h>
-#include <linux/rddma_event.h>
+#include <linux/vfi_drv.h>
+#include <linux/vfi_parse.h>
+#include <linux/vfi_location.h>
+#include <linux/vfi_ops.h>
+#include <linux/vfi_smb.h>
+#include <linux/vfi_src.h>
+#include <linux/vfi_dst.h>
+#include <linux/vfi_xfer.h>
+#include <linux/vfi_bind.h>
+#include <linux/vfi_mmap.h>
+#include <linux/vfi_events.h>
+#include <linux/vfi_event.h>
 
 #include <linux/device.h>
 

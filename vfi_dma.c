@@ -11,14 +11,14 @@
 #define MY_DEBUG      RDDMA_DBG_DMA | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_DMA | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma.h>
-#include <linux/rddma_dma.h>
+#include <linux/vfi.h>
+#include <linux/vfi_dma.h>
 #include <linux/rio.h>
 #include <linux/rio_ids.h>
 #include <linux/rio_drv.h>
 #include <linux/mm_types.h>
-#include <linux/rddma_bind.h>
-#include <linux/rddma_ops.h>
+#include <linux/vfi_bind.h>
+#include <linux/vfi_ops.h>
 
 int order(int x) {
 	int ord = 0;

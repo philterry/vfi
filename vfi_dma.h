@@ -11,7 +11,7 @@
 
 #ifndef RDDMA_DMA_H
 #define RDDMA_DMA_H
-#include <linux/rddma.h>
+#include <linux/vfi.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>

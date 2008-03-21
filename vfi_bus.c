@@ -12,9 +12,9 @@
 #define MY_DEBUG      RDDMA_DBG_SUBSYS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_SUBSYS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma.h>
+#include <linux/vfi.h>
 
-#include <linux/rddma_bus.h>
+#include <linux/vfi_bus.h>
 #include <linux/device.h>
 
 ssize_t rddma_bus_attr_fred_show(struct bus_type *bus, char *buf)

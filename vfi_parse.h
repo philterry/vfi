@@ -11,7 +11,7 @@
 
 #ifndef RDDMA_PARSE_H
 #define RDDMA_PARSE_H
-#include <linux/rddma.h>
+#include <linux/vfi.h>
 #include <linux/types.h>
 #include <linux/device.h>
 

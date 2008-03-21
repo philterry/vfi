@@ -11,12 +11,12 @@
 #define MY_DEBUG      RDDMA_DBG_DMANET | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_DMANET | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma.h>
-#include <linux/rddma_dma.h>
-#include <linux/rddma_dma_net.h>
-#include <linux/rddma_src.h>
-#include <linux/rddma_srcs.h>
-#include <linux/rddma_binds.h>
+#include <linux/vfi.h>
+#include <linux/vfi_dma.h>
+#include <linux/vfi_dma_net.h>
+#include <linux/vfi_src.h>
+#include <linux/vfi_srcs.h>
+#include <linux/vfi_binds.h>
 
 struct dma_engine {
 	struct rddma_dma_engine rde;

@@ -12,8 +12,8 @@
 #ifndef RDDMA_SRCS_H
 #define RDDMA_SRCS_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_dst.h>
+#include <linux/vfi.h>
+#include <linux/vfi_dst.h>
 
 struct rddma_srcs {
 	struct kset kset;

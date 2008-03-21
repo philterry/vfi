@@ -12,6 +12,6 @@
 #ifndef RDDMA_DMA_MEM_H
 #define RDDMA_DMA_MEM_H
 
-#include <linux/rddma.h>
+#include <linux/vfi.h>
 
 #endif /* RDDMA_DMA_MEM_H  */

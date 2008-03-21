@@ -12,9 +12,9 @@
 #ifndef RDDMA_OPS_H
 #define RDDMA_OPS_H
 
-#include <linux/rddma_parse.h>
-#include <linux/rddma_location.h>
-#include <linux/rddma_bind.h>
+#include <linux/vfi_parse.h>
+#include <linux/vfi_location.h>
+#include <linux/vfi_bind.h>
 
 struct rddma_location;
 struct rddma_smb;

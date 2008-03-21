@@ -1,8 +1,8 @@
 #ifndef RDDMA_EVENTS_H
 #define RDDMA_EVENTS_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_subsys.h>
+#include <linux/vfi.h>
+#include <linux/vfi_subsys.h>
 
 
 struct rddma_events {

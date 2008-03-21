@@ -12,8 +12,8 @@
 #define MY_DEBUG      RDDMA_DBG_SRC | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_SRC | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma_srcs.h>
-#include <linux/rddma_dst.h>
+#include <linux/vfi_srcs.h>
+#include <linux/vfi_dst.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>

@@ -11,13 +11,13 @@
 #define MY_DEBUG      RDDMA_DBG_DMARIO | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_DMARIO | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma.h>
-#include <linux/rddma_dma.h>
-#include <linux/rddma_dma_rio.h>
-#include <linux/rddma_src.h>
-#include <linux/rddma_srcs.h>
-#include <linux/rddma_binds.h>
-#include <linux/rddma_fabric.h>
+#include <linux/vfi.h>
+#include <linux/vfi_dma.h>
+#include <linux/vfi_dma_rio.h>
+#include <linux/vfi_src.h>
+#include <linux/vfi_srcs.h>
+#include <linux/vfi_binds.h>
+#include <linux/vfi_fabric.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/version.h>

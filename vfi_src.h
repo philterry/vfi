@@ -12,11 +12,11 @@
 #ifndef RDDMA_SRC_H
 #define RDDMA_SRC_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_parse.h>
-#include <linux/rddma_dma.h>
-#include <linux/rddma_dst.h>
-#include <linux/rddma_ops.h>
+#include <linux/vfi.h>
+#include <linux/vfi_parse.h>
+#include <linux/vfi_dma.h>
+#include <linux/vfi_dst.h>
+#include <linux/vfi_ops.h>
 
 struct rddma_src {
 	struct rddma_dma_descriptor descriptor __attribute__ ((aligned(RDDMA_DESC_ALIGN)));

@@ -19,14 +19,14 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/rddma.h>
-#include <linux/rddma_drv.h>
-#include <linux/rddma_subsys.h>
-#include <linux/rddma_class.h>
-#include <linux/rddma_bus.h>
-#include <linux/rddma_cdev.h>
-#include <linux/rddma_fabric.h>
-#include <linux/rddma_mmap.h>
+#include <linux/vfi.h>
+#include <linux/vfi_drv.h>
+#include <linux/vfi_subsys.h>
+#include <linux/vfi_class.h>
+#include <linux/vfi_bus.h>
+#include <linux/vfi_cdev.h>
+#include <linux/vfi_fabric.h>
+#include <linux/vfi_mmap.h>
 
 int rddma_major = 0;
 int rddma_minor = 0;

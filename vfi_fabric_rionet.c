@@ -11,8 +11,8 @@
 #define MY_DEBUG      RDDMA_DBG_FABNET | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_FABNET | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma_fabric.h>
-#include <linux/rddma_location.h>
+#include <linux/vfi_fabric.h>
+#include <linux/vfi_location.h>
 
 #include <linux/netdevice.h>
 #include <linux/module.h>

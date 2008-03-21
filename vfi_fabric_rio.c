@@ -9,6 +9,6 @@
  * option) any later version.
  */
 
-#include <linux/rddma_fabric_rio.h>
+#include <linux/vfi_fabric_rio.h>
 
 

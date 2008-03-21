@@ -12,13 +12,13 @@
 #define MY_DEBUG      RDDMA_DBG_BIND | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_BIND | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma_bind.h>
-#include <linux/rddma_xfer.h>
-#include <linux/rddma_ops.h>
-#include <linux/rddma_binds.h>
-#include <linux/rddma_dsts.h>
-#include <linux/rddma_dst.h>
-#include <linux/rddma_dma.h>
+#include <linux/vfi_bind.h>
+#include <linux/vfi_xfer.h>
+#include <linux/vfi_ops.h>
+#include <linux/vfi_binds.h>
+#include <linux/vfi_dsts.h>
+#include <linux/vfi_dst.h>
+#include <linux/vfi_dma.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>

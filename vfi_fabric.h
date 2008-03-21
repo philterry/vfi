@@ -12,7 +12,7 @@
 #ifndef RDDMA_FABRIC_H
 #define RDDMA_FABRIC_H
 
-#include <linux/rddma_subsys.h>
+#include <linux/vfi_subsys.h>
 struct rddma_location;
 
 #include <linux/sched.h>

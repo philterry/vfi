@@ -12,9 +12,9 @@
 #ifndef RDDMA_BIND_H
 #define RDDMA_BIND_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_xfer.h>
-#include <linux/rddma_parse.h>
+#include <linux/vfi.h>
+#include <linux/vfi_xfer.h>
+#include <linux/vfi_parse.h>
 
 struct rddma_dst;
 

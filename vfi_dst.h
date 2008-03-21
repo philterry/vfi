@@ -12,9 +12,9 @@
 #ifndef RDDMA_DST_H
 #define RDDMA_DST_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_parse.h>
-#include <linux/rddma_bind.h>
+#include <linux/vfi.h>
+#include <linux/vfi_parse.h>
+#include <linux/vfi_bind.h>
 
 struct rddma_dst {
 	struct rddma_bind_param desc;

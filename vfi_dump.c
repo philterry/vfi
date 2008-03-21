@@ -13,19 +13,19 @@
 #define MY_DEBUG      RDDMA_DBG_PARSE | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_PARSE | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma.h>
-#include <linux/rddma_parse.h>
-#include <linux/rddma_ops.h>
-#include <linux/rddma_fabric.h>
-#include <linux/rddma_bind.h>
+#include <linux/vfi.h>
+#include <linux/vfi_parse.h>
+#include <linux/vfi_ops.h>
+#include <linux/vfi_fabric.h>
+#include <linux/vfi_bind.h>
 #ifdef CONFIG_MPC10X_BRIDGE
 #include "mpc10xdma.h"
 #else
-#include <linux/rddma_dma_rio.h>
+#include <linux/vfi_dma_rio.h>
 #endif
-#include <linux/rddma_dst.h>
-#include <linux/rddma_src.h>
-#include <linux/rddma_dma.h>
+#include <linux/vfi_dst.h>
+#include <linux/vfi_src.h>
+#include <linux/vfi_dma.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 

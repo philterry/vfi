@@ -12,12 +12,12 @@
 #ifndef RDDMA_SUBSYS_H
 #define RDDMA_SUBSYS_H
 
-#include <linux/rddma.h>
+#include <linux/vfi.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
 
-#include <linux/rddma_parse.h>
+#include <linux/vfi_parse.h>
 
 struct rddma_subsys {
 	struct rddma_desc_param desc;

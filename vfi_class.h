@@ -12,7 +12,7 @@
 #ifndef RDDMA_CLASS_H
 #define RDDMA_CLASS_H
 
-#include <linux/rddma_subsys.h>
+#include <linux/vfi_subsys.h>
 
 struct rddma_dev {
 	struct class_device class_device;

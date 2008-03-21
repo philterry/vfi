@@ -12,9 +12,9 @@
 #ifndef RDDMA_MMAP_H
 #define RDDMA_MMAP_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_smb.h>
-#include <linux/rddma_parse.h>
+#include <linux/vfi.h>
+#include <linux/vfi_smb.h>
+#include <linux/vfi_parse.h>
 
 struct rddma_mmap {
 	struct rddma_desc_param desc;

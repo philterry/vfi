@@ -12,8 +12,8 @@
 #ifndef RDDMA_SMBS_H
 #define RDDMA_SMBS_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_location.h>
+#include <linux/vfi.h>
+#include <linux/vfi_location.h>
 
 struct rddma_smbs {
     struct kset kset;

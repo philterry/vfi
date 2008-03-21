@@ -12,8 +12,8 @@
 #ifndef RDDMA_XFERS_H
 #define RDDMA_XFERS_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_location.h>
+#include <linux/vfi.h>
+#include <linux/vfi_location.h>
 
 struct rddma_xfers {
 	struct kset kset;

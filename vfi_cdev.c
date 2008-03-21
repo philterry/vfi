@@ -12,7 +12,7 @@
 #define MY_DEBUG      RDDMA_DBG_CDEV | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_CDEV | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma.h>
+#include <linux/vfi.h>
 
 #include <linux/aio.h>
 #include <linux/poll.h>
@@ -24,9 +24,9 @@
 #include <linux/pagemap.h>
 #include <linux/proc_fs.h>
 
-#include <linux/rddma_drv.h>
-#include <linux/rddma_ops.h>
-#include <linux/rddma_mmap.h>
+#include <linux/vfi_drv.h>
+#include <linux/vfi_ops.h>
+#include <linux/vfi_mmap.h>
 #include <linux/version.h>
 
 struct proc_dir_entry *proc_root_rddma = NULL;

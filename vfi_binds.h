@@ -12,8 +12,8 @@
 #ifndef RDDMA_BINDS_H
 #define RDDMA_BINDS_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_xfer.h>
+#include <linux/vfi.h>
+#include <linux/vfi_xfer.h>
 
 struct rddma_binds {
     struct kset kset;

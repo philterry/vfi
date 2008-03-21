@@ -12,7 +12,7 @@
 #ifndef RDDMA_MMAPS_H
 #define RDDMA_MMAPS_H
 
-#include <linux/rddma_smb.h>
+#include <linux/vfi_smb.h>
 
 struct rddma_mmaps {
     struct kset kset;

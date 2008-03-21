@@ -12,7 +12,7 @@
 #ifndef RDDMA_DMA_RIO_H
 #define RDDMA_DMA_RIO_H
 
-#include <linux/rddma.h>
+#include <linux/vfi.h>
 
 #define MPC86XX_DMA_OFFSET 0x21000
 #define MPC86XX_DMA_REG_SIZE 0x1000

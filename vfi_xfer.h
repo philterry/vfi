@@ -12,10 +12,10 @@
 #ifndef RDDMA_XFER_H
 #define RDDMA_XFER_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_dma.h>
-#include <linux/rddma_parse.h>
-#include <linux/rddma_location.h>
+#include <linux/vfi.h>
+#include <linux/vfi_dma.h>
+#include <linux/vfi_parse.h>
+#include <linux/vfi_location.h>
 
 struct rddma_xfer {
 	struct rddma_desc_param desc;

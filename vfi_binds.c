@@ -12,8 +12,8 @@
 #define MY_DEBUG      RDDMA_DBG_BIND | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_BIND | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma_binds.h>
-#include <linux/rddma_xfer.h>
+#include <linux/vfi_binds.h>
+#include <linux/vfi_xfer.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>

@@ -12,7 +12,7 @@
 #ifndef RDDMA_DRV_H
 #define RDDMA_DRV_H
 
-#include <linux/rddma_subsys.h>
+#include <linux/vfi_subsys.h>
 
 #define MAJOR_VERSION(v) ((v) >> 16)
 #define MINOR_VERSION(v) ((v) & 0xffff)

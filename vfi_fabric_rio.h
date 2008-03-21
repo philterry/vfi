@@ -12,6 +12,6 @@
 #ifndef RDDMA_FABRIC_RIO_H
 #define RDDMA_FABRIC_RIO_H
 
-#include <linux/rddma.h>
+#include <linux/vfi.h>
 
 #endif /* RDDMA_FABRIC_RIO_H  */

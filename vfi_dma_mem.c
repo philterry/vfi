@@ -9,6 +9,6 @@
  * option) any later version.
  */
 
-#include <linux/rddma_dma_mem.h>
+#include <linux/vfi_dma_mem.h>
 
 

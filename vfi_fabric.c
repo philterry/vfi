@@ -13,12 +13,12 @@
 #define MY_LIFE_DEBUG RDDMA_DBG_FABRIC | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 #define MY_ERROR(x) ( 0x80000000 | 0x00020000 | ((x) & 0xffff))
 
-#include <linux/rddma.h>
-#include <linux/rddma_subsys.h>
-#include <linux/rddma_location.h>
-#include <linux/rddma_ops.h>
-#include <linux/rddma_smb.h>
-#include <linux/rddma_fabric.h>
+#include <linux/vfi.h>
+#include <linux/vfi_subsys.h>
+#include <linux/vfi_location.h>
+#include <linux/vfi_ops.h>
+#include <linux/vfi_smb.h>
+#include <linux/vfi_fabric.h>
 
 #include <linux/sched.h>
 #include <linux/skbuff.h>

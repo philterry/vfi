@@ -1,7 +1,7 @@
 #ifndef RDDMA_READIES_H
 #define RDDMA_READIES_H
 
-#include <linux/rddma.h>
+#include <linux/vfi.h>
 
 struct rddma_readies {
     struct kset kset;

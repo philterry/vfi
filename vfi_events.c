@@ -1,10 +1,10 @@
 #define MY_DEBUG      RDDMA_DBG_RDYS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
 #define MY_LIFE_DEBUG RDDMA_DBG_RDYS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
 
-#include <linux/rddma_events.h>
-#include <linux/rddma_subsys.h>
-#include <linux/rddma_readies.h>
-#include <linux/rddma_event.h>
+#include <linux/vfi_events.h>
+#include <linux/vfi_subsys.h>
+#include <linux/vfi_readies.h>
+#include <linux/vfi_event.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>

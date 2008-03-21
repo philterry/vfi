@@ -12,9 +12,9 @@
 #ifndef RDDMA_LOCATION_H
 #define RDDMA_LOCATION_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_parse.h>
-#include <linux/rddma_fabric.h>
+#include <linux/vfi.h>
+#include <linux/vfi_parse.h>
+#include <linux/vfi_fabric.h>
 
 struct rddma_ops;
 

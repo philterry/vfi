@@ -1,9 +1,9 @@
 #ifndef RDDMA_EVENT_H
 #define RDDMA_EVENT_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_parse.h>
-#include <linux/rddma_events.h>
+#include <linux/vfi.h>
+#include <linux/vfi_parse.h>
+#include <linux/vfi_events.h>
 
 struct rddma_event {
 	struct rddma_desc_param desc;

@@ -12,11 +12,11 @@
 #ifndef RDDMA_SMB_H
 #define RDDMA_SMB_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_location.h>
-#include <linux/rddma_parse.h>
-#include <linux/rddma_dsts.h>
-#include <linux/rddma_srcs.h>
+#include <linux/vfi.h>
+#include <linux/vfi_location.h>
+#include <linux/vfi_parse.h>
+#include <linux/vfi_dsts.h>
+#include <linux/vfi_srcs.h>
 
 #define DESC_VALID(b,d) (((d)->offset + (d)->extent) <= (b)->extent)
 

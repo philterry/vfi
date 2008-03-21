@@ -12,7 +12,7 @@
 #ifndef RDDMA_DMA_NET_H
 #define RDDMA_DMA_NET_H
 
-#include <linux/rddma.h>
+#include <linux/vfi.h>
 
 /* Memory format of DMA list descriptor 
  * (must be 32-byte aligned)

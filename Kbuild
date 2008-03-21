@@ -1,14 +1,14 @@
 
-obj-$(CONFIG_VFI_DMA_6460) += vfi_6460.o
+obj-$(CONFIG_FDDMA_DMA_6460) += vfi_6460.o
 vfi_6460-objs := \
 	vfi_dma_6460.o 
 
-obj-$(CONFIG_VFI_DMA_RIO) += vfi_dma_rio.o
-obj-$(CONFIG_VFI_DMA_NET) += vfi_dma_net.o
+obj-$(CONFIG_FDDMA_DMA_RIO) += vfi_dma_rio.o
+obj-$(CONFIG_FDDMA_DMA_NET) += vfi_dma_net.o
 
-obj-$(CONFIG_VFI_FABRIC_NET) += vfi_fabric_net.o
+obj-$(CONFIG_FDDMA_FABRIC_NET) += vfi_fabric_net.o
 
-obj-$(CONFIG_VFI_FABRIC_RIONET) += vfi_fabric_rionet.o
+obj-$(CONFIG_FDDMA_FABRIC_RIONET) += vfi_fabric_rionet.o
 
 obj-$(CONFIG_FDDMA) += vfi.o
 vfi-objs := \

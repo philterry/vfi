@@ -12,8 +12,8 @@
 #ifndef RDDMA_DSTS_H
 #define RDDMA_DSTS_H
 
-#include <linux/rddma.h>
-#include <linux/rddma_bind.h>
+#include <linux/vfi.h>
+#include <linux/vfi_bind.h>
 
 struct rddma_dsts {
 	struct kset kset;
