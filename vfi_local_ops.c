@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_LOCOPS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_LOCOPS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_LOCOPS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_LOCOPS | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi_location.h>
 #include <linux/vfi_ops.h>
@@ -33,60 +33,60 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 
-extern void rddma_dma_chain_dump(struct list_head *h);
+extern void vfi_dma_chain_dump(struct list_head *h);
 /*
  * F I N D    O P E R A T I O N S
  */
-static int rddma_local_location_find(struct rddma_location **newloc,struct rddma_location *loc, struct rddma_desc_param *desc)
+static int vfi_local_location_find(struct vfi_location **newloc,struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %s %p %s,%s\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,desc->location);
-	*newloc  = to_rddma_location(kset_find_obj(&loc->kset,desc->name));
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %s %p %s ->%p\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,*newloc);
+	VFI_DEBUG(MY_DEBUG,"%s %p %s %p %s,%s\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,desc->location);
+	*newloc  = to_vfi_location(kset_find_obj(&loc->kset,desc->name));
+	VFI_DEBUG(MY_DEBUG,"%s %p %s %p %s ->%p\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,*newloc);
 	return *newloc == NULL;
 }
 
-static void rddma_local_location_put(struct rddma_location *loc, struct rddma_desc_param *desc)
+static void vfi_local_location_put(struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	struct rddma_location *newloc;
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s\n",__FUNCTION__,loc,desc,desc->name);
-	newloc = to_rddma_location(kset_find_obj(&loc->kset,desc->name));
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s ->%p\n",__FUNCTION__,loc,desc,desc->name,newloc);
-	rddma_location_put(newloc);
-	rddma_location_put(newloc);
+	struct vfi_location *newloc;
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %s\n",__FUNCTION__,loc,desc,desc->name);
+	newloc = to_vfi_location(kset_find_obj(&loc->kset,desc->name));
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %s ->%p\n",__FUNCTION__,loc,desc,desc->name,newloc);
+	vfi_location_put(newloc);
+	vfi_location_put(newloc);
 }
 
-static int rddma_local_smb_find(struct rddma_smb **smb, struct rddma_location *parent, struct rddma_desc_param *desc)
+static int vfi_local_smb_find(struct vfi_smb **smb, struct vfi_location *parent, struct vfi_desc_param *desc)
 {
-	*smb = to_rddma_smb(kset_find_obj(&parent->smbs->kset,desc->name));
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*smb);
+	*smb = to_vfi_smb(kset_find_obj(&parent->smbs->kset,desc->name));
+	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*smb);
 	return *smb == NULL;
 }
 
 /**
-* rddma_local_xfer_find - find an rddma_xfer object for a named xfer at the local site.
+* vfi_local_xfer_find - find an vfi_xfer object for a named xfer at the local site.
 * @parent : location where xfer officially resides (right here!)
 * @desc	  : target xfer parameter descriptor
 *
-* This function attempts to find an rddma_xfer object for the xfer described by @desc, 
+* This function attempts to find an vfi_xfer object for the xfer described by @desc, 
 * which officially resides at this site, whose location is formally defined by @parent.
 *
 * If no such xfer exists, the function will NOT attempt to create one. This conflicts somewhat
 * with traditional "find" policy.
 *
-* The function returns a pointer to the rddma_xfer object that represents the target xfer in the
+* The function returns a pointer to the vfi_xfer object that represents the target xfer in the
 * local tree, or NULL if nonesuch exists. It is the responsibility of the caller to create an xfer
 * in that case.
 *
 **/
-static int rddma_local_xfer_find(struct rddma_xfer **xfer, struct rddma_location *parent, struct rddma_desc_param *desc)
+static int vfi_local_xfer_find(struct vfi_xfer **xfer, struct vfi_location *parent, struct vfi_desc_param *desc)
 {
-	*xfer = to_rddma_xfer(kset_find_obj(&parent->xfers->kset,desc->name));
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*xfer);
+	*xfer = to_vfi_xfer(kset_find_obj(&parent->xfers->kset,desc->name));
+	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*xfer);
 	return *xfer == NULL;
 }
 
 /**
-* rddma_local_bind_find - find a bind belonging to a specified xfer
+* vfi_local_bind_find - find a bind belonging to a specified xfer
 * @parent : pointer to <xfer> object that bind belongs to
 * @desc   : <xfer> specification string
 *
@@ -105,28 +105,28 @@ static int rddma_local_xfer_find(struct rddma_xfer **xfer, struct rddma_location
 * some other part of the code.
 *
 **/
-static int rddma_local_bind_find(struct rddma_bind **bind, struct rddma_xfer *parent, struct rddma_desc_param *desc)
+static int vfi_local_bind_find(struct vfi_bind **bind, struct vfi_xfer *parent, struct vfi_desc_param *desc)
 {
 	char buf[128];
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	*bind = NULL;
 
 	if ( snprintf(buf,128,"#%llx:%x", desc->offset, desc->extent) > 128 )
 		goto out;
 
-	*bind = to_rddma_bind(kset_find_obj(&parent->binds->kset,buf));
+	*bind = to_vfi_bind(kset_find_obj(&parent->binds->kset,buf));
 
 out:
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*bind);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*bind);
 	return *bind == NULL;
 }
 
-int rddma_local_dst_find(struct rddma_dst **dst, struct rddma_bind *parent, struct rddma_bind_param *desc)
+int vfi_local_dst_find(struct vfi_dst **dst, struct vfi_bind *parent, struct vfi_bind_param *desc)
 {
 	char *buf = kzalloc (2048, GFP_KERNEL);
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	*dst = NULL;
 
@@ -138,19 +138,19 @@ int rddma_local_dst_find(struct rddma_dst **dst, struct rddma_bind *parent, stru
 		goto fail_printf;
 	}
 	
-	*dst = to_rddma_dst (kset_find_obj (&parent->dsts->kset, buf));
+	*dst = to_vfi_dst (kset_find_obj (&parent->dsts->kset, buf));
 	
 fail_printf:
 	kfree (buf);
 out:
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*dst);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*dst);
 	return *dst == NULL;
 }
 
-static int rddma_local_src_find(struct rddma_src **src, struct rddma_dst *parent, struct rddma_bind_param *desc)
+static int vfi_local_src_find(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind_param *desc)
 {
 	char *buf = kzalloc (2048, GFP_KERNEL);
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	*src = NULL;
 
@@ -160,43 +160,43 @@ static int rddma_local_src_find(struct rddma_src **src, struct rddma_dst *parent
 		goto fail_printf;
 	}
 	
-	*src = to_rddma_src (kset_find_obj (&parent->srcs->kset, buf));
+	*src = to_vfi_src (kset_find_obj (&parent->srcs->kset, buf));
 	
 fail_printf:
 	kfree (buf);
 out:
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*src);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*src);
 	return *src == NULL;
 }
 
 /*
  * C R E A T E     O P E R A T I O N S
  */
-static int rddma_local_location_create(struct rddma_location **newloc,struct rddma_location *loc, struct rddma_desc_param *desc)
+static int vfi_local_location_create(struct vfi_location **newloc,struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 	int ret;
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	ret = rddma_location_create(newloc,loc,desc);
+	ret = vfi_location_create(newloc,loc,desc);
 
 	if (*newloc && (*newloc)->desc.address)
 		(*newloc)->desc.address->ops->register_location(*newloc);
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,loc,desc,*newloc);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,loc,desc,*newloc);
 
 	return ret;
 }
 
-static int rddma_local_smb_create(struct rddma_smb **newsmb, struct rddma_location *loc, struct rddma_desc_param *desc)
+static int vfi_local_smb_create(struct vfi_smb **newsmb, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 	int ret;
-	struct rddma_smb *smb;
+	struct vfi_smb *smb;
 
 	*newsmb = NULL;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	ret = rddma_smb_create(&smb, loc, desc);
+	ret = vfi_smb_create(&smb, loc, desc);
 
 	if (smb == NULL)
 		return -EINVAL;
@@ -204,25 +204,25 @@ static int rddma_local_smb_create(struct rddma_smb **newsmb, struct rddma_locati
 	*newsmb = smb;
 
 	/* Allocate memory for this SMB */
-	if (rddma_alloc_pages(smb->size, smb->desc.offset, &smb->pages, 
+	if (vfi_alloc_pages(smb->size, smb->desc.offset, &smb->pages, 
 		&smb->num_pages) == 0)
 		return 0;
 
 	/* Failed */
-	rddma_smb_delete(smb);
+	vfi_smb_delete(smb);
 	*newsmb = NULL;
 	return -ENOMEM;
 }
 
-static int rddma_local_mmap_create(struct rddma_mmap **mmap, struct rddma_smb *smb, struct rddma_desc_param *desc)
+static int vfi_local_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	return rddma_mmap_create(mmap,smb,desc);
+	return vfi_mmap_create(mmap,smb,desc);
 }
 
 /**
-* rddma_local_dst_events - create events for bind <dst>
+* vfi_local_dst_events - create events for bind <dst>
 * @bind : bind object
 * @desc : bind descriptor
 *
@@ -236,34 +236,34 @@ static int rddma_local_mmap_create(struct rddma_mmap **mmap, struct rddma_smb *s
 * The dst_ready event is sent from <xfer> to <dst> to trigger a bind transfer action.
 * It uses the <dst>->dst_ready() op to deliver the signal. We specify <dst> here to show
 * intent, although in practise - since <dst> and <xfer> are co-located and local - it
-* always boils down to rddma_local_dst_ready().
+* always boils down to vfi_local_dst_ready().
 *
-* The dst_done event does not have a "start" op. That is because the RDDMA DMA layer knows
+* The dst_done event does not have a "start" op. That is because the VFI DMA layer knows
 * how to deliver the event - all it needs is the event pointer to do so.
 *
 **/
-static int rddma_local_dst_events(struct rddma_bind *bind, struct rddma_bind_param *desc)
+static int vfi_local_dst_events(struct vfi_bind *bind, struct vfi_bind_param *desc)
 {
 	/* Local destination SMB with a local transfer agent. */
-	struct rddma_events *event_list;
+	struct vfi_events *event_list;
 	char *event_name;
 	int ret;
 
-	event_name = rddma_get_option(&bind->desc.dst,"event_name");
+	event_name = vfi_get_option(&bind->desc.dst,"event_name");
 
 	if (event_name == NULL)
 		goto fail;
 
-	ret = find_rddma_events(&event_list,rddma_subsys->events,event_name);
+	ret = find_vfi_events(&event_list,vfi_subsys->events,event_name);
 	if (event_list == NULL)
-		ret = rddma_events_create(&event_list,rddma_subsys->events,event_name);
+		ret = vfi_events_create(&event_list,vfi_subsys->events,event_name);
 
 	if (event_list == NULL)
 		goto fail;
 
-	ret = rddma_event_create(&bind->dst_done_event,event_list,&desc->dst,bind,0,(int)&bind->dst_done_event);
+	ret = vfi_event_create(&bind->dst_done_event,event_list,&desc->dst,bind,0,(int)&bind->dst_done_event);
 
-	ret = rddma_event_create(&bind->dst_ready_event,event_list,&desc->dst,bind,bind->desc.dst.ops->dst_ready,(int)&bind->dst_ready_event);
+	ret = vfi_event_create(&bind->dst_ready_event,event_list,&desc->dst,bind,bind->desc.dst.ops->dst_ready,(int)&bind->dst_ready_event);
 						   
 	return 0;
 
@@ -272,33 +272,33 @@ fail:
 }
 
 /**
-* rddma_local_dst_ev_delete - delete <dst> events
+* vfi_local_dst_ev_delete - delete <dst> events
 * @bind : bind object that events belong to
 * @desc : bind descriptor
 *
-* This function compliments rddma_local_dst_events() by deleting the two <dst> events that
+* This function compliments vfi_local_dst_events() by deleting the two <dst> events that
 * function creates. Pointers to dst_ready and dst_done events are required to be present in @bind.
 *
 * This "local" function will run when <dst> and <xfer> share the same location.
 *
 **/
-static void rddma_local_dst_ev_delete (struct rddma_bind *bind, struct rddma_bind_param *desc)
+static void vfi_local_dst_ev_delete (struct vfi_bind *bind, struct vfi_bind_param *desc)
 {
-	RDDMA_DEBUG (MY_DEBUG, "%s: for %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", __func__,
+	VFI_DEBUG (MY_DEBUG, "%s: for %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", __func__,
 	             desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
 	             desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent,
 	             desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
-	RDDMA_DEBUG (MY_DEBUG, "dst_ready (%p, %08x), dst_done (%p, %08x)\n",
+	VFI_DEBUG (MY_DEBUG, "dst_ready (%p, %08x), dst_done (%p, %08x)\n",
 	             bind->dst_ready_event, bind->dst_ready_event_id,
 	             bind->dst_done_event, bind->dst_done_event_id);
-	rddma_event_delete (bind->dst_ready_event);
-	rddma_event_delete (bind->dst_done_event);
+	vfi_event_delete (bind->dst_ready_event);
+	vfi_event_delete (bind->dst_done_event);
 	bind->dst_ready_event = bind->dst_done_event = NULL;
 	bind->dst_ready_event_id = bind->dst_done_event_id = 0;
 }
 
 /**
-* rddma_local_dsts_create - create bind destinations list, and its subsidiaries.
+* vfi_local_dsts_create - create bind destinations list, and its subsidiaries.
 * @parent : the bind object whose dst components are here being created
 * @desc   : full descriptor of the bind being created
 *
@@ -313,15 +313,15 @@ static void rddma_local_dst_ev_delete (struct rddma_bind *bind, struct rddma_bin
 * parent bind.
 *
 **/
-static int rddma_local_dsts_create(struct rddma_dsts **dsts, struct rddma_bind *parent, struct rddma_bind_param *desc)
+static int vfi_local_dsts_create(struct vfi_dsts **dsts, struct vfi_bind *parent, struct vfi_bind_param *desc)
 {
 	int page, first_page, last_page;
-	struct rddma_bind_param params = *desc;
-	struct rddma_smb *dsmb = NULL;
-	struct rddma_dst *new = NULL;
+	struct vfi_bind_param params = *desc;
+	struct vfi_smb *dsmb = NULL;
+	struct vfi_dst *new = NULL;
 	int ret;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
+	VFI_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
 
 	/*
 	* Invoke the <xfer> dst_events op, and check the result.
@@ -331,9 +331,9 @@ static int rddma_local_dsts_create(struct rddma_dsts **dsts, struct rddma_bind *
 	if (parent->desc.xfer.ops->dst_events(parent,desc))
 		goto fail_events;
 
-	ret = rddma_dsts_create(dsts,parent,desc);
+	ret = vfi_dsts_create(dsts,parent,desc);
 
-	ret = find_rddma_smb(&dsmb,&desc->dst);
+	ret = find_vfi_smb(&dsmb,&desc->dst);
 	if ( NULL == dsmb )
 		goto fail_dsmb;
 
@@ -385,10 +385,10 @@ join:
 			params.dst.extent = params.src.extent = PAGE_SIZE;
 	} 
 
-	rddma_bind_load_dsts(parent);
+	vfi_bind_load_dsts(parent);
 
-	if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
-		rddma_dma_chain_dump(&parent->dma_chain);
+	if (vfi_debug_level & VFI_DBG_DMA_CHAIN)
+		vfi_dma_chain_dump(&parent->dma_chain);
 
 	parent->end_of_chain = parent->dma_chain.prev;
 
@@ -396,14 +396,14 @@ join:
 
 fail_newdst:
 fail_ddesc:
-	rddma_smb_put(dsmb);
+	vfi_smb_put(dsmb);
 fail_dsmb:
 fail_events:
 	return -EINVAL;
 }
 
 /**
-* rddma_local_bind_create - create a bind within an xfer
+* vfi_local_bind_create - create a bind within an xfer
 * @xfer:
 * @desc:
 *
@@ -412,14 +412,14 @@ fail_events:
 * descriptor subtree.
 *
 **/
-static int rddma_local_bind_create(struct rddma_bind **bind, struct rddma_xfer *xfer, struct rddma_bind_param *desc)
+static int vfi_local_bind_create(struct vfi_bind **bind, struct vfi_xfer *xfer, struct vfi_bind_param *desc)
 {
-	struct rddma_dsts *dsts;
-	struct rddma_dsts *rdsts;
-	struct rddma_smb *ssmb = NULL;
-	struct rddma_smb *dsmb = NULL;
+	struct vfi_dsts *dsts;
+	struct vfi_dsts *rdsts;
+	struct vfi_smb *ssmb = NULL;
+	struct vfi_smb *dsmb = NULL;
 	int ret;
-	RDDMA_DEBUG (MY_DEBUG,"%s: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n",
+	VFI_DEBUG (MY_DEBUG,"%s: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n",
 		    __FUNCTION__, 
 		     desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, 
 		     desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent, 
@@ -448,7 +448,7 @@ static int rddma_local_bind_create(struct rddma_bind **bind, struct rddma_xfer *
 	* create its dsts/ subtree.
 	*
 	*/
-	if ( !(ret = rddma_bind_create(bind,xfer, desc))) {
+	if ( !(ret = vfi_bind_create(bind,xfer, desc))) {
 		/*
 		* Once the bind object has been installed in the sysfs
 		* tree, create and register its dsts subtree. Each bind
@@ -470,7 +470,7 @@ static int rddma_local_bind_create(struct rddma_bind **bind, struct rddma_xfer *
 		* different locations to interoperate.
 		*
 		*/
-		if ( !(ret = rddma_dsts_create(&dsts,*bind,desc)) ) {
+		if ( !(ret = vfi_dsts_create(&dsts,*bind,desc)) ) {
 			/*
 			* The dsts object is simply a hook, beneath
 			* which we want to sling a series of bind
@@ -484,7 +484,7 @@ static int rddma_local_bind_create(struct rddma_bind **bind, struct rddma_xfer *
 			* 1. Destination SMB exists?
 			*
 			*/
-			ret = find_rddma_smb(&dsmb,&desc->dst);
+			ret = find_vfi_smb(&dsmb,&desc->dst);
 			if ( NULL == dsmb )
 				goto fail_dsmb;
 			/*
@@ -495,7 +495,7 @@ static int rddma_local_bind_create(struct rddma_bind **bind, struct rddma_xfer *
 			/*
 			* 3. source SMB exists?
 			*/
-			ret = find_rddma_smb(&ssmb,&desc->src);
+			ret = find_vfi_smb(&ssmb,&desc->src);
 			if ( NULL == ssmb)
 				goto fail_ddesc;
 			/*
@@ -509,8 +509,8 @@ static int rddma_local_bind_create(struct rddma_bind **bind, struct rddma_xfer *
 			* ops (and location) of their bind counterparts.
 			*
 			*/
-			rddma_inherit(&(*bind)->desc.src,&ssmb->desc);
-			rddma_inherit(&(*bind)->desc.dst,&dsmb->desc);
+			vfi_inherit(&(*bind)->desc.src,&ssmb->desc);
+			vfi_inherit(&(*bind)->desc.dst,&dsmb->desc);
 
 			/*
 			* Create the dsts for real, and what lies beneath it.
@@ -520,15 +520,15 @@ static int rddma_local_bind_create(struct rddma_bind **bind, struct rddma_xfer *
 			if ( NULL == rdsts)
 				goto fail_dst;
 
-			rddma_xfer_load_binds(xfer,*bind);
+			vfi_xfer_load_binds(xfer,*bind);
 
-			if (rddma_debug_level & RDDMA_DBG_DMA_CHAIN)
-				rddma_dma_chain_dump(&(*bind)->dma_chain);
+			if (vfi_debug_level & VFI_DBG_DMA_CHAIN)
+				vfi_dma_chain_dump(&(*bind)->dma_chain);
 
 			return 0;
 		}
-		RDDMA_DEBUG (MY_DEBUG, "xxx Failed to create bind %s - deleting\n", kobject_name (&(*bind)->kobj));
-		rddma_bind_delete(xfer,&desc->xfer);
+		VFI_DEBUG (MY_DEBUG, "xxx Failed to create bind %s - deleting\n", kobject_name (&(*bind)->kobj));
+		vfi_bind_delete(xfer,&desc->xfer);
 		*bind = NULL;
 		return ret;
 	}
@@ -537,18 +537,18 @@ static int rddma_local_bind_create(struct rddma_bind **bind, struct rddma_xfer *
 
 fail_dst:
 fail_sdesc:
-	rddma_smb_put(ssmb);
+	vfi_smb_put(ssmb);
 fail_ddesc:
-	rddma_smb_put(dsmb);
+	vfi_smb_put(dsmb);
 fail_dsmb:
-	rddma_dsts_delete(dsts);
+	vfi_dsts_delete(dsts);
 	if (!ret)
 		ret = -ENOMEM;
 	return ret;
 }
 
 /**
-* rddma_local_dst_create
+* vfi_local_dst_create
 * @parent : parent bind object
 * @desc   : bind descriptor
 *
@@ -560,12 +560,12 @@ fail_dsmb:
 *
 *
 **/
-static int rddma_local_dst_create(struct rddma_dst **dst, struct rddma_bind *parent, struct rddma_bind_param *desc)
+static int vfi_local_dst_create(struct vfi_dst **dst, struct vfi_bind *parent, struct vfi_bind_param *desc)
 {
-	struct rddma_srcs *srcs;
+	struct vfi_srcs *srcs;
 	int ret;
 
-	ret = rddma_dst_create(dst,parent,desc);
+	ret = vfi_dst_create(dst,parent,desc);
 
 	if (ret)
 		return ret;
@@ -576,7 +576,7 @@ static int rddma_local_dst_create(struct rddma_dst **dst, struct rddma_bind *par
 	ret = parent->desc.src.ops->srcs_create(&srcs,*dst,desc);
 	
 	if (ret || !srcs) {
-		rddma_dst_put(*dst);
+		vfi_dst_put(*dst);
 		*dst = NULL;
 		return ret ? ret : -ENOMEM;
 	}
@@ -584,7 +584,7 @@ static int rddma_local_dst_create(struct rddma_dst **dst, struct rddma_bind *par
 }
 
 
-static int rddma_local_xfer_create(struct rddma_xfer **xfer, struct rddma_location *loc, struct rddma_desc_param *desc)
+static int vfi_local_xfer_create(struct vfi_xfer **xfer, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 	unsigned long extent = desc->extent;
 	unsigned long long offset = desc->offset;
@@ -593,18 +593,18 @@ static int rddma_local_xfer_create(struct rddma_xfer **xfer, struct rddma_locati
 	desc->offset = 0;
 	desc->extent = 0;
 
-	ret = rddma_xfer_create(xfer,loc,desc);
+	ret = vfi_xfer_create(xfer,loc,desc);
 
 	desc->offset = offset;
 	desc->extent = extent;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %p\n",__FUNCTION__,loc,desc,*xfer);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %p\n",__FUNCTION__,loc,desc,*xfer);
 
 	return ret;
 }
 
 /**
-* rddma_local_src_events - create events for bind <src>
+* vfi_local_src_events - create events for bind <src>
 * @dst  : parent <dst> object
 * @desc : bind descriptor
 *
@@ -618,45 +618,45 @@ static int rddma_local_xfer_create(struct rddma_xfer **xfer, struct rddma_locati
 * The src_ready event is sent from <xfer> to <src> to trigger a bind transfer action.
 * It uses the <src>->src_ready() op to deliver the signal. We specify <src> here to show
 * intent, although in practise - since <src> and <xfer> are co-located and local - it
-* always boils down to rddma_local_src_ready().
+* always boils down to vfi_local_src_ready().
 *
-* The src_done event does not have a "start" op. That is because the RDDMA DMA layer knows
+* The src_done event does not have a "start" op. That is because the VFI DMA layer knows
 * how to deliver the event - all it needs is the event pointer to do so.
 *
 * The @dst argument points to the <dst> with which this <src> is associated: it is required
 * that @dst parent point at the <bind> that owns both.
 **/
-static int rddma_local_src_events(struct rddma_dst *parent, struct rddma_bind_param *desc)
+static int vfi_local_src_events(struct vfi_dst *parent, struct vfi_bind_param *desc)
 {
 	/* Local source SMB with a local transfer agent. */
-	struct rddma_bind *bind;
-	struct rddma_events *event_list;
+	struct vfi_bind *bind;
+	struct vfi_events *event_list;
 	char *event_name;
 	int ret;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s dst_parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
+	VFI_DEBUG(MY_DEBUG,"%s dst_parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
 
-	bind = rddma_dst_parent(parent);
+	bind = vfi_dst_parent(parent);
 
-	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)->src_done_event(%p)\n",__FUNCTION__,bind,bind->src_done_event);
+	VFI_DEBUG(MY_DEBUG,"%s bind(%p)->src_done_event(%p)\n",__FUNCTION__,bind,bind->src_done_event);
 	if (bind->src_done_event)
 		return 0;
 
-	event_name = rddma_get_option(&desc->src,"event_name");
+	event_name = vfi_get_option(&desc->src,"event_name");
 	
 	if (event_name == NULL)
 		goto event_name_fail;
 
-	ret = find_rddma_events(&event_list,rddma_subsys->events,event_name);
+	ret = find_vfi_events(&event_list,vfi_subsys->events,event_name);
 	if (event_list == NULL)
-		ret = rddma_events_create(&event_list,rddma_subsys->events,event_name);
+		ret = vfi_events_create(&event_list,vfi_subsys->events,event_name);
 
 	if (event_list == NULL)
 		goto dones_fail;
 
-	ret = rddma_event_create(&bind->src_done_event,event_list,&desc->src,bind,0,(int)parent);
+	ret = vfi_event_create(&bind->src_done_event,event_list,&desc->src,bind,0,(int)parent);
 
-	ret = rddma_event_create(&bind->src_ready_event,event_list,&desc->src,bind,bind->desc.src.ops->src_ready,(int)&parent->srcs);
+	ret = vfi_event_create(&bind->src_ready_event,event_list,&desc->src,bind,bind->desc.src.ops->src_ready,(int)&parent->srcs);
 		
 	return ret;
 
@@ -670,25 +670,25 @@ event_name_fail:
 *
 *
 **/
-static void rddma_local_src_ev_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
+static void vfi_local_src_ev_delete (struct vfi_dst *parent, struct vfi_bind_param *desc)
 {
-	struct rddma_bind *bind = rddma_dst_parent (parent);
+	struct vfi_bind *bind = vfi_dst_parent (parent);
 	
-	RDDMA_DEBUG (MY_DEBUG, "%s: for %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", __func__,
+	VFI_DEBUG (MY_DEBUG, "%s: for %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", __func__,
 	             desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
 	             desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent,
 	             desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
-	RDDMA_DEBUG (MY_DEBUG, "src_ready (%p, %08x), src_done (%p, %08x)\n",
+	VFI_DEBUG (MY_DEBUG, "src_ready (%p, %08x), src_done (%p, %08x)\n",
 	             bind->src_ready_event, bind->src_ready_event_id,
 	             bind->src_done_event, bind->src_done_event_id);
-	rddma_event_delete (bind->src_ready_event);
-	rddma_event_delete (bind->src_done_event);
+	vfi_event_delete (bind->src_ready_event);
+	vfi_event_delete (bind->src_done_event);
 	bind->src_ready_event = bind->src_done_event = NULL;
 	bind->src_ready_event_id = bind->src_done_event_id = 0;
 }
 
 /**
-* rddma_local_srcs_create - create bind <srcs> kset on local tree
+* vfi_local_srcs_create - create bind <srcs> kset on local tree
 * @parent : pointer to bind <dst> to which these <srcs> are to be attached
 * @desc   : descriptor of governing bind
 *
@@ -716,23 +716,23 @@ static void rddma_local_src_ev_delete (struct rddma_dst *parent, struct rddma_bi
 * 
 *
 **/
-static int rddma_local_srcs_create(struct rddma_srcs **srcs, struct rddma_dst *parent, struct rddma_bind_param *desc)
+static int vfi_local_srcs_create(struct vfi_srcs **srcs, struct vfi_dst *parent, struct vfi_bind_param *desc)
 {
 /* 	srcs_create://tp.x:2000/d.p#uuuuu000:1000=s.r#c000:1000 */
 
 	int page, first_page, last_page;
 	int ret;
-	struct rddma_smb *smb;
-	struct rddma_src *src;
-	struct rddma_bind_param params = *desc;
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	struct vfi_smb *smb;
+	struct vfi_src *src;
+	struct vfi_bind_param params = *desc;
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	/*
 	* Create the <srcs> kset and install it in the
 	* local instance of its parent <dst>. 
 	*
 	*/
-	ret = rddma_srcs_create(srcs,parent,desc);
+	ret = vfi_srcs_create(srcs,parent,desc);
 
 	if (ret)
 		return ret;
@@ -751,7 +751,7 @@ static int rddma_local_srcs_create(struct rddma_srcs **srcs, struct rddma_dst *p
 	* is home to the <smb>, otherwise we wouldn't be here.
 	*
 	*/
-	ret = find_rddma_smb(&smb,&desc->src);
+	ret = find_vfi_smb(&smb,&desc->src);
 
 	/*
 	* Now for page calculations. Calculate page address
@@ -791,19 +791,19 @@ join2:
 			params.src.extent = PAGE_SIZE;
 	} 
 
-	rddma_dst_load_srcs(parent);
+	vfi_dst_load_srcs(parent);
 
 	return 0;
 
 fail_newsrc:
-	rddma_smb_put(smb);
-	rddma_srcs_delete(*srcs);
+	vfi_smb_put(smb);
+	vfi_srcs_delete(*srcs);
 	*srcs = NULL;
 	return -EINVAL;
 }
 
 /**
-* rddma_local_src_create - create a bind <src> component
+* vfi_local_src_create - create a bind <src> component
 * @parent : bind <dst> with which this <src> is to be associated
 * @desc   : descriptor of overall bind
 *
@@ -816,13 +816,13 @@ fail_newsrc:
 * is where this local function is expected to be running.
 *
 **/
-static int rddma_local_src_create(struct rddma_src **src, struct rddma_dst *parent, struct rddma_bind_param *desc)
+static int vfi_local_src_create(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind_param *desc)
 {
 /* 	src_create://tp.x:2000/d.p#uuuuu000:800=s.r#xxxxx800:800 */
 	int ret;
-	RDDMA_DEBUG(MY_DEBUG,"%s %s.%s#%llx:%x\n",__FUNCTION__,desc->src.name,desc->src.location, desc->src.offset,desc->src.extent);
+	VFI_DEBUG(MY_DEBUG,"%s %s.%s#%llx:%x\n",__FUNCTION__,desc->src.name,desc->src.location, desc->src.offset,desc->src.extent);
 
-	ret = rddma_src_create(src,parent,desc);
+	ret = vfi_src_create(src,parent,desc);
 
 	return ret;
 }
@@ -831,37 +831,37 @@ static int rddma_local_src_create(struct rddma_src **src, struct rddma_dst *pare
 /*
  * D E L E T E    O P E R A T I O N S
  */
-static void rddma_local_location_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
+static void vfi_local_location_delete(struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	struct rddma_location *target = loc;
+	struct vfi_location *target = loc;
 	int ret;
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
 	
 	if (desc->location && *desc->location)
-		ret = find_rddma_name(&target,loc,desc);
+		ret = find_vfi_name(&target,loc,desc);
 
-	rddma_location_delete(target);
+	vfi_location_delete(target);
 }
 
-static void rddma_local_smb_delete(struct rddma_location *loc, struct rddma_desc_param *desc)
+static void vfi_local_smb_delete(struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	struct rddma_smb *smb;
+	struct vfi_smb *smb;
 
-	rddma_local_smb_find(&smb, loc,desc);
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	vfi_local_smb_find(&smb, loc,desc);
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	if (smb) {
-		rddma_smb_put(smb);
-		rddma_smb_delete(smb);
+		vfi_smb_put(smb);
+		vfi_smb_delete(smb);
 	}
 }
 
-static void rddma_local_mmap_delete(struct rddma_smb *smb, struct rddma_desc_param *desc)
+static void vfi_local_mmap_delete(struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
-	rddma_mmap_delete(smb,desc);
+	vfi_mmap_delete(smb,desc);
 }
 
 /**
- * rddma_local_srcs_delete - delete bind <dst> fragment <srcs> and any <src> subsidiaries
+ * vfi_local_srcs_delete - delete bind <dst> fragment <srcs> and any <src> subsidiaries
  * @parent : bind to which target <srcs> belongs
  * @desc   : bind parameter descriptor
  *
@@ -883,13 +883,13 @@ static void rddma_local_mmap_delete(struct rddma_smb *smb, struct rddma_desc_par
  * The function works by running through the list of <src> fragments in <srcs>, deleting
  * each in turn. It then "deletes" the <srcs> kset itself, by means of a put on its refcount.
  **/
-static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
+static struct vfi_dst *vfi_local_srcs_delete (struct vfi_dst *parent, struct vfi_bind_param *desc)
 {
 	struct list_head *entry, *safety;
-	struct rddma_srcs *srcs = parent->srcs;
-	struct rddma_bind *bind = parent->bind;
+	struct vfi_srcs *srcs = parent->srcs;
+	struct vfi_bind *bind = parent->bind;
 	
-	RDDMA_DEBUG (MY_DEBUG,"%s for %s.%s#%llx:%x\n",__FUNCTION__, 
+	VFI_DEBUG (MY_DEBUG,"%s for %s.%s#%llx:%x\n",__FUNCTION__, 
 		     parent->desc.xfer.name, parent->desc.xfer.location,parent->desc.xfer.offset, parent->desc.xfer.extent);
 #if 0	
 	printk ("%s: Dst  - %s.%s#%llx:%x(%p)/%s.%s#%llx:%x(%p)=%s.%s#%llx:%x(%p)\n", 
@@ -911,11 +911,11 @@ static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, stru
 
 	if (srcs) {
 		int dstref = 0;
-		RDDMA_DEBUG (MY_DEBUG, "-- Srcs \"%s\"\n", kobject_name (&srcs->kset.kobj));
+		VFI_DEBUG (MY_DEBUG, "-- Srcs \"%s\"\n", kobject_name (&srcs->kset.kobj));
 		if (!list_empty (&srcs->kset.list)) {
 			list_for_each_safe (entry, safety, &srcs->kset.list) {
-				struct rddma_src      *src;
-				src = to_rddma_src (to_kobj (entry));
+				struct vfi_src      *src;
+				src = to_vfi_src (to_kobj (entry));
 				if (src && src->desc.xfer.ops->src_delete) {
 					src->desc.xfer.ops->src_delete (parent, &src->desc);
 				}
@@ -931,7 +931,7 @@ static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, stru
 				}
 			}
 		}
-		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Srcs Count: %lx\n", (unsigned long)srcs->kset.kobj.kref.refcount.counter);
+		VFI_DEBUG (MY_LIFE_DEBUG, "-- Srcs Count: %lx\n", (unsigned long)srcs->kset.kobj.kref.refcount.counter);
 
 		if (parent->desc.xfer.ops->src_ev_delete) {
 			parent->desc.xfer.ops->src_ev_delete (parent, desc);
@@ -943,7 +943,7 @@ static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, stru
 		
 
 		
-		rddma_srcs_delete (srcs);
+		vfi_srcs_delete (srcs);
 		
 		/*
 		* Clean-up on-the-fly bind hierarchy
@@ -958,11 +958,11 @@ static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, stru
 		dstref = atomic_read (&parent->kobj.kref.refcount);
 //		printk ("%s: Parent Refcount is %d\n", __func__, dstref);
 		if (parent->desc.src.ops != parent->desc.xfer.ops && dstref == 2) {
-			struct rddma_dsts *dsts = (bind) ? bind->dsts : NULL;
+			struct vfi_dsts *dsts = (bind) ? bind->dsts : NULL;
 			
-			RDDMA_KTRACE ("<*** %s - unravel on-the-fly bind...dst IN ***>\n", __func__);
-			RDDMA_KTRACE ("-- %s: Bind (%p), Dsts (%p), Dst (%p)\n", __func__, bind, dsts, parent);
-			rddma_dst_unregister (parent);
+			VFI_KTRACE ("<*** %s - unravel on-the-fly bind...dst IN ***>\n", __func__);
+			VFI_KTRACE ("-- %s: Bind (%p), Dsts (%p), Dst (%p)\n", __func__, bind, dsts, parent);
+			vfi_dst_unregister (parent);
 			parent = NULL;
 			
 			/*
@@ -978,33 +978,33 @@ static struct rddma_dst *rddma_local_srcs_delete (struct rddma_dst *parent, stru
 				*
 				*/
 				if (bindref < 3) {
-					RDDMA_KTRACE ("-- Whoopsie - bindref %d too small for \"%s\"\n", bindref, kobject_name (&bind->kobj));
+					VFI_KTRACE ("-- Whoopsie - bindref %d too small for \"%s\"\n", bindref, kobject_name (&bind->kobj));
 					while (bindref < 3) {
 						kobject_get (&bind->kobj);
 						bindref++;
 					}
 				}
-				rddma_dsts_unregister (dsts);
-				rddma_bind_unregister (bind);
+				vfi_dsts_unregister (dsts);
+				vfi_bind_unregister (bind);
 			}
-			RDDMA_KTRACE ("<*** %s - unravel on-the-fly bind...dst OUT ***>\n", __func__);
+			VFI_KTRACE ("<*** %s - unravel on-the-fly bind...dst OUT ***>\n", __func__);
 		}
 		else {
-			RDDMA_KTRACE ("<*** %s - did NOT unravel any on-the-fly bind ***>\n", __func__);
+			VFI_KTRACE ("<*** %s - did NOT unravel any on-the-fly bind ***>\n", __func__);
 		}
 	}
 	return (parent);
 }
 
 /**
-* rddma_local_src_delete - Delete bind <src> fragment
+* vfi_local_src_delete - Delete bind <src> fragment
 * 
 *
 *
 **/
-static void rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_param *desc)
+static void vfi_local_src_delete (struct vfi_dst *parent, struct vfi_bind_param *desc)
 {	
-	RDDMA_DEBUG (MY_DEBUG, "%s (%s.%s#%llx:%x/%s.%s#%llx:%x=<*>)\n", __func__, 
+	VFI_DEBUG (MY_DEBUG, "%s (%s.%s#%llx:%x/%s.%s#%llx:%x=<*>)\n", __func__, 
 	             desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, 
 	             desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent);
 	printk ("-- Parent bind: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", 
@@ -1012,12 +1012,12 @@ static void rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_
 	        parent->desc.dst.name, parent->desc.dst.location, parent->desc.dst.offset, parent->desc.dst.extent, 
 	        parent->desc.src.name, parent->desc.src.location, parent->desc.src.offset, parent->desc.src.extent);
 	
-	rddma_src_delete (parent, desc);
+	vfi_src_delete (parent, desc);
 }
 
 
 /**
-* rddma_local_dsts_delete - Delete bind destinations
+* vfi_local_dsts_delete - Delete bind destinations
 * @parent : pointer to bind object being deleted
 * @desc   : descriptor of bind being deleted
 *
@@ -1033,19 +1033,19 @@ static void rddma_local_src_delete (struct rddma_dst *parent, struct rddma_bind_
 * dst_delete requests for the <dst> fragments it carries.
 *
 **/
-static struct rddma_bind *rddma_local_dsts_delete (struct rddma_bind *parent, struct rddma_bind_param *desc)
+static struct vfi_bind *vfi_local_dsts_delete (struct vfi_bind *parent, struct vfi_bind_param *desc)
 {
 	struct list_head *entry, *safety;
-	struct rddma_dsts *dsts = parent->dsts;
+	struct vfi_dsts *dsts = parent->dsts;
 	
-	RDDMA_DEBUG (MY_DEBUG,"%s for %s.%s#%llx:%x\n",__FUNCTION__, 
+	VFI_DEBUG (MY_DEBUG,"%s for %s.%s#%llx:%x\n",__FUNCTION__, 
 		     parent->desc.xfer.name, parent->desc.xfer.location,parent->desc.xfer.offset, parent->desc.xfer.extent);
 	if (dsts) {
-		RDDMA_DEBUG (MY_DEBUG, "-- Dsts \"%s\"\n", kobject_name (&dsts->kset.kobj));
+		VFI_DEBUG (MY_DEBUG, "-- Dsts \"%s\"\n", kobject_name (&dsts->kset.kobj));
 		if (!list_empty (&dsts->kset.list)) {
 			list_for_each_safe (entry, safety, &dsts->kset.list) {
-				struct rddma_dst      	*dst;
-				dst = to_rddma_dst (to_kobj (entry));
+				struct vfi_dst      	*dst;
+				dst = to_vfi_dst (to_kobj (entry));
 				dst->desc.xfer.ops->dst_delete (parent, &dst->desc);
 			}
 			
@@ -1062,7 +1062,7 @@ static struct rddma_bind *rddma_local_dsts_delete (struct rddma_bind *parent, st
 			}
 		}
 		
-		RDDMA_DEBUG (MY_LIFE_DEBUG, "-- Dsts Count: %lx\n", (unsigned long)dsts->kset.kobj.kref.refcount.counter);
+		VFI_DEBUG (MY_LIFE_DEBUG, "-- Dsts Count: %lx\n", (unsigned long)dsts->kset.kobj.kref.refcount.counter);
 
 		if (parent->desc.xfer.ops->dst_ev_delete) {
 			parent->desc.xfer.ops->dst_ev_delete (parent, desc);
@@ -1071,7 +1071,7 @@ static struct rddma_bind *rddma_local_dsts_delete (struct rddma_bind *parent, st
 			printk ("xxx %s: bind xfer has no dst_ev_delete() op!\n", __func__);
 		}
 		
-		rddma_dsts_delete (dsts);
+		vfi_dsts_delete (dsts);
 		
 		/*
 		* HACK ALERT:
@@ -1097,7 +1097,7 @@ static struct rddma_bind *rddma_local_dsts_delete (struct rddma_bind *parent, st
 			else {
 				printk ("-- Bindref is now at %d\n", bindref);
 			}
-			rddma_bind_unregister (parent);
+			vfi_bind_unregister (parent);
 			parent = NULL;
 		}
 	}
@@ -1105,7 +1105,7 @@ static struct rddma_bind *rddma_local_dsts_delete (struct rddma_bind *parent, st
 }
 
 /**
-* rddma_local_dst_delete - Delete bind <dst> fragment and its <srcs> subsidiaries
+* vfi_local_dst_delete - Delete bind <dst> fragment and its <srcs> subsidiaries
 * @parent : pointer to parent bind object
 * @desc   : bind parameter descriptor
 *
@@ -1117,12 +1117,12 @@ static struct rddma_bind *rddma_local_dsts_delete (struct rddma_bind *parent, st
 *
 *
 **/
-static void rddma_local_dst_delete(struct rddma_bind *parent, struct rddma_bind_param *desc)
+static void vfi_local_dst_delete(struct vfi_bind *parent, struct vfi_bind_param *desc)
 {
-	struct rddma_dst *dst;
+	struct vfi_dst *dst;
 	int ret;
 
-	RDDMA_DEBUG (MY_DEBUG, "%s (%s.%s#%llx:%x/%s.%s#%llx:%x=<*>)\n", __func__, 
+	VFI_DEBUG (MY_DEBUG, "%s (%s.%s#%llx:%x/%s.%s#%llx:%x=<*>)\n", __func__, 
 		desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, 
 		desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent);
 /*
@@ -1138,82 +1138,82 @@ static void rddma_local_dst_delete(struct rddma_bind *parent, struct rddma_bind_
 	* additional refcount is successfully countermanded somewhere
 	* in the dst_delete chain.
 	*/
-	if (!(ret = find_rddma_dst_in(&dst,parent,desc))) {
+	if (!(ret = find_vfi_dst_in(&dst,parent,desc))) {
 		parent->desc.src.ops->srcs_delete(dst,desc);
-		rddma_dst_delete(parent,desc);
+		vfi_dst_delete(parent,desc);
 	}
 }
 
-static void rddma_local_done(struct rddma_event *event)
+static void vfi_local_done(struct vfi_event *event)
 {
 	/* A DMA engine, either local or remote, has completed a
 	 * transfer involving a local smb as the source or
 	 * destination. Do vote adjustment. */
-	struct rddma_events *e = to_rddma_events(event->kobj.parent);
+	struct vfi_events *e = to_vfi_events(event->kobj.parent);
 
 	e->count--;
 
 	if (e->count == 0)
 		complete(&e->dma_sync);
 
-	RDDMA_DEBUG(MY_DEBUG,"%s event(%p) events(%p) count(%d)\n",__FUNCTION__,event,e,e->count);
+	VFI_DEBUG(MY_DEBUG,"%s event(%p) events(%p) count(%d)\n",__FUNCTION__,event,e,e->count);
 }
 
-static void rddma_local_src_done(struct rddma_bind *bind)
+static void vfi_local_src_done(struct vfi_bind *bind)
 {
 	/* A DMA engine, either local or remote, has completed a
 	 * transfer involving a local smb as the source. Do vote
 	 * adjustment. */
-	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
-	rddma_bind_src_done(bind);
+	VFI_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
+	vfi_bind_src_done(bind);
 	bind->desc.src.ops->done(bind->src_done_event);
 }
 
-static void rddma_local_dst_done(struct rddma_bind *bind)
+static void vfi_local_dst_done(struct vfi_bind *bind)
 {
 	/* A DMA engine, either local or remote, has completed a
 	 * transfer involving a local SMB as the destination. Do vote
 	 * ajustment accordingly */
-	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
-	rddma_bind_dst_done(bind);
+	VFI_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
+	vfi_bind_dst_done(bind);
 	bind->desc.dst.ops->done(bind->dst_done_event);
 }
 
-static void rddma_local_src_ready(struct rddma_bind *bind)
+static void vfi_local_src_ready(struct vfi_bind *bind)
 {
 	/* Someone, either locally or via the fabric, executed start
 	 * on an event which is telling us, the local DMA engine
 	 * assigned for this bind, that the source SMB, which may be
 	 * local or remote, is ready for action. */
-	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
-	if (rddma_bind_src_ready(bind))
+	VFI_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
+	if (vfi_bind_src_ready(bind))
 		bind->desc.xfer.rde->ops->queue_transfer(&bind->descriptor);
 	
 }
 
-static void rddma_local_dst_ready(struct rddma_bind *bind)
+static void vfi_local_dst_ready(struct vfi_bind *bind)
 {
 	/* Someone, either locally or via the fabric, executed start on
 	 * an event which is telling us, the local DMA engine assigned
 	 * for this bind, that the destination SMB, which may be local
 	 * or remote, is ready for action. */
-	RDDMA_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
-	if (rddma_bind_dst_ready(bind))
+	VFI_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
+	if (vfi_bind_dst_ready(bind))
 		bind->desc.xfer.rde->ops->queue_transfer(&bind->descriptor);
 }
 
-static int rddma_local_event_start(struct rddma_location *loc, struct rddma_desc_param *desc)
+static int vfi_local_event_start(struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	struct rddma_events *event_list;
+	struct vfi_events *event_list;
 	int ret;
-	ret = find_rddma_events(&event_list,rddma_subsys->events,desc->name);
+	ret = find_vfi_events(&event_list,vfi_subsys->events,desc->name);
 	if (event_list == NULL )
 		return -EINVAL;
 
 	/* Loop through the event chain if any */
 	while (event_list) {
-		RDDMA_DEBUG(MY_DEBUG,"--TSH-- %s: Starting event\n",__FUNCTION__);
-		rddma_events_start(event_list);
+		VFI_DEBUG(MY_DEBUG,"--TSH-- %s: Starting event\n",__FUNCTION__);
+		vfi_events_start(event_list);
 		event_list = event_list->next;
 	}
 
@@ -1222,31 +1222,31 @@ static int rddma_local_event_start(struct rddma_location *loc, struct rddma_desc
 
 
 
-static int rddma_local_event_chain(struct rddma_location *loc, struct rddma_desc_param *desc)
+static int vfi_local_event_chain(struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 
 	char                *event_name;
-	struct rddma_events *event_list_this;
-	struct rddma_events *event_list_next;
+	struct vfi_events *event_list_this;
+	struct vfi_events *event_list_next;
 	int ret;
 
-	RDDMA_DEBUG (MY_DEBUG,
+	VFI_DEBUG (MY_DEBUG,
 		     "#### %s entered \n",
 
 		     __FUNCTION__);
 
 	/* Find the event_name in the desc */
-	event_name = rddma_get_option(desc, "event_name");
+	event_name = vfi_get_option(desc, "event_name");
 	if (event_name == NULL) 
 		return -EINVAL;
 
 	/* Lookup this event */
-	ret = find_rddma_events(&event_list_this,rddma_subsys->events, desc->name);
+	ret = find_vfi_events(&event_list_this,vfi_subsys->events, desc->name);
 	if (event_list_this == NULL)
 		return -EINVAL;
 
 	/* Lookup next event */
-	ret = find_rddma_events(&event_list_next,rddma_subsys->events, event_name);
+	ret = find_vfi_events(&event_list_next,vfi_subsys->events, event_name);
 	if (event_list_next == NULL)
 		return -EINVAL;
 
@@ -1261,7 +1261,7 @@ static int rddma_local_event_chain(struct rddma_location *loc, struct rddma_desc
 
 
 /**
-* rddma_local_bind_delete - delete a bind associated with an xfer
+* vfi_local_bind_delete - delete a bind associated with an xfer
 * @parent : pointer to the <xfer> that the target <bind> belongs to.
 * @desc   : descriptor for <xfer>. Its embedded offset is the primary means of bind selection.
 *
@@ -1270,10 +1270,10 @@ static int rddma_local_event_chain(struct rddma_location *loc, struct rddma_desc
 *
 * 
 **/
-static void rddma_local_bind_delete(struct rddma_xfer *parent, struct rddma_desc_param *desc)
+static void vfi_local_bind_delete(struct vfi_xfer *parent, struct vfi_desc_param *desc)
 {
 	struct list_head *entry, *safety;
-	RDDMA_DEBUG (MY_DEBUG, "%s: (%s.%s#%llx:%x)\n", __func__, 
+	VFI_DEBUG (MY_DEBUG, "%s: (%s.%s#%llx:%x)\n", __func__, 
 			desc->name, desc->location, desc->offset, desc->extent);
 	/*
 	* Every <xfer> has a <binds> kset that lists the various binds 
@@ -1283,13 +1283,13 @@ static void rddma_local_bind_delete(struct rddma_xfer *parent, struct rddma_desc
 	*/
 	if (!list_empty(&parent->binds->kset.list)) {
 		list_for_each_safe(entry,safety,&parent->binds->kset.list) {
-			struct rddma_bind *bind;
-			bind = to_rddma_bind(to_kobj(entry));
+			struct vfi_bind *bind;
+			bind = to_vfi_bind(to_kobj(entry));
 			if (bind->desc.xfer.offset >= desc->offset &&
 			    bind->desc.xfer.offset <= desc->offset + desc->extent) {
 				bind->desc.dst.ops->dsts_delete(bind,&bind->desc);
 			}
-			rddma_bind_delete (parent, &bind->desc.xfer);
+			vfi_bind_delete (parent, &bind->desc.xfer);
 		}
 	}
 	else {
@@ -1297,48 +1297,48 @@ static void rddma_local_bind_delete(struct rddma_xfer *parent, struct rddma_desc
 	}
 }
 
-static void rddma_local_xfer_delete(struct rddma_location *parent, struct rddma_desc_param *desc)
+static void vfi_local_xfer_delete(struct vfi_location *parent, struct vfi_desc_param *desc)
 {
 }
 
-struct rddma_ops rddma_local_ops = {
-	.location_create = rddma_local_location_create,
-	.location_delete = rddma_local_location_delete,
-	.location_find   = rddma_local_location_find,
-	.location_put    = rddma_local_location_put,
-	.smb_create      = rddma_local_smb_create,
-	.smb_delete      = rddma_local_smb_delete,
-	.smb_find        = rddma_local_smb_find,
-	.mmap_create     = rddma_local_mmap_create,
-	.mmap_delete     = rddma_local_mmap_delete,
-	.xfer_create     = rddma_local_xfer_create,
-	.xfer_delete     = rddma_local_xfer_delete,
-	.xfer_find       = rddma_local_xfer_find,
-	.srcs_create     = rddma_local_srcs_create,
-	.srcs_delete     = rddma_local_srcs_delete,
-	.src_create      = rddma_local_src_create,
-	.src_delete      = rddma_local_src_delete,
-	.src_find        = rddma_local_src_find,
-	.dsts_create     = rddma_local_dsts_create,
-	.dsts_delete     = rddma_local_dsts_delete, 
-	.dst_create      = rddma_local_dst_create,
-	.dst_delete      = rddma_local_dst_delete,
-	.dst_find        = rddma_local_dst_find,
-	.bind_find       = rddma_local_bind_find,
-	.bind_create     = rddma_local_bind_create,
-	.bind_delete     = rddma_local_bind_delete, 
-	.src_done        = rddma_local_src_done,
-	.dst_done        = rddma_local_dst_done,
-	.done            = rddma_local_done,
-	.src_ready       = rddma_local_src_ready,
-	.dst_ready       = rddma_local_dst_ready,
-	.dst_events      = rddma_local_dst_events,
-	.src_events      = rddma_local_src_events,
-	.dst_ev_delete	 = rddma_local_dst_ev_delete,
-	.src_ev_delete	 = rddma_local_src_ev_delete,
-	.event_start     = rddma_local_event_start,
-	.event_chain     = rddma_local_event_chain,
+struct vfi_ops vfi_local_ops = {
+	.location_create = vfi_local_location_create,
+	.location_delete = vfi_local_location_delete,
+	.location_find   = vfi_local_location_find,
+	.location_put    = vfi_local_location_put,
+	.smb_create      = vfi_local_smb_create,
+	.smb_delete      = vfi_local_smb_delete,
+	.smb_find        = vfi_local_smb_find,
+	.mmap_create     = vfi_local_mmap_create,
+	.mmap_delete     = vfi_local_mmap_delete,
+	.xfer_create     = vfi_local_xfer_create,
+	.xfer_delete     = vfi_local_xfer_delete,
+	.xfer_find       = vfi_local_xfer_find,
+	.srcs_create     = vfi_local_srcs_create,
+	.srcs_delete     = vfi_local_srcs_delete,
+	.src_create      = vfi_local_src_create,
+	.src_delete      = vfi_local_src_delete,
+	.src_find        = vfi_local_src_find,
+	.dsts_create     = vfi_local_dsts_create,
+	.dsts_delete     = vfi_local_dsts_delete, 
+	.dst_create      = vfi_local_dst_create,
+	.dst_delete      = vfi_local_dst_delete,
+	.dst_find        = vfi_local_dst_find,
+	.bind_find       = vfi_local_bind_find,
+	.bind_create     = vfi_local_bind_create,
+	.bind_delete     = vfi_local_bind_delete, 
+	.src_done        = vfi_local_src_done,
+	.dst_done        = vfi_local_dst_done,
+	.done            = vfi_local_done,
+	.src_ready       = vfi_local_src_ready,
+	.dst_ready       = vfi_local_dst_ready,
+	.dst_events      = vfi_local_dst_events,
+	.src_events      = vfi_local_src_events,
+	.dst_ev_delete	 = vfi_local_dst_ev_delete,
+	.src_ev_delete	 = vfi_local_src_ev_delete,
+	.event_start     = vfi_local_event_start,
+	.event_chain     = vfi_local_event_chain,
 };
 
-EXPORT_SYMBOL (rddma_local_ops);
+EXPORT_SYMBOL (vfi_local_ops);
 

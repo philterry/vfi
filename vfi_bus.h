@@ -9,13 +9,13 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_BUS_H
-#define RDDMA_BUS_H
+#ifndef VFI_BUS_H
+#define VFI_BUS_H
 
 #include <linux/vfi_subsys.h>
 
-extern int rddma_bus_register(struct rddma_subsys *rsys);
-extern void rddma_bus_unregister(struct rddma_subsys *rsys);
+extern int vfi_bus_register(struct vfi_subsys *rsys);
+extern void vfi_bus_unregister(struct vfi_subsys *rsys);
 
 
-#endif	/* RDDMA_BUS_H */
+#endif	/* VFI_BUS_H */

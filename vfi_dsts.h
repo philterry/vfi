@@ -9,38 +9,38 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_DSTS_H
-#define RDDMA_DSTS_H
+#ifndef VFI_DSTS_H
+#define VFI_DSTS_H
 
 #include <linux/vfi.h>
 #include <linux/vfi_bind.h>
 
-struct rddma_dsts {
+struct vfi_dsts {
 	struct kset kset;
 	struct list_head dma_chain;
 };
 
-static inline struct rddma_dsts *to_rddma_dsts(struct kobject *kobj)
+static inline struct vfi_dsts *to_vfi_dsts(struct kobject *kobj)
 {
-	return kobj ? container_of(to_kset(kobj), struct rddma_dsts, kset) : NULL;
+	return kobj ? container_of(to_kset(kobj), struct vfi_dsts, kset) : NULL;
 }
 
-static inline struct rddma_dsts *rddma_dsts_get(struct rddma_dsts *rddma_dsts)
+static inline struct vfi_dsts *vfi_dsts_get(struct vfi_dsts *vfi_dsts)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_dsts);
-	return to_rddma_dsts(kobject_get(&rddma_dsts->kset.kobj));
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_dsts);
+	return to_vfi_dsts(kobject_get(&vfi_dsts->kset.kobj));
 }
 
-static inline void rddma_dsts_put(struct rddma_dsts *rddma_dsts)
+static inline void vfi_dsts_put(struct vfi_dsts *vfi_dsts)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_dsts);
-	if (rddma_dsts) kset_put(&rddma_dsts->kset);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_dsts);
+	if (vfi_dsts) kset_put(&vfi_dsts->kset);
 }
 
-extern int new_rddma_dsts(struct rddma_dsts **, struct rddma_bind_param *, struct rddma_bind *);
-extern int rddma_dsts_register(struct rddma_dsts *);
-extern void rddma_dsts_unregister(struct rddma_dsts *);
-extern int rddma_dsts_create(struct rddma_dsts **, struct rddma_bind *, struct rddma_bind_param *);
-extern void rddma_dsts_delete(struct rddma_dsts *);
-extern struct kobj_type rddma_dsts_type;
-#endif /* RDDMA_DSTS_H */
+extern int new_vfi_dsts(struct vfi_dsts **, struct vfi_bind_param *, struct vfi_bind *);
+extern int vfi_dsts_register(struct vfi_dsts *);
+extern void vfi_dsts_unregister(struct vfi_dsts *);
+extern int vfi_dsts_create(struct vfi_dsts **, struct vfi_bind *, struct vfi_bind_param *);
+extern void vfi_dsts_delete(struct vfi_dsts *);
+extern struct kobj_type vfi_dsts_type;
+#endif /* VFI_DSTS_H */

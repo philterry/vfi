@@ -10,8 +10,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_PARSE | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_PARSE | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_PARSE | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_PARSE | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi.h>
 #include <linux/vfi_parse.h>
@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
-void desc_param_dump(struct rddma_desc_param *d)
+void desc_param_dump(struct vfi_desc_param *d)
 {
 	int i;
 	if (d == NULL) {
@@ -63,9 +63,9 @@ void desc_param_dump(struct rddma_desc_param *d)
 
 	printk("ops(%p) is ",d->ops);
 	if (d->ops) {
-		if (d->ops == &rddma_local_ops)
+		if (d->ops == &vfi_local_ops)
 			printk("local\n");
-		else if (d->ops == &rddma_fabric_ops)
+		else if (d->ops == &vfi_fabric_ops)
 			printk("fabric\n");
 		else
 			printk("unknown\n");
@@ -75,7 +75,7 @@ void desc_param_dump(struct rddma_desc_param *d)
 	/* not dumping ops fields */
 	return;
 }
-void bind_param_dump(struct rddma_bind_param *b)
+void bind_param_dump(struct vfi_bind_param *b)
 {
 	printk("Xfer param:\n");
 	desc_param_dump(&b->xfer);
@@ -88,7 +88,7 @@ void bind_param_dump(struct rddma_bind_param *b)
 }
 
 #if 0
-void xfer_desc_dump(struct rddma_xfer_param *x)
+void xfer_desc_dump(struct vfi_xfer_param *x)
 {
 	/* Consists of a desc_parm and a bind param */
 	printk("Xfer desc param:\n");
@@ -99,7 +99,7 @@ void xfer_desc_dump(struct rddma_xfer_param *x)
 }
 #endif
 
-void rddma_dma_chain_dump(struct list_head *h)
+void vfi_dma_chain_dump(struct list_head *h)
 {
 	struct seg_desc *dma_desc;
 	struct list_head *entry;

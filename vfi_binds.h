@@ -9,35 +9,35 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_BINDS_H
-#define RDDMA_BINDS_H
+#ifndef VFI_BINDS_H
+#define VFI_BINDS_H
 
 #include <linux/vfi.h>
 #include <linux/vfi_xfer.h>
 
-struct rddma_binds {
+struct vfi_binds {
     struct kset kset;
 };
 
-static inline struct rddma_binds *to_rddma_binds(struct kobject *kobj)
+static inline struct vfi_binds *to_vfi_binds(struct kobject *kobj)
 {
-	return kobj ? container_of(to_kset(kobj), struct rddma_binds,kset) : NULL;
+	return kobj ? container_of(to_kset(kobj), struct vfi_binds,kset) : NULL;
 }
 
-static inline struct rddma_binds *rddma_binds_get(struct rddma_binds *rddma_binds)
+static inline struct vfi_binds *vfi_binds_get(struct vfi_binds *vfi_binds)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_binds);
-	return to_rddma_binds(kobject_get(&rddma_binds->kset.kobj));
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_binds);
+	return to_vfi_binds(kobject_get(&vfi_binds->kset.kobj));
 }
 
-static inline void rddma_binds_put(struct rddma_binds *rddma_binds)
+static inline void vfi_binds_put(struct vfi_binds *vfi_binds)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_binds);
-	if (rddma_binds) kset_put(&rddma_binds->kset);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_binds);
+	if (vfi_binds) kset_put(&vfi_binds->kset);
 }
 
-extern int new_rddma_binds(struct rddma_binds **, char *name, struct rddma_xfer *);
-extern int rddma_binds_register(struct rddma_binds *);
-extern void rddma_binds_unregister(struct rddma_binds *);
-extern struct kobj_type rddma_binds_type;
-#endif /* RDDMA_BINDS_H */
+extern int new_vfi_binds(struct vfi_binds **, char *name, struct vfi_xfer *);
+extern int vfi_binds_register(struct vfi_binds *);
+extern void vfi_binds_unregister(struct vfi_binds *);
+extern struct kobj_type vfi_binds_type;
+#endif /* VFI_BINDS_H */

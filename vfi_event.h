@@ -1,43 +1,43 @@
-#ifndef RDDMA_EVENT_H
-#define RDDMA_EVENT_H
+#ifndef VFI_EVENT_H
+#define VFI_EVENT_H
 
 #include <linux/vfi.h>
 #include <linux/vfi_parse.h>
 #include <linux/vfi_events.h>
 
-struct rddma_event {
-	struct rddma_desc_param desc;
+struct vfi_event {
+	struct vfi_desc_param desc;
 	int event_id;
-	struct rddma_bind *bind;
-	void (*start_event)(struct rddma_bind *);
+	struct vfi_bind *bind;
+	void (*start_event)(struct vfi_bind *);
 	struct kobject kobj;
 };
 
-static inline struct rddma_event *to_rddma_event(struct kobject *kobj)
+static inline struct vfi_event *to_vfi_event(struct kobject *kobj)
 {
-    return kobj ? container_of(kobj, struct rddma_event,kobj) : NULL;
+    return kobj ? container_of(kobj, struct vfi_event,kobj) : NULL;
 }
 
-static inline struct rddma_event *rddma_event_get(struct rddma_event *rddma_event)
+static inline struct vfi_event *vfi_event_get(struct vfi_event *vfi_event)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-    return to_rddma_event(kobject_get(&rddma_event->kobj));
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+    return to_vfi_event(kobject_get(&vfi_event->kobj));
 }
 
-static inline void rddma_event_put(struct rddma_event *rddma_event)
+static inline void vfi_event_put(struct vfi_event *vfi_event)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	if(rddma_event)
-		kobject_put(&rddma_event->kobj);
+	if(vfi_event)
+		kobject_put(&vfi_event->kobj);
 }
 
-extern int new_rddma_event(struct rddma_event **, struct rddma_events *, struct rddma_desc_param *, struct rddma_bind *, void (*)(struct rddma_bind *),int);
-extern int rddma_event_register(struct  rddma_event *);
-extern void rddma_event_unregister(struct rddma_event *);
-extern int find_rddma_event(struct rddma_event **, struct rddma_events *, int);
-extern struct kobj_type rddma_event_type;
-extern int rddma_event_create(struct rddma_event **, struct rddma_events *, struct rddma_desc_param *, struct rddma_bind *, void (*)(struct rddma_bind *), int);
-extern void rddma_event_delete(struct rddma_event *);
-extern void rddma_event_send(struct rddma_event *);
-#endif /* RDDMA_EVENT_H */
+extern int new_vfi_event(struct vfi_event **, struct vfi_events *, struct vfi_desc_param *, struct vfi_bind *, void (*)(struct vfi_bind *),int);
+extern int vfi_event_register(struct  vfi_event *);
+extern void vfi_event_unregister(struct vfi_event *);
+extern int find_vfi_event(struct vfi_event **, struct vfi_events *, int);
+extern struct kobj_type vfi_event_type;
+extern int vfi_event_create(struct vfi_event **, struct vfi_events *, struct vfi_desc_param *, struct vfi_bind *, void (*)(struct vfi_bind *), int);
+extern void vfi_event_delete(struct vfi_event *);
+extern void vfi_event_send(struct vfi_event *);
+#endif /* VFI_EVENT_H */

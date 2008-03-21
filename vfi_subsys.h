@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_SUBSYS_H
-#define RDDMA_SUBSYS_H
+#ifndef VFI_SUBSYS_H
+#define VFI_SUBSYS_H
 
 #include <linux/vfi.h>
 #include <linux/fs.h>
@@ -19,36 +19,36 @@
 
 #include <linux/vfi_parse.h>
 
-struct rddma_subsys {
-	struct rddma_desc_param desc;
+struct vfi_subsys {
+	struct vfi_desc_param desc;
 	int version;
 	struct cdev cdev;
 	struct class class;
 	dev_t dev;
 
-	struct rddma_readies *events;
+	struct vfi_readies *events;
 	struct kset kset;
 };
 
-static inline struct rddma_subsys *to_rddma_subsys(struct kobject *kobj)
+static inline struct vfi_subsys *to_vfi_subsys(struct kobject *kobj)
 {
-	return kobj ? container_of(to_kset(kobj), struct rddma_subsys, kset) : NULL;
+	return kobj ? container_of(to_kset(kobj), struct vfi_subsys, kset) : NULL;
 }
 
-static inline struct rddma_subsys *rddma_subsys_get(struct rddma_subsys *rddma_subsys)
+static inline struct vfi_subsys *vfi_subsys_get(struct vfi_subsys *vfi_subsys)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_subsys);
-	return to_rddma_subsys(kobject_get(&rddma_subsys->kset.kobj));
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_subsys);
+	return to_vfi_subsys(kobject_get(&vfi_subsys->kset.kobj));
 }
 
-static inline void rddma_subsys_put(struct rddma_subsys *rddma_subsys)
+static inline void vfi_subsys_put(struct vfi_subsys *vfi_subsys)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_subsys);
-	if (rddma_subsys) kset_put(&rddma_subsys->kset);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_subsys);
+	if (vfi_subsys) kset_put(&vfi_subsys->kset);
 }
 
-extern int new_rddma_subsys(struct rddma_subsys **, char *name);
-extern int rddma_subsys_register(struct rddma_subsys *);
-extern void rddma_subsys_unregister(struct rddma_subsys *);
-extern struct kobj_type rddma_subsys_type;
-#endif /* RDDMA_SUBSYS_H */
+extern int new_vfi_subsys(struct vfi_subsys **, char *name);
+extern int vfi_subsys_register(struct vfi_subsys *);
+extern void vfi_subsys_unregister(struct vfi_subsys *);
+extern struct kobj_type vfi_subsys_type;
+#endif /* VFI_SUBSYS_H */

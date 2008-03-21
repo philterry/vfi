@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_LOCATION | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_LOCATION | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_LOCATION | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_LOCATION | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi_location.h>
 #include <linux/vfi_drv.h>
@@ -25,27 +25,27 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-static void rddma_location_release(struct kobject *kobj)
+static void vfi_location_release(struct kobject *kobj)
 {
-    struct rddma_location *p = to_rddma_location(kobj);
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-    rddma_address_unregister(p);
-    rddma_clean_desc(&p->desc);
+    struct vfi_location *p = to_vfi_location(kobj);
+    VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+    vfi_address_unregister(p);
+    vfi_clean_desc(&p->desc);
     kfree(p);
 }
 
-struct rddma_location_attribute {
+struct vfi_location_attribute {
     struct attribute attr;
-    ssize_t (*show)(struct rddma_location*, char *buffer);
-    ssize_t (*store)(struct rddma_location*, const char *buffer, size_t size);
+    ssize_t (*show)(struct vfi_location*, char *buffer);
+    ssize_t (*store)(struct vfi_location*, const char *buffer, size_t size);
 };
 
-#define RDDMA_LOCATION_ATTR(_name,_mode,_show,_store) struct rddma_location_attribute rddma_location_attr_##_name = {     .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },     .show = _show,     .store = _store };
+#define VFI_LOCATION_ATTR(_name,_mode,_show,_store) struct vfi_location_attribute vfi_location_attr_##_name = {     .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },     .show = _show,     .store = _store };
 
-static ssize_t rddma_location_show(struct kobject *kobj, struct attribute *attr, char *buffer)
+static ssize_t vfi_location_show(struct kobject *kobj, struct attribute *attr, char *buffer)
 {
-    struct rddma_location_attribute *pattr = container_of(attr, struct rddma_location_attribute, attr);
-    struct rddma_location *p = to_rddma_location(kobj);
+    struct vfi_location_attribute *pattr = container_of(attr, struct vfi_location_attribute, attr);
+    struct vfi_location *p = to_vfi_location(kobj);
 
     if (pattr && pattr->show)
 	return pattr->show(p,buffer);
@@ -53,10 +53,10 @@ static ssize_t rddma_location_show(struct kobject *kobj, struct attribute *attr,
     return 0;
 }
 
-static ssize_t rddma_location_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
+static ssize_t vfi_location_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
 {
-    struct rddma_location_attribute *pattr = container_of(attr, struct rddma_location_attribute, attr);
-    struct rddma_location *p = to_rddma_location(kobj);
+    struct vfi_location_attribute *pattr = container_of(attr, struct vfi_location_attribute, attr);
+    struct vfi_location *p = to_vfi_location(kobj);
 
     if (pattr && pattr->store)
 	return pattr->store(p, buffer, size);
@@ -64,132 +64,132 @@ static ssize_t rddma_location_store(struct kobject *kobj, struct attribute *attr
     return 0;
 }
 
-static struct sysfs_ops rddma_location_sysfs_ops = {
-    .show = rddma_location_show,
-    .store = rddma_location_store,
+static struct sysfs_ops vfi_location_sysfs_ops = {
+    .show = vfi_location_show,
+    .store = vfi_location_store,
 };
 
 
-static ssize_t rddma_location_default_show(struct rddma_location *rddma_location, char *buffer)
+static ssize_t vfi_location_default_show(struct vfi_location *vfi_location, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("Location %p is %s \n",rddma_location,rddma_location ? rddma_location->desc.name : NULL);
-	if (rddma_location) {
-		ATTR_PRINTF("ops is %p rde is %p address is %p\n",rddma_location->desc.ops,rddma_location->desc.rde,rddma_location->desc.address);
+	ATTR_PRINTF("Location %p is %s \n",vfi_location,vfi_location ? vfi_location->desc.name : NULL);
+	if (vfi_location) {
+		ATTR_PRINTF("ops is %p rde is %p address is %p\n",vfi_location->desc.ops,vfi_location->desc.rde,vfi_location->desc.address);
 	}
-	ATTR_PRINTF("refcount %d\n",atomic_read(&rddma_location->kset.kobj.kref.refcount));
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_location->kset.kobj.kref.refcount));
 	return size;
 }
 
-static ssize_t rddma_location_default_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
+static ssize_t vfi_location_default_store(struct vfi_location *vfi_location, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_LOCATION_ATTR(default, 0644, rddma_location_default_show, rddma_location_default_store);
+VFI_LOCATION_ATTR(default, 0644, vfi_location_default_show, vfi_location_default_store);
 
-static ssize_t rddma_location_location_show(struct rddma_location *rddma_location, char *buffer)
+static ssize_t vfi_location_location_show(struct vfi_location *vfi_location, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("%s\n",rddma_location->desc.location);
+	ATTR_PRINTF("%s\n",vfi_location->desc.location);
 	return size;
 }
 
-static ssize_t rddma_location_location_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
+static ssize_t vfi_location_location_store(struct vfi_location *vfi_location, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_LOCATION_ATTR(location, 0644, rddma_location_location_show, rddma_location_location_store);
+VFI_LOCATION_ATTR(location, 0644, vfi_location_location_show, vfi_location_location_store);
 
-static ssize_t rddma_location_name_show(struct rddma_location *rddma_location, char *buffer)
+static ssize_t vfi_location_name_show(struct vfi_location *vfi_location, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("%s\n",rddma_location->desc.name);
+	ATTR_PRINTF("%s\n",vfi_location->desc.name);
 	return size;
 }
 
-static ssize_t rddma_location_name_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
+static ssize_t vfi_location_name_store(struct vfi_location *vfi_location, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_LOCATION_ATTR(name, 0644, rddma_location_name_show, rddma_location_name_store);
+VFI_LOCATION_ATTR(name, 0644, vfi_location_name_show, vfi_location_name_store);
 
-static ssize_t rddma_location_id_show(struct rddma_location *rddma_location, char *buffer)
+static ssize_t vfi_location_id_show(struct vfi_location *vfi_location, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("%llx/%x\n",rddma_location->desc.offset,rddma_location->desc.extent);
+	ATTR_PRINTF("%llx/%x\n",vfi_location->desc.offset,vfi_location->desc.extent);
 	return size;
 }
 
-static ssize_t rddma_location_id_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
+static ssize_t vfi_location_id_store(struct vfi_location *vfi_location, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_LOCATION_ATTR(id, 0644, rddma_location_id_show, rddma_location_id_store);
+VFI_LOCATION_ATTR(id, 0644, vfi_location_id_show, vfi_location_id_store);
 
-static ssize_t rddma_location_type_show(struct rddma_location *rddma_location, char *buffer)
+static ssize_t vfi_location_type_show(struct vfi_location *vfi_location, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("%s\n", rddma_location->desc.ops == &rddma_fabric_ops ? "public" : rddma_location->desc.ops == &rddma_local_ops ? "private" : "NULL");
+	ATTR_PRINTF("%s\n", vfi_location->desc.ops == &vfi_fabric_ops ? "public" : vfi_location->desc.ops == &vfi_local_ops ? "private" : "NULL");
 	return size;
 }
 
-static ssize_t rddma_location_type_store(struct rddma_location *rddma_location, const char *buffer, size_t size)
+static ssize_t vfi_location_type_store(struct vfi_location *vfi_location, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_LOCATION_ATTR(type, 0644, rddma_location_type_show, rddma_location_type_store);
+VFI_LOCATION_ATTR(type, 0644, vfi_location_type_show, vfi_location_type_store);
 
-static struct attribute *rddma_location_default_attrs[] = {
-    &rddma_location_attr_default.attr,
-    &rddma_location_attr_location.attr,
-    &rddma_location_attr_name.attr,
-    &rddma_location_attr_id.attr,
-    &rddma_location_attr_type.attr,
+static struct attribute *vfi_location_default_attrs[] = {
+    &vfi_location_attr_default.attr,
+    &vfi_location_attr_location.attr,
+    &vfi_location_attr_name.attr,
+    &vfi_location_attr_id.attr,
+    &vfi_location_attr_type.attr,
     0,
 };
 
-struct kobj_type rddma_location_type = {
-    .release = rddma_location_release,
-    .sysfs_ops = &rddma_location_sysfs_ops,
-    .default_attrs = rddma_location_default_attrs,
+struct kobj_type vfi_location_type = {
+    .release = vfi_location_release,
+    .sysfs_ops = &vfi_location_sysfs_ops,
+    .default_attrs = vfi_location_default_attrs,
 };
 
-int new_rddma_location(struct rddma_location **newloc, struct rddma_location *loc, struct rddma_desc_param *desc)
+int new_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	struct rddma_location *new = kzalloc(sizeof(struct rddma_location), GFP_KERNEL);
- 	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	struct vfi_location *new = kzalloc(sizeof(struct vfi_location), GFP_KERNEL);
+ 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
    
 	*newloc = new;
 
 	if (NULL == new)
 		return -ENOMEM;
 
-	rddma_clone_desc(&new->desc, desc);
-	new->kset.kobj.ktype = &rddma_location_type;
+	vfi_clone_desc(&new->desc, desc);
+	new->kset.kobj.ktype = &vfi_location_type;
 	kobject_set_name(&new->kset.kobj, "%s", new->desc.name);
 
 	/*
-	* Parentage: provide pointer to parent kset in the /sys/rddma hierarchy.
-	* Either we hook-up to a higher-level location, or we hook-up to /sys/rddma
+	* Parentage: provide pointer to parent kset in the /sys/vfi hierarchy.
+	* Either we hook-up to a higher-level location, or we hook-up to /sys/vfi
 	* itself.
 	*
-	* Actual hooking does not happen here - see rddma_location_register
+	* Actual hooking does not happen here - see vfi_location_register
 	* for that.
 	*/
 	if (loc)
 		new->kset.kobj.kset = &loc->kset;
 	else
-		new->kset.kobj.kset = &rddma_subsys->kset;
+		new->kset.kobj.kset = &vfi_subsys->kset;
 
 	/*
 	* Node identifiers: the extent and offset fields in the descriptor
@@ -213,7 +213,7 @@ int new_rddma_location(struct rddma_location **newloc, struct rddma_location *lo
 		if (loc && loc->desc.ops)
 			new->desc.ops = loc->desc.ops;
 		else
-			new->desc.ops = &rddma_fabric_ops;
+			new->desc.ops = &vfi_fabric_ops;
 	}
 
 	/*
@@ -221,12 +221,12 @@ int new_rddma_location(struct rddma_location **newloc, struct rddma_location *lo
 	*/
 	if (!new->desc.rde) {
 		if (loc && loc->desc.rde)
-			new->desc.rde = rddma_dma_get(loc->desc.rde);
+			new->desc.rde = vfi_dma_get(loc->desc.rde);
 	}
 
 	/*
 	* Inherit fabric address ops from parent, or leave unspecified.
-	* The "address" - struct rddma_fabric_address - is not an actual
+	* The "address" - struct vfi_fabric_address - is not an actual
 	* address, but a set of ops for manipulating fabric addresses.
 	*
 	* JUST a thought: isn't all this inheritance stuff redundant
@@ -235,13 +235,13 @@ int new_rddma_location(struct rddma_location **newloc, struct rddma_location *lo
 	*/
 	if (!new->desc.address) {
 		if (loc && loc->desc.address)
-			new->desc.address = rddma_fabric_get(loc->desc.address);
+			new->desc.address = vfi_fabric_get(loc->desc.address);
 	}
 
 	/*
 	* Parentage. Again.
 	*
-	* This time an explicit link to the parent's rddma_location
+	* This time an explicit link to the parent's vfi_location
 	* structure, rather than the convoluted link to its kobject/kset
 	* laid down earlier for the benefit of sysfs. This one is for us.
 	*/
@@ -251,24 +251,24 @@ int new_rddma_location(struct rddma_location **newloc, struct rddma_location *lo
 	INIT_LIST_HEAD(&new->kset.list);
 	spin_lock_init(&new->kset.list_lock);
 
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return 0;
 }
 
-int rddma_location_register(struct rddma_location *rddma_location)
+int vfi_location_register(struct vfi_location *vfi_location)
 {
 	int ret = 0;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,rddma_location);
+	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,vfi_location);
 	
 	/*
 	* Hook the new kobject into the sysfs hierarchy.
 	*
 	*/
-	if ( (ret = kobject_add(&rddma_location->kset.kobj) ) )
+	if ( (ret = kobject_add(&vfi_location->kset.kobj) ) )
 		goto out;
 
-/* 	kobject_uevent(&rddma_location->kset.kobj, KOBJ_ADD); */
+/* 	kobject_uevent(&vfi_location->kset.kobj, KOBJ_ADD); */
 
 	ret = -ENOMEM;
 
@@ -277,67 +277,67 @@ int rddma_location_register(struct rddma_location *rddma_location)
 	* too. Presume we don't create these when we create the new location
 	* because we want to hook-up the new location first?
 	*/
-	ret= new_rddma_smbs(&rddma_location->smbs,"smbs",rddma_location);
-	if ( NULL == rddma_location->smbs)
+	ret= new_vfi_smbs(&vfi_location->smbs,"smbs",vfi_location);
+	if ( NULL == vfi_location->smbs)
 		goto fail_smbs;
 
-	ret = new_rddma_xfers(&rddma_location->xfers,"xfers",rddma_location);
-	if ( NULL == rddma_location->xfers)
+	ret = new_vfi_xfers(&vfi_location->xfers,"xfers",vfi_location);
+	if ( NULL == vfi_location->xfers)
 		goto fail_xfers;
 
-	if ( (ret = rddma_smbs_register(rddma_location->smbs)) )
+	if ( (ret = vfi_smbs_register(vfi_location->smbs)) )
 		goto fail_smbs_reg;
 
-	if ( (ret = rddma_xfers_register(rddma_location->xfers)) )
+	if ( (ret = vfi_xfers_register(vfi_location->xfers)) )
 		goto fail_xfers_reg;
 
 	return ret;
 
 fail_xfers_reg:
-	rddma_smbs_unregister(rddma_location->smbs);
+	vfi_smbs_unregister(vfi_location->smbs);
 fail_smbs_reg:
-	kset_put(&rddma_location->xfers->kset);
+	kset_put(&vfi_location->xfers->kset);
 fail_xfers:
-	kset_put(&rddma_location->smbs->kset);
+	kset_put(&vfi_location->smbs->kset);
 fail_smbs:
-	kobject_unregister(&rddma_location->kset.kobj);
+	kobject_unregister(&vfi_location->kset.kobj);
 out:
 	return ret;
 }
 
-void rddma_location_unregister(struct rddma_location *rddma_location)
+void vfi_location_unregister(struct vfi_location *vfi_location)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,rddma_location);
-	rddma_xfers_unregister(rddma_location->xfers);
+	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,vfi_location);
+	vfi_xfers_unregister(vfi_location->xfers);
 
-	rddma_smbs_unregister(rddma_location->smbs);
+	vfi_smbs_unregister(vfi_location->smbs);
 
-	kobject_unregister(&rddma_location->kset.kobj);
+	kobject_unregister(&vfi_location->kset.kobj);
 }
 
-int find_rddma_name(struct rddma_location **newloc, struct rddma_location *loc, struct rddma_desc_param *params)
+int find_vfi_name(struct vfi_location **newloc, struct vfi_location *loc, struct vfi_desc_param *params)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,params,params->name,params->location);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,params,params->name,params->location);
 	if (loc)
-		*newloc = to_rddma_location(kset_find_obj(&loc->kset,params->name));
+		*newloc = to_vfi_location(kset_find_obj(&loc->kset,params->name));
 	else
-		*newloc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name));
-	RDDMA_DEBUG_SAFE(MY_DEBUG,*newloc,"%s -> %p %s,%s\n",__FUNCTION__,*newloc,(*newloc)->desc.name,(*newloc)->desc.location);
+		*newloc = to_vfi_location(kset_find_obj(&vfi_subsys->kset,params->name));
+	VFI_DEBUG_SAFE(MY_DEBUG,*newloc,"%s -> %p %s,%s\n",__FUNCTION__,*newloc,(*newloc)->desc.name,(*newloc)->desc.location);
 	return *newloc != 0;
 }
 
 /**
-* find_rddma_location - find, or create, a named location on the RDDMA network.
+* find_vfi_location - find, or create, a named location on the VFI network.
 *
 * @params: pointer to command string descriptor for the command we are 
 *          currently servicing.
 * 
-* This function attempts to find an RDDMA kobject that represents a specified
+* This function attempts to find an VFI kobject that represents a specified
 * network location - whose name is cited in the @params command string - and 
-* returns the address of an rddma_location structure that describes that location.
+* returns the address of an vfi_location structure that describes that location.
 * 
 * If no such kobject can be found, the function will create one, with all 
-* necessary accoutrements, using rddma_location_create ().
+* necessary accoutrements, using vfi_location_create ().
 *
 * The function implements a recursive search for a given location, finding or
 * creating its parent before the original target. A multi-component location of
@@ -349,54 +349,54 @@ int find_rddma_name(struct rddma_location **newloc, struct rddma_location *loc, 
 *
 *
 **/
-int find_rddma_location(struct rddma_location **newloc, struct rddma_location *loc, struct rddma_desc_param *params)
+int find_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, struct vfi_desc_param *params)
 {
 	int ret = 0;
 	*newloc = NULL;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,params,params->name,params->location);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,params,params->name,params->location);
 
 	if (loc) {
 		ret = loc->desc.ops->location_find(newloc,loc,params);
-		RDDMA_DEBUG(MY_DEBUG,"%s %p %s %p %s -> %p\n",__FUNCTION__,loc,loc->desc.name,params,params->name,newloc);
+		VFI_DEBUG(MY_DEBUG,"%s %p %s %p %s -> %p\n",__FUNCTION__,loc,loc->desc.name,params,params->name,newloc);
 		return ret;
 	}
 
 	if (params->location && *params->location) {
-		struct rddma_desc_param tmpparams;
-		struct rddma_location *tmploc = NULL;
+		struct vfi_desc_param tmpparams;
+		struct vfi_location *tmploc = NULL;
 
-		if ( !rddma_parse_desc(&tmpparams,params->location) ) {
-			RDDMA_DEBUG(MY_DEBUG,"%s %s,%s\n",__FUNCTION__,tmpparams.name,tmpparams.location);
-			if ( (ret = find_rddma_location(&tmploc,loc,&tmpparams)) ) {
+		if ( !vfi_parse_desc(&tmpparams,params->location) ) {
+			VFI_DEBUG(MY_DEBUG,"%s %s,%s\n",__FUNCTION__,tmpparams.name,tmpparams.location);
+			if ( (ret = find_vfi_location(&tmploc,loc,&tmpparams)) ) {
 				ret = tmploc->desc.ops->location_find(newloc,tmploc,params);
-				rddma_location_put(tmploc);
+				vfi_location_put(tmploc);
 			}
-			rddma_clean_desc(&tmpparams);
+			vfi_clean_desc(&tmpparams);
 		}
 	}
 	else
-		*newloc = to_rddma_location(kset_find_obj(&rddma_subsys->kset,params->name));
+		*newloc = to_vfi_location(kset_find_obj(&vfi_subsys->kset,params->name));
 
-	RDDMA_DEBUG_SAFE(MY_DEBUG,*newloc,"%s -> %p %s,%s\n",__FUNCTION__,*newloc,(*newloc)->desc.name,(*newloc)->desc.location);
+	VFI_DEBUG_SAFE(MY_DEBUG,*newloc,"%s -> %p %s,%s\n",__FUNCTION__,*newloc,(*newloc)->desc.name,(*newloc)->desc.location);
 	return *newloc != 0;
 }
 
 /**
-* locate_rddma_location - find or create an RDDMA location within another. 
+* locate_vfi_location - find or create an VFI location within another. 
 * @loc  - location to be searched
 * @desc - parsed string containing the <loc-spec> to be found.
 *
 * Not at all an unfortunate choice of function name. Oh, no.
 *
-* I have no clear idea why this function exists. It is a wrapper for find_rddma_location
+* I have no clear idea why this function exists. It is a wrapper for find_vfi_location
 * that ensures that name, location, offset, and extent fields in @desc are preserved. 
 *
-* As find_rddma_location is itself a recursive function, one must assume that it is
+* As find_vfi_location is itself a recursive function, one must assume that it is
 * somewhat desctructive of name, location, offset, and extent?
 *
 **/
-int locate_rddma_location(struct rddma_location **new_loc,struct rddma_location *loc, struct rddma_desc_param *desc)
+int locate_vfi_location(struct vfi_location **new_loc,struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 	char *old_locstr, *old_namestr;
 	char *new_locstr = NULL;
@@ -404,7 +404,7 @@ int locate_rddma_location(struct rddma_location **new_loc,struct rddma_location 
 	unsigned int extent;
 	int ret;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,desc,desc->name,desc->location);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,desc,desc->name,desc->location);
 
 	/*
 	* Save the name, location, offset, and extent 
@@ -430,7 +430,7 @@ int locate_rddma_location(struct rddma_location **new_loc,struct rddma_location 
 		}
 	}
 
-	ret = find_rddma_location(new_loc,loc,desc);
+	ret = find_vfi_location(new_loc,loc,desc);
 
 	/*
 	* Restore original name, location, offset, and
@@ -449,40 +449,40 @@ int locate_rddma_location(struct rddma_location **new_loc,struct rddma_location 
 	return ret;
 }
 
-int rddma_location_create(struct rddma_location **newloc, struct rddma_location *loc, struct rddma_desc_param *desc)
+int vfi_location_create(struct vfi_location **newloc, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 	int ret;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
 
-	ret = new_rddma_location(newloc,loc,desc);
+	ret = new_vfi_location(newloc,loc,desc);
 
 	if (ret || NULL == *newloc)
 		goto out;
 
-	if ( ( rddma_location_register(*newloc)) )
+	if ( ( vfi_location_register(*newloc)) )
 		goto fail_reg;
 
 	return 0;
 
 fail_reg:
-	rddma_location_put(*newloc);
+	vfi_location_put(*newloc);
 out:
 	return -EINVAL;
 }
 
-void rddma_location_delete(struct rddma_location *loc)
+void vfi_location_delete(struct vfi_location *loc)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,loc);
+	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,loc);
 	if (loc) {
-		rddma_location_unregister(loc);
+		vfi_location_unregister(loc);
 		
 		if (loc && loc->desc.rde)
-			rddma_dma_put(loc->desc.rde);
+			vfi_dma_put(loc->desc.rde);
 		
 		if (loc && loc->desc.address)
-			rddma_fabric_put(loc->desc.address);
+			vfi_fabric_put(loc->desc.address);
 		
-		rddma_location_put(loc);
+		vfi_location_put(loc);
 	}
 }

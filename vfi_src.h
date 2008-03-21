@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_SRC_H
-#define RDDMA_SRC_H
+#ifndef VFI_SRC_H
+#define VFI_SRC_H
 
 #include <linux/vfi.h>
 #include <linux/vfi_parse.h>
@@ -18,37 +18,37 @@
 #include <linux/vfi_dst.h>
 #include <linux/vfi_ops.h>
 
-struct rddma_src {
-	struct rddma_dma_descriptor descriptor __attribute__ ((aligned(RDDMA_DESC_ALIGN)));
-	struct rddma_bind_param desc;
-	struct rddma_dst *dst;
+struct vfi_src {
+	struct vfi_dma_descriptor descriptor __attribute__ ((aligned(VFI_DESC_ALIGN)));
+	struct vfi_bind_param desc;
+	struct vfi_dst *dst;
 	struct kobject kobj;
 	void* free_p;			/* Original [misaligned] address */
 };
 
-static inline struct rddma_src *to_rddma_src(struct kobject *kobj)
+static inline struct vfi_src *to_vfi_src(struct kobject *kobj)
 {
-	return kobj ? container_of(kobj, struct rddma_src, kobj) : NULL;
+	return kobj ? container_of(kobj, struct vfi_src, kobj) : NULL;
 }
 
-static inline struct rddma_src *rddma_src_get(struct rddma_src *rddma_src)
+static inline struct vfi_src *vfi_src_get(struct vfi_src *vfi_src)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_src);
-	return to_rddma_src(kobject_get(&rddma_src->kobj));
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_src);
+	return to_vfi_src(kobject_get(&vfi_src->kobj));
 }
 
-static inline void rddma_src_put(struct rddma_src *rddma_src)
+static inline void vfi_src_put(struct vfi_src *vfi_src)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_src);
-	if (rddma_src)
-		kobject_put(&rddma_src->kobj);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_src);
+	if (vfi_src)
+		kobject_put(&vfi_src->kobj);
 }
 
-extern int new_rddma_src(struct rddma_src **, struct rddma_dst *, struct rddma_bind_param *);
-extern int rddma_src_register(struct rddma_src *);
-extern void rddma_src_unregister(struct rddma_src *);
-extern int find_rddma_src(struct rddma_src **, struct rddma_desc_param *, struct rddma_dst *);
-extern int rddma_src_create(struct rddma_src **, struct rddma_dst *, struct rddma_bind_param *);
-extern void rddma_src_delete(struct rddma_dst *, struct rddma_bind_param *);
-extern struct kobj_type rddma_src_type;
-#endif /* RDDMA_SRC_H */
+extern int new_vfi_src(struct vfi_src **, struct vfi_dst *, struct vfi_bind_param *);
+extern int vfi_src_register(struct vfi_src *);
+extern void vfi_src_unregister(struct vfi_src *);
+extern int find_vfi_src(struct vfi_src **, struct vfi_desc_param *, struct vfi_dst *);
+extern int vfi_src_create(struct vfi_src **, struct vfi_dst *, struct vfi_bind_param *);
+extern void vfi_src_delete(struct vfi_dst *, struct vfi_bind_param *);
+extern struct kobj_type vfi_src_type;
+#endif /* VFI_SRC_H */

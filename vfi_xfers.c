@@ -9,33 +9,33 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_XFER | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_XFER | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_XFER | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_XFER | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi_xfers.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>
 
-static void rddma_xfers_release(struct kobject *kobj)
+static void vfi_xfers_release(struct kobject *kobj)
 {
-    struct rddma_xfers *p = to_rddma_xfers(kobj);
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+    struct vfi_xfers *p = to_vfi_xfers(kobj);
+    VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
     kfree(p);
 }
 
-struct rddma_xfers_attribute {
+struct vfi_xfers_attribute {
     struct attribute attr;
-    ssize_t (*show)(struct rddma_xfers*, char *buffer);
-    ssize_t (*store)(struct rddma_xfers*, const char *buffer, size_t size);
+    ssize_t (*show)(struct vfi_xfers*, char *buffer);
+    ssize_t (*store)(struct vfi_xfers*, const char *buffer, size_t size);
 };
 
-#define RDDMA_XFERS_ATTR(_name,_mode,_show,_store) struct rddma_xfers_attribute rddma_xfers_attr_##_name = {     .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },     .show = _show,     .store = _store };
+#define VFI_XFERS_ATTR(_name,_mode,_show,_store) struct vfi_xfers_attribute vfi_xfers_attr_##_name = {     .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },     .show = _show,     .store = _store };
 
-static ssize_t rddma_xfers_show(struct kobject *kobj, struct attribute *attr, char *buffer)
+static ssize_t vfi_xfers_show(struct kobject *kobj, struct attribute *attr, char *buffer)
 {
-    struct rddma_xfers_attribute *pattr = container_of(attr, struct rddma_xfers_attribute, attr);
-    struct rddma_xfers *p = to_rddma_xfers(kobj);
+    struct vfi_xfers_attribute *pattr = container_of(attr, struct vfi_xfers_attribute, attr);
+    struct vfi_xfers *p = to_vfi_xfers(kobj);
 
     if (pattr && pattr->show)
 	return pattr->show(p,buffer);
@@ -43,10 +43,10 @@ static ssize_t rddma_xfers_show(struct kobject *kobj, struct attribute *attr, ch
     return 0;
 }
 
-static ssize_t rddma_xfers_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
+static ssize_t vfi_xfers_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
 {
-    struct rddma_xfers_attribute *pattr = container_of(attr, struct rddma_xfers_attribute, attr);
-    struct rddma_xfers *p = to_rddma_xfers(kobj);
+    struct vfi_xfers_attribute *pattr = container_of(attr, struct vfi_xfers_attribute, attr);
+    struct vfi_xfers *p = to_vfi_xfers(kobj);
 
     if (pattr && pattr->store)
 	return pattr->store(p, buffer, size);
@@ -54,60 +54,60 @@ static ssize_t rddma_xfers_store(struct kobject *kobj, struct attribute *attr, c
     return 0;
 }
 
-static struct sysfs_ops rddma_xfers_sysfs_ops = {
-    .show = rddma_xfers_show,
-    .store = rddma_xfers_store,
+static struct sysfs_ops vfi_xfers_sysfs_ops = {
+    .show = vfi_xfers_show,
+    .store = vfi_xfers_store,
 };
 
 
-static ssize_t rddma_xfers_default_show(struct rddma_xfers *rddma_xfers, char *buffer)
+static ssize_t vfi_xfers_default_show(struct vfi_xfers *vfi_xfers, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_xfers_default");
+    return snprintf(buffer, PAGE_SIZE, "vfi_xfers_default");
 }
 
-static ssize_t rddma_xfers_default_store(struct rddma_xfers *rddma_xfers, const char *buffer, size_t size)
+static ssize_t vfi_xfers_default_store(struct vfi_xfers *vfi_xfers, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_XFERS_ATTR(default, 0644, rddma_xfers_default_show, rddma_xfers_default_store);
+VFI_XFERS_ATTR(default, 0644, vfi_xfers_default_show, vfi_xfers_default_store);
 
-static struct attribute *rddma_xfers_default_attrs[] = {
-    &rddma_xfers_attr_default.attr,
+static struct attribute *vfi_xfers_default_attrs[] = {
+    &vfi_xfers_attr_default.attr,
     0,
 };
 
-struct kobj_type rddma_xfers_type = {
-    .release = rddma_xfers_release,
-    .sysfs_ops = &rddma_xfers_sysfs_ops,
-    .default_attrs = rddma_xfers_default_attrs,
+struct kobj_type vfi_xfers_type = {
+    .release = vfi_xfers_release,
+    .sysfs_ops = &vfi_xfers_sysfs_ops,
+    .default_attrs = vfi_xfers_default_attrs,
 };
 
-static int rddma_xfers_uevent_filter(struct kset *kset, struct kobject *kobj)
+static int vfi_xfers_uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	return 0; /* Do not generate event */
 }
 
-static const char *rddma_xfers_uevent_name(struct kset *kset, struct kobject *kobj)
+static const char *vfi_xfers_uevent_name(struct kset *kset, struct kobject *kobj)
 {
 	return "dunno";
 }
 
-static int rddma_xfers_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
+static int vfi_xfers_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
 {
 	return -ENODEV; /* Do not generate event */
 }
 
 
-static struct kset_uevent_ops rddma_xfers_uevent_ops = {
-	.filter = rddma_xfers_uevent_filter,
-	.name = rddma_xfers_uevent_name,
- 	.uevent = rddma_xfers_uevent, 
+static struct kset_uevent_ops vfi_xfers_uevent_ops = {
+	.filter = vfi_xfers_uevent_filter,
+	.name = vfi_xfers_uevent_name,
+ 	.uevent = vfi_xfers_uevent, 
 };
 
-int new_rddma_xfers(struct rddma_xfers **xfers, char *name, struct rddma_location *parent)
+int new_vfi_xfers(struct vfi_xfers **xfers, char *name, struct vfi_location *parent)
 {
-    struct rddma_xfers *new = kzalloc(sizeof(struct rddma_xfers), GFP_KERNEL);
+    struct vfi_xfers *new = kzalloc(sizeof(struct vfi_xfers), GFP_KERNEL);
     
     *xfers = new;
 
@@ -115,19 +115,19 @@ int new_rddma_xfers(struct rddma_xfers **xfers, char *name, struct rddma_locatio
 	return -ENOMEM;
 
     kobject_set_name(&new->kset.kobj,name);
-    new->kset.kobj.ktype = &rddma_xfers_type;
-    new->kset.uevent_ops = &rddma_xfers_uevent_ops;
+    new->kset.kobj.ktype = &vfi_xfers_type;
+    new->kset.uevent_ops = &vfi_xfers_uevent_ops;
     new->kset.kobj.parent = &parent->kset.kobj;
 
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+    VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
     return 0;
 }
 
-int rddma_xfers_register(struct rddma_xfers *rddma_xfers)
+int vfi_xfers_register(struct vfi_xfers *vfi_xfers)
 {
     int ret = 0;
 
-    if ( (ret = kset_register(&rddma_xfers->kset) ) )
+    if ( (ret = kset_register(&vfi_xfers->kset) ) )
 	goto out;
 
       return ret;
@@ -136,9 +136,9 @@ out:
     return ret;
 }
 
-void rddma_xfers_unregister(struct rddma_xfers *rddma_xfers)
+void vfi_xfers_unregister(struct vfi_xfers *vfi_xfers)
 {
     
-     kset_unregister(&rddma_xfers->kset);
+     kset_unregister(&vfi_xfers->kset);
 }
 

@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_PARSE | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_PARSE | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_PARSE | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_PARSE | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi.h>
 #include <linux/vfi_parse.h>
@@ -23,7 +23,7 @@
 
 
 /**
- * rddma_str_dup - Safe copy of name to max truncated length of 4095 plus null termination in a page.
+ * vfi_str_dup - Safe copy of name to max truncated length of 4095 plus null termination in a page.
  * @name: null terminated string to be duplicated.
  *
  * @name is duplicated into a freshly allocated buffer. This
@@ -31,7 +31,7 @@
  * null terminated so the allocation is max of @name length and 4095
  * plus 1.
  */
-static char *rddma_str_dup(const char *name, struct rddma_desc_param *d)
+static char *vfi_str_dup(const char *name, struct vfi_desc_param *d)
 {
 	char *ret = NULL;
 	const char *p = name;
@@ -71,7 +71,7 @@ static char *rddma_str_dup(const char *name, struct rddma_desc_param *d)
 		}
 	}
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p(%d) to %p(%d)\n",__FUNCTION__,name,oldsize,ret,size);
+	VFI_DEBUG(MY_DEBUG,"%s %p(%d) to %p(%d)\n",__FUNCTION__,name,oldsize,ret,size);
 	return ret;
 }
 
@@ -104,12 +104,12 @@ static char *name_remainder(char *name, int c, char **remainder)
 
 	if (remainder)
 		*remainder = p;
-	RDDMA_DEBUG(MY_DEBUG,"%s %s %c %p -> \n\t\t%s\n",__FUNCTION__,name,c,remainder,p);
+	VFI_DEBUG(MY_DEBUG,"%s %s %c %p -> \n\t\t%s\n",__FUNCTION__,name,c,remainder,p);
 	return p;
 }
 /**
- * rddma_get_option - returns value of var or var if present.
- * @desc: An rddma_desc_param structure into which a string has been
+ * vfi_get_option - returns value of var or var if present.
+ * @desc: An vfi_desc_param structure into which a string has been
  * previously parsed. Any query option strings present in the original
  * will have been parsed into the options and rest members of the
  * struct.
@@ -122,29 +122,29 @@ static char *name_remainder(char *name, int c, char **remainder)
  * present option var then the pointer to the name var is returned. If
  * the option var is not found null is returned.
  */
-char *rddma_get_option(struct rddma_desc_param *desc, const char *needle)
+char *vfi_get_option(struct vfi_desc_param *desc, const char *needle)
 {
 	char *found_var = NULL;
 	char *found_val = NULL;
 	char **query = desc->query;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p) desc->query(%p)\n",__FUNCTION__,desc,desc->query);
+	VFI_DEBUG(MY_DEBUG,"%s desc(%p) desc->query(%p)\n",__FUNCTION__,desc,desc->query);
 
 	if (query)
 		while (*query && (found_var == NULL)) {
-			RDDMA_DEBUG(MY_DEBUG,"%s query(%p) *query(%p)\n",__FUNCTION__,query,*query);
+			VFI_DEBUG(MY_DEBUG,"%s query(%p) *query(%p)\n",__FUNCTION__,query,*query);
 			if ((found_var = strstr(*query,needle)))
 				found_val = strstr(found_var,"=");
 			query++;
 		}
 
-	RDDMA_DEBUG((RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG),"%s %p,%s->%s\n",__FUNCTION__,desc,needle,found_val ? found_val+1 : found_var);
+	VFI_DEBUG((VFI_DBG_FUNCALL | VFI_DBG_DEBUG),"%s %p,%s->%s\n",__FUNCTION__,desc,needle,found_val ? found_val+1 : found_var);
 
 	return found_val ? found_val+1 : found_var ;
 }
-EXPORT_SYMBOL(rddma_get_option);
+EXPORT_SYMBOL(vfi_get_option);
 
-int rddma_add_option(struct rddma_desc_param *desc, char *opt)
+int vfi_add_option(struct vfi_desc_param *desc, char *opt)
 {
 	int additional,opt_space,opt_len,nl,ol;
 	char *ob, *nb, *nopt;
@@ -187,7 +187,7 @@ int rddma_add_option(struct rddma_desc_param *desc, char *opt)
 	return 0;
 }
 
-static void rddma_parse_options(char **query)
+static void vfi_parse_options(char **query)
 {
 	char *q;
 
@@ -198,14 +198,14 @@ static void rddma_parse_options(char **query)
 			if ((q = strstr(q,")")))
 				*q = '\0';
 		}
-		RDDMA_DEBUG(MY_DEBUG,"%s: %s\n",__FUNCTION__,*query);
+		VFI_DEBUG(MY_DEBUG,"%s: %s\n",__FUNCTION__,*query);
 		query++;
 	}
 }
 
 /**
- * rddma_parse_desc - Takes a string which is then duped and parsed into the desc struct.
- * @d: rddma_desc_param struct pointer into which the string will be
+ * vfi_parse_desc - Takes a string which is then duped and parsed into the desc struct.
+ * @d: vfi_desc_param struct pointer into which the string will be
  * parsed.
  * @desc: the string to be parsed. The string is first duped and then
  * parsed into @d to enusre valid lifetimes.
@@ -217,7 +217,7 @@ static void rddma_parse_options(char **query)
  *
  */
 
-static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
+static int _vfi_parse_desc(struct vfi_desc_param *d, char *desc)
 {
 	int ret = 0;
 	char *sextent=NULL;
@@ -226,7 +226,7 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	char *fabric_name;
 	char *dma_engine_name;
 	
-	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
+	VFI_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
 
 	d->extent = 0;
 	d->offset = 0;
@@ -269,36 +269,36 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 	if (sextent) {
 		d->extent = simple_strtoul(sextent,&sextent,16);
 		d->sextent = sextent;
- 		RDDMA_ASSERT(('\0' == *sextent),"Dodgy extent string(%d) contains %s", (ret = (sextent - d->name)), sextent); 
+ 		VFI_ASSERT(('\0' == *sextent),"Dodgy extent string(%d) contains %s", (ret = (sextent - d->name)), sextent); 
 	}
 
 	if (soffset) {
 		d->offset = simple_strtoul(soffset,&soffset,16);
 		d->soffset = soffset;
- 		RDDMA_ASSERT(('\0' == *soffset),"Dodgy offset string(%d) contains %s", (ret = (soffset - d->name)), soffset); 
+ 		VFI_ASSERT(('\0' == *soffset),"Dodgy offset string(%d) contains %s", (ret = (soffset - d->name)), soffset); 
 	}
 
-	rddma_parse_options(d->query);
+	vfi_parse_options(d->query);
 
-	if ( (ops = rddma_get_option(d,"default_ops")) ) {
+	if ( (ops = vfi_get_option(d,"default_ops")) ) {
 		if (!strncmp(ops,"private",7))
-			d->ops = &rddma_local_ops;
+			d->ops = &vfi_local_ops;
 		else if (!strncmp(ops,"public",6)) {
-			d->ops = &rddma_fabric_ops;
+			d->ops = &vfi_fabric_ops;
 		}
 	}
 
-	if ( (fabric_name = rddma_get_option(d,"fabric")) ) 
-		d->address = rddma_fabric_find(fabric_name);
+	if ( (fabric_name = vfi_get_option(d,"fabric")) ) 
+		d->address = vfi_fabric_find(fabric_name);
 	
-	if ( (dma_engine_name = rddma_get_option(d,"dma_name")) ) 
-		d->rde = rddma_dma_find(dma_engine_name);
+	if ( (dma_engine_name = vfi_get_option(d,"dma_name")) ) 
+		d->rde = vfi_dma_find(dma_engine_name);
 
 	return ret;
 }
 
 /**
-* rddma_parse_desc - duplicate, then parse, command string
+* vfi_parse_desc - duplicate, then parse, command string
 * @d    - descriptor to receive results
 * @desc - string to be parsed
 *
@@ -312,14 +312,14 @@ static int _rddma_parse_desc(struct rddma_desc_param *d, char *desc)
 * ought to refer to its own copy of a string.
 *
 **/
-int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
+int vfi_parse_desc(struct vfi_desc_param *d, const char *desc)
 {
 	int ret = -EINVAL;
 	char *mydesc;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
-	if ( (mydesc = rddma_str_dup(desc,d)) ) {
-		if ( (ret = _rddma_parse_desc(d,mydesc)) ) {
+	VFI_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,d,desc);
+	if ( (mydesc = vfi_str_dup(desc,d)) ) {
+		if ( (ret = _vfi_parse_desc(d,mydesc)) ) {
 			d->buf = NULL;
 			d->buflen = 0;
 			kfree(mydesc);
@@ -329,8 +329,8 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
 }
 
 /**
- * rddma_parse_bind - Dups string and parses it into bind_param struct.
- * @x: A struct rddma_bind_param pointer into which the string is
+ * vfi_parse_bind - Dups string and parses it into bind_param struct.
+ * @x: A struct vfi_bind_param pointer into which the string is
  * parsed.
  *@desc: A string describing a transfer.
  *
@@ -350,16 +350,16 @@ int rddma_parse_desc(struct rddma_desc_param *d, const char *desc)
  * by the end-of-string.
  *
  */
-int rddma_parse_bind(struct rddma_bind_param *x, const char *desc)
+int vfi_parse_bind(struct vfi_bind_param *x, const char *desc)
 {
 	int ret;
 	char *myxfer, *mydst, *mysrc;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,x,desc);
+	VFI_DEBUG(MY_DEBUG,"%s %p,%s\n",__FUNCTION__,x,desc);
 
 	memset(x,0,sizeof(*x));
 
-	myxfer = rddma_str_dup(desc,0);
+	myxfer = vfi_str_dup(desc,0);
 
 	if ( myxfer == NULL ) 
 		return -ENOMEM;
@@ -383,12 +383,12 @@ int rddma_parse_bind(struct rddma_bind_param *x, const char *desc)
 		name_remainder(mydst, '=', &mysrc);
 
 		if (mysrc) {
-			ret = rddma_parse_desc( &x->src, mysrc);
+			ret = vfi_parse_desc( &x->src, mysrc);
 			if (ret)
 				goto out;
 		}
 
-		ret = rddma_parse_desc( &x->dst, mydst);
+		ret = vfi_parse_desc( &x->dst, mydst);
 		if (ret)
 			goto out;
 	}
@@ -396,7 +396,7 @@ int rddma_parse_bind(struct rddma_bind_param *x, const char *desc)
 	/*
 	* Parse <xfer-spec> as a standalone descriptor.
 	*/
-	ret = rddma_parse_desc( &x->xfer, myxfer );
+	ret = vfi_parse_desc( &x->xfer, myxfer );
 out:
 	kfree(myxfer);
 
@@ -404,18 +404,18 @@ out:
 }
 
 
-int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
+int vfi_clone_desc(struct vfi_desc_param *new, struct vfi_desc_param *old)
  {
 	int ret = -ENOMEM;
 	int i;
-	RDDMA_DEBUG(MY_DEBUG,"%s new(%p) old(%p)\n",__FUNCTION__,new,old);
+	VFI_DEBUG(MY_DEBUG,"%s new(%p) old(%p)\n",__FUNCTION__,new,old);
 	*new = *old;
 
 	if (new->address)
-		rddma_fabric_get(new->address);
+		vfi_fabric_get(new->address);
 
 	if (new->rde)
-		rddma_dma_get(new->rde);
+		vfi_dma_get(new->rde);
 
 	if ( old->buf && old->buflen && (new->buf = kzalloc(old->buflen, GFP_KERNEL)) ) {
 		memcpy(new->buf, old->buf, old->buflen);
@@ -436,33 +436,33 @@ int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old)
 	return ret;
 }
 
-int rddma_clone_bind(struct rddma_bind_param *new, struct rddma_bind_param *old)
+int vfi_clone_bind(struct vfi_bind_param *new, struct vfi_bind_param *old)
 {
 	int ret = -EINVAL;
-	if ( !(ret = rddma_clone_desc(&new->dst, &old->dst)) )
-		if (!(ret = rddma_clone_desc(&new->src, &old->src)))
-			ret = rddma_clone_desc(&new->xfer, &old->xfer);
+	if ( !(ret = vfi_clone_desc(&new->dst, &old->dst)) )
+		if (!(ret = vfi_clone_desc(&new->src, &old->src)))
+			ret = vfi_clone_desc(&new->xfer, &old->xfer);
 	return ret;
 }
 
-void rddma_clean_desc(struct rddma_desc_param *p)
+void vfi_clean_desc(struct vfi_desc_param *p)
 {
 	if (p) {
 		if (p->buf && p->buflen)
 			kfree(p->buf);
 
 		if (p->address)
-			rddma_fabric_put(p->address);
+			vfi_fabric_put(p->address);
 
 		if (p->rde)
-			rddma_dma_put(p->rde);
+			vfi_dma_put(p->rde);
 	}
 }
 
-void rddma_clean_bind(struct rddma_bind_param *p)
+void vfi_clean_bind(struct vfi_bind_param *p)
 {
-	rddma_clean_desc(&p->xfer);
-	rddma_clean_desc(&p->dst);
-	rddma_clean_desc(&p->src);
+	vfi_clean_desc(&p->xfer);
+	vfi_clean_desc(&p->dst);
+	vfi_clean_desc(&p->src);
 }
 

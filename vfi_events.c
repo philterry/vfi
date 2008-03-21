@@ -1,5 +1,5 @@
-#define MY_DEBUG      RDDMA_DBG_RDYS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_RDYS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_RDYS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_RDYS | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi_events.h>
 #include <linux/vfi_subsys.h>
@@ -9,24 +9,24 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-static void rddma_events_release(struct kobject *kobj)
+static void vfi_events_release(struct kobject *kobj)
 {
-    struct rddma_events *p = to_rddma_events(kobj);
+    struct vfi_events *p = to_vfi_events(kobj);
     kfree(p);
 }
 
-struct rddma_events_attribute {
+struct vfi_events_attribute {
     struct attribute attr;
-    ssize_t (*show)(struct rddma_events*, char *buffer);
-    ssize_t (*store)(struct rddma_events*, const char *buffer, size_t size);
+    ssize_t (*show)(struct vfi_events*, char *buffer);
+    ssize_t (*store)(struct vfi_events*, const char *buffer, size_t size);
 };
 
-#define RDDMA_EVENTS_ATTR(_name,_mode,_show,_store) struct rddma_events_attribute rddma_events_attr_##_name = {     .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },     .show = _show,     .store = _store };
+#define VFI_EVENTS_ATTR(_name,_mode,_show,_store) struct vfi_events_attribute vfi_events_attr_##_name = {     .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },     .show = _show,     .store = _store };
 
-static ssize_t rddma_events_show(struct kobject *kobj, struct attribute *attr, char *buffer)
+static ssize_t vfi_events_show(struct kobject *kobj, struct attribute *attr, char *buffer)
 {
-    struct rddma_events_attribute *pattr = container_of(attr, struct rddma_events_attribute, attr);
-    struct rddma_events *p = to_rddma_events(kobj);
+    struct vfi_events_attribute *pattr = container_of(attr, struct vfi_events_attribute, attr);
+    struct vfi_events *p = to_vfi_events(kobj);
 
     if (pattr && pattr->show)
 	return pattr->show(p,buffer);
@@ -34,10 +34,10 @@ static ssize_t rddma_events_show(struct kobject *kobj, struct attribute *attr, c
     return 0;
 }
 
-static ssize_t rddma_events_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
+static ssize_t vfi_events_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
 {
-    struct rddma_events_attribute *pattr = container_of(attr, struct rddma_events_attribute, attr);
-    struct rddma_events *p = to_rddma_events(kobj);
+    struct vfi_events_attribute *pattr = container_of(attr, struct vfi_events_attribute, attr);
+    struct vfi_events *p = to_vfi_events(kobj);
 
     if (pattr && pattr->store)
 	return pattr->store(p, buffer, size);
@@ -45,69 +45,69 @@ static ssize_t rddma_events_store(struct kobject *kobj, struct attribute *attr, 
     return 0;
 }
 
-static struct sysfs_ops rddma_events_sysfs_ops = {
-    .show = rddma_events_show,
-    .store = rddma_events_store,
+static struct sysfs_ops vfi_events_sysfs_ops = {
+    .show = vfi_events_show,
+    .store = vfi_events_store,
 };
 
 
-static ssize_t rddma_events_default_show(struct rddma_events *rddma_events, char *buffer)
+static ssize_t vfi_events_default_show(struct vfi_events *vfi_events, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_events_default");
+    return snprintf(buffer, PAGE_SIZE, "vfi_events_default");
 }
 
-static ssize_t rddma_events_default_store(struct rddma_events *rddma_events, const char *buffer, size_t size)
+static ssize_t vfi_events_default_store(struct vfi_events *vfi_events, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_EVENTS_ATTR(default, 0644, rddma_events_default_show, rddma_events_default_store);
+VFI_EVENTS_ATTR(default, 0644, vfi_events_default_show, vfi_events_default_store);
 
-static struct attribute *rddma_events_default_attrs[] = {
-    &rddma_events_attr_default.attr,
+static struct attribute *vfi_events_default_attrs[] = {
+    &vfi_events_attr_default.attr,
     0,
 };
 
-struct kobj_type rddma_events_type = {
-    .release = rddma_events_release,
-    .sysfs_ops = &rddma_events_sysfs_ops,
-    .default_attrs = rddma_events_default_attrs,
+struct kobj_type vfi_events_type = {
+    .release = vfi_events_release,
+    .sysfs_ops = &vfi_events_sysfs_ops,
+    .default_attrs = vfi_events_default_attrs,
 };
 
-int find_rddma_events(struct rddma_events **events, struct rddma_readies *p, char *name)
+int find_vfi_events(struct vfi_events **events, struct vfi_readies *p, char *name)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,p,name);
-	*events = to_rddma_events(kset_find_obj(&p->kset,name));
+	VFI_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,p,name);
+	*events = to_vfi_events(kset_find_obj(&p->kset,name));
 	return *events == NULL;
 }
 
-static int rddma_events_uevent_filter(struct kset *kset, struct kobject *kobj)
+static int vfi_events_uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	return 0; /* Do not generate event */
 }
 
-static const char *rddma_events_uevent_name(struct kset *kset, struct kobject *kobj)
+static const char *vfi_events_uevent_name(struct kset *kset, struct kobject *kobj)
 {
 	return "dunno";
 }
 
-static int rddma_events_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
+static int vfi_events_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
 {
 	return 0; /* Do not generate event */
 }
 
 
-static struct kset_uevent_ops rddma_events_uevent_ops = {
-	.filter = rddma_events_uevent_filter,
-	.name = rddma_events_uevent_name,
-	.uevent = rddma_events_uevent,
+static struct kset_uevent_ops vfi_events_uevent_ops = {
+	.filter = vfi_events_uevent_filter,
+	.name = vfi_events_uevent_name,
+	.uevent = vfi_events_uevent,
 };
 
-int new_rddma_events(struct rddma_events **events, struct rddma_readies *parent, char *name)
+int new_vfi_events(struct vfi_events **events, struct vfi_readies *parent, char *name)
 {
-    struct rddma_events *new = kzalloc(sizeof(struct rddma_events), GFP_KERNEL);
+    struct vfi_events *new = kzalloc(sizeof(struct vfi_events), GFP_KERNEL);
     
-    RDDMA_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,parent,name);
+    VFI_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,parent,name);
     
     *events = new;
 
@@ -115,8 +115,8 @@ int new_rddma_events(struct rddma_events **events, struct rddma_readies *parent,
 	return -ENOMEM;
 
     kobject_set_name(&new->kset.kobj,name);
-    new->kset.kobj.ktype = &rddma_events_type;
-    new->kset.uevent_ops = &rddma_events_uevent_ops;
+    new->kset.kobj.ktype = &vfi_events_type;
+    new->kset.uevent_ops = &vfi_events_uevent_ops;
     new->kset.kobj.kset = &parent->kset;
     init_MUTEX(&new->start_lock);
     init_completion(&new->dma_sync);
@@ -124,55 +124,55 @@ int new_rddma_events(struct rddma_events **events, struct rddma_readies *parent,
     return 0;
 }
 
-int rddma_events_register(struct rddma_events *rddma_events)
+int vfi_events_register(struct vfi_events *vfi_events)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,rddma_events);
-	return kset_register(&rddma_events->kset);
+	VFI_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,vfi_events);
+	return kset_register(&vfi_events->kset);
 }
 
-void rddma_events_unregister(struct rddma_events *rddma_events)
+void vfi_events_unregister(struct vfi_events *vfi_events)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,rddma_events);
-	if (rddma_events)
-		kset_unregister(&rddma_events->kset);
+	VFI_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,vfi_events);
+	if (vfi_events)
+		kset_unregister(&vfi_events->kset);
 }
 
-int rddma_events_create(struct rddma_events **events, struct rddma_readies *parent, char *name)
+int vfi_events_create(struct vfi_events **events, struct vfi_readies *parent, char *name)
 {
-	struct rddma_events *new; 
+	struct vfi_events *new; 
 	int ret;
-	RDDMA_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,parent,name);
+	VFI_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,parent,name);
 
-	ret = new_rddma_events(&new, parent, name);
+	ret = new_vfi_events(&new, parent, name);
 
 	*events = new;
 
 	if ( ret ) 
 		return ret;
 
-	if (rddma_events_register(new)) {
-		rddma_events_put(new);
+	if (vfi_events_register(new)) {
+		vfi_events_put(new);
 		*events = NULL;
 		return -EINVAL;
 	}
 
-	RDDMA_DEBUG(MY_DEBUG,"%s returns(%p)\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_DEBUG,"%s returns(%p)\n",__FUNCTION__,new);
 	return 0;
 }
 
-void rddma_events_delete(struct rddma_events *rddma_events)
+void vfi_events_delete(struct vfi_events *vfi_events)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,rddma_events);
-	rddma_events_unregister(rddma_events);
+	VFI_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,vfi_events);
+	vfi_events_unregister(vfi_events);
 }
 
-void rddma_events_start(struct rddma_events *events)
+void vfi_events_start(struct vfi_events *events)
 {
-	struct rddma_event *ep;
+	struct vfi_event *ep;
 	struct list_head *entry;
 	int wait = 0;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,events);
+	VFI_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,events);
 
 	if (events == NULL) 
 		return;
@@ -181,7 +181,7 @@ void rddma_events_start(struct rddma_events *events)
 		spin_lock(&events->kset.list_lock);
 		if (!list_empty(&events->kset.list)) {
 			list_for_each(entry,&events->kset.list) {
-				ep = to_rddma_event(to_kobj(entry));
+				ep = to_vfi_event(to_kobj(entry));
 				if (ep->start_event) {
 					wait = 1;
 					events->count++;

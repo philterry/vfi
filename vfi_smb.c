@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_SMB | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_SMB | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_SMB | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_SMB | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi_smb.h>
 #include <linux/vfi_parse.h>
@@ -24,35 +24,35 @@
 #include <linux/vfi_mmaps.h>
 
 
-static void rddma_smb_release(struct kobject *kobj)
+static void vfi_smb_release(struct kobject *kobj)
 {
-	struct rddma_smb *p = to_rddma_smb(kobj);
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+	struct vfi_smb *p = to_vfi_smb(kobj);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
 	if (p->desc.name) {
-		RDDMA_DEBUG(MY_LIFE_DEBUG,"%s name %p\n",__FUNCTION__,p->desc.name);
+		VFI_DEBUG(MY_LIFE_DEBUG,"%s name %p\n",__FUNCTION__,p->desc.name);
 		kfree(p->desc.name);
 	}
 	if (p->pages)
-		rddma_dealloc_pages(p->pages, p->num_pages);
+		vfi_dealloc_pages(p->pages, p->num_pages);
 	kfree(p);
 }
 
-struct rddma_smb_attribute {
+struct vfi_smb_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct rddma_smb*, char *buffer);
-	ssize_t (*store)(struct rddma_smb*, const char *buffer, size_t size);
+	ssize_t (*show)(struct vfi_smb*, char *buffer);
+	ssize_t (*store)(struct vfi_smb*, const char *buffer, size_t size);
 };
 
-#define RDDMA_SMB_ATTR(_name,_mode,_show,_store) struct rddma_smb_attribute rddma_smb_attr_##_name = {\
+#define VFI_SMB_ATTR(_name,_mode,_show,_store) struct vfi_smb_attribute vfi_smb_attr_##_name = {\
      .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },\
      .show = _show,\
      .store = _store\
  };
 
-static ssize_t rddma_smb_show(struct kobject *kobj, struct attribute *attr, char *buffer)
+static ssize_t vfi_smb_show(struct kobject *kobj, struct attribute *attr, char *buffer)
 {
-	struct rddma_smb_attribute *pattr = container_of(attr, struct rddma_smb_attribute, attr);
-	struct rddma_smb *p = to_rddma_smb(kobj);
+	struct vfi_smb_attribute *pattr = container_of(attr, struct vfi_smb_attribute, attr);
+	struct vfi_smb *p = to_vfi_smb(kobj);
 
 	if (pattr && pattr->show)
 		return pattr->show(p,buffer);
@@ -60,10 +60,10 @@ static ssize_t rddma_smb_show(struct kobject *kobj, struct attribute *attr, char
 	return 0;
 }
 
-static ssize_t rddma_smb_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
+static ssize_t vfi_smb_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
 {
-	struct rddma_smb_attribute *pattr = container_of(attr, struct rddma_smb_attribute, attr);
-	struct rddma_smb *p = to_rddma_smb(kobj);
+	struct vfi_smb_attribute *pattr = container_of(attr, struct vfi_smb_attribute, attr);
+	struct vfi_smb *p = to_vfi_smb(kobj);
 
 	if (pattr && pattr->store)
 		return pattr->store(p, buffer, size);
@@ -71,135 +71,135 @@ static ssize_t rddma_smb_store(struct kobject *kobj, struct attribute *attr, con
 	return 0;
 }
 
-static struct sysfs_ops rddma_smb_sysfs_ops = {
-	.show = rddma_smb_show,
-	.store = rddma_smb_store,
+static struct sysfs_ops vfi_smb_sysfs_ops = {
+	.show = vfi_smb_show,
+	.store = vfi_smb_store,
 };
 
 
-static ssize_t rddma_smb_default_show(struct rddma_smb *rddma_smb, char *buffer)
+static ssize_t vfi_smb_default_show(struct vfi_smb *vfi_smb, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("Smb %p is %s \n",rddma_smb,rddma_smb ? rddma_smb->desc.name : NULL);
-	if (rddma_smb) {
-		ATTR_PRINTF("ops is %p rde is %p address is %p\n",rddma_smb->desc.ops,rddma_smb->desc.rde,rddma_smb->desc.address);
+	ATTR_PRINTF("Smb %p is %s \n",vfi_smb,vfi_smb ? vfi_smb->desc.name : NULL);
+	if (vfi_smb) {
+		ATTR_PRINTF("ops is %p rde is %p address is %p\n",vfi_smb->desc.ops,vfi_smb->desc.rde,vfi_smb->desc.address);
 	}
-	ATTR_PRINTF("refcount %d\n",atomic_read(&rddma_smb->kobj.kref.refcount));
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_smb->kobj.kref.refcount));
 	return size;
 }
 
-static ssize_t rddma_smb_default_store(struct rddma_smb *rddma_smb, const char *buffer, size_t size)
+static ssize_t vfi_smb_default_store(struct vfi_smb *vfi_smb, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_SMB_ATTR(default, 0644, rddma_smb_default_show, rddma_smb_default_store);
+VFI_SMB_ATTR(default, 0644, vfi_smb_default_show, vfi_smb_default_store);
 
-static ssize_t rddma_smb_location_show(struct rddma_smb *rddma_smb, char *buffer)
+static ssize_t vfi_smb_location_show(struct vfi_smb *vfi_smb, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("Smb %p is %s \n",rddma_smb,rddma_smb ? rddma_smb->desc.name : NULL);
-	if (rddma_smb) {
-		ATTR_PRINTF("ops is %p rde is %p address is %p\n",rddma_smb->desc.ops,rddma_smb->desc.rde,rddma_smb->desc.address);
+	ATTR_PRINTF("Smb %p is %s \n",vfi_smb,vfi_smb ? vfi_smb->desc.name : NULL);
+	if (vfi_smb) {
+		ATTR_PRINTF("ops is %p rde is %p address is %p\n",vfi_smb->desc.ops,vfi_smb->desc.rde,vfi_smb->desc.address);
 	}
 	return size;
 }
 
-static ssize_t rddma_smb_location_store(struct rddma_smb *rddma_smb, const char *buffer, size_t size)
+static ssize_t vfi_smb_location_store(struct vfi_smb *vfi_smb, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_SMB_ATTR(location, 0644, rddma_smb_location_show, rddma_smb_location_store);
+VFI_SMB_ATTR(location, 0644, vfi_smb_location_show, vfi_smb_location_store);
 
-static ssize_t rddma_smb_name_show(struct rddma_smb *rddma_smb, char *buffer)
+static ssize_t vfi_smb_name_show(struct vfi_smb *vfi_smb, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%s\n", rddma_smb->desc.name);
+	return snprintf(buffer, PAGE_SIZE, "%s\n", vfi_smb->desc.name);
 }
 
-RDDMA_SMB_ATTR(name, 0444, rddma_smb_name_show, 0);
+VFI_SMB_ATTR(name, 0444, vfi_smb_name_show, 0);
 
-static ssize_t rddma_smb_offset_show(struct rddma_smb *rddma_smb, char *buffer)
+static ssize_t vfi_smb_offset_show(struct vfi_smb *vfi_smb, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%llx\n", rddma_smb->desc.offset);
+	return snprintf(buffer, PAGE_SIZE, "%llx\n", vfi_smb->desc.offset);
 }
 
-RDDMA_SMB_ATTR(offset, 0444, rddma_smb_offset_show, 0);
+VFI_SMB_ATTR(offset, 0444, vfi_smb_offset_show, 0);
 
-static ssize_t rddma_smb_extent_show(struct rddma_smb *rddma_smb, char *buffer)
+static ssize_t vfi_smb_extent_show(struct vfi_smb *vfi_smb, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%x\n", rddma_smb->desc.extent);
+	return snprintf(buffer, PAGE_SIZE, "%x\n", vfi_smb->desc.extent);
 }
 
-RDDMA_SMB_ATTR(extent, 0444, rddma_smb_extent_show, 0);
+VFI_SMB_ATTR(extent, 0444, vfi_smb_extent_show, 0);
 
-static struct attribute *rddma_smb_default_attrs[] = {
-    &rddma_smb_attr_default.attr,
-    &rddma_smb_attr_location.attr,
-    &rddma_smb_attr_name.attr,
-    &rddma_smb_attr_offset.attr,
-    &rddma_smb_attr_extent.attr,
+static struct attribute *vfi_smb_default_attrs[] = {
+    &vfi_smb_attr_default.attr,
+    &vfi_smb_attr_location.attr,
+    &vfi_smb_attr_name.attr,
+    &vfi_smb_attr_offset.attr,
+    &vfi_smb_attr_extent.attr,
     0,
 };
 
-struct kobj_type rddma_smb_type = {
-	.release = rddma_smb_release,
-	.sysfs_ops = &rddma_smb_sysfs_ops,
-	.default_attrs = rddma_smb_default_attrs,
+struct kobj_type vfi_smb_type = {
+	.release = vfi_smb_release,
+	.sysfs_ops = &vfi_smb_sysfs_ops,
+	.default_attrs = vfi_smb_default_attrs,
 };
 
-int new_rddma_smb(struct rddma_smb **smb, struct rddma_location *loc, struct rddma_desc_param *desc)
+int new_vfi_smb(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	struct rddma_smb *new = kzalloc(sizeof(struct rddma_smb), GFP_KERNEL);
+	struct vfi_smb *new = kzalloc(sizeof(struct vfi_smb), GFP_KERNEL);
     
 	*smb = new;
 	if (NULL == new)
 		return -ENOMEM;
 
-	rddma_clone_desc(&new->desc, desc);
+	vfi_clone_desc(&new->desc, desc);
 	new->size = new->desc.extent;
 	
 	kobject_set_name(&new->kobj,"%s",new->desc.name);
-	new->kobj.ktype = &rddma_smb_type;
+	new->kobj.ktype = &vfi_smb_type;
 
 	new->kobj.kset = &loc->smbs->kset;
 	new->desc.ops = loc->desc.ops;
 	new->desc.rde = loc->desc.rde;
 	new->desc.ploc = loc;
 
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return 0;
 }
 
-int rddma_smb_register(struct rddma_smb *rddma_smb)
+int vfi_smb_register(struct vfi_smb *vfi_smb)
 {
 	int ret = 0;
 
-	if ( (ret = kobject_register(&rddma_smb->kobj) ) )
+	if ( (ret = kobject_register(&vfi_smb->kobj) ) )
 		goto out;
-	ret = new_rddma_mmaps(&rddma_smb->mmaps,rddma_smb, "mmaps");
-	if ( rddma_smb->mmaps )
-		if ( (ret = rddma_mmaps_register(rddma_smb->mmaps)) )
+	ret = new_vfi_mmaps(&vfi_smb->mmaps,vfi_smb, "mmaps");
+	if ( vfi_smb->mmaps )
+		if ( (ret = vfi_mmaps_register(vfi_smb->mmaps)) )
 			goto mmaps;
 	return ret;
 mmaps:
-	rddma_smb_unregister(rddma_smb);
+	vfi_smb_unregister(vfi_smb);
 out:
 	return ret;
 }
 
-void rddma_smb_unregister(struct rddma_smb *rddma_smb)
+void vfi_smb_unregister(struct vfi_smb *vfi_smb)
 {
-	rddma_mmaps_unregister(rddma_smb->mmaps);
-	kobject_unregister(&rddma_smb->kobj);
+	vfi_mmaps_unregister(vfi_smb->mmaps);
+	kobject_unregister(&vfi_smb->kobj);
 }
 
-int find_rddma_smb_in(struct rddma_smb **smb, struct rddma_location *loc, struct rddma_desc_param *desc)
+int find_vfi_smb_in(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 	int ret;
-	struct rddma_location *tmploc;
+	struct vfi_location *tmploc;
 
 	if (loc)
 		return loc->desc.ops->smb_find(smb,loc,desc);
@@ -209,54 +209,54 @@ int find_rddma_smb_in(struct rddma_smb **smb, struct rddma_location *loc, struct
 
 	*smb = NULL;
 
-	ret = locate_rddma_location(&tmploc, NULL,desc);
+	ret = locate_vfi_location(&tmploc, NULL,desc);
 	if (ret)
 		return ret;
 
 	if (tmploc) {
 		ret = loc->desc.ops->smb_find(smb,tmploc,desc);
-		rddma_location_put(tmploc);
+		vfi_location_put(tmploc);
 	}
 
 	return ret;
 }
 
 /**
-* rddma_smb_create : Create RDDMA SMB kobject and isntall it in sysfs
+* vfi_smb_create : Create VFI SMB kobject and isntall it in sysfs
 *
-* @loc:  pointer to rddma_location that specifies where the SMB is located
-*        in the RDDMA network
+* @loc:  pointer to vfi_location that specifies where the SMB is located
+*        in the VFI network
 * @desc: pointer to command string descriptor for the command we are 
 *        servicing.
 *
-* This function creates a kobject to represent a new RDDMA shared-memory 
-* buffer (SMB) and installs it in the RDDMA sysfs tree. It does NOT create
+* This function creates a kobject to represent a new VFI shared-memory 
+* buffer (SMB) and installs it in the VFI sysfs tree. It does NOT create
 * the SMB itself.
 *
 **/
-int rddma_smb_create(struct rddma_smb **smb,struct rddma_location *loc, struct rddma_desc_param *desc)
+int vfi_smb_create(struct vfi_smb **smb,struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	int ret = new_rddma_smb(smb,loc,desc);
+	int ret = new_vfi_smb(smb,loc,desc);
 
 	if ( ret || NULL == *smb)
 		goto out;
 
-	if ( (rddma_smb_register(*smb)) ) 
+	if ( (vfi_smb_register(*smb)) ) 
 		goto fail_reg;
 	
 	return 0;
 
 fail_reg:
-	rddma_smb_put(*smb);
+	vfi_smb_put(*smb);
 out:
 	return -EINVAL;
 }
 
 
-void rddma_smb_delete(struct rddma_smb *smb)
+void vfi_smb_delete(struct vfi_smb *smb)
 {
 	if (smb) {
-		rddma_smb_unregister(smb);
+		vfi_smb_unregister(smb);
 	}
 }
 

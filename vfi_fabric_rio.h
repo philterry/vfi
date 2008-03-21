@@ -9,9 +9,9 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_FABRIC_RIO_H
-#define RDDMA_FABRIC_RIO_H
+#ifndef VFI_FABRIC_RIO_H
+#define VFI_FABRIC_RIO_H
 
 #include <linux/vfi.h>
 
-#endif /* RDDMA_FABRIC_RIO_H  */
+#endif /* VFI_FABRIC_RIO_H  */

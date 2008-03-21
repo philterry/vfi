@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_CDEV | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_CDEV | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_CDEV | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_CDEV | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi.h>
 
@@ -29,7 +29,7 @@
 #include <linux/vfi_mmap.h>
 #include <linux/version.h>
 
-struct proc_dir_entry *proc_root_rddma = NULL;
+struct proc_dir_entry *proc_root_vfi = NULL;
 
 struct mybuffers {
 	struct list_head list;
@@ -61,7 +61,7 @@ static struct kobj_type privtype = {
 	.release = release_privdata,
 };
 
-static ssize_t rddma_read(struct file *filep, char __user *buf, size_t count, loff_t *offset)
+static ssize_t vfi_read(struct file *filep, char __user *buf, size_t count, loff_t *offset)
 {
 	int ret;
 	int mycount = 0;
@@ -71,7 +71,7 @@ static ssize_t rddma_read(struct file *filep, char __user *buf, size_t count, lo
 	if (down_interruptible(&priv->sem))
 		return -ERESTARTSYS;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s buf(%p),count(%d),offset(%lld)\n",__FUNCTION__,buf,count,*offset);
+	VFI_DEBUG(MY_DEBUG,"%s buf(%p),count(%d),offset(%lld)\n",__FUNCTION__,buf,count,*offset);
 
 	while (!mycount) {
 		if (!priv->mybuf) {
@@ -110,11 +110,11 @@ out:
 }
 
 
-static ssize_t rddma_real_write(struct mybuffers *mybuf, size_t count, loff_t *offset)
+static ssize_t vfi_real_write(struct mybuffers *mybuf, size_t count, loff_t *offset)
 {
 	int ret;
 	int size = 1024-sizeof(struct mybuffers);
-	RDDMA_DEBUG(MY_DEBUG,"%s: count=%d, calls do_operation (...)\n",__FUNCTION__, (int)count);
+	VFI_DEBUG(MY_DEBUG,"%s: count=%d, calls do_operation (...)\n",__FUNCTION__, (int)count);
 	ret = do_operation(mybuf->buf, mybuf->reply, &size);
 
 	*offset += count;
@@ -123,7 +123,7 @@ static ssize_t rddma_real_write(struct mybuffers *mybuf, size_t count, loff_t *o
 
 static void queue_to_read(struct privdata *priv, struct mybuffers *mybuf)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	INIT_LIST_HEAD(&mybuf->list);
 	down(&priv->sem);
 	if (priv->open) {
@@ -169,7 +169,7 @@ static void def_write(struct work_struct *wk)
 	loff_t offset = 0;
 	int ret;
 
-	ret = rddma_real_write(work->mybuf,work->count,&offset);
+	ret = vfi_real_write(work->mybuf,work->count,&offset);
 		
 	work->mybuf->size = ret;
 	queue_to_read(work->priv,work->mybuf);
@@ -184,13 +184,13 @@ static void def_write(struct work_struct *wk)
 }
 
 /**
- * rddma_write - Write a command to the rddma driver.
+ * vfi_write - Write a command to the vfi driver.
  * @filep - the open filep structure
  * @buf - the user buffer should contain a single, line-feed terminated command
  * @count - the length of the string
  * @offset - the notional offset into the "file".
  *
- * The rddma driver is command string oriented. The char device write
+ * The vfi driver is command string oriented. The char device write
  * command is simply writing a chuck of data in the stream of
  * chararcters. Usually, the glibc/kernel superstructure will cause a
  * line-feed terminated string to flush through the system. However,
@@ -203,7 +203,7 @@ static void def_write(struct work_struct *wk)
  * preferred to avoid these potential problems with a stream vs record
  * interface.
  */
-static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t count, loff_t *offset)
+static ssize_t vfi_write(struct file *filep, const char __user *buf, size_t count, loff_t *offset)
 {
 	int ret;
 	struct mybuffers *mybuf;
@@ -214,7 +214,7 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 	if (down_interruptible(&priv->sem)) 
 		return -ERESTARTSYS;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	buffer = kzalloc(count+1,GFP_KERNEL);
 	if (buffer == NULL) {
@@ -239,7 +239,7 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 #else
 		INIT_WORK(&work->work,def_write);
 #endif
-		work->woq = create_singlethread_workqueue("rddma_write");
+		work->woq = create_singlethread_workqueue("vfi_write");
 		work->mybuf = mybuf;
 		work->count = count;
 		work->priv = priv;
@@ -249,7 +249,7 @@ static ssize_t rddma_write(struct file *filep, const char __user *buf, size_t co
 		up(&priv->sem);
 	}
 	else {
-		ret = rddma_real_write(mybuf,count,offset);
+		ret = vfi_real_write(mybuf,count,offset);
 		mybuf->size = ret;
 		up(&priv->sem);
 		queue_to_read(priv,mybuf);
@@ -296,7 +296,7 @@ static void aio_def_write(struct work_struct *wk)
 	int ret = 0;
 	ssize_t count = 0;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 #if 0
 	/* Test hack:  Suspend what's on the work queue */
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -309,7 +309,7 @@ static void aio_def_write(struct work_struct *wk)
 				mybuf->buf = work->iovs[i].iov_base;
 				mybuf->reply= (char *)(mybuf+1);
 
-				if ( (ret = rddma_real_write(mybuf, work->iovs[i].iov_len, &work->offset)) < 0 )
+				if ( (ret = vfi_real_write(mybuf, work->iovs[i].iov_len, &work->offset)) < 0 )
 					count = ret;
 				else 
 					count += work->iovs[i].iov_len;
@@ -397,14 +397,14 @@ static void aio_def_write(struct work_struct *wk)
 	schedule_work(&work->work);
 }
 
-static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, unsigned long nr_iovs, loff_t offset)
+static ssize_t vfi_aio_write(struct kiocb *iocb, const struct iovec *iovs, unsigned long nr_iovs, loff_t offset)
 {
 	struct privdata *priv = iocb->ki_filp->private_data;
 	struct aio_def_work *work;
 	int i = 0;
 	int ret = 0;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	if (is_sync_kiocb(iocb)) {
 		return -EIO;
@@ -416,7 +416,7 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 #else
 	INIT_WORK(&work->work,aio_def_write);
 #endif
-	work->woq = create_singlethread_workqueue("rddma_aio_write");
+	work->woq = create_singlethread_workqueue("vfi_aio_write");
 	work->iocb = iocb;
 	work->iovs = kzalloc(sizeof(struct kvec)*nr_iovs, GFP_KERNEL);
 	while ( i < nr_iovs) {
@@ -467,22 +467,22 @@ static ssize_t rddma_aio_write(struct kiocb *iocb, const struct iovec *iovs, uns
 }
 
 #if 0
-static int rddma_fsync(struct file *filep, struct dentry *dir, int datasync)
+static int vfi_fsync(struct file *filep, struct dentry *dir, int datasync)
 {
 	return 0;
 }
 
-static int rddma_aio_fsync(struct kiocb *iocb, int datasync)
+static int vfi_aio_fsync(struct kiocb *iocb, int datasync)
 {
 	return 0;
 }
 
-static int rddma_fasync(int fd , struct file *filep, int datasync)
+static int vfi_fasync(int fd , struct file *filep, int datasync)
 {
 	return 0;
 }
 #endif
-static unsigned int rddma_poll(struct file *filep, struct poll_table_struct *poll_table)
+static unsigned int vfi_poll(struct file *filep, struct poll_table_struct *poll_table)
 {
 	unsigned int mask = POLLOUT | POLLWRNORM;
 	struct privdata *priv = filep->private_data;
@@ -495,42 +495,42 @@ static unsigned int rddma_poll(struct file *filep, struct poll_table_struct *pol
 	if (priv->mybuf || !list_empty(&priv->list))
 		mask |= POLLIN | POLLRDNORM;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s mybuf(%p), !list_empty(%d)\n",__FUNCTION__,priv->mybuf,!list_empty(&priv->list));
+	VFI_DEBUG(MY_DEBUG,"%s mybuf(%p), !list_empty(%d)\n",__FUNCTION__,priv->mybuf,!list_empty(&priv->list));
 	up(&priv->sem);
 	return mask;
 }
 
 /**
-* rddma_mmap_nopage - lookup page table entry for virtual mapping
+* vfi_mmap_nopage - lookup page table entry for virtual mapping
 * @vma     - virtual memory area descriptor
 * @address - virtual address to be mapped
 * @type    - type flags
 *
 * This function is invoked as a "nopage" op by the virtual memory 
 * mapping subsystem, typically in response to page faults on virtual
-* addresses that have been mmapped onto RDDMA SMBs. Its job is to 
+* addresses that have been mmapped onto VFI SMBs. Its job is to 
 * return a page table entry that a given virtual address is mapped
 * to. 
 *
-* The @vma structure for RDDMA mappings will point to private data
-* written earlier by rddma_mmap (). That takes the form of an mmap
+* The @vma structure for VFI mappings will point to private data
+* written earlier by vfi_mmap (). That takes the form of an mmap
 * ticket that points the page table associated with this area. This
 * function uses @address to calculate a page offset within the mapping, 
 * and to return a pointer to the page table entry for that page.
 *
 **/
-static struct page* rddma_mmap_nopage (struct vm_area_struct* vma, unsigned long address, int *type)
+static struct page* vfi_mmap_nopage (struct vm_area_struct* vma, unsigned long address, int *type)
 {
-	struct rddma_mmap* tkt = (struct rddma_mmap *)vma->vm_private_data;
+	struct vfi_mmap* tkt = (struct vfi_mmap *)vma->vm_private_data;
 	unsigned long pg_off = (address - vma->vm_start) >> PAGE_SHIFT;
 #if 0
-	RDDMA_DEBUG (MY_DEBUG, "## rddma_mmap_nopage (%p, %lu, %p)\n", vma, address, type);
+	VFI_DEBUG (MY_DEBUG, "## vfi_mmap_nopage (%p, %lu, %p)\n", vma, address, type);
 	if (tkt) {
-		RDDMA_DEBUG (MY_DEBUG, "-- Original Ticket#%lu, %lu-pages, page table @ %p\n", tkt->t_id, tkt->n_pg, tkt->pg_tbl);
-		RDDMA_DEBUG (MY_DEBUG, "-- Map page %lu of %lu\n", pg_off+1, tkt->n_pg);
+		VFI_DEBUG (MY_DEBUG, "-- Original Ticket#%lu, %lu-pages, page table @ %p\n", tkt->t_id, tkt->n_pg, tkt->pg_tbl);
+		VFI_DEBUG (MY_DEBUG, "-- Map page %lu of %lu\n", pg_off+1, tkt->n_pg);
 	}
 	else {
-		RDDMA_DEBUG (MY_DEBUG, "xx Invalid ticket!\n");
+		VFI_DEBUG (MY_DEBUG, "xx Invalid ticket!\n");
 	}
 #endif
 	if (!tkt || pg_off >= tkt->n_pg)
@@ -543,17 +543,17 @@ static struct page* rddma_mmap_nopage (struct vm_area_struct* vma, unsigned long
 }
 
 static struct vm_operations_struct vm_ops = {
-	.nopage = rddma_mmap_nopage, 
+	.nopage = vfi_mmap_nopage, 
 };
 
 /**
-* rddma_mmap - map RDDMA resources into user virtual memory.
+* vfi_mmap - map VFI resources into user virtual memory.
 *
 * @filep: device file pointer
 * @vma:   virtual memory area descriptor for pages to be mapped
 *
-* This function implements the "mmap" service for RDDMA. Its job
-* is to map all of part of a subsidiary RDDMA memory construct into 
+* This function implements the "mmap" service for VFI. Its job
+* is to map all of part of a subsidiary VFI memory construct into 
 * user virtual address space. The @vma structure describes what is
 * to be mapped, and where in virtual memory it is to be mapped to.
 *
@@ -561,7 +561,7 @@ static struct vm_operations_struct vm_ops = {
 *
 * Hack Attack
 * -----------
-* RDDMA does not sit well with the traditional model of device-file
+* VFI does not sit well with the traditional model of device-file
 * that mmap expects: it does not possess a unified page table but, 
 * rather, manages a disjoint and dynamic collection of local and 
 * remote memory objects that each have their own. What that means 
@@ -574,20 +574,20 @@ static struct vm_operations_struct vm_ops = {
 * mmap handler can use afterwards. 
 *
 **/
-static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
+static int vfi_mmap (struct file* filep, struct vm_area_struct* vma)
 {
-	struct rddma_mmap *tkt;
+	struct vfi_mmap *tkt;
 	u32 req_size;
 	int ret;
-	RDDMA_DEBUG (MY_DEBUG, "** RDDMA_MMAP *******\n");
-	RDDMA_DEBUG (MY_DEBUG, "Pg: %08lx, Id: %08lx\n", vma->vm_pgoff, (vma->vm_pgoff << PAGE_SHIFT));
+	VFI_DEBUG (MY_DEBUG, "** VFI_MMAP *******\n");
+	VFI_DEBUG (MY_DEBUG, "Pg: %08lx, Id: %08lx\n", vma->vm_pgoff, (vma->vm_pgoff << PAGE_SHIFT));
 	/*
 	* Use mmap page offset to locate a ticket created earlier.
 	* This ticket tells us what we really need to map to.
 	*/
-	ret = find_rddma_mmap_by_id(&tkt,vma->vm_pgoff<<PAGE_SHIFT);
+	ret = find_vfi_mmap_by_id(&tkt,vma->vm_pgoff<<PAGE_SHIFT);
 	if (!tkt) {
-		RDDMA_DEBUG (MY_DEBUG, "xx Could not locate suitable mmap ticket!\n");
+		VFI_DEBUG (MY_DEBUG, "xx Could not locate suitable mmap ticket!\n");
 		return -EINVAL;
 	}
 	
@@ -597,13 +597,13 @@ static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
 	*/
 	req_size = vma->vm_end - vma->vm_start; 
 	if ((req_size >> PAGE_SHIFT) > tkt->n_pg) {
-		RDDMA_DEBUG (MY_DEBUG, "xx Required area too big! (%u > %lu)\n", 
+		VFI_DEBUG (MY_DEBUG, "xx Required area too big! (%u > %lu)\n", 
 			(req_size >> PAGE_SHIFT), tkt->n_pg);
 		return (-EINVAL);
 	}
 	
 	if (vma->vm_private_data) {
-		RDDMA_DEBUG (MY_DEBUG, KERN_WARNING "xx Rddma mmap: vma has private data already!\n");
+		VFI_DEBUG (MY_DEBUG, KERN_WARNING "xx Rddma mmap: vma has private data already!\n");
 		return (-EINVAL);
 	}
 	
@@ -612,21 +612,21 @@ static int rddma_mmap (struct file* filep, struct vm_area_struct* vma)
 	* erase the original.
 	*/
 #ifdef FIXED
-	vma->vm_private_data = kmalloc (sizeof (struct rddma_mmap_ticket), GFP_KERNEL);
-	memcpy (vma->vm_private_data, tkt, sizeof (struct rddma_mmap_ticket));
-	rddma_mmap_stamp_ticket (vma->vm_pgoff);
+	vma->vm_private_data = kmalloc (sizeof (struct vfi_mmap_ticket), GFP_KERNEL);
+	memcpy (vma->vm_private_data, tkt, sizeof (struct vfi_mmap_ticket));
+	vfi_mmap_stamp_ticket (vma->vm_pgoff);
 #else
 	vma->vm_private_data = (void*)tkt;
 #endif
 	vma->vm_pgoff = 0;
 	vma->vm_ops = &vm_ops;
-	tkt = (struct rddma_mmap *)vma->vm_private_data;
-	RDDMA_DEBUG (MY_DEBUG, "-- Set-up ticket for nopage, t_id#%lu, %lu pages, page table @ %p\n", 
+	tkt = (struct vfi_mmap *)vma->vm_private_data;
+	VFI_DEBUG (MY_DEBUG, "-- Set-up ticket for nopage, t_id#%lu, %lu pages, page table @ %p\n", 
 		     tkt->t_id, tkt->n_pg, tkt->pg_tbl);
 	return 0;
 }
 
-static int rddma_open(struct inode *inode, struct file *filep)
+static int vfi_open(struct inode *inode, struct file *filep)
 {
 	struct privdata *priv = kzalloc(sizeof(struct privdata), GFP_KERNEL);
 	if ( NULL == priv )
@@ -642,7 +642,7 @@ static int rddma_open(struct inode *inode, struct file *filep)
 	return 0;
 }
 
-static int rddma_release(struct inode *inode, struct file *filep)
+static int vfi_release(struct inode *inode, struct file *filep)
 {
 	struct privdata *priv = filep->private_data;
 	struct list_head *entry;
@@ -661,61 +661,61 @@ static int rddma_release(struct inode *inode, struct file *filep)
 	return 0;
 }
 
-struct file_operations rddma_file_ops = {
+struct file_operations vfi_file_ops = {
 	.owner = THIS_MODULE,
- 	.read = rddma_read, 
-	.write = rddma_write,
-/* 	.fsync = rddma_fsync, */
-	.aio_write = rddma_aio_write,
-/* 	.aio_fsync = rddma_aio_fsync, */
-/* 	.fasync = rddma_fasync, */
-	.poll = rddma_poll,
-	.mmap = rddma_mmap, 
-	.open = rddma_open,
-	.release = rddma_release,
+ 	.read = vfi_read, 
+	.write = vfi_write,
+/* 	.fsync = vfi_fsync, */
+	.aio_write = vfi_aio_write,
+/* 	.aio_fsync = vfi_aio_fsync, */
+/* 	.fasync = vfi_fasync, */
+	.poll = vfi_poll,
+	.mmap = vfi_mmap, 
+	.open = vfi_open,
+	.release = vfi_release,
 };
 
-int rddma_cdev_register(struct rddma_subsys *rddma_dev)
+int vfi_cdev_register(struct vfi_subsys *vfi_dev)
 {
 	int result;
 
-	if (rddma_major) {
-		rddma_dev->dev = MKDEV(rddma_major, rddma_minor);
-		result = register_chrdev_region(rddma_dev->dev, rddma_nr_minor, "rddma");
+	if (vfi_major) {
+		vfi_dev->dev = MKDEV(vfi_major, vfi_minor);
+		result = register_chrdev_region(vfi_dev->dev, vfi_nr_minor, "vfi");
 	} else {
-		result = alloc_chrdev_region(&rddma_dev->dev, rddma_minor, rddma_nr_minor, "rddma");
-		rddma_major = MAJOR(rddma_dev->dev);
+		result = alloc_chrdev_region(&vfi_dev->dev, vfi_minor, vfi_nr_minor, "vfi");
+		vfi_major = MAJOR(vfi_dev->dev);
 	}
 
 	if (result < 0) {
-		printk(KERN_WARNING "rddma_cdev_register: can't get major device number %d\n",rddma_major);
+		printk(KERN_WARNING "vfi_cdev_register: can't get major device number %d\n",vfi_major);
 		return result;
 	}
 
-	cdev_init(&rddma_dev->cdev, &rddma_file_ops);
-	rddma_dev->cdev.owner = THIS_MODULE;
-	result = cdev_add(&rddma_dev->cdev, rddma_dev->dev, rddma_nr_minor);
+	cdev_init(&vfi_dev->cdev, &vfi_file_ops);
+	vfi_dev->cdev.owner = THIS_MODULE;
+	result = cdev_add(&vfi_dev->cdev, vfi_dev->dev, vfi_nr_minor);
 	if (result < 0) {
-		printk(KERN_WARNING "rddma_cdev_register: cdev_add failed\n");
+		printk(KERN_WARNING "vfi_cdev_register: cdev_add failed\n");
 		goto cdev_fail;
 	}
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_root_rddma)
-		proc_root_rddma = proc_mkdir("rddma", proc_root_driver);
+	if (!proc_root_vfi)
+		proc_root_vfi = proc_mkdir("vfi", proc_root_driver);
 #endif
 
 	return result;
 
 cdev_fail:
-	unregister_chrdev_region(rddma_dev->dev, rddma_nr_minor);
+	unregister_chrdev_region(vfi_dev->dev, vfi_nr_minor);
 	return result;
 }
 
-void rddma_cdev_unregister(struct rddma_subsys *rddma_dev)
+void vfi_cdev_unregister(struct vfi_subsys *vfi_dev)
 {
-	cdev_del(&rddma_dev->cdev);
-	unregister_chrdev_region(rddma_dev->dev, rddma_nr_minor);
+	cdev_del(&vfi_dev->cdev);
+	unregister_chrdev_region(vfi_dev->dev, vfi_nr_minor);
 }
 
-EXPORT_SYMBOL(proc_root_rddma);
+EXPORT_SYMBOL(proc_root_vfi);

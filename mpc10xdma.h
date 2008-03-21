@@ -88,19 +88,19 @@ struct list_desc {
 	struct list_head node;  /* 8 bytes - for driver use */
 	u32 paddr;              /* 4 bytes - phys addr of first desc in DMA chain */
 	u32 driver1;
-	void (*cb)(struct list_desc *);	/* 4 - rddma callback */
+	void (*cb)(struct list_desc *);	/* 4 - vfi callback */
 	u32 rc;			/* 4 - return code */
 	u32 flags;
 	u32 user2;
 };
 #endif
 
-/* NB: must be same size as struct rddma_dma_descriptor */
+/* NB: must be same size as struct vfi_dma_descriptor */
 struct my_xfer_object {
 	u32 hw[8];	/* 32 bytes, not used */
 	struct seg_desc *desc;	/* ptr to first descriptor in DMA chain */
 	u32 driver1;
-	struct rddma_xf xf;	/* RDDMA */
+	struct vfi_xf xf;	/* VFI */
 };
 
 /* Mode Register bits 

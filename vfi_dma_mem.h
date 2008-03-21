@@ -9,9 +9,9 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_DMA_MEM_H
-#define RDDMA_DMA_MEM_H
+#ifndef VFI_DMA_MEM_H
+#define VFI_DMA_MEM_H
 
 #include <linux/vfi.h>
 
-#endif /* RDDMA_DMA_MEM_H  */
+#endif /* VFI_DMA_MEM_H  */

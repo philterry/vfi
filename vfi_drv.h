@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_DRV_H
-#define RDDMA_DRV_H
+#ifndef VFI_DRV_H
+#define VFI_DRV_H
 
 #include <linux/vfi_subsys.h>
 
@@ -18,10 +18,10 @@
 #define MINOR_VERSION(v) ((v) & 0xffff)
 #define VERSION 1 << 16 | 1
 
-extern int rddma_major;
-extern int rddma_minor;
-extern int rddma_nr_minor;
+extern int vfi_major;
+extern int vfi_minor;
+extern int vfi_nr_minor;
 
-extern struct rddma_subsys *rddma_subsys;
+extern struct vfi_subsys *vfi_subsys;
 
-#endif /* RDDMA_DRV_H */
+#endif /* VFI_DRV_H */

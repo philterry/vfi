@@ -1,32 +1,32 @@
-#ifndef RDDMA_READIES_H
-#define RDDMA_READIES_H
+#ifndef VFI_READIES_H
+#define VFI_READIES_H
 
 #include <linux/vfi.h>
 
-struct rddma_readies {
+struct vfi_readies {
     struct kset kset;
 };
 
-static inline struct rddma_readies *to_rddma_readies(struct kobject *kobj)
+static inline struct vfi_readies *to_vfi_readies(struct kobject *kobj)
 {
-    return kobj ? container_of(to_kset(kobj), struct rddma_readies,kset) : NULL;
+    return kobj ? container_of(to_kset(kobj), struct vfi_readies,kset) : NULL;
 }
 
-static inline struct rddma_readies *rddma_readies_get(struct rddma_readies *rddma_readies)
+static inline struct vfi_readies *vfi_readies_get(struct vfi_readies *vfi_readies)
 {
-    return to_rddma_readies(kobject_get(&rddma_readies->kset.kobj));
+    return to_vfi_readies(kobject_get(&vfi_readies->kset.kobj));
 }
 
-static inline void rddma_readies_put(struct rddma_readies *rddma_readies)
+static inline void vfi_readies_put(struct vfi_readies *vfi_readies)
 {
-    kset_put(&rddma_readies->kset);
+    kset_put(&vfi_readies->kset);
 }
-struct rddma_events;
-extern int new_rddma_readies(struct rddma_readies **, struct rddma_subsys *, char *name);
-extern int rddma_readies_register(struct rddma_readies *);
-extern void rddma_readies_unregister(struct rddma_readies *);
-extern int find_rddma_readies(struct rddma_events **, struct rddma_subsys *, char *);
-extern struct kobj_type rddma_readies_type;
-extern int rddma_readies_create(struct rddma_readies **, struct rddma_subsys *, char *name);
-extern void rddma_readies_delete(struct rddma_readies *);
-#endif /* RDDMA_READIES_H */
+struct vfi_events;
+extern int new_vfi_readies(struct vfi_readies **, struct vfi_subsys *, char *name);
+extern int vfi_readies_register(struct vfi_readies *);
+extern void vfi_readies_unregister(struct vfi_readies *);
+extern int find_vfi_readies(struct vfi_events **, struct vfi_subsys *, char *);
+extern struct kobj_type vfi_readies_type;
+extern int vfi_readies_create(struct vfi_readies **, struct vfi_subsys *, char *name);
+extern void vfi_readies_delete(struct vfi_readies *);
+#endif /* VFI_READIES_H */

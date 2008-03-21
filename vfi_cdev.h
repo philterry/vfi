@@ -9,12 +9,12 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_CDEV_H
-#define RDDMA_CDEV_H
+#ifndef VFI_CDEV_H
+#define VFI_CDEV_H
 
 #include <linux/vfi_subsys.h>
 
-extern int rddma_cdev_register(struct rddma_subsys *rsys);
-extern void rddma_cdev_unregister(struct rddma_subsys *rsys);
+extern int vfi_cdev_register(struct vfi_subsys *rsys);
+extern void vfi_cdev_unregister(struct vfi_subsys *rsys);
 
-#endif	/* RDDMA_CDEV_H */
+#endif	/* VFI_CDEV_H */

@@ -8,8 +8,8 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#define MY_DEBUG      RDDMA_DBG_DMARIO | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_DMARIO | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_DMARIO | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_DMARIO | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi.h>
 #include <linux/vfi_dma.h>
@@ -26,7 +26,7 @@
 #include <linux/proc_fs.h>
 #include <asm/io.h>
 #include "./ringbuf.h"
-#ifdef RDDMA_PERF_JIFFIES
+#ifdef VFI_PERF_JIFFIES
 #include <linux/jiffies.h>
 #else
 #include <asm/time.h>
@@ -39,10 +39,10 @@
 #define SPOOL_AND_KICK
 #undef LOCAL_DMA_ADDRESS_TEST
 
-extern int get_rio_id (struct rddma_fabric_address *x);
+extern int get_rio_id (struct vfi_fabric_address *x);
 
 struct dma_engine {
-	struct rddma_dma_engine rde;
+	struct vfi_dma_engine rde;
 	struct completion dma_callback_sem;
 	struct ppc_dma_chan ppc8641_dma_chans[PPC8641_DMA_NCHANS];
 	struct task_struct *callback_thread;
@@ -61,7 +61,7 @@ static inline void *get_immrbase(void) {
 #endif
 
 #ifdef CONFIG_PROC_FS
-extern struct proc_dir_entry *proc_root_rddma;
+extern struct proc_dir_entry *proc_root_vfi;
 static struct proc_dir_entry *proc_dev_dir;
 #endif
 
@@ -85,15 +85,15 @@ static struct ppc_dma_event **event_out;
 static void start_dma(struct ppc_dma_chan *chan, struct my_xfer_object *xfo);
 static struct ppc_dma_chan *load_balance(struct my_xfer_object *xfo);
 #ifdef LOCAL_DMA_ADDRESS_TEST
-static void address_test_completion (struct rddma_dma_descriptor *dma_desc);
+static void address_test_completion (struct vfi_dma_descriptor *dma_desc);
 #endif
 
-static inline struct dma_engine *to_dma_engine(struct rddma_dma_engine *rde)
+static inline struct dma_engine *to_dma_engine(struct vfi_dma_engine *rde)
 {
 	return rde ? container_of(rde, struct dma_engine, rde) : NULL;
 }
 
-static struct rddma_dma_ops dma_rio_ops;
+static struct vfi_dma_ops dma_rio_ops;
 static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
        	struct my_xfer_object *xfo);
 
@@ -126,12 +126,12 @@ static inline dma_addr_t ldesc_virt_to_phys(struct dma_list *d)
 	return (u32) va->paddr;
 }
 
-static int __devinit mpc85xx_rddma_probe(struct platform_device *pdev);
-static int __devinit mpc85xx_rddma_remove(struct platform_device *pdev);
+static int __devinit mpc85xx_vfi_probe(struct platform_device *pdev);
+static int __devinit mpc85xx_vfi_remove(struct platform_device *pdev);
 
-static struct platform_driver mpc85xx_rddma_driver = {
-	.probe = mpc85xx_rddma_probe,
-	.remove = mpc85xx_rddma_remove,
+static struct platform_driver mpc85xx_vfi_driver = {
+	.probe = mpc85xx_vfi_probe,
+	.remove = mpc85xx_vfi_remove,
 	.driver = {
 		.name = "fsl-dma",
 		.owner = THIS_MODULE,
@@ -158,14 +158,14 @@ static int dma_completion_thread(void *data)
 			/* Jimmy, take semaphore here */
 			chan->bytes_queued -= xfo->xf.len;
 			if (pevent->status == PPCDMA_OK)
-				xfo->xf.flags = RDDMA_XFO_COMPLETE_OK;
+				xfo->xf.flags = VFI_XFO_COMPLETE_OK;
 			else
-				xfo->xf.flags = RDDMA_XFO_COMPLETE_ERROR;
+				xfo->xf.flags = VFI_XFO_COMPLETE_ERROR;
 			xfo->xf.flags |= pevent->chan_num < 8;
 			/* Jimmy, give semaphore here */
 			/* Invoke callback */
 			if (xfo->xf.cb) {
-				xfo->xf.cb((struct rddma_dma_descriptor *) xfo);
+				xfo->xf.cb((struct vfi_dma_descriptor *) xfo);
 			}
 			ringbuf_put(event_ring_in, (void *) pevent);
 			pevent = (struct ppc_dma_event *)
@@ -190,23 +190,23 @@ static struct dma_engine *new_dma_engine(void)
 		new->rde.owner = THIS_MODULE;
 		new->rde.ops = &dma_rio_ops;
 	}
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
 }
 
 
-static int rddma_is_local(struct rddma_desc_param *desc)
+static int vfi_is_local(struct vfi_desc_param *desc)
 {
 	return ((unsigned int) desc->ops ==
-	      	(unsigned int) &rddma_local_ops);
+	      	(unsigned int) &vfi_local_ops);
 }
-static int rddma_is_bypass_atmu(struct rddma_desc_param *src)
+static int vfi_is_bypass_atmu(struct vfi_desc_param *src)
 {
 	/* That's all we're supporting for now, ATMU mapping comes later */
 	return 1;
 }
 
-static int rddma_rio_id(struct rddma_desc_param *src)
+static int vfi_rio_id(struct vfi_desc_param *src)
 {
 	if (!src || !src->ploc) {
 		printk ("xxx %s failed - src (%p), src->ploc (%p)\n", __func__, src, (src) ? src->ploc : 0);
@@ -225,10 +225,10 @@ static u64 rio_to_ocn(int rio_id, u64 addr)
 
 /*  Note: Need upper level to provide functions:
  *
- * rddma_is_local(struct rddma_desc_param *src)
- * rddma_is_bypass_atmu(struct rddma_desc_param *src) 
- * rddma_rio_id(struct rddma_desc_param *src)
- * rio_to_ocn(int rio_id, struct rddma_desc_param *src)
+ * vfi_is_local(struct vfi_desc_param *src)
+ * vfi_is_bypass_atmu(struct vfi_desc_param *src) 
+ * vfi_rio_id(struct vfi_desc_param *src)
+ * rio_to_ocn(int rio_id, struct vfi_desc_param *src)
  *
  * For now they're just stubs.  
  *
@@ -237,14 +237,14 @@ static u64 rio_to_ocn(int rio_id, u64 addr)
  *               DMA controller bypasses the ATMU's.
  */
 
-static void dma_rio_load(struct rddma_src *src)
+static void dma_rio_load(struct vfi_src *src)
 {
 	struct seg_desc *rio = (struct seg_desc *)&src->descriptor;
 	u64 phys;
 	rio->paddr = (u64) virt_to_phys(rio);
 
-	if (rddma_is_local(&src->desc.src)) {
-		RDDMA_DEBUG(MY_DEBUG,"DMA source is local, va = 0x%x\n",
+	if (vfi_is_local(&src->desc.src)) {
+		VFI_DEBUG(MY_DEBUG,"DMA source is local, va = 0x%x\n",
 			(u32) src->desc.src.offset);
 		/* Stash upper 4 bits of 36-bit OCN address and
 		 * turn on snooping (for now)
@@ -254,52 +254,52 @@ static void dma_rio_load(struct rddma_src *src)
 		rio->hw.src_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
 		rio->hw.src_attr |= DMA_ATTR_LOCAL_SNOOP;
 	}
-	else if (rddma_is_bypass_atmu(&src->desc.src)) {
+	else if (vfi_is_bypass_atmu(&src->desc.src)) {
 		/* Stash upper 2 bits of 34-bit RIO address and
 		 * turn off snooping.  This is OK for "bypass ATMU" case.
 		 */
-		RDDMA_DEBUG(MY_DEBUG,"DMA source is remote\n");
-		RDDMA_DEBUG(MY_DEBUG,"  RIO id = %d\n",rddma_rio_id(&src->desc.src));
+		VFI_DEBUG(MY_DEBUG,"DMA source is remote\n");
+		VFI_DEBUG(MY_DEBUG,"  RIO id = %d\n",vfi_rio_id(&src->desc.src));
 		phys = src->desc.src.offset;
 		rio->hw.saddr = phys & 0x00000000ffffffffULL;
 		rio->hw.src_attr = (phys >> 32) & HIGH_RIO_ADDR_MASK;
 		rio->hw.src_attr |= (DMA_ATTR_BYPASS_ATMU | DMA_ATTR_RIO | 
 			DMA_ATTR_NREAD | DMA_ATTR_HI_FLOW);
-		rio->hw.src_attr |= DMA_ATTR_TID(rddma_rio_id(&src->desc.src));
+		rio->hw.src_attr |= DMA_ATTR_TID(vfi_rio_id(&src->desc.src));
 	}
 	else {
 		/* Stash upper 4 bits of 36-bit OCN address and
 		 * turn off snooping
 		 */
-		RDDMA_DEBUG(MY_DEBUG,"Error!! ATMU mapping not supported\n");
-		phys = rio_to_ocn(rddma_rio_id(&src->desc.src), 
+		VFI_DEBUG(MY_DEBUG,"Error!! ATMU mapping not supported\n");
+		phys = rio_to_ocn(vfi_rio_id(&src->desc.src), 
 			src->desc.src.offset);
 		rio->hw.saddr = phys & 0x00000000ffffffffULL;
 		rio->hw.src_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
 		rio->hw.src_attr |= DMA_ATTR_LOCAL_NOSNOOP;
 	}
 
-	if (rddma_is_local(&src->dst->desc.dst)) {
-		RDDMA_DEBUG(MY_DEBUG,"DMA destination is local, va = 0x%x\n",
+	if (vfi_is_local(&src->dst->desc.dst)) {
+		VFI_DEBUG(MY_DEBUG,"DMA destination is local, va = 0x%x\n",
 			(u32) src->desc.dst.offset);
 		phys = src->desc.dst.offset;
 		rio->hw.daddr = phys & 0x00000000ffffffffULL;
 		rio->hw.dest_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
 		rio->hw.dest_attr |= DMA_ATTR_LOCAL_SNOOP;
 	}
-	else if (rddma_is_bypass_atmu(&src->dst->desc.dst)) {
-		RDDMA_DEBUG(MY_DEBUG,"DMA destination is remote\n");
-		RDDMA_DEBUG(MY_DEBUG,"  RIO id = %d\n",rddma_rio_id(&src->dst->desc.dst));
+	else if (vfi_is_bypass_atmu(&src->dst->desc.dst)) {
+		VFI_DEBUG(MY_DEBUG,"DMA destination is remote\n");
+		VFI_DEBUG(MY_DEBUG,"  RIO id = %d\n",vfi_rio_id(&src->dst->desc.dst));
 		phys = src->desc.dst.offset; /* Assume phys is 34-bit RIO addr */
 		rio->hw.daddr = phys & 0x00000000ffffffffULL;
 		rio->hw.dest_attr = (phys >> 32) & HIGH_RIO_ADDR_MASK;
 		rio->hw.dest_attr |= (DMA_ATTR_BYPASS_ATMU | DMA_ATTR_RIO | 
 			DMA_ATTR_SWRITE | DMA_ATTR_HI_FLOW);
-		rio->hw.dest_attr |= DMA_ATTR_TID(rddma_rio_id(&src->dst->desc.dst));
+		rio->hw.dest_attr |= DMA_ATTR_TID(vfi_rio_id(&src->dst->desc.dst));
 	}
 	else {
-		RDDMA_DEBUG(MY_DEBUG,"Error!! ATMU mapping not supported\n");
-		phys = rio_to_ocn(rddma_rio_id(&src->dst->desc.dst), 
+		VFI_DEBUG(MY_DEBUG,"Error!! ATMU mapping not supported\n");
+		phys = rio_to_ocn(vfi_rio_id(&src->dst->desc.dst), 
 			src->dst->desc.dst.offset);
 		rio->hw.daddr = phys & 0x00000000ffffffffULL;
 		rio->hw.dest_attr = (phys >> 32) & HIGH_LOCAL_ADDR_MASK;
@@ -311,7 +311,7 @@ static void dma_rio_load(struct rddma_src *src)
 	rio->hw.next = DMA_END_OF_CHAIN;
 
 #ifdef LOCAL_DMA_ADDRESS_TEST
-	if (rddma_is_local(&src->desc.src)) {
+	if (vfi_is_local(&src->desc.src)) {
 		/* Write (32-bit) physical address into source array */
 		int *p;
 		unsigned int phys;
@@ -325,7 +325,7 @@ static void dma_rio_load(struct rddma_src *src)
 #endif
 }
 
-static void dma_rio_link_src(struct list_head *first, struct rddma_src *second)
+static void dma_rio_link_src(struct list_head *first, struct vfi_src *second)
 {
 	struct seg_desc *rio2 = (struct seg_desc *)&second->descriptor;
 	struct seg_desc *riolast; 
@@ -336,7 +336,7 @@ static void dma_rio_link_src(struct list_head *first, struct rddma_src *second)
 	list_add_tail(&rio2->node, first);
 }
 
-static void dma_rio_link_dst(struct list_head *first, struct rddma_dst *second)
+static void dma_rio_link_dst(struct list_head *first, struct vfi_dst *second)
 {
 	struct seg_desc *rio2;
 	struct seg_desc *riolast;
@@ -350,7 +350,7 @@ static void dma_rio_link_dst(struct list_head *first, struct rddma_dst *second)
 	}
 }
 
-static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second)
+static void dma_rio_link_bind(struct list_head *first, struct vfi_bind *second)
 {
 	/* Hack for now!  Use link_bind to fill out a "transfer object" */
 	struct seg_desc *seg;
@@ -358,17 +358,17 @@ static void dma_rio_link_bind(struct list_head *first, struct rddma_bind *second
 	xfo->paddr = (u64) virt_to_phys(&xfo->hw);
 #ifdef LOCAL_DMA_ADDRESS_TEST
 	/* Only if destination is local */
-	if (rddma_is_local(&second->desc.dst)) {
+	if (vfi_is_local(&second->desc.dst)) {
 		printk("add address test!\n");
 		xfo->xf.cb = address_test_completion;
 	}
 	else
-		xfo->xf.cb = (void (*)(struct rddma_dma_descriptor *))rddma_dma_complete;
+		xfo->xf.cb = (void (*)(struct vfi_dma_descriptor *))vfi_dma_complete;
 
 #else
-	xfo->xf.cb = (void (*)(struct rddma_dma_descriptor *))rddma_dma_complete;
+	xfo->xf.cb = (void (*)(struct vfi_dma_descriptor *))vfi_dma_complete;
 #endif
-	xfo->xf.flags = RDDMA_XFO_READY;
+	xfo->xf.flags = VFI_XFO_READY;
 	xfo->xf.len = second->desc.src.extent;
 
 	/* Fill out list descriptor! */
@@ -406,7 +406,7 @@ int find_in_queue(struct list_head *q, struct my_xfer_object *target)
 *   return -EINVAL  if node not found in queue
 *   return -EBUSY if internal error
 */
-static void dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc)
+static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 {
 	struct my_xfer_object *xfo = (struct my_xfer_object *) desc;
 	struct list_head *node;
@@ -434,7 +434,7 @@ static void dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc)
 	if (match != 1) {
 		list_del(&xfo->xf.node);
 		xfo->xf.flags &= ~XFO_STAT_MASK;
-		xfo->xf.flags |= RDDMA_XFO_CANCELLED;
+		xfo->xf.flags |= VFI_XFO_CANCELLED;
 		spin_unlock_irqrestore(&chan->queuelock, flags);
 		return;
 	}
@@ -443,7 +443,7 @@ static void dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc)
 	if (chan->state != DMA_RUNNING) {
 		list_del(&xfo->xf.node);
 		xfo->xf.flags &= ~XFO_STAT_MASK;
-		xfo->xf.flags |= RDDMA_XFO_CANCELLED;
+		xfo->xf.flags |= VFI_XFO_CANCELLED;
 		spin_unlock_irqrestore(&chan->queuelock, flags);
 		return;
 	}
@@ -459,7 +459,7 @@ static void dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc)
 
 	list_del(&xfo->xf.node);
 	xfo->xf.flags &= ~XFO_STAT_MASK;
-	xfo->xf.flags |= RDDMA_XFO_CANCELLED;
+	xfo->xf.flags |= VFI_XFO_CANCELLED;
 
 	/* If queue head was deleted, launch next transfer */
 	if (!list_empty(&chan->dma_q)) {
@@ -484,7 +484,7 @@ static void dma_rio_cancel_transfer(struct rddma_dma_descriptor *desc)
 	return;
 }
 
-static void dma_rio_queue_transfer(struct rddma_dma_descriptor *list)
+static void dma_rio_queue_transfer(struct vfi_dma_descriptor *list)
 {
 	struct ppc_dma_chan *chan;
 	struct my_xfer_object *xfo = (struct my_xfer_object *) list;
@@ -496,24 +496,24 @@ static void dma_rio_queue_transfer(struct rddma_dma_descriptor *list)
 	ppcdma_queue_chain(chan, xfo);
 }
 
-static struct rddma_dma_engine *dma_rio_get(struct rddma_dma_engine *rde)
+static struct vfi_dma_engine *dma_rio_get(struct vfi_dma_engine *rde)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
 	return rde;
 }
 
-static void dma_rio_put(struct rddma_dma_engine *rde)
+static void dma_rio_put(struct vfi_dma_engine *rde)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
 }
 
 #ifdef LOCAL_DMA_ADDRESS_TEST
-static void address_test_completion (struct rddma_dma_descriptor *dma_desc)
+static void address_test_completion (struct vfi_dma_descriptor *dma_desc)
 {
 	struct my_xfer_object *xfo = (struct my_xfer_object *) dma_desc;
 	struct dma_link *sdesc;
-	struct rddma_bind *bind;
-	struct rddma_xfer *xfer;
+	struct vfi_bind *bind;
+	struct vfi_xfer *xfer;
 	struct list_head *entry;
 	int *p;
 	int *p2;
@@ -562,7 +562,7 @@ loop:
 		printk("DMA complete, status = 0x%x\n", status);
 #endif
 err:
-	rddma_dma_complete ((struct rddma_bind *) dma_desc);
+	vfi_dma_complete ((struct vfi_bind *) dma_desc);
 }
 #endif /* LOCAL_DMA_ADDRESS_TEST */
 
@@ -584,8 +584,8 @@ static void send_completion (struct ppc_dma_chan *chan,
 }
 
 #ifdef MY_DEBUG
-extern	int mpc85xx_rio_error_check(struct rio_mport *rddma_rio_port);
-extern	struct rio_mport *rddma_rio_port;
+extern	int mpc85xx_rio_error_check(struct rio_mport *vfi_rio_port);
+extern	struct rio_mport *vfi_rio_port;
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
@@ -601,7 +601,7 @@ static irqreturn_t do_interrupt(int irq, void *data)
 	struct my_xfer_object *pdesc;
 	unsigned int jend;
 
-#ifdef RDDMA_PERF_JIFFIES
+#ifdef VFI_PERF_JIFFIES
 	jend = jiffies;
 #else
 	jend = get_tbl();
@@ -657,7 +657,7 @@ printk("DMA interrupt, chan->state = 0x%x\n", chan->state);
 
 #ifdef MY_DEBUG
 if (te || pe)
-	mpc85xx_rio_error_check(rddma_rio_port);
+	mpc85xx_rio_error_check(vfi_rio_port);
 #endif
 
 	if (status & DMA_STAT_LIST_INTERRUPT)
@@ -692,8 +692,8 @@ printk("DMA interrupt, empty list\n");
 static void start_dma(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
 {
 	chan->state = DMA_RUNNING;
-        xfo->xf.flags = (chan->num << 8) | RDDMA_XFO_RUNNING;
-#ifdef RDDMA_PERF_JIFFIES
+        xfo->xf.flags = (chan->num << 8) | VFI_XFO_RUNNING;
+#ifdef VFI_PERF_JIFFIES
 	chan->jstart = jiffies;
 #else
 	chan->jstart = get_tbl();
@@ -772,13 +772,13 @@ print_loop:
 		start_dma(chan, xfo);
 	}
 	else
-		xfo->xf.flags = (chan->num << 8) | RDDMA_XFO_QUEUED;
+		xfo->xf.flags = (chan->num << 8) | VFI_XFO_QUEUED;
 
 	spin_unlock_irqrestore(&chan->queuelock, flags);
 	return 0;
 }
 
-static struct rddma_dma_ops dma_rio_ops = {
+static struct vfi_dma_ops dma_rio_ops = {
 	.load      = dma_rio_load,
 	.link_src  = dma_rio_link_src,
 	.link_dst  = dma_rio_link_dst,
@@ -806,7 +806,7 @@ static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
 			chan->bogus_int);
 	len += sprintf(buf + len, " Number of errors = %d\n", 
 			chan->err_int);
-#ifdef RDDMA_PERF_JIFFIES
+#ifdef VFI_PERF_JIFFIES
 	/* Uses jiffies */
 	len += sprintf(buf + len, " Channel active time = %d msec\n", 
 			chan->jtotal * 1000 / HZ);
@@ -829,7 +829,7 @@ static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
 /* Initialize per-channel data structures and h/w.
  * Return number of channels.
  */
-static int setup_rddma_channel(struct platform_device *pdev)
+static int setup_vfi_channel(struct platform_device *pdev)
 {
 	u32 xfercap;
 	int err;
@@ -881,7 +881,7 @@ static int setup_rddma_channel(struct platform_device *pdev)
 	/* Using 32-bit descriptors */
 	dma_set_reg(chan, DMA_ECLSDAR, 0);
 
-	sprintf(chan->name, "rddma-chan%d", index);
+	sprintf(chan->name, "vfi-chan%d", index);
 	res = platform_get_resource (pdev, IORESOURCE_IRQ, 0);
 	chan->irq = res->start;
 	err = request_irq(chan->irq, &do_interrupt, 0, chan->name, chan);
@@ -908,7 +908,7 @@ err_irq:
 
 static int __init dma_rio_init(void)
 {
-	struct rddma_dma_engine *rde;
+	struct vfi_dma_engine *rde;
 	int i;
 	int err;
 
@@ -926,7 +926,7 @@ static int __init dma_rio_init(void)
 	if ( (de = new_dma_engine()) ) {
 		rde = &de->rde;
 		de->next_channel = first_chan;
-		snprintf(rde->name, RDDMA_MAX_DMA_NAME_LEN, "%s", "rddma_rio_dma");
+		snprintf(rde->name, VFI_MAX_DMA_NAME_LEN, "%s", "vfi_rio_dma");
 	}
 	else
 		return -ENOMEM;
@@ -944,13 +944,13 @@ static int __init dma_rio_init(void)
 #endif
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_root_rddma) 
-		proc_root_rddma = proc_mkdir ("rddma", proc_root_driver);
+	if (!proc_root_vfi) 
+		proc_root_vfi = proc_mkdir ("vfi", proc_root_driver);
 
-	proc_dev_dir = proc_mkdir ("rddma_rio_dma", proc_root_rddma);
+	proc_dev_dir = proc_mkdir ("vfi_rio_dma", proc_root_vfi);
 #endif
 
-	platform_driver_register(&mpc85xx_rddma_driver);
+	platform_driver_register(&mpc85xx_vfi_driver);
 
 #if 0  
 /* 85XX:  DMA chans will be setup via callback to platform driver probe func */
@@ -998,7 +998,7 @@ static int __init dma_rio_init(void)
 		goto err_cb_thread;
 	}
 
-	err = rddma_dma_register(rde);
+	err = vfi_dma_register(rde);
 
 	if (err == 0) {
 	/* Start up completion callback thread */
@@ -1073,19 +1073,19 @@ static void __exit dma_rio_close(void)
 	if (event_array)
 		kfree (event_array);
 
-	rddma_dma_unregister("rddma_rio_dma");
+	vfi_dma_unregister("vfi_rio_dma");
 	iounmap(de->regbase);
 	kfree(de);
 }
 
-static int __devinit mpc85xx_rddma_probe (struct platform_device *pdev)
+static int __devinit mpc85xx_vfi_probe (struct platform_device *pdev)
 {
 	int status;
-	status = setup_rddma_channel (pdev);
+	status = setup_vfi_channel (pdev);
 	return (status);
 }
 
-static int __devexit mpc85xx_rddma_remove (struct platform_device *pdev)
+static int __devexit mpc85xx_vfi_remove (struct platform_device *pdev)
 {
 	printk("PIGGY! PIGGY!\n");
 	printk("start = 0x%x\n", pdev->resource[0].start);
@@ -1104,4 +1104,4 @@ module_param(nevents, int, 0);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Phil Terry <pterry@micromemory.com>");
-MODULE_DESCRIPTION("DMA Engine for RDDMA");
+MODULE_DESCRIPTION("DMA Engine for VFI");

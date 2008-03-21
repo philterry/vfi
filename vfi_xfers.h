@@ -9,35 +9,35 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_XFERS_H
-#define RDDMA_XFERS_H
+#ifndef VFI_XFERS_H
+#define VFI_XFERS_H
 
 #include <linux/vfi.h>
 #include <linux/vfi_location.h>
 
-struct rddma_xfers {
+struct vfi_xfers {
 	struct kset kset;
 };
 
-static inline struct rddma_xfers *to_rddma_xfers(struct kobject *kobj)
+static inline struct vfi_xfers *to_vfi_xfers(struct kobject *kobj)
 {
-	return kobj ? container_of(to_kset(kobj), struct rddma_xfers, kset) : NULL;
+	return kobj ? container_of(to_kset(kobj), struct vfi_xfers, kset) : NULL;
 }
 
-static inline struct rddma_xfers *rddma_xfers_get(struct rddma_xfers *rddma_xfers)
+static inline struct vfi_xfers *vfi_xfers_get(struct vfi_xfers *vfi_xfers)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_xfers);
-	return to_rddma_xfers(kobject_get(&rddma_xfers->kset.kobj));
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_xfers);
+	return to_vfi_xfers(kobject_get(&vfi_xfers->kset.kobj));
 }
 
-static inline void rddma_xfers_put(struct rddma_xfers *rddma_xfers)
+static inline void vfi_xfers_put(struct vfi_xfers *vfi_xfers)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_xfers);
-	if (rddma_xfers) kset_put(&rddma_xfers->kset);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_xfers);
+	if (vfi_xfers) kset_put(&vfi_xfers->kset);
 }
 
-extern int new_rddma_xfers(struct rddma_xfers **, char *name, struct rddma_location *);
-extern int rddma_xfers_register(struct rddma_xfers *);
-extern void rddma_xfers_unregister(struct rddma_xfers *);
-extern struct kobj_type rddma_xfers_type;
-#endif /* RDDMA_XFERS_H */
+extern int new_vfi_xfers(struct vfi_xfers **, char *name, struct vfi_location *);
+extern int vfi_xfers_register(struct vfi_xfers *);
+extern void vfi_xfers_unregister(struct vfi_xfers *);
+extern struct kobj_type vfi_xfers_type;
+#endif /* VFI_XFERS_H */

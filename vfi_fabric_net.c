@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_FABNET | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_FABNET | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_FABNET | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_FABNET | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi_fabric.h>
 #include <linux/vfi_location.h>
@@ -32,15 +32,15 @@ struct fabric_address {
 	unsigned char hw_address[ETH_ALEN]; /* dest mac address */
 	unsigned long idx;	/* dest ip address hint hint nod nod */
 	unsigned long src_idx;	/* src ip address */
-	struct rddma_location *reg_loc;
+	struct vfi_location *reg_loc;
 #define UNKNOWN_IDX 0UL
 	struct net_device *ndev;
 	struct list_head list;
-	struct rddma_fabric_address rfa;
+	struct vfi_fabric_address rfa;
 	struct kobject kobj;
 };
 
-static inline struct fabric_address *to_fabric_address(struct rddma_fabric_address *rfa)
+static inline struct fabric_address *to_fabric_address(struct vfi_fabric_address *rfa)
 {
 	return rfa ? container_of(rfa,struct fabric_address,rfa) : NULL;
 }
@@ -48,7 +48,7 @@ static inline struct fabric_address *to_fabric_address(struct rddma_fabric_addre
 static void fabric_address_release(struct kobject *kobj)
 {
 	struct fabric_address *old = kobj ? container_of(kobj, struct fabric_address, kobj) : NULL;
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,old);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,old);
 	if (old) {
 		kfree(old);
 	}
@@ -60,13 +60,13 @@ static struct kobj_type fabric_address_type = {
 
 static inline struct fabric_address *_fabric_get(struct fabric_address *fna)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,fna);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,fna);
 	return (fna ? kobject_get(&fna->kobj), fna : NULL) ;
 }
 
 static inline void _fabric_put(struct fabric_address *fna)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,fna);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,fna);
 	if ( fna ) kobject_put(&fna->kobj);
 }
 
@@ -74,29 +74,29 @@ static struct fabric_address *address_table[256];
 
 static void update_fabric_address(struct fabric_address *fp, unsigned long src_idx, char *hwaddr, struct net_device *ndev)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %lx %s\n",__FUNCTION__,fp,hwaddr,src_idx,ndev->name);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %lx %s\n",__FUNCTION__,fp,hwaddr,src_idx,ndev->name);
 	if (hwaddr) {
-		RDDMA_DEBUG(MY_DEBUG,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
+		VFI_DEBUG(MY_DEBUG,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
 		memcpy(fp->hw_address,hwaddr,ETH_ALEN);
 	}
 	
 	if (ndev) {
-		RDDMA_DEBUG_SAFE(MY_DEBUG,fp->ndev,"%s overwriting old ndev %p with %p\n",__FUNCTION__,fp->ndev,ndev);
+		VFI_DEBUG_SAFE(MY_DEBUG,fp->ndev,"%s overwriting old ndev %p with %p\n",__FUNCTION__,fp->ndev,ndev);
 		fp->ndev = ndev;
 	}
 
 	if (src_idx) {
-		RDDMA_DEBUG_SAFE(MY_DEBUG,fp->src_idx,"%s overwriting old src_idx %lx with %lx\n",__FUNCTION__,fp->src_idx,src_idx);
+		VFI_DEBUG_SAFE(MY_DEBUG,fp->src_idx,"%s overwriting old src_idx %lx with %lx\n",__FUNCTION__,fp->src_idx,src_idx);
 		fp->src_idx = src_idx;
 	}
 }
 
-static struct rddma_address_ops fabric_net_ops;
+static struct vfi_address_ops fabric_net_ops;
 
 static struct fabric_address *new_fabric_address(unsigned long idx, unsigned long src_idx, char *hwaddr, struct net_device *ndev)
 {
 	struct fabric_address *new = kzalloc(sizeof(struct fabric_address),GFP_KERNEL);
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 
 	INIT_LIST_HEAD(&new->list);
 
@@ -119,7 +119,7 @@ static struct fabric_address *find_fabric_mac(char *hwaddr, struct net_device *n
 	int i;
 	struct fabric_address *fp, *new;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	for (i = 0, fp = address_table[i]; i < 16 ; i++, fp = address_table[i]) {
 		if (!fp)
 			continue;
@@ -143,8 +143,8 @@ static struct fabric_address *find_fabric_address(unsigned long idx, unsigned lo
 	struct fabric_address *fp = address_table[idx & 15];
 	struct fabric_address *new;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %lx\n",__FUNCTION__,idx);
-	RDDMA_DEBUG_SAFE(MY_DEBUG,hwaddr,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
+	VFI_DEBUG(MY_DEBUG,"%s %lx\n",__FUNCTION__,idx);
+	VFI_DEBUG_SAFE(MY_DEBUG,hwaddr,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
 	if ( idx == UNKNOWN_IDX) {
 		if ( (new = find_fabric_mac(hwaddr,ndev)) )
 			return new;
@@ -180,7 +180,7 @@ static void remove_fabric_address(struct fabric_address *addr)
 {
 	struct fabric_address *hp = address_table[addr->idx & 15];
 	struct fabric_address *np, *fp;
-	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,addr);
+	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,addr);
 	if (hp) {
 		list_for_each_entry_safe(fp,np,&hp->list,list) {
 			if (fp == addr) {
@@ -312,7 +312,7 @@ static void doorbell_unregister(int doorbell)
 }
 
 /* 
- * Frame format dstmac,srcmac,rddmatype,dstidx,srcidx,string
+ * Frame format dstmac,srcmac,vfitype,dstidx,srcidx,string
  *                6       6       2        4      4      n
  *
  * All frames have srcmac.
@@ -324,7 +324,7 @@ static void doorbell_unregister(int doorbell)
  *
  */
 
-struct rddmahdr {
+struct vfihdr {
 	unsigned char	h_dest[ETH_ALEN];	/* destination eth addr	*/
 	unsigned char	h_source[ETH_ALEN];	/* source ether addr	*/
 	__be16		h_proto;		/* packet type ID field	*/
@@ -333,28 +333,28 @@ struct rddmahdr {
 	__be32          h_pkt_info; /* msg vs doorbell vs dma data */
 } __attribute__((packed));
 
-#define RDDMA_FABRIC_MSG   0
-#define RDDMA_FABRIC_EVENT 1
+#define VFI_FABRIC_MSG   0
+#define VFI_FABRIC_EVENT 1
 
-#define RDDMA_FABRIC_IS_MSG(hpi) ((hpi) == 0)
-#define RDDMA_FABRIC_IS_EVNT(hpi) (((hpi) & 0xffff) == 1)
-#define RDDMA_FABRIC_IS_DATA(hpi) ((hpi) && (((hpi) & 0xffff) != 1))
+#define VFI_FABRIC_IS_MSG(hpi) ((hpi) == 0)
+#define VFI_FABRIC_IS_EVNT(hpi) (((hpi) & 0xffff) == 1)
+#define VFI_FABRIC_IS_DATA(hpi) ((hpi) && (((hpi) & 0xffff) != 1))
 
-#define RDDMA_FABRIC_GET_EVNT(hpi) (((hpi) >> 16) & 0xffff)
-#define RDDMA_FABRIC_SET_EVNT(evnt) ((((evnt) & 0xffff) << 16) | 1)
+#define VFI_FABRIC_GET_EVNT(hpi) (((hpi) >> 16) & 0xffff)
+#define VFI_FABRIC_SET_EVNT(evnt) ((((evnt) & 0xffff) << 16) | 1)
 
-static inline struct rddmahdr *rddma_hdr(struct sk_buff *skb)
+static inline struct vfihdr *vfi_hdr(struct sk_buff *skb)
 {
-	skb_pull(skb, (sizeof(struct rddmahdr) - sizeof(struct ethhdr)));
-	return (struct rddmahdr *)eth_hdr(skb);
+	skb_pull(skb, (sizeof(struct vfihdr) - sizeof(struct ethhdr)));
+	return (struct vfihdr *)eth_hdr(skb);
 }
 
-static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
+static int vfi_rx_packet(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct fabric_address *fna;
-	struct rddmahdr *mac = rddma_hdr(skb);
+	struct vfihdr *mac = vfi_hdr(skb);
 	unsigned long srcidx, dstidx;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	dstidx = ntohl(mac->h_dstidx);
 	srcidx = ntohl(mac->h_srcidx);
@@ -368,11 +368,11 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 	if (skb_tailroom(skb))	/* FIXME */
 		*skb_put(skb,1) = '\0';
 
-	if (RDDMA_FABRIC_IS_MSG(mac->h_pkt_info))
-		return rddma_fabric_receive(&fna->rfa, skb);
+	if (VFI_FABRIC_IS_MSG(mac->h_pkt_info))
+		return vfi_fabric_receive(&fna->rfa, skb);
 
-	if (RDDMA_FABRIC_IS_EVNT(mac->h_pkt_info))
-		invoke_db(RDDMA_FABRIC_GET_EVNT(mac->h_pkt_info));
+	if (VFI_FABRIC_IS_EVNT(mac->h_pkt_info))
+		invoke_db(VFI_FABRIC_GET_EVNT(mac->h_pkt_info));
 
 forget:
 	_fabric_put(fna);
@@ -380,23 +380,23 @@ forget:
 	return NET_RX_DROP;
 }
 
-struct packet_type rddma_packets = {
-	.func = rddma_rx_packet,
+struct packet_type vfi_packets = {
+	.func = vfi_rx_packet,
 };
 
-static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *skb)
+static int fabric_transmit(struct vfi_fabric_address *addr, struct sk_buff *skb)
 {
-	struct rddmahdr *mac;
+	struct vfihdr *mac;
 	unsigned long srcidx = 0, dstidx = 0;
 
 	struct fabric_address *fna = to_fabric_address(addr);
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %p " MACADDRFMT "\n",__FUNCTION__,addr,skb->data,fna, MACADDRBYTES(fna->hw_address));
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %p " MACADDRFMT "\n",__FUNCTION__,addr,skb->data,fna, MACADDRBYTES(fna->hw_address));
 
 	if (fna->ndev) {
 		skb_reset_transport_header(skb);
 		skb_reset_network_header(skb);
-		mac  = (struct rddmahdr *)skb_push(skb,sizeof(struct rddmahdr));
+		mac  = (struct vfihdr *)skb_push(skb,sizeof(struct vfihdr));
 		skb_reset_mac_header(skb);
 
 		if (*((int *)(fna->hw_address)))
@@ -408,7 +408,7 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 
 		mac->h_proto = htons(netdev_type);
 
-		mac->h_pkt_info = RDDMA_FABRIC_MSG;
+		mac->h_pkt_info = VFI_FABRIC_MSG;
 
 		dstidx = htonl(fna->idx);
 		srcidx = htonl(fna->src_idx);
@@ -424,7 +424,7 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 		skb->ip_summed = CHECKSUM_NONE;
 		_fabric_put(fna);
 		
-		RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,skb->data);
+		VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,skb->data);
 
 		return dev_queue_xmit(skb);
 	}
@@ -434,22 +434,22 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 	return NET_XMIT_DROP;
 }
 
-static int send_doorbell(struct rddma_fabric_address *addr, int db)
+static int send_doorbell(struct vfi_fabric_address *addr, int db)
 {
-	struct rddmahdr *mac;
+	struct vfihdr *mac;
 	unsigned long srcidx = 0, dstidx = 0;
 	struct sk_buff *skb;
 
 	struct fabric_address *fna = to_fabric_address(addr);
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %x %p " MACADDRFMT "\n",__FUNCTION__,addr,db,fna, MACADDRBYTES(fna->hw_address));
+	VFI_DEBUG(MY_DEBUG,"%s %p %x %p " MACADDRFMT "\n",__FUNCTION__,addr,db,fna, MACADDRBYTES(fna->hw_address));
 	
 	if ((skb = dev_alloc_skb(1024))) {
 		if (fna->ndev) {
 			skb_reserve(skb,128);
 			skb_reset_transport_header(skb);
 			skb_reset_network_header(skb);
-			mac  = (struct rddmahdr *)skb_push(skb,sizeof(struct rddmahdr));
+			mac  = (struct vfihdr *)skb_push(skb,sizeof(struct vfihdr));
 			skb_reset_mac_header(skb);
 
 			if (*((int *)(fna->hw_address)))
@@ -461,7 +461,7 @@ static int send_doorbell(struct rddma_fabric_address *addr, int db)
 
 			mac->h_proto = htons(netdev_type);
 
-			mac->h_pkt_info = RDDMA_FABRIC_SET_EVNT(db);
+			mac->h_pkt_info = VFI_FABRIC_SET_EVNT(db);
 
 			dstidx = htonl(fna->idx);
 			srcidx = htonl(fna->src_idx);
@@ -474,7 +474,7 @@ static int send_doorbell(struct rddma_fabric_address *addr, int db)
 			skb->ip_summed = CHECKSUM_NONE;
 			_fabric_put(fna);
 		
-			RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,skb->data);
+			VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,skb->data);
 
 			return dev_queue_xmit(skb);
 		}
@@ -485,31 +485,31 @@ static int send_doorbell(struct rddma_fabric_address *addr, int db)
 	return NET_XMIT_DROP;
 }
 
-static struct rddma_fabric_address *fabric_get(struct rddma_fabric_address *rfa)
+static struct vfi_fabric_address *fabric_get(struct vfi_fabric_address *rfa)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered rfa=%p\n",__FUNCTION__,rfa);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered rfa=%p\n",__FUNCTION__,rfa);
 	return rfa ? _fabric_get(to_fabric_address(rfa)), rfa : NULL;
 }
 
-static void fabric_put(struct rddma_fabric_address *rfa)
+static void fabric_put(struct vfi_fabric_address *rfa)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered rfa=%p\n",__FUNCTION__,rfa);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered rfa=%p\n",__FUNCTION__,rfa);
 	if ( rfa ) _fabric_put(to_fabric_address(rfa));
 }
 
-static int fabric_register(struct rddma_location *loc)
+static int fabric_register(struct vfi_location *loc)
 {
 	struct fabric_address *old = to_fabric_address(loc->desc.address);
 	struct fabric_address *fna;
 	char *ndev_name;
 	struct net_device *ndev = NULL;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 /* 	if (old && old->reg_loc) */
 /* 		return -EEXIST; */
 
-	if ( (ndev_name = rddma_get_option(&loc->desc,"netdev")) ) {
+	if ( (ndev_name = vfi_get_option(&loc->desc,"netdev")) ) {
 		if ( !(ndev = dev_get_by_name(ndev_name)) )
 			return -ENODEV;
 	}
@@ -520,24 +520,24 @@ static int fabric_register(struct rddma_location *loc)
 	
 	fna = find_fabric_address(loc->desc.offset,loc->desc.extent,0,ndev);
 	loc->desc.address = &fna->rfa;
-	fna->reg_loc = rddma_location_get(loc);
+	fna->reg_loc = vfi_location_get(loc);
 
-	rddma_location_put(old->reg_loc);
+	vfi_location_put(old->reg_loc);
 	_fabric_put(old);
 
 	return 0;
 }
 
-static void fabric_unregister(struct rddma_location *loc)
+static void fabric_unregister(struct vfi_location *loc)
 {
 	struct fabric_address *old = to_fabric_address(loc->desc.address);
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	old->reg_loc = NULL;
 	_fabric_put(old);
-	rddma_location_put(loc);
+	vfi_location_put(loc);
 }
 
-static struct rddma_address_ops fabric_net_ops = {
+static struct vfi_address_ops fabric_net_ops = {
 	.transmit = fabric_transmit,
 	.register_location = fabric_register,
 	.unregister_location = fabric_unregister,
@@ -553,13 +553,13 @@ static int __init fabric_net_init(void)
 	struct fabric_address *fna;
 	sema_init(&dbell_sem,1);
 	if ( (fna = new_fabric_address(UNKNOWN_IDX,0,0,0)) ) {
-		snprintf(fna->rfa.name, RDDMA_MAX_FABRIC_NAME_LEN, "%s", "rddma_fabric_net");
+		snprintf(fna->rfa.name, VFI_MAX_FABRIC_NAME_LEN, "%s", "vfi_fabric_net");
 		if (netdev_name)
 			if ( (fna->ndev = dev_get_by_name(netdev_name)) ) {
-				rddma_packets.dev = fna->ndev;
-				rddma_packets.type = htons(netdev_type);
-				dev_add_pack(&rddma_packets);
-				return rddma_fabric_register(&fna->rfa);
+				vfi_packets.dev = fna->ndev;
+				vfi_packets.type = htons(netdev_type);
+				dev_add_pack(&vfi_packets);
+				return vfi_fabric_register(&fna->rfa);
 			}
 		return -ENODEV;
 	}
@@ -568,8 +568,8 @@ static int __init fabric_net_init(void)
 
 static void __exit fabric_net_close(void)
 {
-	dev_remove_pack(&rddma_packets);
-	rddma_fabric_unregister("rddma_fabric_net");
+	dev_remove_pack(&vfi_packets);
+	vfi_fabric_unregister("vfi_fabric_net");
 }
 
 module_init(fabric_net_init);
@@ -577,6 +577,6 @@ module_exit(fabric_net_close);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Phil Terry <pterry@micromemroy.com>");
-MODULE_DESCRIPTION("Implements an ethenet frame based transport for RDDMA");
+MODULE_DESCRIPTION("Implements an ethenet frame based transport for VFI");
 
 

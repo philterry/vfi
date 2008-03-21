@@ -9,78 +9,78 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_OPS_H
-#define RDDMA_OPS_H
+#ifndef VFI_OPS_H
+#define VFI_OPS_H
 
 #include <linux/vfi_parse.h>
 #include <linux/vfi_location.h>
 #include <linux/vfi_bind.h>
 
-struct rddma_location;
-struct rddma_smb;
-struct rddma_mmap;
-struct rddma_srcs;
-struct rddma_dsts;
-struct rddma_dst;
-struct rddma_src;
+struct vfi_location;
+struct vfi_smb;
+struct vfi_mmap;
+struct vfi_srcs;
+struct vfi_dsts;
+struct vfi_dst;
+struct vfi_src;
 
-struct rddma_ops {
-	int (*location_create)(struct rddma_location **, struct rddma_location *, struct rddma_desc_param *);
-	void                    (*location_delete)(struct rddma_location *, struct rddma_desc_param *);
-	int (*location_find)(struct rddma_location **, struct rddma_location *, struct rddma_desc_param *);
-	void                       (*location_put)(struct rddma_location *, struct rddma_desc_param *);
+struct vfi_ops {
+	int (*location_create)(struct vfi_location **, struct vfi_location *, struct vfi_desc_param *);
+	void                    (*location_delete)(struct vfi_location *, struct vfi_desc_param *);
+	int (*location_find)(struct vfi_location **, struct vfi_location *, struct vfi_desc_param *);
+	void                       (*location_put)(struct vfi_location *, struct vfi_desc_param *);
 
 
-	int (*smb_create)(struct rddma_smb **, struct rddma_location *, struct rddma_desc_param *);
-	void                         (*smb_delete)(struct rddma_location *, struct rddma_desc_param *);
-	int (*smb_find)(struct rddma_smb **, struct rddma_location *, struct rddma_desc_param *);
+	int (*smb_create)(struct vfi_smb **, struct vfi_location *, struct vfi_desc_param *);
+	void                         (*smb_delete)(struct vfi_location *, struct vfi_desc_param *);
+	int (*smb_find)(struct vfi_smb **, struct vfi_location *, struct vfi_desc_param *);
 
-	int (*mmap_create)(struct rddma_mmap **, struct rddma_smb *,      struct rddma_desc_param *);
-	void                        (*mmap_delete)(struct rddma_smb *,      struct rddma_desc_param *);
-	int (*mmap_find)(struct rddma_mmap **, struct rddma_smb *,      struct rddma_desc_param *);
+	int (*mmap_create)(struct vfi_mmap **, struct vfi_smb *,      struct vfi_desc_param *);
+	void                        (*mmap_delete)(struct vfi_smb *,      struct vfi_desc_param *);
+	int (*mmap_find)(struct vfi_mmap **, struct vfi_smb *,      struct vfi_desc_param *);
 
-	int (*xfer_create)(struct rddma_xfer **, struct rddma_location *, struct rddma_desc_param *);
-	void                        (*xfer_delete)(struct rddma_location *, struct rddma_desc_param *);
-	int (*xfer_find)(struct rddma_xfer **, struct rddma_location *, struct rddma_desc_param *);
+	int (*xfer_create)(struct vfi_xfer **, struct vfi_location *, struct vfi_desc_param *);
+	void                        (*xfer_delete)(struct vfi_location *, struct vfi_desc_param *);
+	int (*xfer_find)(struct vfi_xfer **, struct vfi_location *, struct vfi_desc_param *);
 
-	int (*bind_create)(struct rddma_bind **, struct rddma_xfer *,     struct rddma_bind_param *);
-	void                        (*bind_delete)(struct rddma_xfer *,     struct rddma_desc_param *);
-	int (*bind_find)(struct rddma_bind **, struct rddma_xfer *,     struct rddma_desc_param *);
+	int (*bind_create)(struct vfi_bind **, struct vfi_xfer *,     struct vfi_bind_param *);
+	void                        (*bind_delete)(struct vfi_xfer *,     struct vfi_desc_param *);
+	int (*bind_find)(struct vfi_bind **, struct vfi_xfer *,     struct vfi_desc_param *);
 	
-	int (*dsts_create)(struct rddma_dsts **, struct rddma_bind *,     struct rddma_bind_param *);
-	struct rddma_bind *         (*dsts_delete)(struct rddma_bind *,     struct rddma_bind_param *);
-	int (*dsts_find)(struct rddma_dsts **, struct rddma_bind *,     struct rddma_bind_param *);
+	int (*dsts_create)(struct vfi_dsts **, struct vfi_bind *,     struct vfi_bind_param *);
+	struct vfi_bind *         (*dsts_delete)(struct vfi_bind *,     struct vfi_bind_param *);
+	int (*dsts_find)(struct vfi_dsts **, struct vfi_bind *,     struct vfi_bind_param *);
 
-	int (*dst_create)(struct rddma_dst **, struct rddma_bind *,     struct rddma_bind_param *);
-	void                         (*dst_delete)(struct rddma_bind *,     struct rddma_bind_param *);
-	int (*dst_find)(struct rddma_dst **, struct rddma_bind *,     struct rddma_bind_param *);
+	int (*dst_create)(struct vfi_dst **, struct vfi_bind *,     struct vfi_bind_param *);
+	void                         (*dst_delete)(struct vfi_bind *,     struct vfi_bind_param *);
+	int (*dst_find)(struct vfi_dst **, struct vfi_bind *,     struct vfi_bind_param *);
 
-	int (*srcs_create)(struct rddma_srcs **, struct rddma_dst *,      struct rddma_bind_param *);
-	struct rddma_dst *          (*srcs_delete)(struct rddma_dst *,      struct rddma_bind_param *);
-	int (*srcs_find)(struct rddma_srcs **, struct rddma_dst *,      struct rddma_bind_param *);
+	int (*srcs_create)(struct vfi_srcs **, struct vfi_dst *,      struct vfi_bind_param *);
+	struct vfi_dst *          (*srcs_delete)(struct vfi_dst *,      struct vfi_bind_param *);
+	int (*srcs_find)(struct vfi_srcs **, struct vfi_dst *,      struct vfi_bind_param *);
 
-	int (*src_create)(struct rddma_src **, struct rddma_dst *,      struct rddma_bind_param *);
-	void                         (*src_delete)(struct rddma_dst *,      struct rddma_bind_param *);
-	int (*src_find)(struct rddma_src **, struct rddma_dst *,      struct rddma_bind_param *);
+	int (*src_create)(struct vfi_src **, struct vfi_dst *,      struct vfi_bind_param *);
+	void                         (*src_delete)(struct vfi_dst *,      struct vfi_bind_param *);
+	int (*src_find)(struct vfi_src **, struct vfi_dst *,      struct vfi_bind_param *);
 
-	void                           (*src_done)(struct rddma_bind *);
-	void                           (*dst_done)(struct rddma_bind *);
-	void                               (*done)(struct rddma_event *);
-	void                          (*src_ready)(struct rddma_bind *);
-	void                          (*dst_ready)(struct rddma_bind *);
+	void                           (*src_done)(struct vfi_bind *);
+	void                           (*dst_done)(struct vfi_bind *);
+	void                               (*done)(struct vfi_event *);
+	void                          (*src_ready)(struct vfi_bind *);
+	void                          (*dst_ready)(struct vfi_bind *);
 
-	int                          (*dst_events)(struct rddma_bind *,     struct rddma_bind_param *);
-	int                          (*src_events)(struct rddma_dst *,      struct rddma_bind_param *);
-	void		          (*dst_ev_delete)(struct rddma_bind *,     struct rddma_bind_param *);
-	void		          (*src_ev_delete)(struct rddma_dst *,      struct rddma_bind_param *);
-	int                         (*event_start)(struct rddma_location *, struct rddma_desc_param *);
-	int                         (*event_chain)(struct rddma_location *, struct rddma_desc_param *);
+	int                          (*dst_events)(struct vfi_bind *,     struct vfi_bind_param *);
+	int                          (*src_events)(struct vfi_dst *,      struct vfi_bind_param *);
+	void		          (*dst_ev_delete)(struct vfi_bind *,     struct vfi_bind_param *);
+	void		          (*src_ev_delete)(struct vfi_dst *,      struct vfi_bind_param *);
+	int                         (*event_start)(struct vfi_location *, struct vfi_desc_param *);
+	int                         (*event_chain)(struct vfi_location *, struct vfi_desc_param *);
 };
 
 
-extern struct rddma_ops rddma_local_ops;
-extern struct rddma_ops rddma_fabric_ops;
+extern struct vfi_ops vfi_local_ops;
+extern struct vfi_ops vfi_fabric_ops;
 
 extern int do_operation (const char *, char *, int *);
 
-#endif	/* RDDMA_OPS_H */
+#endif	/* VFI_OPS_H */

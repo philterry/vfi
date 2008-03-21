@@ -9,11 +9,11 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_FABRIC_H
-#define RDDMA_FABRIC_H
+#ifndef VFI_FABRIC_H
+#define VFI_FABRIC_H
 
 #include <linux/vfi_subsys.h>
-struct rddma_location;
+struct vfi_location;
 
 #include <linux/sched.h>
 #include <linux/skbuff.h>
@@ -93,90 +93,90 @@ static inline void skb_set_mac_header(struct sk_buff *skb, const int offset)
 #endif /* Linux < 2.6.23 */
 
 /* 
- * This module defines the interface to the bottom of the RDDMA driver
+ * This module defines the interface to the bottom of the VFI driver
  * for its "fabric" interface. This interface can be implemented in a
  * number of ways, any or all of which may be active at the same time
  * for different locations. 
  *
  * First, it can execute directly on an underlying fabric. E.g., for
- * rapidio we could implement the rddma_fabric interface directly on
+ * rapidio we could implement the vfi_fabric interface directly on
  * rapidio messages and doorbells using the rio driver
- * primitives. This is implemented in rddma_fabric_rio. For
- * alternative fabric xxx we would implement rddma_fabric_xxx.
+ * primitives. This is implemented in vfi_fabric_rio. For
+ * alternative fabric xxx we would implement vfi_fabric_xxx.
  *
  * Second, we can execute on top of a netdevice layer using
- * dev_add_pack i.e., we can define an ethertype for use by rddma
+ * dev_add_pack i.e., we can define an ethertype for use by vfi
  * protocols (possibly with its own version of arp as well). This is
- * implemented in rddma_fabric_net. With this approach the
- * multiplexing of the rddma_fabric service over multiple alternative
+ * implemented in vfi_fabric_net. With this approach the
+ * multiplexing of the vfi_fabric service over multiple alternative
  * fabrics is automatically taken care of by the netdevice layer. A
  * netdevice for a rapidio fabric is already provided for by the linux
  * rionet driver which in turn runs on the message and doorbells of
  * the rio driver. Currently, rionet only uses a single mbox, 0, of
- * the two provided in hardware and both our rddma_fabric traffic and
+ * the two provided in hardware and both our vfi_fabric traffic and
  * ordinary TCP/IP traffic would share this mbox. We could therefore
  * implement a clone of rionet but using the second mbox. We could
- * call this rddma_net.
+ * call this vfi_net.
  *
  * Its not clear if there is any real performance/space advantage of
- * rddma_fabric_rio over a combined rddma_fabric_net/rddma_net
+ * vfi_fabric_rio over a combined vfi_fabric_net/vfi_net
  * approach. If either of these were moved to mbox 0 and rionet were
  * moved to mbox 1 then we would get a prioritization of DMA traffic
  * over TCP/IP traffic. Clearly, this would be advantageous over a
- * rddma_fabric_net/rionet approach.
+ * vfi_fabric_net/rionet approach.
  *
  * Given the lack of hardware we may want to run the serivce over
- * rddma_fabric_net/ethernet for test purposes. This would immediately
+ * vfi_fabric_net/ethernet for test purposes. This would immediately
  * and transparently run over rionet when hardware become
- * available. This could then be migrated to rddma_net as/when
+ * available. This could then be migrated to vfi_net as/when
  * performace/functionality issues become apparent.
  *
- * The role of rddma_fabric is therefore to abstract the above
+ * The role of vfi_fabric is therefore to abstract the above
  * differences in implementatin and provide a uniform interface to and
  * from the underlying implementation. The abstraction of an
  * addressable node on a network/fabric is the "location" type,
- * rddma_location. This should include an abstract address type.
+ * vfi_location. This should include an abstract address type.
  */
 
-#define RDDMA_MAX_FABRICS 5
-#define RDDMA_MAX_FABRIC_NAME_LEN 31
+#define VFI_MAX_FABRICS 5
+#define VFI_MAX_FABRIC_NAME_LEN 31
 
-struct rddma_fabric_address;
+struct vfi_fabric_address;
 
-struct rddma_address_ops {
-	int (*transmit)  (struct rddma_fabric_address *, struct sk_buff *);
-	int (*doorbell) (struct rddma_fabric_address *, int);
-	int (*register_location)  (struct rddma_location *);
-	void(*unregister_location)(struct rddma_location *);
+struct vfi_address_ops {
+	int (*transmit)  (struct vfi_fabric_address *, struct sk_buff *);
+	int (*doorbell) (struct vfi_fabric_address *, int);
+	int (*register_location)  (struct vfi_location *);
+	void(*unregister_location)(struct vfi_location *);
 	int (*register_doorbell)(void (*)(void *), void *);
 	void(*unregister_doorbell)(int);
-	struct rddma_fabric_address *(*get)(struct rddma_fabric_address *);
-	void (*put)(struct rddma_fabric_address *);
+	struct vfi_fabric_address *(*get)(struct vfi_fabric_address *);
+	void (*put)(struct vfi_fabric_address *);
 };
 
-struct rddma_fabric_address {
+struct vfi_fabric_address {
 	struct module *owner;
-	struct rddma_address_ops *ops;
-	char name[RDDMA_MAX_FABRIC_NAME_LEN+1];
+	struct vfi_address_ops *ops;
+	char name[VFI_MAX_FABRIC_NAME_LEN+1];
 };
 
 /*
  * First the abstraction wrappers for the downcalls
  */
 
-extern int __must_check rddma_fabric_tx(struct rddma_fabric_address *, struct sk_buff *);
-extern int __must_check rddma_fabric_doorbell(struct rddma_fabric_address *, int);
-extern int rddma_address_register(struct rddma_location *);
-extern void rddma_address_unregister(struct rddma_location *);
-extern int rddma_doorbell_register(struct rddma_fabric_address *, void (*)(void *), void *);
-extern void rddma_doorbell_unregister(struct rddma_fabric_address *, int);
-extern void rddma_doorbell_send(struct rddma_fabric_address *, int);
+extern int __must_check vfi_fabric_tx(struct vfi_fabric_address *, struct sk_buff *);
+extern int __must_check vfi_fabric_doorbell(struct vfi_fabric_address *, int);
+extern int vfi_address_register(struct vfi_location *);
+extern void vfi_address_unregister(struct vfi_location *);
+extern int vfi_doorbell_register(struct vfi_fabric_address *, void (*)(void *), void *);
+extern void vfi_doorbell_unregister(struct vfi_fabric_address *, int);
+extern void vfi_doorbell_send(struct vfi_fabric_address *, int);
 /*
  * The most common form of interaction is the rpc, to send a request
  * to a location and return with the result of that request as an
  * skb. The invocation should be blocking with a timeout.
 */
-extern int rddma_fabric_call(struct sk_buff **, struct rddma_location *, int, char *, ...) __attribute__((format(printf, 4,5)));
+extern int vfi_fabric_call(struct sk_buff **, struct vfi_location *, int, char *, ...) __attribute__((format(printf, 4,5)));
 
 /*
  * Now for the upcalls
@@ -190,21 +190,21 @@ extern int rddma_fabric_call(struct sk_buff **, struct rddma_location *, int, ch
  * should manufacture by calling:
  */
 
-extern int rddma_fabric_receive (struct rddma_fabric_address *,struct sk_buff * );
-extern void rddma_dbell_callback(void (*)(void *),void *);
+extern int vfi_fabric_receive (struct vfi_fabric_address *,struct sk_buff * );
+extern void vfi_dbell_callback(void (*)(void *),void *);
 
 /*
  * Finally, register and unregister take care of linking everything up
- * with the underlying fabric interfaces based upon rddma_fabric_address
- * The rddma uses named interfaces when creating locations.
+ * with the underlying fabric interfaces based upon vfi_fabric_address
+ * The vfi uses named interfaces when creating locations.
  */
-extern int rddma_fabric_register(struct rddma_fabric_address *);
-extern void rddma_fabric_unregister(const char *);
+extern int vfi_fabric_register(struct vfi_fabric_address *);
+extern void vfi_fabric_unregister(const char *);
 
 /*
  * These are downcalls and a common interface for finding the fabric interface.
  */
-extern struct rddma_fabric_address *rddma_fabric_get(struct rddma_fabric_address *);
-extern void rddma_fabric_put(struct rddma_fabric_address *);
-extern struct rddma_fabric_address *rddma_fabric_find(const char *);
-#endif	/* RDDMA_FABRIC_H */
+extern struct vfi_fabric_address *vfi_fabric_get(struct vfi_fabric_address *);
+extern void vfi_fabric_put(struct vfi_fabric_address *);
+extern struct vfi_fabric_address *vfi_fabric_find(const char *);
+#endif	/* VFI_FABRIC_H */

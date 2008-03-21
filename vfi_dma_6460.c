@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_DMA | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_DMA | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_DMA | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_DMA | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi.h>
 #include <linux/vfi_src.h>
@@ -32,7 +32,7 @@
 static char *dma_name = "ppc8245";
 
 struct dma_engine {
-	struct rddma_dma_engine rde;
+	struct vfi_dma_engine rde;
 	struct completion dma_callback_sem;
 	struct ppc_dma_chan mpc10x_dma_chans[MPC10X_DMA_NCHANS];
 	struct task_struct *callback_thread;
@@ -41,18 +41,18 @@ struct dma_engine {
 };
 
 static struct proc_dir_entry *proc_dev_dir;
-extern struct proc_dir_entry *proc_root_rddma;
+extern struct proc_dir_entry *proc_root_vfi;
 
-void address_test_completion (struct rddma_dma_descriptor *d);
+void address_test_completion (struct vfi_dma_descriptor *d);
 
 static struct dma_engine *de;
 
-static inline struct dma_engine *to_dma_engine(struct rddma_dma_engine *rde)
+static inline struct dma_engine *to_dma_engine(struct vfi_dma_engine *rde)
 {
 	return rde ? container_of(rde, struct dma_engine, rde) : NULL;
 }
 
-static void dma_6460_queue_transfer(struct rddma_dma_descriptor *list);
+static void dma_6460_queue_transfer(struct vfi_dma_descriptor *list);
 
 /* Default module param values */
 static int first_chan = 0;
@@ -69,7 +69,7 @@ static struct ppc_dma_event *event_array;
 static struct ppc_dma_event **event_in;
 static struct ppc_dma_event **event_out;
 
-static struct rddma_dma_ops dma_6460_ops;
+static struct vfi_dma_ops dma_6460_ops;
 
 static inline void dma_set_reg(struct ppc_dma_chan *chan,
 			       unsigned int offset, u32 value)
@@ -113,7 +113,7 @@ static int dma_completion_thread(void *data)
 			xfo->xf.flags = pevent->status;
 			/* Jimmy, give semaphore here */
 			if (xfo->xf.cb) {
-				xfo->xf.cb((struct rddma_dma_descriptor *) xfo);
+				xfo->xf.cb((struct vfi_dma_descriptor *) xfo);
 			}
 			ringbuf_put(event_ring_in, (void *) pevent);
 			pevent = (struct ppc_dma_event *)
@@ -129,11 +129,11 @@ static struct dma_engine *new_dma_engine(void)
 		new->rde.owner = THIS_MODULE;
 		new->rde.ops = &dma_6460_ops;
 	}
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
 }
 
-static void dma_6460_load(struct rddma_src *src)
+static void dma_6460_load(struct vfi_src *src)
 {
 	int i;
 	int *p;
@@ -154,7 +154,7 @@ static void dma_6460_load(struct rddma_src *src)
 	writel(DMA_END_OF_CHAIN | DMA_BUS_LOCAL_MEM, &rio->hw.next);
 }
 
-static void dma_6460_link_src(struct list_head *first, struct rddma_src *second)
+static void dma_6460_link_src(struct list_head *first, struct vfi_src *second)
 {
 	struct seg_desc *rio2 = (struct seg_desc *)&second->descriptor;
 	struct seg_desc *riolast; 
@@ -169,7 +169,7 @@ static void dma_6460_link_src(struct list_head *first, struct rddma_src *second)
 	list_add_tail(&rio2->node, first);
 }
 
-static void dma_6460_link_dst(struct list_head *first, struct rddma_dst *second)
+static void dma_6460_link_dst(struct list_head *first, struct vfi_dst *second)
 {
 	struct seg_desc *rio2;
 	struct seg_desc *riolast;
@@ -188,33 +188,33 @@ static void dma_6460_link_dst(struct list_head *first, struct rddma_dst *second)
 /* Bind doesn't need to be "linked"... Each bind is queued individually
  * Fill out its "transfer object".
  */
-static void dma_6460_link_bind(struct list_head *first, struct rddma_bind *second)
+static void dma_6460_link_bind(struct list_head *first, struct vfi_bind *second)
 {
 	/* Hack for now!  Use link_bind to fill out a "transfer object" */
 	struct my_xfer_object *xfo = (struct my_xfer_object *) &second->descriptor;
 #ifdef LOCAL_DMA_ADDRESS_TEST
 	xfo->xf.cb = address_test_completion;
 #else
-	xfo->xf.cb = rddma_dma_complete;
+	xfo->xf.cb = vfi_dma_complete;
 #endif
-	xfo->xf.flags = RDDMA_BIND_READY;
+	xfo->xf.flags = VFI_BIND_READY;
 	xfo->xf.len = second->desc.src.extent;
 	xfo->desc = to_sdesc(second->dma_chain.next);
 printk("Descriptor address in transfer object = 0x%x\n", (unsigned int) xfo->desc);
 }
 
-static struct rddma_dma_engine *dma_6460_get(struct rddma_dma_engine *rde)
+static struct vfi_dma_engine *dma_6460_get(struct vfi_dma_engine *rde)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
 	return rde;
 }
 
-static void dma_6460_put(struct rddma_dma_engine *rde)
+static void dma_6460_put(struct vfi_dma_engine *rde)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
 }
 
-static struct rddma_dma_ops dma_6460_ops = {
+static struct vfi_dma_ops dma_6460_ops = {
 	.load      = dma_6460_load,
 	.link_src  = dma_6460_link_src,
 	.link_dst  = dma_6460_link_dst,
@@ -226,7 +226,7 @@ static struct rddma_dma_ops dma_6460_ops = {
 
 static void start_dma(struct ppc_dma_chan *chan, struct seg_desc *dma_desc)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s GO!! Desc @ = %p(va), %p(pa)\n", __FUNCTION__, dma_desc, 
+	VFI_DEBUG(MY_DEBUG,"%s GO!! Desc @ = %p(va), %p(pa)\n", __FUNCTION__, dma_desc, 
 		sdesc_virt_to_phys(dma_desc));
 	chan->state = DMA_RUNNING;
 #if 0
@@ -243,12 +243,12 @@ printk("DMA_MR, GO!\n");
 	return;
 }
 
-void address_test_completion (struct rddma_dma_descriptor *dma_desc)
+void address_test_completion (struct vfi_dma_descriptor *dma_desc)
 {
 	struct my_xfer_object *xfo = (struct my_xfer_object *) dma_desc;
 	struct seg_desc *sdesc;
-	struct rddma_bind *bind;
-	struct rddma_xfer *xfer;
+	struct vfi_bind *bind;
+	struct vfi_xfer *xfer;
 	struct list_head *entry;
 	int *p;
 	int *p2;
@@ -290,7 +290,7 @@ loop:
 #endif
 
 err:
-	rddma_dma_complete ((struct rddma_bind *) dma_desc );
+	vfi_dma_complete ((struct vfi_bind *) dma_desc );
 }
 
 void send_completion (struct ppc_dma_chan *chan, struct my_xfer_object *xfo,
@@ -393,7 +393,7 @@ printk("DMA interrupt, empty list\n");
 		send_completion(chan, pdesc, DMA_OK);
 		if (!list_empty(&chan->dma_q)) {
 			pdesc = to_xfer_object(chan->dma_q.next);
-			pdesc->xf.flags = RDDMA_BIND_DMA_RUNNING;
+			pdesc->xf.flags = VFI_BIND_DMA_RUNNING;
 			start_dma(chan, pdesc->desc);
 		}
 	}
@@ -450,7 +450,7 @@ int ppcdma_queue_chain(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
 
 	/* Spool the DMA chain */
 	list_add_tail(&xfo->xf.node, &chan->dma_q);
-	xfo->xf.flags = RDDMA_BIND_QUEUED;
+	xfo->xf.flags = VFI_BIND_QUEUED;
 
 	/* Launch if DMA engine idle */
 	if (chan->state == DMA_IDLE) {
@@ -462,18 +462,18 @@ int ppcdma_queue_chain(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
 		}
 #endif
 	        chan->bytes_queued += xfo->xf.len;
-	        xfo->xf.flags = RDDMA_BIND_DMA_RUNNING;
+	        xfo->xf.flags = VFI_BIND_DMA_RUNNING;
 		start_dma(chan, seg);
 	}
 	spin_unlock_irqrestore(&chan->queuelock, flags);
 	return 0;
 }
 
-static void dma_6460_queue_transfer(struct rddma_dma_descriptor *list)
+static void dma_6460_queue_transfer(struct vfi_dma_descriptor *list)
 {
 	struct ppc_dma_chan *chan;
 	struct my_xfer_object *xfo = (struct my_xfer_object *) list;
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n", __FUNCTION__, xfo);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n", __FUNCTION__, xfo);
 	if (de->nchans == 1) {
 		ppcdma_queue_chain(&de->mpc10x_dma_chans[first_chan], xfo);
 		return;
@@ -500,7 +500,7 @@ static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
 	return len;
 }
 
-static int setup_rddma_channel(struct platform_device *pdev)
+static int setup_vfi_channel(struct platform_device *pdev)
 {
 	int index;
 	int err;
@@ -564,12 +564,12 @@ static int setup_rddma_channel(struct platform_device *pdev)
 	return (err);
 }
 
-static int __devinit mpc10x_rddma_probe(struct platform_device *pdev);
-static int __devinit mpc10x_rddma_remove(struct platform_device *pdev);
+static int __devinit mpc10x_vfi_probe(struct platform_device *pdev);
+static int __devinit mpc10x_vfi_remove(struct platform_device *pdev);
 
-static struct platform_driver mpc10x_rddma_driver = {
-	.probe = mpc10x_rddma_probe,
-	.remove = mpc10x_rddma_remove,
+static struct platform_driver mpc10x_vfi_driver = {
+	.probe = mpc10x_vfi_probe,
+	.remove = mpc10x_vfi_remove,
 	.driver = {
 		.name = "fsl-dma",
 		.owner = THIS_MODULE,
@@ -578,7 +578,7 @@ static struct platform_driver mpc10x_rddma_driver = {
 
 static int __init dma_6460_init(void)
 {
-	struct rddma_dma_engine *rde;
+	struct vfi_dma_engine *rde;
 	int err;
 	int i;
 
@@ -586,20 +586,20 @@ printk("IN dma_6460_init!\n");
 	if ( (de = new_dma_engine()) ) {
 		rde = &de->rde;
 		de->next_channel = first_chan;
-		snprintf(rde->name, RDDMA_MAX_DMA_NAME_LEN, "%s", dma_name);
+		snprintf(rde->name, VFI_MAX_DMA_NAME_LEN, "%s", dma_name);
 	}
 	else
 		return -ENOMEM;
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_root_rddma) 
-		proc_root_rddma = proc_mkdir ("rddma", proc_root_driver);
+	if (!proc_root_vfi) 
+		proc_root_vfi = proc_mkdir ("vfi", proc_root_driver);
 
-	proc_dev_dir = proc_mkdir (dma_name, proc_root_rddma);
+	proc_dev_dir = proc_mkdir (dma_name, proc_root_vfi);
 #endif
 
 #if 1
-	platform_driver_register(&mpc10x_rddma_driver);
+	platform_driver_register(&mpc10x_vfi_driver);
 #endif
 
 	/* Before calling register, make sure probe succeeded */
@@ -646,22 +646,22 @@ printk("IN dma_6460_init!\n");
 	/* end completion callback mechanism setup */
 
 
-	return rddma_dma_register(rde);
+	return vfi_dma_register(rde);
 }
 
 static void __exit dma_6460_close(void)
 {
-	rddma_dma_unregister(dma_name);
+	vfi_dma_unregister(dma_name);
 }
 
-static int __devinit mpc10x_rddma_probe (struct platform_device *pdev)
+static int __devinit mpc10x_vfi_probe (struct platform_device *pdev)
 {
 	int status;
-	status = setup_rddma_channel (pdev);
+	status = setup_vfi_channel (pdev);
 	return (status);
 }
 
-static int __devexit mpc10x_rddma_remove (struct platform_device *pdev)
+static int __devexit mpc10x_vfi_remove (struct platform_device *pdev)
 {
 	printk("PIGGY! PIGGY!\n");
 	printk("start = 0x%x\n", pdev->resource[0].start);
@@ -680,4 +680,4 @@ module_param(nevents, int, 0);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jimmy Blair <jblair@micromemory.com>");
-MODULE_DESCRIPTION("DMA Engine for local RDDMA on PPC8245");
+MODULE_DESCRIPTION("DMA Engine for local VFI on PPC8245");

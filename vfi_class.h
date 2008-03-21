@@ -9,16 +9,16 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_CLASS_H
-#define RDDMA_CLASS_H
+#ifndef VFI_CLASS_H
+#define VFI_CLASS_H
 
 #include <linux/vfi_subsys.h>
 
-struct rddma_dev {
+struct vfi_dev {
 	struct class_device class_device;
 };
 
-extern int rddma_class_register(struct rddma_subsys *rsys);
-extern void rddma_class_unregister(struct rddma_subsys *rsys);
+extern int vfi_class_register(struct vfi_subsys *rsys);
+extern void vfi_class_unregister(struct vfi_subsys *rsys);
 
-#endif	/* RDDMA_CLASS_H */
+#endif	/* VFI_CLASS_H */

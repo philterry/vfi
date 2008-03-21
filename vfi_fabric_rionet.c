@@ -8,8 +8,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_FABNET | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_FABNET | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_FABNET | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_FABNET | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi_fabric.h>
 #include <linux/vfi_location.h>
@@ -24,11 +24,11 @@
 #include <linux/rio_ids.h>
 #include <linux/list.h>
 
-#define RDDMA_DOORBELL_START 0x2000
-#define RDDMA_DOORBELL_END 0x4000
-#define RDDMA_DOORBELL_HASHLEN 256
+#define VFI_DOORBELL_START 0x2000
+#define VFI_DOORBELL_END 0x4000
+#define VFI_DOORBELL_HASHLEN 256
 
-#define RDDMA_FABRIC_MSG 0
+#define VFI_FABRIC_MSG 0
 
 static int first_probe = 1;
 
@@ -45,16 +45,16 @@ struct fabric_address {
 	unsigned char hw_address[ETH_ALEN];
 	unsigned long idx;	/* ip address hint hint nod nod */
 	unsigned long src_idx;	/* src ip address */
-	struct rddma_location *reg_loc;
+	struct vfi_location *reg_loc;
 #define UNKNOWN_IDX 0UL
 	struct net_device *ndev;
 	struct list_head list;
-	struct rddma_fabric_address rfa;
+	struct vfi_fabric_address rfa;
 	struct kobject kobj;
 	u16 rio_id;
 };
 
-#define is_rddma_rionet_capable(src_ops,dst_ops) \
+#define is_vfi_rionet_capable(src_ops,dst_ops) \
 	((src_ops & RIO_SRC_OPS_DOORBELL) && \
 	 (dst_ops & RIO_DST_OPS_DOORBELL))
 
@@ -63,7 +63,7 @@ static struct rio_mport *port;
 /* Jimmy hack: Following symbol is exported so the DMA driver can
  * dump RIO registers 
  */
-struct rio_mport *rddma_rio_port;
+struct rio_mport *vfi_rio_port;
 
 struct event_node {
 	struct list_head node;
@@ -72,7 +72,7 @@ struct event_node {
 	int id;
 };
 
-struct _rddma_event_mgr {
+struct _vfi_event_mgr {
 	int next;
 	int mindepth;
 	int first_id;
@@ -86,23 +86,23 @@ struct _rddma_event_mgr {
 	struct event_node *event_harray;
 };
 
-static struct _rddma_event_mgr *dbmgr;
+static struct _vfi_event_mgr *dbmgr;
 static int find_db_in_list(struct list_head *q, int val, struct event_node **db);
-static void rddma_events_uninit(struct _rddma_event_mgr *evmgr);
-static struct _rddma_event_mgr *rddma_events_init(int first, int last, int hashlen);
+static void vfi_events_uninit(struct _vfi_event_mgr *evmgr);
+static struct _vfi_event_mgr *vfi_events_init(int first, int last, int hashlen);
 
-static void rddma_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
+static void vfi_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
 	u16 dst, u16 id);
-static int doorbell_send (struct rddma_fabric_address *address, int id);
-static int rddma_get_doorbell (void (*cb)(void *),void * arg);
-static void rddma_put_doorbell (int id);
+static int doorbell_send (struct vfi_fabric_address *address, int id);
+static int vfi_get_doorbell (void (*cb)(void *),void * arg);
+static void vfi_put_doorbell (int id);
 
-static inline struct fabric_address *to_fabric_address(struct rddma_fabric_address *rfa)
+static inline struct fabric_address *to_fabric_address(struct vfi_fabric_address *rfa)
 {
 	return rfa ? container_of(rfa,struct fabric_address,rfa) : NULL;
 }
 
-int get_rio_id (struct rddma_fabric_address *rfa)
+int get_rio_id (struct vfi_fabric_address *rfa)
 {
 	struct fabric_address *a = to_fabric_address (rfa);
 	if (a)
@@ -114,7 +114,7 @@ int get_rio_id (struct rddma_fabric_address *rfa)
 static void fabric_address_release(struct kobject *kobj)
 {
 	struct fabric_address *old = kobj ? container_of(kobj, struct fabric_address, kobj) : NULL;
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,old);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,old);
 	if (old) {
 		kfree(old);
 	}
@@ -126,13 +126,13 @@ static struct kobj_type fabric_address_type = {
 
 static inline struct fabric_address *_fabric_get(struct fabric_address *fna)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,fna);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,fna);
 	return (fna ? kobject_get(&fna->kobj), fna : NULL) ;
 }
 
 static inline void _fabric_put(struct fabric_address *fna)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,fna);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,fna);
 	if ( fna ) kobject_put(&fna->kobj);
 }
 
@@ -140,30 +140,30 @@ static struct fabric_address *address_table[256];
 
 static void update_fabric_address(struct fabric_address *fp, unsigned long src_idx, char *hwaddr, struct net_device *ndev)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %lx %s\n",__FUNCTION__,fp,hwaddr,src_idx,ndev->name);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %lx %s\n",__FUNCTION__,fp,hwaddr,src_idx,ndev->name);
 	if (hwaddr) {
-		RDDMA_DEBUG(MY_DEBUG,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
+		VFI_DEBUG(MY_DEBUG,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
 		memcpy(fp->hw_address,hwaddr,ETH_ALEN);
 		fp->rio_id = hwaddr[5];
 	}
 	
 	if (ndev) {
-		RDDMA_DEBUG_SAFE(MY_DEBUG,fp->ndev,"%s overwriting old ndev %p with %p\n",__FUNCTION__,fp->ndev,ndev);
+		VFI_DEBUG_SAFE(MY_DEBUG,fp->ndev,"%s overwriting old ndev %p with %p\n",__FUNCTION__,fp->ndev,ndev);
 		fp->ndev = ndev;
 	}
 
 	if (src_idx) {
-		RDDMA_DEBUG_SAFE(MY_DEBUG,fp->src_idx,"%s overwriting old src_idx %lx with %lx\n",__FUNCTION__,fp->src_idx,src_idx);
+		VFI_DEBUG_SAFE(MY_DEBUG,fp->src_idx,"%s overwriting old src_idx %lx with %lx\n",__FUNCTION__,fp->src_idx,src_idx);
 		fp->src_idx = src_idx;
 	}
 }
 
-static struct rddma_address_ops fabric_rionet_ops;
+static struct vfi_address_ops fabric_rionet_ops;
 
 static struct fabric_address *new_fabric_address(unsigned long idx, unsigned long src_idx, char *hwaddr, struct net_device *ndev)
 {
 	struct fabric_address *new = kzalloc(sizeof(struct fabric_address),GFP_KERNEL);
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 
 	INIT_LIST_HEAD(&new->list);
 
@@ -186,7 +186,7 @@ static struct fabric_address *find_fabric_mac(char *hwaddr, struct net_device *n
 	int i;
 	struct fabric_address *fp, *new;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	for (i = 0, fp = address_table[i]; i < 16 && hwaddr; i++, fp = address_table[i]) {
 		if (!fp)
 			continue;
@@ -210,8 +210,8 @@ static struct fabric_address *find_fabric_address(unsigned long idx, unsigned lo
 	struct fabric_address *fp = address_table[idx & 15];
 	struct fabric_address *new;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s idx %lx, src_idx %lx\n", __FUNCTION__, idx, src_idx);
-	RDDMA_DEBUG_SAFE(MY_DEBUG,hwaddr,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
+	VFI_DEBUG(MY_DEBUG,"%s idx %lx, src_idx %lx\n", __FUNCTION__, idx, src_idx);
+	VFI_DEBUG_SAFE(MY_DEBUG,hwaddr,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
 	if ( idx == UNKNOWN_IDX) {
 		if ( (new = find_fabric_mac(hwaddr,ndev)) )
 			return new;
@@ -247,7 +247,7 @@ static void remove_fabric_address(struct fabric_address *addr)
 {
 	struct fabric_address *hp = address_table[addr->idx & 15];
 	struct fabric_address *np, *fp;
-	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,addr);
+	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,addr);
 	if (hp) {
 		list_for_each_entry_safe(fp,np,&hp->list,list) {
 			if (fp == addr) {
@@ -262,7 +262,7 @@ static void remove_fabric_address(struct fabric_address *addr)
 }
 
 /* 
- * Frame format dstmac,srcmac,rddmatype,dstidx,srcidx,string
+ * Frame format dstmac,srcmac,vfitype,dstidx,srcidx,string
  *                6       6       2        4      4      n
  *
  * All frames have srcmac.
@@ -274,7 +274,7 @@ static void remove_fabric_address(struct fabric_address *addr)
  *
  */
 
-struct rddmahdr {
+struct vfihdr {
 	unsigned char	h_dest[ETH_ALEN];	/* destination eth addr	*/
 	unsigned char	h_source[ETH_ALEN];	/* source ether addr	*/
 	__be16		h_proto;		/* packet type ID field	*/
@@ -283,18 +283,18 @@ struct rddmahdr {
 	__be32          h_pkt_info;
 } __attribute__((packed));
 
-static inline struct rddmahdr *rddma_hdr(struct sk_buff *skb)
+static inline struct vfihdr *vfi_hdr(struct sk_buff *skb)
 {
-	skb_pull(skb, (sizeof(struct rddmahdr) - sizeof(struct ethhdr)));
-	return (struct rddmahdr *)eth_hdr(skb);
+	skb_pull(skb, (sizeof(struct vfihdr) - sizeof(struct ethhdr)));
+	return (struct vfihdr *)eth_hdr(skb);
 }
 
-static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
+static int vfi_rx_packet(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct fabric_address *fna;
-	struct rddmahdr *mac = rddma_hdr(skb);
+	struct vfihdr *mac = vfi_hdr(skb);
 	unsigned long srcidx, dstidx;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	dstidx = ntohl(mac->h_dstidx);
 	srcidx = ntohl(mac->h_srcidx);
@@ -308,7 +308,7 @@ static int rddma_rx_packet(struct sk_buff *skb, struct net_device *dev, struct p
 	if (skb_tailroom(skb))  /* FIXME */
 		*skb_put(skb,1) = '\0';
 
-	return rddma_fabric_receive(&fna->rfa, skb);
+	return vfi_fabric_receive(&fna->rfa, skb);
 
 forget:
 	_fabric_put(fna);
@@ -316,24 +316,24 @@ forget:
 	return NET_RX_DROP;
 }
 
-struct packet_type rddma_packets = {
-	.func = rddma_rx_packet,
+struct packet_type vfi_packets = {
+	.func = vfi_rx_packet,
 };
 
-static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *skb)
+static int fabric_transmit(struct vfi_fabric_address *addr, struct sk_buff *skb)
 {
-	struct rddmahdr *mac;
+	struct vfihdr *mac;
 	unsigned long srcidx = 0, dstidx = 0;
 
 	int ret = NET_XMIT_DROP;
 	struct fabric_address *fna = to_fabric_address(addr);
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p %p " MACADDRFMT "\n",__FUNCTION__,addr,skb->data,fna, MACADDRBYTES(fna->hw_address));
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %p " MACADDRFMT "\n",__FUNCTION__,addr,skb->data,fna, MACADDRBYTES(fna->hw_address));
 
 	if (fna->ndev) {
 		skb_reset_transport_header(skb);
 		skb_reset_network_header(skb);
-		mac  = (struct rddmahdr *)skb_push(skb,sizeof(struct rddmahdr));
+		mac  = (struct vfihdr *)skb_push(skb,sizeof(struct vfihdr));
 		skb_reset_mac_header(skb);
 
 		if (*((int *)(fna->hw_address)))
@@ -345,7 +345,7 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 
 		mac->h_proto = htons(netdev_type);
 
-		mac->h_pkt_info = RDDMA_FABRIC_MSG;
+		mac->h_pkt_info = VFI_FABRIC_MSG;
 
 		dstidx = htonl(fna->idx);
 		srcidx = htonl(fna->src_idx);
@@ -361,7 +361,7 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 		skb->ip_summed = CHECKSUM_NONE;
 		_fabric_put(fna);
 		
-		RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,skb->data);
+		VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,skb->data);
 
 		return dev_queue_xmit(skb);
 	}
@@ -371,31 +371,31 @@ static int fabric_transmit(struct rddma_fabric_address *addr, struct sk_buff *sk
 	return ret;
 }
 
-static struct rddma_fabric_address *fabric_get(struct rddma_fabric_address *rfa)
+static struct vfi_fabric_address *fabric_get(struct vfi_fabric_address *rfa)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered rfa=%p\n",__FUNCTION__,rfa);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered rfa=%p\n",__FUNCTION__,rfa);
 	return rfa ? _fabric_get(to_fabric_address(rfa)), rfa : NULL;
 }
 
-static void fabric_put(struct rddma_fabric_address *rfa)
+static void fabric_put(struct vfi_fabric_address *rfa)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered rfa=%p\n",__FUNCTION__,rfa);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered rfa=%p\n",__FUNCTION__,rfa);
 	if ( rfa ) _fabric_put(to_fabric_address(rfa));
 }
 
-static int fabric_register(struct rddma_location *loc)
+static int fabric_register(struct vfi_location *loc)
 {
 	struct fabric_address *old = to_fabric_address(loc->desc.address);
 	struct fabric_address *fna;
 	char *ndev_name;
 	struct net_device *ndev = NULL;
 
-	RDDMA_DEBUG(MY_DEBUG,"RIONET %s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"RIONET %s entered\n",__FUNCTION__);
 
 /* 	if (old && old->reg_loc) */
 /* 		return -EEXIST; */
 
-	if ( (ndev_name = rddma_get_option(&loc->desc,"netdev=")) ) {
+	if ( (ndev_name = vfi_get_option(&loc->desc,"netdev=")) ) {
 		if ( !(ndev = dev_get_by_name(ndev_name)) )
 			return -ENODEV;
 		}
@@ -409,32 +409,32 @@ static int fabric_register(struct rddma_location *loc)
 	if (old) {
 		fna->rio_id = old->rio_id;
 	}
-	fna->reg_loc = rddma_location_get(loc);
+	fna->reg_loc = vfi_location_get(loc);
 
-	rddma_location_put(old->reg_loc);
+	vfi_location_put(old->reg_loc);
 	_fabric_put(old);
 
 	return 0;
 }
 
-static void fabric_unregister(struct rddma_location *loc)
+static void fabric_unregister(struct vfi_location *loc)
 {
 	struct fabric_address *old = to_fabric_address(loc->desc.address);
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	old->reg_loc = NULL;
 	_fabric_put(old);
-	rddma_location_put(loc);
+	vfi_location_put(loc);
 }
 
-static struct rddma_address_ops fabric_rionet_ops = {
+static struct vfi_address_ops fabric_rionet_ops = {
 	.transmit = fabric_transmit,
 	.register_location = fabric_register,
 	.unregister_location = fabric_unregister,
 	.get = fabric_get,
 	.put = fabric_put,
 	.doorbell = doorbell_send,
-	.register_doorbell = rddma_get_doorbell,
-	.unregister_doorbell = rddma_put_doorbell,
+	.register_doorbell = vfi_get_doorbell,
+	.unregister_doorbell = vfi_put_doorbell,
 };
 
 #if 1
@@ -446,8 +446,8 @@ static struct rio_device_id rionet_id_table[] = {
 static int fabric_rionet_probe(struct rio_dev *rdev, const struct rio_device_id *id);
 static void fabric_rionet_remove(struct rio_dev *rdev);
 
-static struct rio_driver rddma_rio_drv = {
-	.name = "rddma_rionet",
+static struct rio_driver vfi_rio_drv = {
+	.name = "vfi_rionet",
 	.id_table = rionet_id_table, 
 	.probe = fabric_rionet_probe,
 	.remove = fabric_rionet_remove,
@@ -461,7 +461,7 @@ static void fabric_rionet_remove(struct rio_dev *rdev)
 	/* dummy for now */
 }
 
-#define is_rddma_rionet_capable(src_ops,dst_ops) \
+#define is_vfi_rionet_capable(src_ops,dst_ops) \
 	((src_ops & RIO_SRC_OPS_DOORBELL) && \
 	 (dst_ops & RIO_DST_OPS_DOORBELL))
 
@@ -480,7 +480,7 @@ static int  fabric_rionet_probe(struct rio_dev *rdev,
 
 	first_probe = 1;
 	port = rdev->net->hport;
-	rddma_rio_port = port;
+	vfi_rio_port = port;
 	/* Jimmy -- map inbound window, low 1G for now */
 	port->mops->map_inb(port, 0,   /* rio start */
 		0, 		/* mem start */
@@ -488,66 +488,66 @@ static int  fabric_rionet_probe(struct rio_dev *rdev,
 		0); 		/* flags */
 	rio_local_read_config_32(port, RIO_SRC_OPS_CAR, &src_ops);
 	rio_local_read_config_32(port, RIO_DST_OPS_CAR, &dst_ops);
-	if (!is_rddma_rionet_capable(src_ops, dst_ops)) {
+	if (!is_vfi_rionet_capable(src_ops, dst_ops)) {
 		printk("Unable to use rionet fabric -- no doorbell capability\n");;
 		return -EINVAL;
 	}
 
 	/* Attach event handler to doorbell interrupt */
 	if ((rc = rio_request_inb_dbell(port, (void *) port,
-					RDDMA_DOORBELL_START,
-					RDDMA_DOORBELL_END,
-					rddma_dbell_event)) < 0)
+					VFI_DOORBELL_START,
+					VFI_DOORBELL_END,
+					vfi_dbell_event)) < 0)
 		return -EINVAL;
 
-	dbmgr = rddma_events_init(RDDMA_DOORBELL_START, RDDMA_DOORBELL_END, RDDMA_DOORBELL_HASHLEN);
+	dbmgr = vfi_events_init(VFI_DOORBELL_START, VFI_DOORBELL_END, VFI_DOORBELL_HASHLEN);
 
 	/* Messages over ethernet */
 
 	if ( (fna = new_fabric_address(UNKNOWN_IDX,0,0,0)) ) {
-		snprintf(fna->rfa.name, RDDMA_MAX_FABRIC_NAME_LEN, "%s", "rddma_fabric_rionet");
+		snprintf(fna->rfa.name, VFI_MAX_FABRIC_NAME_LEN, "%s", "vfi_fabric_rionet");
 		if (netdev_name)
 			if ( (fna->ndev = dev_get_by_name(netdev_name)) ) {
-				rddma_packets.dev = fna->ndev;
-				rddma_packets.type = htons(netdev_type);
+				vfi_packets.dev = fna->ndev;
+				vfi_packets.type = htons(netdev_type);
 				fna->rio_id = port->id;
-				dev_add_pack(&rddma_packets);
-				return rddma_fabric_register(&fna->rfa);
+				dev_add_pack(&vfi_packets);
+				return vfi_fabric_register(&fna->rfa);
 			}
 		return -ENODEV;
 	}
 	return -ENOMEM;
 }
 
-/* RDDMA events for rionet are a range of 16-bit values associated with
+/* VFI events for rionet are a range of 16-bit values associated with
  * a callback function and an argument.  The H/W implementation is RIO doorbells.
  * When an event is received over the fabric, the doorbell unit
  * raises an interrupt callback function is executed.
  *
  * Usage:
  *
- * 1) struct _rddma_event_mgr *rddma_events_init(int first, int last, int hashlen)
+ * 1) struct _vfi_event_mgr *vfi_events_init(int first, int last, int hashlen)
  *
  *    Initialize a new event manager.  Supply the first and last event number, and also
  *    the length of the hash table that is used to store allocated events;
  *    Funtion returns event manager handle.
  * 
- * 2) int rddma_get_event (struct _rddma_event_mgr *evmgr, void (*cb)(void *),void * arg)
+ * 2) int vfi_get_event (struct _vfi_event_mgr *evmgr, void (*cb)(void *),void * arg)
  *
  *    Supply an event manager handle,  callback function and argument (NULL is valid).  
  *    Funtion returns event id.
  *
- * 3) void rddma_event_dispatch(struct _rddma_event_mgr *evmgr, int id) 
+ * 3) void vfi_event_dispatch(struct _vfi_event_mgr *evmgr, int id) 
  *
  *    Supply an event manager handle and id.
  *    Funtion will call the event's associated callback function.
  *
- * 4) int rddma_put_event(struct _rddma_event_mgr *evmgr, int id)
+ * 4) int vfi_put_event(struct _vfi_event_mgr *evmgr, int id)
  *
  *    Supply an event manager handle and id.
  *    Funtion will free the event
  *
- * 5) void rddma_events_uninit(struct _rddma_event_mgr *evmgr)
+ * 5) void vfi_events_uninit(struct _vfi_event_mgr *evmgr)
  *
  *    Supply an event manager handle.
  *    Funtion will delete the event manager.
@@ -590,7 +590,7 @@ static int list_len (struct list_head *list)
 	}
 	return ret;
 }
-void rddma_events_uninit(struct _rddma_event_mgr *evmgr)
+void vfi_events_uninit(struct _vfi_event_mgr *evmgr)
 {
 	int i;
 	struct list_head *temp;
@@ -610,12 +610,12 @@ void rddma_events_uninit(struct _rddma_event_mgr *evmgr)
 	
 }
 
-static struct _rddma_event_mgr *rddma_events_init(int first, int last, int hashlen)
+static struct _vfi_event_mgr *vfi_events_init(int first, int last, int hashlen)
 {
 	int num = last - first + 1;
 	int i;
-        struct _rddma_event_mgr *evmgr;
-	evmgr = kmalloc(sizeof (struct _rddma_event_mgr), GFP_KERNEL);
+        struct _vfi_event_mgr *evmgr;
+	evmgr = kmalloc(sizeof (struct _vfi_event_mgr), GFP_KERNEL);
 	if (evmgr == NULL)
 		return NULL;
 	evmgr->event_harray = kmalloc (hashlen * sizeof (struct event_node), GFP_KERNEL);
@@ -635,10 +635,10 @@ static struct _rddma_event_mgr *rddma_events_init(int first, int last, int hashl
 	evmgr->first_id = first;
 	evmgr->last_id = last;
 	evmgr->hashlen = hashlen;
-	RDDMA_DEBUG(MY_DEBUG,"%s, doorbell init ok\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s, doorbell init ok\n",__FUNCTION__);
 	return evmgr;
 bad1:
-	RDDMA_DEBUG(MY_DEBUG,"%s, doorbell init failed\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s, doorbell init failed\n",__FUNCTION__);
 	kfree(evmgr);
 	return (NULL);
 };
@@ -646,7 +646,7 @@ bad1:
 /* Dispatch event to the appropriate callback */
 /* Note: this function called from interrupt level by rionet and rio fabric driver */
 
-static void rddma_event_dispatch(struct _rddma_event_mgr *evmgr, int id) 
+static void vfi_event_dispatch(struct _vfi_event_mgr *evmgr, int id) 
 {
 	int depth;
 	int bin = (id - evmgr->first_id) % evmgr->hashlen;
@@ -664,7 +664,7 @@ static void rddma_event_dispatch(struct _rddma_event_mgr *evmgr, int id)
 		}
 	}
 	if (depth == -1) {
-		RDDMA_DEBUG(MY_DEBUG,"%s, doorbell not found!\n",__FUNCTION__);
+		VFI_DEBUG(MY_DEBUG,"%s, doorbell not found!\n",__FUNCTION__);
 		return;
 	}
 
@@ -676,7 +676,7 @@ static void rddma_event_dispatch(struct _rddma_event_mgr *evmgr, int id)
  * Only incoming events need callback... 
  * NULL callback function is OK.
  */
-static int rddma_get_event (struct _rddma_event_mgr *evmgr, void (*cb)(void *),void * arg)
+static int vfi_get_event (struct _vfi_event_mgr *evmgr, void (*cb)(void *),void * arg)
 {
 	int ret = -1;
 	int id;
@@ -686,14 +686,14 @@ static int rddma_get_event (struct _rddma_event_mgr *evmgr, void (*cb)(void *),v
 	int i;
 	struct event_node *pevent;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
 	
 	/* 'next' is bin number of next available event.
 	 * It's -1 if all events allocated.
 	 */
 	if (evmgr->next == -1) {
-		RDDMA_KTRACE ("<*** xxx %s: All events allocated ***>\n", __func__);
+		VFI_KTRACE ("<*** xxx %s: All events allocated ***>\n", __func__);
 		return ret;
 	}
 
@@ -705,7 +705,7 @@ static int rddma_get_event (struct _rddma_event_mgr *evmgr, void (*cb)(void *),v
 			GFP_KERNEL);
 		if (pevent == NULL) { /* Memory error */
 			up(&evmgr->sem);
-			RDDMA_KTRACE ("<*** xxx %s: Memory error ***>\n", __func__);
+			VFI_KTRACE ("<*** xxx %s: Memory error ***>\n", __func__);
 			return ret;
 		}
 		/* Find another number that fits on this chain */
@@ -725,7 +725,7 @@ end_search:
 			evmgr->next = -1; /* All event numbers allocated */
 			up(&evmgr->sem);
 			kfree (pevent);
-			RDDMA_KTRACE ("<*** xxx %s: All event numbers allocated ***>\n", __func__);
+			VFI_KTRACE ("<*** xxx %s: All event numbers allocated ***>\n", __func__);
 			return ret;
 		}
 		pevent->id = -1;
@@ -741,7 +741,7 @@ end_search:
 	pevent->cb = cb;
 	pevent->arg = arg;
 	pevent->id = id;
-	RDDMA_DEBUG(MY_DEBUG,"%s, doorbell = %d\n",__FUNCTION__, id);
+	VFI_DEBUG(MY_DEBUG,"%s, doorbell = %d\n",__FUNCTION__, id);
 	ret = id;
 	evmgr->num_alloc++;
 	if (evmgr->num_alloc > evmgr->high_watermark)
@@ -753,13 +753,13 @@ end_search:
 			if (evmgr->event_harray[i].node.next == NULL) {
 				evmgr->next = i;
 				up(&evmgr->sem);
-				RDDMA_KTRACE ("<*** %s: Allocated %08x (bin %d) ***>\n", __func__, ret, i);
+				VFI_KTRACE ("<*** %s: Allocated %08x (bin %d) ***>\n", __func__, ret, i);
 				return (ret);
 			}
 		}
 		evmgr->next = -1;
 		up(&evmgr->sem);
-		RDDMA_KTRACE ("<*** %s: Allocated %08x (last bin) ***>\n", __func__, ret);
+		VFI_KTRACE ("<*** %s: Allocated %08x (last bin) ***>\n", __func__, ret);
 		return (ret);
 	}
 
@@ -795,11 +795,11 @@ done:
 	evmgr->next = i;
 
 	up(&evmgr->sem);
-	RDDMA_KTRACE ("<*** %s: Allocated %08x ***>\n", __func__, ret);
+	VFI_KTRACE ("<*** %s: Allocated %08x ***>\n", __func__, ret);
 	return ret;
 }
 
-int rddma_put_event(struct _rddma_event_mgr *evmgr, int id)
+int vfi_put_event(struct _vfi_event_mgr *evmgr, int id)
 {
 	int bin = (id - evmgr->first_id) % evmgr->hashlen;
 	int depth;
@@ -807,9 +807,9 @@ int rddma_put_event(struct _rddma_event_mgr *evmgr, int id)
 	struct event_node *pdb;
 	void *node_free = NULL;
 
-	RDDMA_KTRACE ("<*** %s, id %08x IN ***>\n", __func__, id);
+	VFI_KTRACE ("<*** %s, id %08x IN ***>\n", __func__, id);
 	if ((id < evmgr->first_id) || (id > evmgr->last_id)) {
-		RDDMA_KTRACE ("<*** xxx %s: Out-of-band [%08x:%08x] ***>\n", __func__, evmgr->first_id, evmgr->last_id);
+		VFI_KTRACE ("<*** xxx %s: Out-of-band [%08x:%08x] ***>\n", __func__, evmgr->first_id, evmgr->last_id);
 		return -1;
 	}
 
@@ -827,7 +827,7 @@ int rddma_put_event(struct _rddma_event_mgr *evmgr, int id)
 	if (depth == -1) {
 		/* attempted to free unallocated doorbell */
 		up(&evmgr->sem);
-		RDDMA_KTRACE ("<*** xxx %s: Doorbell not allocated ***>\n", __func__);
+		VFI_KTRACE ("<*** xxx %s: Doorbell not allocated ***>\n", __func__);
 		return -1;
 	}
 	/* Doorbell in list 'bin' at 'depth' */
@@ -879,36 +879,36 @@ int rddma_put_event(struct _rddma_event_mgr *evmgr, int id)
 
 	if (node_free)
 		kfree(node_free);
-	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
+	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return 0;
 }
 
 /**** End of event manager *****/
 
-static void rddma_doorbells_uninit(void)
+static void vfi_doorbells_uninit(void)
 {
 	/* Disconnect from H/W layer */
-	rio_release_inb_dbell(port, RDDMA_DOORBELL_START, RDDMA_DOORBELL_END);
+	rio_release_inb_dbell(port, VFI_DOORBELL_START, VFI_DOORBELL_END);
 	/* Tear down the doorbell manager */
 	if (dbmgr)
-		rddma_events_uninit(dbmgr);
+		vfi_events_uninit(dbmgr);
 	dbmgr = NULL;
 }
 
 /* Dispatch doorbell interrupt to the appropriate callback */
 /* Note: this function called from interrupt level by RIO driver */
-static void rddma_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
+static void vfi_dbell_event(struct rio_mport *mport, void *dev_id, u16 src, 
 	u16 dst, u16 id) 
 {
 
-	RDDMA_DEBUG(MY_DEBUG,"%s src=%d dst=%d bell=%d\n",__FUNCTION__,src,dst,id);
-	rddma_event_dispatch(dbmgr, (int) id);
+	VFI_DEBUG(MY_DEBUG,"%s src=%d dst=%d bell=%d\n",__FUNCTION__,src,dst,id);
+	vfi_event_dispatch(dbmgr, (int) id);
 }
 
-static int doorbell_send (struct rddma_fabric_address *address, int info)
+static int doorbell_send (struct vfi_fabric_address *address, int info)
 {
 	struct fabric_address *fa = to_fabric_address(address);
-	RDDMA_DEBUG(MY_DEBUG,"%s dst=%d bell=%d\n",__FUNCTION__,fa->rio_id,info);
+	VFI_DEBUG(MY_DEBUG,"%s dst=%d bell=%d\n",__FUNCTION__,fa->rio_id,info);
 	rio_mport_send_doorbell(port, fa->rio_id, (u16) info);
 	return 0;
 }
@@ -917,20 +917,20 @@ static int doorbell_send (struct rddma_fabric_address *address, int info)
  * Only incoming doorbells need callback... 
  * NULL callback function is OK.
  */
-static int rddma_get_doorbell (void (*cb)(void *),void * arg)
+static int vfi_get_doorbell (void (*cb)(void *),void * arg)
 {
 	int rslt = 0;
-	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
-	rslt = rddma_get_event (dbmgr, cb, arg);
-	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
+	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
+	rslt = vfi_get_event (dbmgr, cb, arg);
+	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return rslt;	
 }
 
-static void rddma_put_doorbell(int id)
+static void vfi_put_doorbell(int id)
 {
-	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
-	rddma_put_event (dbmgr, id);
-	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
+	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
+	vfi_put_event (dbmgr, id);
+	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return;
 }
 
@@ -938,21 +938,21 @@ static void rddma_put_doorbell(int id)
 
 static void __exit fabric_rionet_close(void)
 {
-	dev_remove_pack(&rddma_packets);
-	rddma_doorbells_uninit();
-	rddma_fabric_unregister("rddma_fabric_rionet");
+	dev_remove_pack(&vfi_packets);
+	vfi_doorbells_uninit();
+	vfi_fabric_unregister("vfi_fabric_rionet");
 }
 
 static int __init fabric_rionet_init(void)
 {
-	return (rio_register_driver(&rddma_rio_drv));
+	return (rio_register_driver(&vfi_rio_drv));
 }
 
-EXPORT_SYMBOL(rddma_rio_port);
+EXPORT_SYMBOL(vfi_rio_port);
 EXPORT_SYMBOL(get_rio_id);
 module_init(fabric_rionet_init);
 module_exit(fabric_rionet_close);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Phil Terry <pterry@micromemroy.com>");
-MODULE_DESCRIPTION("Implements an ethernet frame/rio doorbell based transport for RDDMA");
+MODULE_DESCRIPTION("Implements an ethernet frame/rio doorbell based transport for VFI");

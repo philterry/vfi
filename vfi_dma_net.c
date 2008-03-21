@@ -8,8 +8,8 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#define MY_DEBUG      RDDMA_DBG_DMANET | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_DMANET | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_DMANET | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_DMANET | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi.h>
 #include <linux/vfi_dma.h>
@@ -19,11 +19,11 @@
 #include <linux/vfi_binds.h>
 
 struct dma_engine {
-	struct rddma_dma_engine rde;
+	struct vfi_dma_engine rde;
 };
 static struct dma_engine *de;
 
-static inline struct dma_engine *to_dma_engine(struct rddma_dma_engine *rde)
+static inline struct dma_engine *to_dma_engine(struct vfi_dma_engine *rde)
 {
 	return rde ? container_of(rde, struct dma_engine, rde) : NULL;
 }
@@ -38,16 +38,16 @@ static inline dma_addr_t ldesc_virt_to_phys(struct dma_list *d)
 
 /* Fill out fields of DMA descriptor */
 
-static void dma_net_load(struct rddma_src *src)
+static void dma_net_load(struct vfi_src *src)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s src(%p)\n",__FUNCTION__,src);
+	VFI_DEBUG(MY_DEBUG,"%s src(%p)\n",__FUNCTION__,src);
 }
 
-static void dma_net_link_src(struct list_head *first, struct rddma_src *second)
+static void dma_net_link_src(struct list_head *first, struct vfi_src *second)
 {
 	struct seg_desc *rio2 = (struct seg_desc *)&second->descriptor;
 	struct seg_desc *riolast; 
-	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
+	VFI_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
 	if (!list_empty(first)) {
 		riolast = to_sdesc(first->prev);
 		riolast->hw.next = rio2->paddr & ~0x1f;	/* 64-bit safe (0xffffffe0); */
@@ -55,11 +55,11 @@ static void dma_net_link_src(struct list_head *first, struct rddma_src *second)
 	list_add_tail(&rio2->node, first);
 }
 
-static void dma_net_link_dst(struct list_head *first, struct rddma_dst *second)
+static void dma_net_link_dst(struct list_head *first, struct vfi_dst *second)
 {
 	struct seg_desc *rio2;
 	struct seg_desc *riolast;
-	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
+	VFI_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
 	if (second->srcs) {
 		if (!list_empty(first)) {
 			riolast = to_sdesc(first->prev);
@@ -70,18 +70,18 @@ static void dma_net_link_dst(struct list_head *first, struct rddma_dst *second)
 	}
 }
 
-static void dma_net_link_bind(struct list_head *first, struct rddma_bind *second)
+static void dma_net_link_bind(struct list_head *first, struct vfi_bind *second)
 {
 	/* Hack for now!  Use link_bind to fill out a "transfer object" */
 	struct seg_desc *seg;
 	struct my_xfer_object *xfo = (struct my_xfer_object *) &second->descriptor;
-	RDDMA_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
+	VFI_DEBUG(MY_DEBUG,"%s first(%p) second(%p)\n",__FUNCTION__,first,second);
 #ifdef LOCAL_DMA_ADDRESS_TEST
 	xfo->xf.cb = address_test_completion;
 #else
 	xfo->xf.cb = NULL;
 #endif
-	xfo->xf.flags = RDDMA_XFO_READY;
+	xfo->xf.flags = VFI_XFO_READY;
 	xfo->xf.len = second->desc.src.extent;
 
 	/* Fill out list descriptor! */
@@ -96,28 +96,28 @@ static void dma_net_link_bind(struct list_head *first, struct rddma_bind *second
 	return;
 }
 
-static void dma_net_cancel_transfer(struct rddma_dma_descriptor *desc)
+static void dma_net_cancel_transfer(struct vfi_dma_descriptor *desc)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
+	VFI_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
 }
 
-static void dma_net_queue_transfer(struct rddma_dma_descriptor *list)
+static void dma_net_queue_transfer(struct vfi_dma_descriptor *list)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s list(%p)\n",__FUNCTION__,list);
+	VFI_DEBUG(MY_DEBUG,"%s list(%p)\n",__FUNCTION__,list);
 }
 
-static struct rddma_dma_engine *dma_net_get(struct rddma_dma_engine *rde)
+static struct vfi_dma_engine *dma_net_get(struct vfi_dma_engine *rde)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
 	return rde;
 }
 
-static void dma_net_put(struct rddma_dma_engine *rde)
+static void dma_net_put(struct vfi_dma_engine *rde)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
 }
 
-static struct rddma_dma_ops dma_net_ops = {
+static struct vfi_dma_ops dma_net_ops = {
 	.load      = dma_net_load,
 	.link_src  = dma_net_link_src,
 	.link_dst  = dma_net_link_dst,
@@ -135,23 +135,23 @@ static struct dma_engine *new_dma_engine(void)
 		new->rde.owner = THIS_MODULE;
 		new->rde.ops = &dma_net_ops;
 	}
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return new;
 }
 
 static int __init dma_net_init(void)
 {
-	struct rddma_dma_engine *rde;
+	struct vfi_dma_engine *rde;
 	int err;
 
 	if ( (de = new_dma_engine()) ) {
 		rde = &de->rde;
-		snprintf(rde->name, RDDMA_MAX_DMA_NAME_LEN, "%s", "rddma_net_dma");
+		snprintf(rde->name, VFI_MAX_DMA_NAME_LEN, "%s", "vfi_net_dma");
 	}
 	else
 		return -ENOMEM;
 
-	err = rddma_dma_register(rde);
+	err = vfi_dma_register(rde);
 
 	if (err == 0) {
 		return 0;
@@ -162,7 +162,7 @@ static int __init dma_net_init(void)
 
 static void __exit dma_net_close(void)
 {
-	rddma_dma_unregister("rddma_net_dma");
+	vfi_dma_unregister("vfi_net_dma");
 	kfree(de);
 }
 
@@ -171,4 +171,4 @@ module_exit(dma_net_close);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Phil Terry <pterry@micromemory.com>");
-MODULE_DESCRIPTION("Dummy net DMA Engine for RDDMA");
+MODULE_DESCRIPTION("Dummy net DMA Engine for VFI");

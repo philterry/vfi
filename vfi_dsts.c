@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_DST | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_DST | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_DST | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_DST | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi_dsts.h>
 #include <linux/vfi_bind.h>
@@ -19,34 +19,34 @@
 #include <linux/module.h>
 
 /**
-* rddma_dsts_release - Release (free) an rddma_dsts cleanly.
+* vfi_dsts_release - Release (free) an vfi_dsts cleanly.
 *
-* @kobj - pointer to rddma_dsts-type kobject
+* @kobj - pointer to vfi_dsts-type kobject
 *
 * This function is invoked by the kernel kobject manager when an 
-* rddma_dsts object has finally expired. Its job is to release any
+* vfi_dsts object has finally expired. Its job is to release any
 * memory resources bound to the kobject. 
 *
 **/
-static void rddma_dsts_release(struct kobject *kobj)
+static void vfi_dsts_release(struct kobject *kobj)
 {
-    struct rddma_dsts *p = to_rddma_dsts(kobj);
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
+    struct vfi_dsts *p = to_vfi_dsts(kobj);
+    VFI_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
     kfree(p);
 }
 
-struct rddma_dsts_attribute {
+struct vfi_dsts_attribute {
     struct attribute attr;
-    ssize_t (*show)(struct rddma_dsts*, char *buffer);
-    ssize_t (*store)(struct rddma_dsts*, const char *buffer, size_t size);
+    ssize_t (*show)(struct vfi_dsts*, char *buffer);
+    ssize_t (*store)(struct vfi_dsts*, const char *buffer, size_t size);
 };
 
-#define RDDMA_DSTS_ATTR(_name,_mode,_show,_store) struct rddma_dsts_attribute rddma_dsts_attr_##_name = {     .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },     .show = _show,     .store = _store };
+#define VFI_DSTS_ATTR(_name,_mode,_show,_store) struct vfi_dsts_attribute vfi_dsts_attr_##_name = {     .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },     .show = _show,     .store = _store };
 
-static ssize_t rddma_dsts_show(struct kobject *kobj, struct attribute *attr, char *buffer)
+static ssize_t vfi_dsts_show(struct kobject *kobj, struct attribute *attr, char *buffer)
 {
-    struct rddma_dsts_attribute *pattr = container_of(attr, struct rddma_dsts_attribute, attr);
-    struct rddma_dsts *p = to_rddma_dsts(kobj);
+    struct vfi_dsts_attribute *pattr = container_of(attr, struct vfi_dsts_attribute, attr);
+    struct vfi_dsts *p = to_vfi_dsts(kobj);
 
     if (pattr && pattr->show)
 	return pattr->show(p,buffer);
@@ -54,10 +54,10 @@ static ssize_t rddma_dsts_show(struct kobject *kobj, struct attribute *attr, cha
     return 0;
 }
 
-static ssize_t rddma_dsts_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
+static ssize_t vfi_dsts_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
 {
-    struct rddma_dsts_attribute *pattr = container_of(attr, struct rddma_dsts_attribute, attr);
-    struct rddma_dsts *p = to_rddma_dsts(kobj);
+    struct vfi_dsts_attribute *pattr = container_of(attr, struct vfi_dsts_attribute, attr);
+    struct vfi_dsts *p = to_vfi_dsts(kobj);
 
     if (pattr && pattr->store)
 	return pattr->store(p, buffer, size);
@@ -65,60 +65,60 @@ static ssize_t rddma_dsts_store(struct kobject *kobj, struct attribute *attr, co
     return 0;
 }
 
-static struct sysfs_ops rddma_dsts_sysfs_ops = {
-    .show = rddma_dsts_show,
-    .store = rddma_dsts_store,
+static struct sysfs_ops vfi_dsts_sysfs_ops = {
+    .show = vfi_dsts_show,
+    .store = vfi_dsts_store,
 };
 
 
-static ssize_t rddma_dsts_default_show(struct rddma_dsts *rddma_dsts, char *buffer)
+static ssize_t vfi_dsts_default_show(struct vfi_dsts *vfi_dsts, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_dsts_default");
+    return snprintf(buffer, PAGE_SIZE, "vfi_dsts_default");
 }
 
-static ssize_t rddma_dsts_default_store(struct rddma_dsts *rddma_dsts, const char *buffer, size_t size)
+static ssize_t vfi_dsts_default_store(struct vfi_dsts *vfi_dsts, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_DSTS_ATTR(default, 0644, rddma_dsts_default_show, rddma_dsts_default_store);
+VFI_DSTS_ATTR(default, 0644, vfi_dsts_default_show, vfi_dsts_default_store);
 
-static struct attribute *rddma_dsts_default_attrs[] = {
-    &rddma_dsts_attr_default.attr,
+static struct attribute *vfi_dsts_default_attrs[] = {
+    &vfi_dsts_attr_default.attr,
     0,
 };
 
-struct kobj_type rddma_dsts_type = {
-    .release = rddma_dsts_release,
-    .sysfs_ops = &rddma_dsts_sysfs_ops,
-    .default_attrs = rddma_dsts_default_attrs,
+struct kobj_type vfi_dsts_type = {
+    .release = vfi_dsts_release,
+    .sysfs_ops = &vfi_dsts_sysfs_ops,
+    .default_attrs = vfi_dsts_default_attrs,
 };
 
-static int rddma_dsts_uevent_filter(struct kset *kset, struct kobject *kobj)
+static int vfi_dsts_uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	return 0; /* Do not generate event */
 }
 
-static const char *rddma_dsts_uevent_name(struct kset *kset, struct kobject *kobj)
+static const char *vfi_dsts_uevent_name(struct kset *kset, struct kobject *kobj)
 {
 	return "dunno";
 }
 
-static int rddma_dsts_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
+static int vfi_dsts_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
 {
 	return -ENODEV; /* Do not generate event */
 }
 
 
-static struct kset_uevent_ops rddma_dsts_uevent_ops = {
-	.filter = rddma_dsts_uevent_filter,
-	.name = rddma_dsts_uevent_name,
- 	.uevent = rddma_dsts_uevent, 
+static struct kset_uevent_ops vfi_dsts_uevent_ops = {
+	.filter = vfi_dsts_uevent_filter,
+	.name = vfi_dsts_uevent_name,
+ 	.uevent = vfi_dsts_uevent, 
 };
 
-int new_rddma_dsts(struct rddma_dsts **dsts,struct rddma_bind_param *params, struct rddma_bind *parent)
+int new_vfi_dsts(struct vfi_dsts **dsts,struct vfi_bind_param *params, struct vfi_bind *parent)
 {
-	struct rddma_dsts *new = kzalloc(sizeof(struct rddma_dsts), GFP_KERNEL);
+	struct vfi_dsts *new = kzalloc(sizeof(struct vfi_dsts), GFP_KERNEL);
     
 	*dsts = new;
 
@@ -128,36 +128,36 @@ int new_rddma_dsts(struct rddma_dsts **dsts,struct rddma_bind_param *params, str
 	kobject_set_name(&new->kset.kobj,"%s.%s#%llx:%x=%s.%s#%llx:%x",
 						    params->dst.name,params->dst.location,params->dst.offset,params->dst.extent,
 						    params->src.name,params->src.location,params->src.offset,params->src.extent);
-	new->kset.kobj.ktype = &rddma_dsts_type;
-	new->kset.uevent_ops = &rddma_dsts_uevent_ops;
+	new->kset.kobj.ktype = &vfi_dsts_type;
+	new->kset.uevent_ops = &vfi_dsts_uevent_ops;
 	new->kset.kobj.parent = &parent->kobj;
 	INIT_LIST_HEAD(&new->dma_chain);
 
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return 0;
 }
 
-int rddma_dsts_register(struct rddma_dsts *rddma_dsts)
+int vfi_dsts_register(struct vfi_dsts *vfi_dsts)
 {
     	int ret = 0;
 
-	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
-	ret = kset_register(&rddma_dsts->kset);
-	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
+	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
+	ret = kset_register(&vfi_dsts->kset);
+	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return ret;
 }
 
-void rddma_dsts_unregister(struct rddma_dsts *rddma_dsts)
+void vfi_dsts_unregister(struct vfi_dsts *vfi_dsts)
 {
     
-	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
-	if (rddma_dsts)
-		kset_unregister(&rddma_dsts->kset);
-	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
+	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
+	if (vfi_dsts)
+		kset_unregister(&vfi_dsts->kset);
+	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
 /**
-* rddma_dsts_create - create a bind dsts kobject.
+* vfi_dsts_create - create a bind dsts kobject.
 * @parent : pointer to parent bind that dsts is to be slung under
 * @desc   : bind descriptor
 *
@@ -166,31 +166,31 @@ void rddma_dsts_unregister(struct rddma_dsts *rddma_dsts)
 *
 *
 **/
-int rddma_dsts_create(struct rddma_dsts **dsts, struct rddma_bind *parent, struct rddma_bind_param *desc)
+int vfi_dsts_create(struct vfi_dsts **dsts, struct vfi_bind *parent, struct vfi_bind_param *desc)
 {
 	int ret;
-	RDDMA_DEBUG(MY_DEBUG,"%s: parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
+	VFI_DEBUG(MY_DEBUG,"%s: parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
 
 	if (parent->dsts) {
 		*dsts = parent->dsts;
 		return 0;
 	}
 
-	ret = new_rddma_dsts(dsts,desc,parent);
+	ret = new_vfi_dsts(dsts,desc,parent);
 	if (ret) 
 		return ret;
 
-	ret = rddma_dsts_register(*dsts);
+	ret = vfi_dsts_register(*dsts);
 	if (ret){
-		rddma_dsts_put(*dsts);
+		vfi_dsts_put(*dsts);
 		*dsts = NULL;
 	}
 
 	return ret;
 }
 
-void rddma_dsts_delete(struct rddma_dsts *dsts)
+void vfi_dsts_delete(struct vfi_dsts *dsts)
 {
 	if (dsts)
-		rddma_dsts_unregister(dsts);
+		vfi_dsts_unregister(dsts);
 }

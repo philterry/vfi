@@ -9,74 +9,74 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_SUBSYS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_SUBSYS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_SUBSYS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_SUBSYS | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi.h>
 #include <linux/vfi_class.h>
 
-#define to_rddma_dev(d) d ? container_of((d), struct rddma_dev, class_device) : NULL
+#define to_vfi_dev(d) d ? container_of((d), struct vfi_dev, class_device) : NULL
 
-static void rddma_release_device(struct class_device *dev)
+static void vfi_release_device(struct class_device *dev)
 {
-	struct rddma_dev *p = to_rddma_dev(dev);
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+	struct vfi_dev *p = to_vfi_dev(dev);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
 	kfree(p);
 }
 
-static void rddma_release_class(struct class *class)
+static void vfi_release_class(struct class *class)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s FIX ME %p\n",__FUNCTION__,class);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s FIX ME %p\n",__FUNCTION__,class);
 	
 }
 
-ssize_t rddma_class_dev_show(struct class_device *dev, char *buf)
+ssize_t vfi_class_dev_show(struct class_device *dev, char *buf)
 {
-	return sprintf(buf,"Hi I'm an rddma class device\n");
+	return sprintf(buf,"Hi I'm an vfi class device\n");
 }
 
-ssize_t rddma_class_dev_store(struct class_device *dev, const char *buf, size_t count)
-{
-	return count;
-}
-
-struct class_device_attribute rddma_class_dev_defaults[] = {
-	__ATTR(fred,0644,rddma_class_dev_show, rddma_class_dev_store),
-	__ATTR_NULL,
-};
-
-#define to_rddma(c) container_of((c), struct rddma, class)
-
-ssize_t rddma_class_show(struct class *class, char *buf)
-{
-	return sprintf(buf,"Hi I'm the rddma class\n");
-}
-
-ssize_t rddma_class_store(struct class *class, const char *buf, size_t count)
+ssize_t vfi_class_dev_store(struct class_device *dev, const char *buf, size_t count)
 {
 	return count;
 }
 
-struct class_attribute rddma_class_attributes[] = {
-	__ATTR(version,0644,rddma_class_show, rddma_class_store),
+struct class_device_attribute vfi_class_dev_defaults[] = {
+	__ATTR(fred,0644,vfi_class_dev_show, vfi_class_dev_store),
 	__ATTR_NULL,
 };
 
-int rddma_class_register(struct rddma_subsys *rsys)
+#define to_vfi(c) container_of((c), struct vfi, class)
+
+ssize_t vfi_class_show(struct class *class, char *buf)
+{
+	return sprintf(buf,"Hi I'm the vfi class\n");
+}
+
+ssize_t vfi_class_store(struct class *class, const char *buf, size_t count)
+{
+	return count;
+}
+
+struct class_attribute vfi_class_attributes[] = {
+	__ATTR(version,0644,vfi_class_show, vfi_class_store),
+	__ATTR_NULL,
+};
+
+int vfi_class_register(struct vfi_subsys *rsys)
 {
 	struct class *class = &rsys->class;
 
-	class->release = rddma_release_device;
-	class->class_release = rddma_release_class;
-	class->name = "rddma";
+	class->release = vfi_release_device;
+	class->class_release = vfi_release_class;
+	class->name = "vfi";
 	class->owner = THIS_MODULE;
-	class->class_attrs = rddma_class_attributes;
-	class->class_dev_attrs = rddma_class_dev_defaults;
+	class->class_attrs = vfi_class_attributes;
+	class->class_dev_attrs = vfi_class_dev_defaults;
 	return class_register(class);
 
 }
 
-void rddma_class_unregister(struct rddma_subsys *rsys)
+void vfi_class_unregister(struct vfi_subsys *rsys)
 {
 	class_unregister(&rsys->class);
 }

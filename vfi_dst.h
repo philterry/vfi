@@ -9,55 +9,55 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_DST_H
-#define RDDMA_DST_H
+#ifndef VFI_DST_H
+#define VFI_DST_H
 
 #include <linux/vfi.h>
 #include <linux/vfi_parse.h>
 #include <linux/vfi_bind.h>
 
-struct rddma_dst {
-	struct rddma_bind_param desc;
+struct vfi_dst {
+	struct vfi_bind_param desc;
 	struct kobject kobj;
-	struct rddma_srcs *srcs;
-	struct rddma_src *head_src;
-	struct rddma_bind *bind;
+	struct vfi_srcs *srcs;
+	struct vfi_src *head_src;
+	struct vfi_bind *bind;
 };
 
-static inline struct rddma_dst *to_rddma_dst(struct kobject *kobj)
+static inline struct vfi_dst *to_vfi_dst(struct kobject *kobj)
 {
-	return kobj ? container_of(kobj, struct rddma_dst, kobj) : NULL;
+	return kobj ? container_of(kobj, struct vfi_dst, kobj) : NULL;
 }
 
-static inline struct rddma_dst *rddma_dst_get(struct rddma_dst *rddma_dst)
+static inline struct vfi_dst *vfi_dst_get(struct vfi_dst *vfi_dst)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_dst);
-	return to_rddma_dst(kobject_get(&rddma_dst->kobj));
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_dst);
+	return to_vfi_dst(kobject_get(&vfi_dst->kobj));
 }
 
-static inline void rddma_dst_put(struct rddma_dst *rddma_dst)
+static inline void vfi_dst_put(struct vfi_dst *vfi_dst)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_dst);
-	if (rddma_dst)
-		kobject_put(&rddma_dst->kobj);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_dst);
+	if (vfi_dst)
+		kobject_put(&vfi_dst->kobj);
 }
 
-static inline struct rddma_bind *rddma_dst_parent(struct rddma_dst *dst)
+static inline struct vfi_bind *vfi_dst_parent(struct vfi_dst *dst)
 {
 	return dst ? dst->bind : NULL;
 }
 
 
-extern int new_rddma_dst(struct rddma_dst **, struct rddma_bind *, struct rddma_bind_param *);
-extern int rddma_dst_register(struct rddma_dst *);
-extern void rddma_dst_unregister(struct rddma_dst *);
-extern int find_rddma_dst_in(struct rddma_dst **, struct rddma_bind *, struct rddma_bind_param *);
-static inline int find_rddma_dst(struct rddma_dst **dst, struct rddma_bind_param *desc)
+extern int new_vfi_dst(struct vfi_dst **, struct vfi_bind *, struct vfi_bind_param *);
+extern int vfi_dst_register(struct vfi_dst *);
+extern void vfi_dst_unregister(struct vfi_dst *);
+extern int find_vfi_dst_in(struct vfi_dst **, struct vfi_bind *, struct vfi_bind_param *);
+static inline int find_vfi_dst(struct vfi_dst **dst, struct vfi_bind_param *desc)
 {
-	return find_rddma_dst_in(dst,0,desc);
+	return find_vfi_dst_in(dst,0,desc);
 }
-extern int rddma_dst_create(struct rddma_dst **, struct rddma_bind *, struct rddma_bind_param *);
-extern void rddma_dst_delete(struct rddma_bind *, struct rddma_bind_param *);
-extern void rddma_dst_load_srcs(struct rddma_dst *);
-extern struct kobj_type rddma_dst_type;
-#endif /* RDDMA_DST_H */
+extern int vfi_dst_create(struct vfi_dst **, struct vfi_bind *, struct vfi_bind_param *);
+extern void vfi_dst_delete(struct vfi_bind *, struct vfi_bind_param *);
+extern void vfi_dst_load_srcs(struct vfi_dst *);
+extern struct kobj_type vfi_dst_type;
+#endif /* VFI_DST_H */

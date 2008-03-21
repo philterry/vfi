@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_SMB_H
-#define RDDMA_SMB_H
+#ifndef VFI_SMB_H
+#define VFI_SMB_H
 
 #include <linux/vfi.h>
 #include <linux/vfi_location.h>
@@ -32,46 +32,46 @@
 /* #define NUM_DMA(b,d) ((START_SIZE((b),(d)) ? 1 : 0) + (END_SIZE((b),(d)) ? 1 : 0) + ((((d)->extent - START_SIZE((b),(d))) - END_SIZE((b),(d))) >> PAGE_SHIFT) ) */
 
 
-struct rddma_smb {
-	struct rddma_desc_param desc;
+struct vfi_smb {
+	struct vfi_desc_param desc;
 	size_t size;
 	
 	struct page **pages;
 	int num_pages;
 
-	struct rddma_mmaps *mmaps;
+	struct vfi_mmaps *mmaps;
 
 	struct kobject kobj;
 };
 
-static inline struct rddma_smb *to_rddma_smb(struct kobject *kobj)
+static inline struct vfi_smb *to_vfi_smb(struct kobject *kobj)
 {
-    return kobj ? container_of(kobj, struct rddma_smb, kobj) : NULL;
+    return kobj ? container_of(kobj, struct vfi_smb, kobj) : NULL;
 }
 
-static inline struct rddma_smb *rddma_smb_get(struct rddma_smb *rddma_smb)
+static inline struct vfi_smb *vfi_smb_get(struct vfi_smb *vfi_smb)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_smb);
-	return to_rddma_smb(kobject_get(&rddma_smb->kobj));
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_smb);
+	return to_vfi_smb(kobject_get(&vfi_smb->kobj));
 }
 
-static inline void rddma_smb_put(struct rddma_smb *rddma_smb)
+static inline void vfi_smb_put(struct vfi_smb *vfi_smb)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_smb);
-	if (rddma_smb) kobject_put(&rddma_smb->kobj);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_smb);
+	if (vfi_smb) kobject_put(&vfi_smb->kobj);
 }
 
-extern int find_rddma_smb_in(struct rddma_smb **, struct rddma_location *,struct rddma_desc_param *);
+extern int find_vfi_smb_in(struct vfi_smb **, struct vfi_location *,struct vfi_desc_param *);
 
-static inline int find_rddma_smb(struct rddma_smb **smb,struct rddma_desc_param *desc)
+static inline int find_vfi_smb(struct vfi_smb **smb,struct vfi_desc_param *desc)
 {
-	return find_rddma_smb_in(smb,NULL, desc);
+	return find_vfi_smb_in(smb,NULL, desc);
 }
 
-extern int new_rddma_smb(struct rddma_smb **, struct rddma_location *, struct rddma_desc_param *);
-extern int rddma_smb_register(struct rddma_smb *);
-extern void rddma_smb_unregister(struct rddma_smb *);
-extern int rddma_smb_create(struct rddma_smb **, struct rddma_location *, struct rddma_desc_param *);
-extern void rddma_smb_delete(struct rddma_smb *);
-extern struct kobj_type rddma_smb_type;
-#endif /* RDDMA_SMB_H */
+extern int new_vfi_smb(struct vfi_smb **, struct vfi_location *, struct vfi_desc_param *);
+extern int vfi_smb_register(struct vfi_smb *);
+extern void vfi_smb_unregister(struct vfi_smb *);
+extern int vfi_smb_create(struct vfi_smb **, struct vfi_location *, struct vfi_desc_param *);
+extern void vfi_smb_delete(struct vfi_smb *);
+extern struct kobj_type vfi_smb_type;
+#endif /* VFI_SMB_H */

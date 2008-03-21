@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_FABRIC | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_FABRIC | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_FABRIC | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_FABRIC | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 #define MY_ERROR(x) ( 0x80000000 | 0x00020000 | ((x) & 0xffff))
 
 #include <linux/vfi.h>
@@ -30,7 +30,7 @@ struct call_back_tag {
 	wait_queue_head_t wq;
 	struct work_struct wo;
 	struct workqueue_struct *woq;
-	struct rddma_fabric_address *sender;
+	struct vfi_fabric_address *sender;
 	void *cb_data;
 	struct call_back_tag *check;
 };
@@ -59,22 +59,22 @@ static void fabric_do_rqst(struct work_struct *wo)
 #endif
 	int ret = 0;
 	int size = 1928;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	cb->rply_skb = dev_alloc_skb(2048);
 	skb_reserve(cb->rply_skb,128);
-	RDDMA_DEBUG (MY_DEBUG, "> %s calls do_operation (...)\n", __func__);
+	VFI_DEBUG (MY_DEBUG, "> %s calls do_operation (...)\n", __func__);
 	ret = do_operation(cb->rqst_skb->data,cb->rply_skb->data,&size);
-	RDDMA_ASSERT(size < 1928, "reply truncated need reply buffer bigger than 2048!");
+	VFI_ASSERT(size < 1928, "reply truncated need reply buffer bigger than 2048!");
 
 	dev_kfree_skb(cb->rqst_skb);
 	
 	if (ret) {
 		skb_put(cb->rply_skb,ret);
-		ret = rddma_fabric_tx(cb->sender,cb->rply_skb);
+		ret = vfi_fabric_tx(cb->sender,cb->rply_skb);
 	}
 
-	rddma_fabric_put(cb->sender);
+	vfi_fabric_put(cb->sender);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 	PREPARE_WORK(&cb->wo, fabric_disposeq, (void *) cb);
@@ -105,12 +105,12 @@ static void fabric_sched_rqst(struct work_struct *wo)
 
 /* Downcalls via the location->address */
 
-int __must_check rddma_fabric_tx(struct rddma_fabric_address *address, struct sk_buff *skb)
+int __must_check vfi_fabric_tx(struct vfi_fabric_address *address, struct sk_buff *skb)
 {
 	int ret = -ENODEV;
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %s\n",__FUNCTION__,address,skb->data);
+	VFI_DEBUG(MY_DEBUG,"%s %p %s\n",__FUNCTION__,address,skb->data);
 
-	RDDMA_DEBUG_SAFE(MY_DEBUG,(address),"%s: address_ops=%p\n",__FUNCTION__,address->ops);
+	VFI_DEBUG_SAFE(MY_DEBUG,(address),"%s: address_ops=%p\n",__FUNCTION__,address->ops);
 
 	if ( address && address->ops  ) {
 		address = address->ops->get(address);
@@ -120,66 +120,66 @@ int __must_check rddma_fabric_tx(struct rddma_fabric_address *address, struct sk
 	} else
 		dev_kfree_skb(skb);
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %d\n",__FUNCTION__,ret);
+	VFI_DEBUG(MY_DEBUG,"%s %d\n",__FUNCTION__,ret);
 	return ret;
 }
 
-int rddma_address_register(struct rddma_location *loc)
+int vfi_address_register(struct vfi_location *loc)
 {
 	int ret = -EINVAL;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered for \"%s.%s\"\n",__FUNCTION__, loc->desc.name, loc->desc.location);
+	VFI_DEBUG(MY_DEBUG,"%s entered for \"%s.%s\"\n",__FUNCTION__, loc->desc.name, loc->desc.location);
 
 	if (loc && loc->desc.address && loc->desc.address->ops)
 		ret = loc->desc.address->ops->register_location(loc);
 	return ret;
 }
 
-void rddma_address_unregister(struct rddma_location *loc)
+void vfi_address_unregister(struct vfi_location *loc)
 {
-	RDDMA_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 	if (loc && loc->desc.address && loc->desc.address->ops)
 		loc->desc.address->ops->unregister_location(loc);
 }
 
-int rddma_doorbell_register(struct rddma_fabric_address *address, void (*callback)(void *), void *var)
+int vfi_doorbell_register(struct vfi_fabric_address *address, void (*callback)(void *), void *var)
 {
-	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
+	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
 	if (address->ops && address->ops->register_doorbell) {
 		int ret = address->ops->register_doorbell(callback,var);
-		RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
+		VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 		return ret;
 	}
-	RDDMA_KTRACE ("<*** xxx %s - did nothing, OUT ***>\n", __func__);
+	VFI_KTRACE ("<*** xxx %s - did nothing, OUT ***>\n", __func__);
 	return -EINVAL;
 }
 
-void rddma_doorbell_unregister(struct rddma_fabric_address *address, int doorbell)
+void vfi_doorbell_unregister(struct vfi_fabric_address *address, int doorbell)
 {
-	RDDMA_KTRACE ("<*** %s doorbell %08x IN ***>\n", __func__, doorbell); 
+	VFI_KTRACE ("<*** %s doorbell %08x IN ***>\n", __func__, doorbell); 
 	if (address && address->ops && address->ops->unregister_doorbell)
 		address->ops->unregister_doorbell(doorbell);
-	RDDMA_KTRACE ("<*** %s doorbell %08x OUT ***>\n", __func__, doorbell);
+	VFI_KTRACE ("<*** %s doorbell %08x OUT ***>\n", __func__, doorbell);
 	
 }
 
-void rddma_doorbell_send(struct rddma_fabric_address *address, int doorbell)
+void vfi_doorbell_send(struct vfi_fabric_address *address, int doorbell)
 {
 	if (address && address->ops && address->ops->doorbell) {
 		address->ops->doorbell(address, doorbell);
 	}
 	else {
-		RDDMA_DEBUG (MY_DEBUG, "xxx %s address (%p), address->ops (%p), address->ops->doorbell (%p)\n", __func__, 
+		VFI_DEBUG (MY_DEBUG, "xxx %s address (%p), address->ops (%p), address->ops->doorbell (%p)\n", __func__, 
 		        address, 
 		        (address) ? address->ops : NULL,
 		        (address && address->ops) ? address->ops->doorbell : NULL);
 	}
 }
 
-int rddma_fabric_call(struct sk_buff **retskb, struct rddma_location *loc, int to, char *f, ...)
+int vfi_fabric_call(struct sk_buff **retskb, struct vfi_location *loc, int to, char *f, ...)
 {
 	va_list ap;
 	struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
-	RDDMA_DEBUG(MY_DEBUG,"%s entered - call \"%s.%s\"\n",__FUNCTION__, (loc) ? loc->desc.name : "<NULL>", (loc) ? loc->desc.location : "<NULL>");
+	VFI_DEBUG(MY_DEBUG,"%s entered - call \"%s.%s\"\n",__FUNCTION__, (loc) ? loc->desc.name : "<NULL>", (loc) ? loc->desc.location : "<NULL>");
 	*retskb = NULL;
 	if (cb) {
 		struct sk_buff *skb = dev_alloc_skb(2048);
@@ -192,13 +192,13 @@ int rddma_fabric_call(struct sk_buff **retskb, struct rddma_location *loc, int t
 			skb_put(skb,vsprintf(skb->data,f,ap));
 			va_end(ap);
 			skb_put(skb,sprintf(skb->tail, "%crequest(%p)",strstr(skb->data,"?") ? ',' : '?', cb)); 
-			RDDMA_DEBUG(MY_DEBUG,"\t%s: %s\n",__FUNCTION__, skb->data);
+			VFI_DEBUG(MY_DEBUG,"\t%s: %s\n",__FUNCTION__, skb->data);
 			
-			rddma_address_register(loc);
+			vfi_address_register(loc);
 
-			if (rddma_fabric_tx(loc->desc.address, skb)) {
+			if (vfi_fabric_tx(loc->desc.address, skb)) {
 				kfree(cb);
-				RDDMA_DEBUG (MY_DEBUG, "xx\t%s: failed to transmit command over fabric!\n", __func__);
+				VFI_DEBUG (MY_DEBUG, "xx\t%s: failed to transmit command over fabric!\n", __func__);
 				return MY_ERROR(__LINE__);
 			}
 				
@@ -213,55 +213,55 @@ int rddma_fabric_call(struct sk_buff **retskb, struct rddma_location *loc, int t
 
 			if (wait_event_interruptible_timeout(cb->wq, (cb->rply_skb != NULL), to*HZ) == 0) {
 				kfree(cb);
-				RDDMA_DEBUG (MY_DEBUG, "xx\t%s: TIMEOUT waiting for response!\n", __func__);
+				VFI_DEBUG (MY_DEBUG, "xx\t%s: TIMEOUT waiting for response!\n", __func__);
 				return MY_ERROR(__LINE__);
 			}
 
 			skb = cb->rply_skb;
-			RDDMA_DEBUG (MY_DEBUG, "--\t%s: reply [ %s ]\n",__FUNCTION__, skb->data);
+			VFI_DEBUG (MY_DEBUG, "--\t%s: reply [ %s ]\n",__FUNCTION__, skb->data);
 			kfree(cb);
 			*retskb = skb;
 			return 0;
 		}
 		else {
-			RDDMA_DEBUG (MY_DEBUG, "xx\t%s: no reply\n", __func__);
+			VFI_DEBUG (MY_DEBUG, "xx\t%s: no reply\n", __func__);
 		}
 	}
 	else {
-		RDDMA_DEBUG (MY_DEBUG, "xx\t%s failed to kzalloc a callback tag\n", __func__);
+		VFI_DEBUG (MY_DEBUG, "xx\t%s failed to kzalloc a callback tag\n", __func__);
 	}
 	return MY_ERROR(__LINE__);
 }
 
 /* Upcalls */
-int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *skb)
+int vfi_fabric_receive(struct vfi_fabric_address *sender, struct sk_buff *skb)
 {
 	char *msg = skb->data;
 	struct call_back_tag *cb = NULL;
 	char *buf;
 	int ret;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %s\n",__FUNCTION__,sender,msg);
+	VFI_DEBUG(MY_DEBUG,"%s %p %s\n",__FUNCTION__,sender,msg);
 
 	if ((buf = strstr(msg,"reply("))) {
-		RDDMA_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,buf);
+		VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,buf);
 		if ( (ret = sscanf(buf,"reply(%x)", (unsigned int *)&cb)) ) {
-			RDDMA_DEBUG(MY_DEBUG,"%s cb(%p)\n",__FUNCTION__,cb);
+			VFI_DEBUG(MY_DEBUG,"%s cb(%p)\n",__FUNCTION__,cb);
 			if (cb && cb->check == cb) {
 				cb->check = 0;
-				RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,cb);
+				VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,cb);
 				cb->rply_skb = skb;
 				wake_up_interruptible(&cb->wq);
 				return 0;
 			}
 		}
-		RDDMA_DEBUG(MY_DEBUG,"%s ret(%d) %p\n",__FUNCTION__,ret,cb);
+		VFI_DEBUG(MY_DEBUG,"%s ret(%d) %p\n",__FUNCTION__,ret,cb);
 	}
 	else if ((buf = strstr(msg,"request("))) {
 		struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
 		cb->rqst_skb = skb;
 		cb->check = cb;
-		if ( (cb->sender = rddma_fabric_get(sender)) ) {
+		if ( (cb->sender = vfi_fabric_get(sender)) ) {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 			INIT_WORK(&cb->wo, fabric_sched_rqst, (void *) cb);
 #else
@@ -280,36 +280,36 @@ int rddma_fabric_receive(struct rddma_fabric_address *sender, struct sk_buff *sk
 
 }
 
-static struct rddma_fabric_address *fabrics[RDDMA_MAX_FABRICS];
+static struct vfi_fabric_address *fabrics[VFI_MAX_FABRICS];
 
-int rddma_fabric_register(struct rddma_fabric_address *addr)
+int vfi_fabric_register(struct vfi_fabric_address *addr)
 {
 	int ret = 0;
 	int i;
 
-	for (i = 0; i < RDDMA_MAX_FABRICS && fabrics[i] ; i++)
+	for (i = 0; i < VFI_MAX_FABRICS && fabrics[i] ; i++)
 		if (!strcmp(addr->name, fabrics[i]->name) ) {
 			ret = -EEXIST;
 			break;
 		}
 
-	if ( i == RDDMA_MAX_FABRICS)
+	if ( i == VFI_MAX_FABRICS)
 		ret = -ENOMEM;
 
 	if (!ret)
 		fabrics[i] = addr;
 
-	RDDMA_DEBUG_SAFE(MY_DEBUG,(addr),"%s ops=%p\n",__FUNCTION__,addr->ops);
-	RDDMA_DEBUG_SAFE(MY_DEBUG,(addr),"%s register %s returns %d\n",__FUNCTION__,addr->name,ret);
+	VFI_DEBUG_SAFE(MY_DEBUG,(addr),"%s ops=%p\n",__FUNCTION__,addr->ops);
+	VFI_DEBUG_SAFE(MY_DEBUG,(addr),"%s register %s returns %d\n",__FUNCTION__,addr->name,ret);
 	return ret;
 }
 
-void rddma_fabric_unregister(const char *name)
+void vfi_fabric_unregister(const char *name)
 {
 	int i;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__,name);
+	VFI_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__,name);
 
-	for (i = 0; i < RDDMA_MAX_FABRICS && fabrics[i] ; i++)
+	for (i = 0; i < VFI_MAX_FABRICS && fabrics[i] ; i++)
 		if (fabrics[i])
 			if (!strcmp(name,fabrics[i]->name) ) {
 				fabrics[i] = NULL;
@@ -317,29 +317,29 @@ void rddma_fabric_unregister(const char *name)
 			}
 }
 
-struct rddma_fabric_address *rddma_fabric_find(const char *name)
+struct vfi_fabric_address *vfi_fabric_find(const char *name)
 {
 	int i;
-	RDDMA_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__, name);
+	VFI_DEBUG(MY_DEBUG,"%s entered with %s\n",__FUNCTION__, name);
 	if (name)
-		for (i = 0 ; i < RDDMA_MAX_FABRICS && fabrics[i]; i++)
+		for (i = 0 ; i < VFI_MAX_FABRICS && fabrics[i]; i++)
 			if (fabrics[i])
 				if (!strcmp(name,fabrics[i]->name) ) {
 					if (try_module_get(fabrics[i]->owner)) {
 						fabrics[i]->ops->get(fabrics[i]);
-						RDDMA_DEBUG(MY_DEBUG,"\t%s returning with %s\n",__FUNCTION__, fabrics[i]->name);
+						VFI_DEBUG(MY_DEBUG,"\t%s returning with %s\n",__FUNCTION__, fabrics[i]->name);
 						return fabrics[i];
 					}
-					RDDMA_DEBUG(MY_DEBUG,"\t%s failed module_get\n",__FUNCTION__);
+					VFI_DEBUG(MY_DEBUG,"\t%s failed module_get\n",__FUNCTION__);
 					return NULL;
 				}
-	RDDMA_DEBUG(MY_DEBUG,"\t%s failed to find %s\n",__FUNCTION__,name);
+	VFI_DEBUG(MY_DEBUG,"\t%s failed to find %s\n",__FUNCTION__,name);
 	return NULL;
 }
 
-struct rddma_fabric_address *rddma_fabric_get(struct rddma_fabric_address *addr)
+struct vfi_fabric_address *vfi_fabric_get(struct vfi_fabric_address *addr)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,addr);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,addr);
 	if (try_module_get(addr->owner)) {
 		addr->ops->get(addr);
 		return addr;
@@ -347,13 +347,13 @@ struct rddma_fabric_address *rddma_fabric_get(struct rddma_fabric_address *addr)
 	return NULL;
 }
 
-void rddma_fabric_put(struct rddma_fabric_address *addr)
+void vfi_fabric_put(struct vfi_fabric_address *addr)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,addr);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,addr);
 	addr->ops->put(addr);
 	module_put(addr->owner);
 }
 
-EXPORT_SYMBOL(rddma_fabric_receive);
-EXPORT_SYMBOL(rddma_fabric_register);
-EXPORT_SYMBOL(rddma_fabric_unregister);
+EXPORT_SYMBOL(vfi_fabric_receive);
+EXPORT_SYMBOL(vfi_fabric_register);
+EXPORT_SYMBOL(vfi_fabric_unregister);

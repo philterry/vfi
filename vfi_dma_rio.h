@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_DMA_RIO_H
-#define RDDMA_DMA_RIO_H
+#ifndef VFI_DMA_RIO_H
+#define VFI_DMA_RIO_H
 
 #include <linux/vfi.h>
 
@@ -109,11 +109,11 @@ struct seg_desc {
 	u32 user5;
 };
 
-/* NB: must be same size as struct rddma_dma_descriptor */
+/* NB: must be same size as struct vfi_dma_descriptor */
 struct my_xfer_object {
 	struct dma_list hw;	/* 32 bytes */
 	u64 paddr;		/* 8 bytes */
-	struct rddma_xf xf;	/* 24 bytes RDDMA */
+	struct vfi_xf xf;	/* 24 bytes VFI */
 };
 
 #define DESC_INT_FLAG 0x8
@@ -257,7 +257,7 @@ struct ppc_dma_chan {
 #define to_xfer_object(lh) ((lh) ? list_entry((lh), struct my_xfer_object, xf.node) : 0)
 
 #define to_sdesc(sh) ((sh) ? list_entry((sh), struct seg_desc, node) : 0)
-struct rddma_src;
-extern struct rddma_dma_ops rddma_dma_ops_rio;
+struct vfi_src;
+extern struct vfi_dma_ops vfi_dma_ops_rio;
 
-#endif /* RDDMA_DMA_RIO_H  */
+#endif /* VFI_DMA_RIO_H  */

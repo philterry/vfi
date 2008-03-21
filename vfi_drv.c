@@ -14,8 +14,8 @@
  * The Rincon Distributed DMA Driver Implementation
  */
 
-#define MY_DEBUG      RDDMA_DBG_SUBSYS | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_SUBSYS | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_SUBSYS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_SUBSYS | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -28,75 +28,75 @@
 #include <linux/vfi_fabric.h>
 #include <linux/vfi_mmap.h>
 
-int rddma_major = 0;
-int rddma_minor = 0;
-int rddma_nr_minor = 1;
-#ifdef CONFIG_RDDMA_DEBUG
-unsigned int rddma_debug_level = RDDMA_DBG_ALL & ~RDDMA_DBG_PARSE;
-EXPORT_SYMBOL(rddma_debug_level);
-module_param(rddma_debug_level, uint, 0664);
+int vfi_major = 0;
+int vfi_minor = 0;
+int vfi_nr_minor = 1;
+#ifdef CONFIG_VFI_DEBUG
+unsigned int vfi_debug_level = VFI_DBG_ALL & ~VFI_DBG_PARSE;
+EXPORT_SYMBOL(vfi_debug_level);
+module_param(vfi_debug_level, uint, 0664);
 #endif
-module_param(rddma_major, int, 0664);
-module_param(rddma_minor, int, 0664);
-module_param(rddma_nr_minor, int, 0664);
+module_param(vfi_major, int, 0664);
+module_param(vfi_minor, int, 0664);
+module_param(vfi_nr_minor, int, 0664);
 
 
-struct rddma_subsys *rddma_subsys;
+struct vfi_subsys *vfi_subsys;
 
-static int  __init rddma_init(void)
+static int  __init vfi_init(void)
 {
 	int ret = -ENOMEM;
 
-	ret = new_rddma_subsys(&rddma_subsys, "rddma");
+	ret = new_vfi_subsys(&vfi_subsys, "vfi");
 
-	if ( NULL == rddma_subsys )
+	if ( NULL == vfi_subsys )
 		return ret;
 
-	if ( (ret = rddma_subsys_register(rddma_subsys)) )
+	if ( (ret = vfi_subsys_register(vfi_subsys)) )
 		goto subsys_fail;
 
-	if ( (ret = rddma_class_register(rddma_subsys)) )
+	if ( (ret = vfi_class_register(vfi_subsys)) )
 		goto class_fail;
 
-	if ( (ret = rddma_bus_register(rddma_subsys)) )
+	if ( (ret = vfi_bus_register(vfi_subsys)) )
 		goto bus_fail;
 
-/* 	if ( (ret = rddma_fabric_register(rddma_subsys)) ) */
+/* 	if ( (ret = vfi_fabric_register(vfi_subsys)) ) */
 /* 		goto fabric_fail; */
 
-	if ( (ret = rddma_cdev_register(rddma_subsys)) )
+	if ( (ret = vfi_cdev_register(vfi_subsys)) )
 		goto cdev_fail;
 	
 	return 0;
 
 cdev_fail:
-/* 	rddma_fabric_unregister(rddma_subsys); */
+/* 	vfi_fabric_unregister(vfi_subsys); */
 
 /* fabric_fail: */
-	rddma_bus_unregister(rddma_subsys);
+	vfi_bus_unregister(vfi_subsys);
 
 bus_fail:
-	rddma_class_unregister(rddma_subsys);
+	vfi_class_unregister(vfi_subsys);
 
 class_fail:
-	rddma_subsys_unregister(rddma_subsys);
+	vfi_subsys_unregister(vfi_subsys);
 
 subsys_fail:
-	rddma_subsys_put(rddma_subsys);
+	vfi_subsys_put(vfi_subsys);
 	return ret;
 }
 
-static void __exit rddma_cleanup(void)
+static void __exit vfi_cleanup(void)
 {
-	rddma_cdev_unregister(rddma_subsys);
-/* 	rddma_fabric_unregister(rddma_subsys); */
-	rddma_bus_unregister(rddma_subsys);
-	rddma_class_unregister(rddma_subsys);
-	rddma_subsys_unregister(rddma_subsys);
+	vfi_cdev_unregister(vfi_subsys);
+/* 	vfi_fabric_unregister(vfi_subsys); */
+	vfi_bus_unregister(vfi_subsys);
+	vfi_class_unregister(vfi_subsys);
+	vfi_subsys_unregister(vfi_subsys);
 }
 
-module_init(rddma_init);
-module_exit(rddma_cleanup);
+module_init(vfi_init);
+module_exit(vfi_cleanup);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Phil Terry <pterry@micromemory.com>");

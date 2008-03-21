@@ -9,51 +9,51 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_XFER_H
-#define RDDMA_XFER_H
+#ifndef VFI_XFER_H
+#define VFI_XFER_H
 
 #include <linux/vfi.h>
 #include <linux/vfi_dma.h>
 #include <linux/vfi_parse.h>
 #include <linux/vfi_location.h>
 
-struct rddma_xfer {
-	struct rddma_desc_param desc;
+struct vfi_xfer {
+	struct vfi_desc_param desc;
 	struct kobject kobj;
-	struct rddma_bind *head_bind;
-	struct rddma_binds *binds;
+	struct vfi_bind *head_bind;
+	struct vfi_binds *binds;
 	struct semaphore dma_sync; 
 };
 
-static inline struct rddma_xfer *to_rddma_xfer(struct kobject *kobj)
+static inline struct vfi_xfer *to_vfi_xfer(struct kobject *kobj)
 {
-	return kobj ? container_of(kobj, struct rddma_xfer, kobj) : NULL;
+	return kobj ? container_of(kobj, struct vfi_xfer, kobj) : NULL;
 }
 
-static inline struct rddma_xfer *rddma_xfer_get(struct rddma_xfer *rddma_xfer)
+static inline struct vfi_xfer *vfi_xfer_get(struct vfi_xfer *vfi_xfer)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_xfer);
-	return to_rddma_xfer(kobject_get(&rddma_xfer->kobj));
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_xfer);
+	return to_vfi_xfer(kobject_get(&vfi_xfer->kobj));
 }
 
-static inline void rddma_xfer_put(struct rddma_xfer *rddma_xfer)
+static inline void vfi_xfer_put(struct vfi_xfer *vfi_xfer)
 {
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rddma_xfer);
-	if (rddma_xfer) kobject_put(&rddma_xfer->kobj);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_xfer);
+	if (vfi_xfer) kobject_put(&vfi_xfer->kobj);
 }
 
-extern int new_rddma_xfer(struct rddma_xfer **, struct rddma_location *, struct rddma_desc_param *);
-extern int rddma_xfer_register(struct rddma_xfer *);
-extern void rddma_xfer_unregister(struct rddma_xfer *);
-extern int find_rddma_xfer_in(struct rddma_xfer **, struct rddma_location *, struct rddma_desc_param *);
-static inline int find_rddma_xfer(struct rddma_xfer **xfer,struct rddma_desc_param *desc)
+extern int new_vfi_xfer(struct vfi_xfer **, struct vfi_location *, struct vfi_desc_param *);
+extern int vfi_xfer_register(struct vfi_xfer *);
+extern void vfi_xfer_unregister(struct vfi_xfer *);
+extern int find_vfi_xfer_in(struct vfi_xfer **, struct vfi_location *, struct vfi_desc_param *);
+static inline int find_vfi_xfer(struct vfi_xfer **xfer,struct vfi_desc_param *desc)
 {
-	return find_rddma_xfer_in(xfer, 0, desc);
+	return find_vfi_xfer_in(xfer, 0, desc);
 }
-extern int rddma_xfer_create(struct rddma_xfer **, struct rddma_location *, struct rddma_desc_param *);
-extern void rddma_xfer_start(struct rddma_xfer *);
-extern void rddma_xfer_delete(struct rddma_location *, struct rddma_desc_param *);
-extern void rddma_xfer_load_binds(struct rddma_xfer *, struct rddma_bind *);
-extern void rddma_xfer_start (struct rddma_xfer*);
-extern struct kobj_type rddma_xfer_type;
-#endif /* RDDMA_XFER_H */
+extern int vfi_xfer_create(struct vfi_xfer **, struct vfi_location *, struct vfi_desc_param *);
+extern void vfi_xfer_start(struct vfi_xfer *);
+extern void vfi_xfer_delete(struct vfi_location *, struct vfi_desc_param *);
+extern void vfi_xfer_load_binds(struct vfi_xfer *, struct vfi_bind *);
+extern void vfi_xfer_start (struct vfi_xfer*);
+extern struct kobj_type vfi_xfer_type;
+#endif /* VFI_XFER_H */

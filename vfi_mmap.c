@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_MMAP | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_MMAP | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_MMAP | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_MMAP | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi_mmap.h>
 #include <linux/vfi_smb.h>
@@ -22,24 +22,24 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-static void rddma_mmap_release(struct kobject *kobj)
+static void vfi_mmap_release(struct kobject *kobj)
 {
-    struct rddma_mmap *p = to_rddma_mmap(kobj);
+    struct vfi_mmap *p = to_vfi_mmap(kobj);
     kfree(p);
 }
 
-struct rddma_mmap_attribute {
+struct vfi_mmap_attribute {
     struct attribute attr;
-    ssize_t (*show)(struct rddma_mmap*, char *buffer);
-    ssize_t (*store)(struct rddma_mmap*, const char *buffer, size_t size);
+    ssize_t (*show)(struct vfi_mmap*, char *buffer);
+    ssize_t (*store)(struct vfi_mmap*, const char *buffer, size_t size);
 };
 
-#define RDDMA_MMAP_ATTR(_name,_mode,_show,_store) struct rddma_mmap_attribute rddma_mmap_attr_##_name = {     .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },     .show = _show,     .store = _store };
+#define VFI_MMAP_ATTR(_name,_mode,_show,_store) struct vfi_mmap_attribute vfi_mmap_attr_##_name = {     .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },     .show = _show,     .store = _store };
 
-static ssize_t rddma_mmap_show(struct kobject *kobj, struct attribute *attr, char *buffer)
+static ssize_t vfi_mmap_show(struct kobject *kobj, struct attribute *attr, char *buffer)
 {
-    struct rddma_mmap_attribute *pattr = container_of(attr, struct rddma_mmap_attribute, attr);
-    struct rddma_mmap *p = to_rddma_mmap(kobj);
+    struct vfi_mmap_attribute *pattr = container_of(attr, struct vfi_mmap_attribute, attr);
+    struct vfi_mmap *p = to_vfi_mmap(kobj);
 
     if (pattr && pattr->show)
 	return pattr->show(p,buffer);
@@ -47,10 +47,10 @@ static ssize_t rddma_mmap_show(struct kobject *kobj, struct attribute *attr, cha
     return 0;
 }
 
-static ssize_t rddma_mmap_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
+static ssize_t vfi_mmap_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
 {
-    struct rddma_mmap_attribute *pattr = container_of(attr, struct rddma_mmap_attribute, attr);
-    struct rddma_mmap *p = to_rddma_mmap(kobj);
+    struct vfi_mmap_attribute *pattr = container_of(attr, struct vfi_mmap_attribute, attr);
+    struct vfi_mmap *p = to_vfi_mmap(kobj);
 
     if (pattr && pattr->store)
 	return pattr->store(p, buffer, size);
@@ -58,86 +58,86 @@ static ssize_t rddma_mmap_store(struct kobject *kobj, struct attribute *attr, co
     return 0;
 }
 
-static struct sysfs_ops rddma_mmap_sysfs_ops = {
-    .show = rddma_mmap_show,
-    .store = rddma_mmap_store,
+static struct sysfs_ops vfi_mmap_sysfs_ops = {
+    .show = vfi_mmap_show,
+    .store = vfi_mmap_store,
 };
 
 
-static ssize_t rddma_mmap_default_show(struct rddma_mmap *rddma_mmap, char *buffer)
+static ssize_t vfi_mmap_default_show(struct vfi_mmap *vfi_mmap, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_mmap_default");
+    return snprintf(buffer, PAGE_SIZE, "vfi_mmap_default");
 }
 
-static ssize_t rddma_mmap_default_store(struct rddma_mmap *rddma_mmap, const char *buffer, size_t size)
-{
-    return size;
-}
-
-RDDMA_MMAP_ATTR(default, 0644, rddma_mmap_default_show, rddma_mmap_default_store);
-
-static ssize_t rddma_mmap_offset_show(struct rddma_mmap *rddma_mmap, char *buffer)
-{
-    return snprintf(buffer, PAGE_SIZE, "rddma_mmap_offset");
-}
-
-static ssize_t rddma_mmap_offset_store(struct rddma_mmap *rddma_mmap, const char *buffer, size_t size)
+static ssize_t vfi_mmap_default_store(struct vfi_mmap *vfi_mmap, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_MMAP_ATTR(offset, 0644, rddma_mmap_offset_show, rddma_mmap_offset_store);
+VFI_MMAP_ATTR(default, 0644, vfi_mmap_default_show, vfi_mmap_default_store);
 
-static ssize_t rddma_mmap_extent_show(struct rddma_mmap *rddma_mmap, char *buffer)
+static ssize_t vfi_mmap_offset_show(struct vfi_mmap *vfi_mmap, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "rddma_mmap_extent");
+    return snprintf(buffer, PAGE_SIZE, "vfi_mmap_offset");
 }
 
-static ssize_t rddma_mmap_extent_store(struct rddma_mmap *rddma_mmap, const char *buffer, size_t size)
-{
-    return size;
-}
-
-RDDMA_MMAP_ATTR(extent, 0644, rddma_mmap_extent_show, rddma_mmap_extent_store);
-
-static ssize_t rddma_mmap_pid_show(struct rddma_mmap *rddma_mmap, char *buffer)
-{
-    return snprintf(buffer, PAGE_SIZE, "rddma_mmap_pid");
-}
-
-static ssize_t rddma_mmap_pid_store(struct rddma_mmap *rddma_mmap, const char *buffer, size_t size)
+static ssize_t vfi_mmap_offset_store(struct vfi_mmap *vfi_mmap, const char *buffer, size_t size)
 {
     return size;
 }
 
-RDDMA_MMAP_ATTR(pid, 0644, rddma_mmap_pid_show, rddma_mmap_pid_store);
+VFI_MMAP_ATTR(offset, 0644, vfi_mmap_offset_show, vfi_mmap_offset_store);
 
-static struct attribute *rddma_mmap_default_attrs[] = {
-    &rddma_mmap_attr_default.attr,
-    &rddma_mmap_attr_offset.attr,
-    &rddma_mmap_attr_extent.attr,
-    &rddma_mmap_attr_pid.attr,
+static ssize_t vfi_mmap_extent_show(struct vfi_mmap *vfi_mmap, char *buffer)
+{
+    return snprintf(buffer, PAGE_SIZE, "vfi_mmap_extent");
+}
+
+static ssize_t vfi_mmap_extent_store(struct vfi_mmap *vfi_mmap, const char *buffer, size_t size)
+{
+    return size;
+}
+
+VFI_MMAP_ATTR(extent, 0644, vfi_mmap_extent_show, vfi_mmap_extent_store);
+
+static ssize_t vfi_mmap_pid_show(struct vfi_mmap *vfi_mmap, char *buffer)
+{
+    return snprintf(buffer, PAGE_SIZE, "vfi_mmap_pid");
+}
+
+static ssize_t vfi_mmap_pid_store(struct vfi_mmap *vfi_mmap, const char *buffer, size_t size)
+{
+    return size;
+}
+
+VFI_MMAP_ATTR(pid, 0644, vfi_mmap_pid_show, vfi_mmap_pid_store);
+
+static struct attribute *vfi_mmap_default_attrs[] = {
+    &vfi_mmap_attr_default.attr,
+    &vfi_mmap_attr_offset.attr,
+    &vfi_mmap_attr_extent.attr,
+    &vfi_mmap_attr_pid.attr,
     0,
 };
 
-struct kobj_type rddma_mmap_type = {
-    .release = rddma_mmap_release,
-    .sysfs_ops = &rddma_mmap_sysfs_ops,
-    .default_attrs = rddma_mmap_default_attrs,
+struct kobj_type vfi_mmap_type = {
+    .release = vfi_mmap_release,
+    .sysfs_ops = &vfi_mmap_sysfs_ops,
+    .default_attrs = vfi_mmap_default_attrs,
 };
 
-int find_rddma_mmap(struct rddma_mmap **mmap, struct rddma_smb *smb, struct rddma_desc_param *desc)
+int find_vfi_mmap(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
 	char buf[512];
 	snprintf(buf,512,"%d#%llx:%x",current->pid,desc->offset,desc->extent);
-	*mmap = to_rddma_mmap(kset_find_obj(&smb->mmaps->kset,buf));
+	*mmap = to_vfi_mmap(kset_find_obj(&smb->mmaps->kset,buf));
 	return *mmap == NULL;
 }
-static struct rddma_mmap *frm_by_loc(struct rddma_location *loc,unsigned long tid)
+static struct vfi_mmap *frm_by_loc(struct vfi_location *loc,unsigned long tid)
 {
-	struct rddma_location *new_loc;
-	struct rddma_smb *smb;
-	struct rddma_mmap *mmap = NULL;
+	struct vfi_location *new_loc;
+	struct vfi_smb *smb;
+	struct vfi_mmap *mmap = NULL;
 
 	spin_lock(&loc->kset.list_lock);
 	list_for_each_entry(new_loc,&loc->kset.list, kset.kobj.entry) {
@@ -168,47 +168,47 @@ outloc:
 	return mmap;
 }
 
-int find_rddma_mmap_by_id(struct rddma_mmap **mmap, unsigned long tid)
+int find_vfi_mmap_by_id(struct vfi_mmap **mmap, unsigned long tid)
 {
-	struct rddma_location *loc;
+	struct vfi_location *loc;
 	int ret = 0;
 
-	spin_lock(&rddma_subsys->kset.list_lock);
-	list_for_each_entry(loc, &rddma_subsys->kset.list, kset.kobj.entry) {
+	spin_lock(&vfi_subsys->kset.list_lock);
+	list_for_each_entry(loc, &vfi_subsys->kset.list, kset.kobj.entry) {
 		if ((*mmap = frm_by_loc(loc,tid))) 
 			goto out;
 	}
 	ret = -EINVAL;
 out:
-	spin_unlock(&rddma_subsys->kset.list_lock);
+	spin_unlock(&vfi_subsys->kset.list_lock);
 	return ret;
 }
 
-static int rddma_mmap_uevent_filter(struct kset *kset, struct kobject *kobj)
+static int vfi_mmap_uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	return 0; /* Do not generate event */
 }
 
-static const char *rddma_mmap_uevent_name(struct kset *kset, struct kobject *kobj)
+static const char *vfi_mmap_uevent_name(struct kset *kset, struct kobject *kobj)
 {
 	return "dunno";
 }
 
-static int rddma_mmap_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
+static int vfi_mmap_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
 {
 	return 0; /* Do not generate event */
 }
 
 
-static struct kset_uevent_ops rddma_mmap_uevent_ops = {
-	.filter = rddma_mmap_uevent_filter,
-	.name = rddma_mmap_uevent_name,
-	.uevent = rddma_mmap_uevent,
+static struct kset_uevent_ops vfi_mmap_uevent_ops = {
+	.filter = vfi_mmap_uevent_filter,
+	.name = vfi_mmap_uevent_name,
+	.uevent = vfi_mmap_uevent,
 };
 
-int new_rddma_mmap(struct rddma_mmap **mmap, struct rddma_smb *parent, struct rddma_desc_param *desc)
+int new_vfi_mmap(struct vfi_mmap **mmap, struct vfi_smb *parent, struct vfi_desc_param *desc)
 {
-    struct rddma_mmap *new = kzalloc(sizeof(struct rddma_mmap), GFP_KERNEL);
+    struct vfi_mmap *new = kzalloc(sizeof(struct vfi_mmap), GFP_KERNEL);
     
     *mmap = new;
 
@@ -216,17 +216,17 @@ int new_rddma_mmap(struct rddma_mmap **mmap, struct rddma_smb *parent, struct rd
 	return -ENOMEM;
 
     kobject_set_name(&new->kobj,"%d#%llx:%x",current->pid, desc->offset,desc->extent);
-    new->kobj.ktype = &rddma_mmap_type;
+    new->kobj.ktype = &vfi_mmap_type;
     new->kobj.kset = &parent->mmaps->kset;
 
     return 0;
 }
 
-int rddma_mmap_register(struct rddma_mmap *rddma_mmap)
+int vfi_mmap_register(struct vfi_mmap *vfi_mmap)
 {
     int ret = 0;
 
-    if ( (ret = kobject_register(&rddma_mmap->kobj) ) )
+    if ( (ret = kobject_register(&vfi_mmap->kobj) ) )
 	goto out;
 
       return ret;
@@ -235,13 +235,13 @@ out:
     return ret;
 }
 
-void rddma_mmap_unregister(struct rddma_mmap *rddma_mmap)
+void vfi_mmap_unregister(struct vfi_mmap *vfi_mmap)
 {
     
-     kobject_unregister(&rddma_mmap->kobj);
+     kobject_unregister(&vfi_mmap->kobj);
 }
 
-int rddma_mmap_create(struct rddma_mmap **mmap, struct rddma_smb *smb, struct rddma_desc_param *desc)
+int vfi_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
 	struct page **pg_tbl = smb->pages;
 	unsigned long n_pg = smb->num_pages;
@@ -251,36 +251,36 @@ int rddma_mmap_create(struct rddma_mmap **mmap, struct rddma_smb *smb, struct rd
 	unsigned long lastpage;
 	int ret;
 
-	RDDMA_DEBUG (MY_DEBUG, "rddma_mmap_create: %lu-bytes at offset %lu of %lu-page table %p\n", 
+	VFI_DEBUG (MY_DEBUG, "vfi_mmap_create: %lu-bytes at offset %lu of %lu-page table %p\n", 
 		extent, offset, n_pg, pg_tbl);
 
 	firstpage = (offset >> PAGE_SHIFT);
 	lastpage = ((offset + extent - 1) >> PAGE_SHIFT);
 	if (lastpage >= n_pg) {
-		RDDMA_DEBUG (MY_DEBUG, "xx Requested region exceeds page table.\n"); 
+		VFI_DEBUG (MY_DEBUG, "xx Requested region exceeds page table.\n"); 
 		return 0;
 	}
-	ret = new_rddma_mmap(mmap,smb,desc);
+	ret = new_vfi_mmap(mmap,smb,desc);
 	if (!ret) {
-		ret = rddma_mmap_register(*mmap);
+		ret = vfi_mmap_register(*mmap);
 		if (!ret) {
 			(*mmap)->pg_tbl = &pg_tbl[firstpage];
 			(*mmap)->n_pg = lastpage - firstpage + 1;
 		}
 		else {
-			rddma_mmap_put(*mmap);
+			vfi_mmap_put(*mmap);
 			*mmap = NULL;
 		}
 	}
-	RDDMA_DEBUG_SAFE (MY_DEBUG, *mmap, "-- Assigned %lu pages at %p\n",(*mmap)->n_pg, (*mmap)->pg_tbl);
+	VFI_DEBUG_SAFE (MY_DEBUG, *mmap, "-- Assigned %lu pages at %p\n",(*mmap)->n_pg, (*mmap)->pg_tbl);
 
 	return ret;
 }
 
-void rddma_mmap_delete(struct rddma_smb *smb, struct rddma_desc_param *desc)
+void vfi_mmap_delete(struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
-	struct rddma_mmap *mmap;
+	struct vfi_mmap *mmap;
 	int ret;
-	ret = find_rddma_mmap(&mmap,smb,desc);
-	rddma_mmap_unregister(mmap);
+	ret = find_vfi_mmap(&mmap,smb,desc);
+	vfi_mmap_unregister(mmap);
 }

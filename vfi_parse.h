@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#ifndef RDDMA_PARSE_H
-#define RDDMA_PARSE_H
+#ifndef VFI_PARSE_H
+#define VFI_PARSE_H
 #include <linux/vfi.h>
 #include <linux/types.h>
 #include <linux/device.h>
@@ -31,7 +31,7 @@
  */
 
 /**
- * struct rddma_desc_param - The base type structure for RDDMA components
+ * struct vfi_desc_param - The base type structure for VFI components
  *@name: A fully qualified name string name[.name]*
  *@location: a pointer to the [.name]* portion of @name
  *@offset: An offset in bytes from the beginning of the component
@@ -45,7 +45,7 @@
  *radarinputboard.fabric, and offset and an extent and in its creation
  *you may specify lots of named option flags in an appended query string.
  */
-struct rddma_desc_param {
+struct vfi_desc_param {
 	char *buf;
 	size_t buflen;
 	char *name;
@@ -57,16 +57,16 @@ struct rddma_desc_param {
 	char **query;
 	char **end;
 /* private: */
-	struct rddma_ops *ops;
-	struct rddma_dma_engine *rde;
-	struct rddma_fabric_address *address;
-	struct rddma_location *ploc;
+	struct vfi_ops *ops;
+	struct vfi_dma_engine *rde;
+	struct vfi_fabric_address *address;
+	struct vfi_location *ploc;
 };
 
 /**
- * struct rddma_xfer_param - An xfer names the DMA engine and the bind it is to transfer
- *@xfer: An rddma_desc_param describing the name and location of the dma engine to perform the transfer.
- *@bind: An rddma_bind_param describing the bind.
+ * struct vfi_xfer_param - An xfer names the DMA engine and the bind it is to transfer
+ *@xfer: An vfi_desc_param describing the name and location of the dma engine to perform the transfer.
+ *@bind: An vfi_bind_param describing the bind.
  *
  *A transfer is a string of the form
  *
@@ -74,33 +74,33 @@ struct rddma_desc_param {
  *
  * plus any offsets and extents and query option strings required.
  */
-struct rddma_bind_param {
-	struct rddma_desc_param xfer;
-	struct rddma_desc_param dst;
-	struct rddma_desc_param src;
+struct vfi_bind_param {
+	struct vfi_desc_param xfer;
+	struct vfi_desc_param dst;
+	struct vfi_desc_param src;
 };
 
-static inline void rddma_inherit(struct rddma_desc_param *c, struct rddma_desc_param *p)
+static inline void vfi_inherit(struct vfi_desc_param *c, struct vfi_desc_param *p)
 {
 	c->address = p->address;
 	c->rde = p->rde;
 	c->ops = p->ops;
 	c->ploc = p->ploc;
 }
-static inline void rddma_bind_inherit(struct rddma_bind_param *c, struct rddma_bind_param *p)
+static inline void vfi_bind_inherit(struct vfi_bind_param *c, struct vfi_bind_param *p)
 {
-	rddma_inherit(&c->xfer,&p->xfer);
-	rddma_inherit(&c->dst,&p->dst);
-	rddma_inherit(&c->src,&p->src);
+	vfi_inherit(&c->xfer,&p->xfer);
+	vfi_inherit(&c->dst,&p->dst);
+	vfi_inherit(&c->src,&p->src);
 }
 
-extern int __must_check rddma_parse_bind( struct rddma_bind_param *, const char *);
-extern int __must_check rddma_parse_desc( struct rddma_desc_param *, const char *);
-extern char *rddma_get_option( struct rddma_desc_param *, const char *);
+extern int __must_check vfi_parse_bind( struct vfi_bind_param *, const char *);
+extern int __must_check vfi_parse_desc( struct vfi_desc_param *, const char *);
+extern char *vfi_get_option( struct vfi_desc_param *, const char *);
 
-extern int rddma_clone_desc(struct rddma_desc_param *new, struct rddma_desc_param *old);
-extern int rddma_clone_bind(struct rddma_bind_param *new, struct rddma_bind_param *old);
-extern void rddma_clean_desc(struct rddma_desc_param *);
-extern void rddma_clean_bind(struct rddma_bind_param *);
+extern int vfi_clone_desc(struct vfi_desc_param *new, struct vfi_desc_param *old);
+extern int vfi_clone_bind(struct vfi_bind_param *new, struct vfi_bind_param *old);
+extern void vfi_clean_desc(struct vfi_desc_param *);
+extern void vfi_clean_bind(struct vfi_bind_param *);
 
-#endif	/* RDDMA_PARSE_H */
+#endif	/* VFI_PARSE_H */

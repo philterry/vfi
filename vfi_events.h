@@ -1,41 +1,41 @@
-#ifndef RDDMA_EVENTS_H
-#define RDDMA_EVENTS_H
+#ifndef VFI_EVENTS_H
+#define VFI_EVENTS_H
 
 #include <linux/vfi.h>
 #include <linux/vfi_subsys.h>
 
 
-struct rddma_events {
+struct vfi_events {
 	int count;
 	struct semaphore start_lock;
 	struct completion dma_sync;
 	struct kset kset;
-	struct rddma_events *next;
-	struct rddma_events *prev;
+	struct vfi_events *next;
+	struct vfi_events *prev;
 };
 
-static inline struct rddma_events *to_rddma_events(struct kobject *kobj)
+static inline struct vfi_events *to_vfi_events(struct kobject *kobj)
 {
-    return kobj ? container_of(to_kset(kobj), struct rddma_events,kset) : NULL;
+    return kobj ? container_of(to_kset(kobj), struct vfi_events,kset) : NULL;
 }
 
-static inline struct rddma_events *rddma_events_get(struct rddma_events *rddma_events)
+static inline struct vfi_events *vfi_events_get(struct vfi_events *vfi_events)
 {
-    return to_rddma_events(kobject_get(&rddma_events->kset.kobj));
+    return to_vfi_events(kobject_get(&vfi_events->kset.kobj));
 }
 
-static inline void rddma_events_put(struct rddma_events *rddma_events)
+static inline void vfi_events_put(struct vfi_events *vfi_events)
 {
-	if (rddma_events)
-		kset_put(&rddma_events->kset);
+	if (vfi_events)
+		kset_put(&vfi_events->kset);
 }
 
-extern int new_rddma_events(struct rddma_events **, struct rddma_readies *, char *name);
-extern int rddma_events_register(struct rddma_events *);
-extern void rddma_events_unregister(struct rddma_events *);
-extern int find_rddma_events(struct rddma_events **, struct rddma_readies *, char *);
-extern struct kobj_type rddma_events_type;
-extern int rddma_events_create(struct rddma_events **, struct rddma_readies *, char *name);
-extern void rddma_events_delete(struct rddma_events *);
-extern void rddma_events_start(struct rddma_events *);
-#endif /* RDDMA_EVENTS_H */
+extern int new_vfi_events(struct vfi_events **, struct vfi_readies *, char *name);
+extern int vfi_events_register(struct vfi_events *);
+extern void vfi_events_unregister(struct vfi_events *);
+extern int find_vfi_events(struct vfi_events **, struct vfi_readies *, char *);
+extern struct kobj_type vfi_events_type;
+extern int vfi_events_create(struct vfi_events **, struct vfi_readies *, char *name);
+extern void vfi_events_delete(struct vfi_events *);
+extern void vfi_events_start(struct vfi_events *);
+#endif /* VFI_EVENTS_H */

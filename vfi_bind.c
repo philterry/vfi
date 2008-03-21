@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#define MY_DEBUG      RDDMA_DBG_BIND | RDDMA_DBG_FUNCALL | RDDMA_DBG_DEBUG
-#define MY_LIFE_DEBUG RDDMA_DBG_BIND | RDDMA_DBG_LIFE    | RDDMA_DBG_DEBUG
+#define MY_DEBUG      VFI_DBG_BIND | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
+#define MY_LIFE_DEBUG VFI_DBG_BIND | VFI_DBG_LIFE    | VFI_DBG_DEBUG
 
 #include <linux/vfi_bind.h>
 #include <linux/vfi_xfer.h>
@@ -25,40 +25,40 @@
 
 
 /**
-* rddma_bind_release - release (free) an rddma_bind cleanly.
+* vfi_bind_release - release (free) an vfi_bind cleanly.
 *
-* @kobj - pointer to an rddma_bind-type kobject to be released.
+* @kobj - pointer to an vfi_bind-type kobject to be released.
 *
 * This function is invoked by the kernel kobject manager when an 
-* rddma_bind object has finally expired. Its job is to release any
+* vfi_bind object has finally expired. Its job is to release any
 * memory resources bound to the kobject.
 *
 **/
-static void rddma_bind_release(struct kobject *kobj)
+static void vfi_bind_release(struct kobject *kobj)
 {
-    struct rddma_bind *p = to_rddma_bind(kobj);
-    RDDMA_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
-    rddma_clean_bind (&p->desc);
+    struct vfi_bind *p = to_vfi_bind(kobj);
+    VFI_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
+    vfi_clean_bind (&p->desc);
     kfree(p);
 }
 
-struct rddma_bind_attribute {
+struct vfi_bind_attribute {
     struct attribute attr;
-    ssize_t (*show)(struct rddma_bind*, char *buffer);
-    ssize_t (*store)(struct rddma_bind*, const char *buffer, size_t size);
+    ssize_t (*show)(struct vfi_bind*, char *buffer);
+    ssize_t (*store)(struct vfi_bind*, const char *buffer, size_t size);
 };
 
-#define RDDMA_BIND_ATTR(_name,_mode,_show,_store) \
-struct rddma_bind_attribute rddma_bind_attr_##_name = {\
+#define VFI_BIND_ATTR(_name,_mode,_show,_store) \
+struct vfi_bind_attribute vfi_bind_attr_##_name = {\
      .attr = { .name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },\
      .show = _show,\
      .store = _store\
 };
 
-static ssize_t rddma_bind_show(struct kobject *kobj, struct attribute *attr, char *buffer)
+static ssize_t vfi_bind_show(struct kobject *kobj, struct attribute *attr, char *buffer)
 {
-    struct rddma_bind_attribute *pattr = container_of(attr, struct rddma_bind_attribute, attr);
-    struct rddma_bind *p = to_rddma_bind(kobj);
+    struct vfi_bind_attribute *pattr = container_of(attr, struct vfi_bind_attribute, attr);
+    struct vfi_bind *p = to_vfi_bind(kobj);
 
     if (pattr && pattr->show)
 	return pattr->show(p,buffer);
@@ -66,10 +66,10 @@ static ssize_t rddma_bind_show(struct kobject *kobj, struct attribute *attr, cha
     return 0;
 }
 
-static ssize_t rddma_bind_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
+static ssize_t vfi_bind_store(struct kobject *kobj, struct attribute *attr, const char *buffer, size_t size)
 {
-    struct rddma_bind_attribute *pattr = container_of(attr, struct rddma_bind_attribute, attr);
-    struct rddma_bind *p = to_rddma_bind(kobj);
+    struct vfi_bind_attribute *pattr = container_of(attr, struct vfi_bind_attribute, attr);
+    struct vfi_bind *p = to_vfi_bind(kobj);
 
     if (pattr && pattr->store)
 	return pattr->store(p, buffer, size);
@@ -77,87 +77,87 @@ static ssize_t rddma_bind_store(struct kobject *kobj, struct attribute *attr, co
     return 0;
 }
 
-static struct sysfs_ops rddma_bind_sysfs_ops = {
-    .show = rddma_bind_show,
-    .store = rddma_bind_store,
+static struct sysfs_ops vfi_bind_sysfs_ops = {
+    .show = vfi_bind_show,
+    .store = vfi_bind_store,
 };
 
 
-static ssize_t rddma_bind_default_show(struct rddma_bind *rddma_bind, char *buffer)
+static ssize_t vfi_bind_default_show(struct vfi_bind *vfi_bind, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("Bind %p is %s.%s = %s.%s \n",rddma_bind,rddma_bind->desc.dst.name, rddma_bind->desc.dst.location,
-		    rddma_bind->desc.src.name,rddma_bind->desc.src.location);
-	if (rddma_bind) {
-		ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",rddma_bind->desc.dst.ops,rddma_bind->desc.dst.rde,rddma_bind->desc.dst.address);
-		ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",rddma_bind->desc.src.ops,rddma_bind->desc.src.rde,rddma_bind->desc.src.address);
+	ATTR_PRINTF("Bind %p is %s.%s = %s.%s \n",vfi_bind,vfi_bind->desc.dst.name, vfi_bind->desc.dst.location,
+		    vfi_bind->desc.src.name,vfi_bind->desc.src.location);
+	if (vfi_bind) {
+		ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",vfi_bind->desc.dst.ops,vfi_bind->desc.dst.rde,vfi_bind->desc.dst.address);
+		ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",vfi_bind->desc.src.ops,vfi_bind->desc.src.rde,vfi_bind->desc.src.address);
 	}
 	return size;
 
 }
 
-RDDMA_BIND_ATTR(default, 0644, rddma_bind_default_show, 0);
+VFI_BIND_ATTR(default, 0644, vfi_bind_default_show, 0);
 
-static ssize_t rddma_bind_offset_show(struct rddma_bind *rddma_bind, char *buffer)
+static ssize_t vfi_bind_offset_show(struct vfi_bind *vfi_bind, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%llx\n",rddma_bind->desc.dst.offset);
+	return snprintf(buffer, PAGE_SIZE, "%llx\n",vfi_bind->desc.dst.offset);
 }
 
-RDDMA_BIND_ATTR(offset, 0644, rddma_bind_offset_show, 0);
+VFI_BIND_ATTR(offset, 0644, vfi_bind_offset_show, 0);
 
-static ssize_t rddma_bind_extent_show(struct rddma_bind *rddma_bind, char *buffer)
+static ssize_t vfi_bind_extent_show(struct vfi_bind *vfi_bind, char *buffer)
 {
-	return snprintf(buffer, PAGE_SIZE, "%x\n",rddma_bind->desc.dst.extent);
+	return snprintf(buffer, PAGE_SIZE, "%x\n",vfi_bind->desc.dst.extent);
 }
 
-RDDMA_BIND_ATTR(extent, 0644, rddma_bind_extent_show, 0);
+VFI_BIND_ATTR(extent, 0644, vfi_bind_extent_show, 0);
 
-static struct attribute *rddma_bind_default_attrs[] = {
-    &rddma_bind_attr_offset.attr,
-    &rddma_bind_attr_extent.attr,
-    &rddma_bind_attr_default.attr,
+static struct attribute *vfi_bind_default_attrs[] = {
+    &vfi_bind_attr_offset.attr,
+    &vfi_bind_attr_extent.attr,
+    &vfi_bind_attr_default.attr,
     0,
 };
 
-struct kobj_type rddma_bind_type = {
-    .release = rddma_bind_release,
-    .sysfs_ops = &rddma_bind_sysfs_ops,
-    .default_attrs = rddma_bind_default_attrs,
+struct kobj_type vfi_bind_type = {
+    .release = vfi_bind_release,
+    .sysfs_ops = &vfi_bind_sysfs_ops,
+    .default_attrs = vfi_bind_default_attrs,
 };
 
 /**
-* new_rddma_bind - create a new rddma_bind kobject and attach it to parent xfer
+* new_vfi_bind - create a new vfi_bind kobject and attach it to parent xfer
 * 
 * @xfer: pointer to parent xfer, to which new bind should be attached.
 * @desc: pointer to bind parameter descriptor, identifying participants and
 *        other bind attributes.
 *
-* This function creates a new rddma_bind kobject and attaches it to its parent
+* This function creates a new vfi_bind kobject and attaches it to its parent
 * xfer. 
 *
 **/
-int new_rddma_bind(struct rddma_bind **bind, struct rddma_xfer *parent, struct rddma_bind_param *desc)
+int new_vfi_bind(struct vfi_bind **bind, struct vfi_xfer *parent, struct vfi_bind_param *desc)
 {
-	struct rddma_bind *new = kzalloc(sizeof(struct rddma_bind), GFP_KERNEL);
+	struct vfi_bind *new = kzalloc(sizeof(struct vfi_bind), GFP_KERNEL);
 	
 	*bind = new;
 
 	if (NULL == new)
 		return -ENOMEM;
 	
-	rddma_clone_bind(&new->desc, desc);
+	vfi_clone_bind(&new->desc, desc);
 	
 	kobject_set_name(&new->kobj,"#%llx:%x",desc->xfer.offset,desc->xfer.extent);
-	new->kobj.ktype = &rddma_bind_type;
+	new->kobj.ktype = &vfi_bind_type;
 	
 	new->kobj.kset = &parent->binds->kset;
 
-	rddma_inherit(&new->desc.xfer,&parent->desc);
-	rddma_inherit(&new->desc.dst,&parent->desc);
-	rddma_inherit(&new->desc.src,&parent->desc);
-	new->desc.dst.ops = &rddma_local_ops;
-	new->desc.src.ops = &rddma_local_ops;
+	vfi_inherit(&new->desc.xfer,&parent->desc);
+	vfi_inherit(&new->desc.dst,&parent->desc);
+	vfi_inherit(&new->desc.src,&parent->desc);
+	new->desc.dst.ops = &vfi_local_ops;
+	new->desc.src.ops = &vfi_local_ops;
 
 	new->src_done_event_id = -1;
 	new->src_ready_event_id = -1;
@@ -166,29 +166,29 @@ int new_rddma_bind(struct rddma_bind **bind, struct rddma_xfer *parent, struct r
 
 	INIT_LIST_HEAD(&new->dma_chain);
 
-	RDDMA_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return 0;
 }
 
-int rddma_bind_register(struct rddma_bind *rddma_bind)
+int vfi_bind_register(struct vfi_bind *vfi_bind)
 {
 	int rslt;
-	RDDMA_KTRACE ("<*** %s IN ***>\n", __func__);
-	rslt = kobject_register(&rddma_bind->kobj);
-	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
+	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
+	rslt = kobject_register(&vfi_bind->kobj);
+	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return rslt;
 }
 
-void rddma_bind_unregister(struct rddma_bind *rddma_bind)
+void vfi_bind_unregister(struct vfi_bind *vfi_bind)
 {
     
-	RDDMA_KTRACE ("<*** %s (%s) IN ***>\n", __func__, (rddma_bind) ? kobject_name (&rddma_bind->kobj) : "<NULL>");
-	kobject_unregister(&rddma_bind->kobj);
-	RDDMA_KTRACE ("<*** %s OUT ***>\n", __func__);
+	VFI_KTRACE ("<*** %s (%s) IN ***>\n", __func__, (vfi_bind) ? kobject_name (&vfi_bind->kobj) : "<NULL>");
+	kobject_unregister(&vfi_bind->kobj);
+	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
 /*
-* find_rddma_bind_in - find a bind object within some arbitrary xfer.
+* find_vfi_bind_in - find a bind object within some arbitrary xfer.
 * @xfer : xfer to be searched
 * @desc : xfer descriptor identifying the <xfer> component of the bind by name
 * 
@@ -202,10 +202,10 @@ void rddma_bind_unregister(struct rddma_bind *rddma_bind)
 * A successful search will cause the bind refcount to be incremented.
 *
 */
-int find_rddma_bind_in(struct rddma_bind **bind, struct rddma_xfer *xfer, struct rddma_desc_param *desc)
+int find_vfi_bind_in(struct vfi_bind **bind, struct vfi_xfer *xfer, struct vfi_desc_param *desc)
 {
 	int ret;
-	RDDMA_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
+	VFI_DEBUG(MY_DEBUG,"%s desc(%p)\n",__FUNCTION__,desc);
 
 	/*
 	* If an xfer has been specified up-front, invoke its
@@ -226,7 +226,7 @@ int find_rddma_bind_in(struct rddma_bind **bind, struct rddma_xfer *xfer, struct
 	* but we will leave its refcount incremented if the 
 	* search is successful.
 	*/
-	ret = find_rddma_xfer(&xfer,desc);
+	ret = find_vfi_xfer(&xfer,desc);
 	if (ret)
 		return ret;
 
@@ -235,7 +235,7 @@ int find_rddma_bind_in(struct rddma_bind **bind, struct rddma_xfer *xfer, struct
 	if (xfer) {
 		if (xfer->desc.ops) 
 			ret = xfer->desc.ops->bind_find(bind,xfer,desc);
-		rddma_xfer_put(xfer);
+		vfi_xfer_put(xfer);
 	}
 
 
@@ -243,7 +243,7 @@ int find_rddma_bind_in(struct rddma_bind **bind, struct rddma_xfer *xfer, struct
 }
 
 /**
-* rddma_bind_create - create a new rddma_bind kobject and attach it to parent xfer
+* vfi_bind_create - create a new vfi_bind kobject and attach it to parent xfer
 * 
 * @xfer: pointer to parent xfer, to which new bind should be attached.
 * @desc: pointer to bind parameter descriptor, identifying participants and
@@ -253,33 +253,33 @@ int find_rddma_bind_in(struct rddma_bind **bind, struct rddma_xfer *xfer, struct
 * bind only if no other bind currently exists for the same <xfer>/<dst>=<src> triplet.
 * 
 * The function will return a pointer either to a pre-existing bind for the triplet, 
-* or a new bind created by new_rddma_bind ().
+* or a new bind created by new_vfi_bind ().
 *
 **/
-int rddma_bind_create(struct rddma_bind **newbind, struct rddma_xfer *xfer, struct rddma_bind_param *desc)
+int vfi_bind_create(struct vfi_bind **newbind, struct vfi_xfer *xfer, struct vfi_bind_param *desc)
 {
-	struct rddma_bind *new;
+	struct vfi_bind *new;
 	char buf[128];
 	int ret;
 
-	RDDMA_DEBUG(MY_DEBUG,"%s xfer(%p) desc(%p)\n",__FUNCTION__,xfer,desc);
+	VFI_DEBUG(MY_DEBUG,"%s xfer(%p) desc(%p)\n",__FUNCTION__,xfer,desc);
 
 	snprintf(buf,128,"#%llx:%x",desc->xfer.offset,desc->xfer.extent);
 
-	new = to_rddma_bind(kset_find_obj(&xfer->binds->kset,buf));
+	new = to_vfi_bind(kset_find_obj(&xfer->binds->kset,buf));
 
 	if (new) {
-		RDDMA_DEBUG(MY_DEBUG,"%s found %p locally in %p\n",__FUNCTION__,new,xfer);
+		VFI_DEBUG(MY_DEBUG,"%s found %p locally in %p\n",__FUNCTION__,new,xfer);
 		*newbind = new;
 		return 0;
 	}
 
-	ret = new_rddma_bind(newbind,xfer,desc);
+	ret = new_vfi_bind(newbind,xfer,desc);
 
 	if (ret)
 		return ret;
 
-	ret = rddma_bind_register(*newbind);
+	ret = vfi_bind_register(*newbind);
 	if (ret)
 		return -EINVAL;
 
@@ -287,54 +287,54 @@ int rddma_bind_create(struct rddma_bind **newbind, struct rddma_xfer *xfer, stru
 }
 
 /**
-* rddma_bind_delete - remove bind object from Xfer <binds> list
+* vfi_bind_delete - remove bind object from Xfer <binds> list
 * @xfer : Xfer object that bind belongs to
 * @desc : Xfer parameter descriptor
 *
 *
 **/
-void rddma_bind_delete(struct rddma_xfer *xfer, struct rddma_desc_param *desc)
+void vfi_bind_delete(struct vfi_xfer *xfer, struct vfi_desc_param *desc)
 {
-	struct rddma_bind *bind = NULL;
+	struct vfi_bind *bind = NULL;
 	char buf[128];
 
-	RDDMA_DEBUG(MY_DEBUG,"%s from Xfer %s.%s#%llx:%x\n", __func__, 
+	VFI_DEBUG(MY_DEBUG,"%s from Xfer %s.%s#%llx:%x\n", __func__, 
 	           xfer->desc.name, xfer->desc.location, xfer->desc.offset, xfer->desc.extent);
 
 	if ( snprintf(buf,128,"#%llx:%x", desc->offset, desc->extent) > 128 )
 		goto out;
 
-	bind = to_rddma_bind(kset_find_obj(&xfer->binds->kset, buf));
+	bind = to_vfi_bind(kset_find_obj(&xfer->binds->kset, buf));
 
 	if (bind) 
-		rddma_bind_unregister (bind);
+		vfi_bind_unregister (bind);
 out:
-	RDDMA_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,xfer,desc,bind);
+	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,xfer,desc,bind);
 }
 
 /**
-* rddma_bind_load_dsts - 
+* vfi_bind_load_dsts - 
 * @bind : parent bind object
 *
 *
 **/
-void rddma_bind_load_dsts(struct rddma_bind *bind)
+void vfi_bind_load_dsts(struct vfi_bind *bind)
 {
 	struct list_head * entry;
-	struct rddma_dst * dst2 = NULL; 
+	struct vfi_dst * dst2 = NULL; 
 
-	RDDMA_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,bind);
+	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,bind);
 	if (bind->dsts) {
 		spin_lock(&bind->dsts->kset.list_lock);
 		if (!list_empty(&bind->dsts->kset.list)) {
 			list_for_each(entry,&bind->dsts->kset.list) {
-				dst2 = to_rddma_dst(to_kobj(entry));
-				RDDMA_DEBUG(MY_DEBUG,"%s dst2 %p name=%s\n",__FUNCTION__,dst2, &dst2->kobj.name[0]);
+				dst2 = to_vfi_dst(to_kobj(entry));
+				VFI_DEBUG(MY_DEBUG,"%s dst2 %p name=%s\n",__FUNCTION__,dst2, &dst2->kobj.name[0]);
 				if (dst2->desc.dst.rde && dst2->desc.dst.rde->ops && dst2->desc.dst.rde->ops->link_dst) {
 					dst2->desc.dst.rde->ops->link_dst(&bind->dsts->dma_chain,dst2);
 				}
 				else {
-					RDDMA_DEBUG (MY_DEBUG, "xx %s failed: Dst \"%s\" is missing RDE ops!\n", 
+					VFI_DEBUG (MY_DEBUG, "xx %s failed: Dst \"%s\" is missing RDE ops!\n", 
 							__FUNCTION__, dst2->desc.dst.name);
 				}
 			}
