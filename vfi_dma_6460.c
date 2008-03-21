@@ -1,7 +1,7 @@
 /* 
  * 
- * Copyright 2007 MicroMemory, LLC.
- * Phil Terry <pterry@micromemory.com> 
+ * Copyright 2008 Vmetro
+ * Phil Terry <pterry@vmetro.com> 
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -679,5 +679,5 @@ module_param(last_chan, int, 0);
 module_param(nevents, int, 0);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jimmy Blair <jblair@micromemory.com>");
+MODULE_AUTHOR("Jimmy Blair <jblair@vmetro.com>");
 MODULE_DESCRIPTION("DMA Engine for local VFI on PPC8245");

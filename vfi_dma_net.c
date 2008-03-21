@@ -1,7 +1,7 @@
 /* 
  * 
- * Copyright 2007 MicroMemory, LLC.
- * Phil Terry <pterry@micromemory.com> 
+ * Copyright 2008 Vmetro
+ * Phil Terry <pterry@vmetro.com> 
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -170,5 +170,5 @@ module_init(dma_net_init);
 module_exit(dma_net_close);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Phil Terry <pterry@micromemory.com>");
+MODULE_AUTHOR("Phil Terry <pterry@vmetro.com>");
 MODULE_DESCRIPTION("Dummy net DMA Engine for VFI");
