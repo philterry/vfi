@@ -481,13 +481,14 @@ out:
 			* Note that because mmap identifiers are huge numbers, write
 			* them as hex digits in the response.
 			*/
-			*size = snprintf(result,*size,"%s?result(%d),reply(%s),mmap_offset(%lx)\n",
-				       kobject_name (&mmap->kobj) ? : "<NULL>", ret, 
+			*size = snprintf(result,*size,"smb_mmap://%s.%s?result(%d),reply(%s),mmap_offset(%lx)\n",
+				       params.name, params.location, ret, 
 				       rddma_get_option(&params,"request"),
 				       (unsigned long)mmap_to_ticket(mmap));
 		}
 		else {
-			*size = snprintf(result,*size,"smb_mmap://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, rddma_get_option(&params,"request"));
+			*size = snprintf(result,*size,"smb_mmap://%s.%s?result(%d),reply(%s)\n", 
+				       params.name, params.location,ret, rddma_get_option(&params,"request"));
 		}
 	}
 	
