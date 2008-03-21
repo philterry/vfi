@@ -4,7 +4,7 @@ else
 KERNELDIR ?= /lib/modules/`uname -r`/build
 
 modules:
-	$(MAKE) -C $(KERNELDIR) M=`pwd` CONFIG_RDDMA_FABRIC_NET=m CONFIG_RDDMA_FABRIC_RIONET=m CONFIG_RDDMA=m CONFIG_RDDMA_DMA_NET=m CONFIG_RDDMA_DMA_RIO=m $@
+	$(MAKE) -C $(KERNELDIR) M=`pwd` CONFIG_FDDMA_FABRIC_NET=m CONFIG_FDDMA_FABRIC_RIONET=n CONFIG_FDDMA=m CONFIG_FDDMA_DMA_NET=m CONFIG_FDDMA_DMA_RIO=n $@
 install:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` modules_install
 clean:
@@ -13,15 +13,15 @@ clean:
 etags:
 	etags *.[ch]
 tar: clean etags
-	cd ..;	tar zcvf rddma.tar.gz --exclude=.git --exclude=TAGS rddma
+	cd ..;	tar zcvf fddma.tar.gz --exclude=.git --exclude=TAGS fddma
 publish: tar
-	cp ../rddma.tar.gz /mnt/Public/Rincon/PhilsWeb/dev
+	cp ../fddma.tar.gz /mnt/Public/Rincon/PhilsWeb/dev
 	cp ChangeLog /mnt/Public/Rincon/PhilsWeb/dev
 	cp README /mnt/Public/Rincon/PhilsWeb/dev/READMEdrv
 	cp TODO /mnt/Public/Rincon/PhilsWeb/devTODOdrv
 publish_doc: doc
 	cp $(KERNELDIR)/Documentation/DocBook/index.html /mnt/Public/Rincon/PhilsWeb/kerneldoc
-	cp -r $(KERNELDIR)/Documentation/DocBook/rddma /mnt/Public/Rincon/PhilsWeb/kerneldoc
+	cp -r $(KERNELDIR)/Documentation/DocBook/vfi /mnt/Public/Rincon/PhilsWeb/kerneldoc
 	cp -r $(KERNELDIR)/Documentation/DocBook/kernel-api /mnt/Public/Rincon/PhilsWeb/kerneldoc
 	cp -r $(KERNELDIR)/Documentation/DocBook/rapidio /mnt/Public/Rincon/PhilsWeb/kerneldoc
 doc:

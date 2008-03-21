@@ -1,51 +1,51 @@
 #
-# RDDMA configuration
+# FDDMA configuration
 #
 
-menu "Rincon DMA driver support"
+menu "Vmetro FusionIPC Distributed DMA driver support"
 
-config RDDMA
-	tristate "Rincon DMA driver"
+config FDDMA
+	tristate "Vmetro FusionIPC Distributed DMA driver"
 	default m
 	---help---
-	  Enable support for the Rincon Distributed DMA engine.
+	  Enable support for the Vmetro FusionIPC Distributed DMA engine.
 
-config RDDMA_FABRIC_NET
-	tristate "Rincon DMA driver -- use ethernet in place of switch fabric"
-	depends on RDDMA && NET
+config FDDMA_FABRIC_NET
+	tristate "FusionIPC Distributed DMA driver -- use ethernet in place of switch fabric"
+	depends on FDDMA && NET
 	default m
 	---help---
-	  Enable support for using the ethernet for RDDMA as if
+	  Enable support for using the ethernet for FDDMA as if
 	  it were a switch fabric.
 
 # Note: following depends on RAPIDIO, not NET, fixme later!
 
-config RDDMA_FABRIC_RIONET
-	tristate "Rincon DMA driver -- RIO switch fabric"
-	depends on RDDMA && NET
+config FDDMA_FABRIC_RIONET
+	tristate "FusionIPC Distributed DMA driver -- RIO switch fabric"
+	depends on FDDMA && NET
 	default m
 	---help---
-	  Enable support for RDDMA communication over RIO switch fabric
+	  Enable support for FDDMA communication over RIO switch fabric
 
 # also depends on RAPIDIO, but removed for now
 
-config RDDMA_DMA_RIO
-	tristate "Rincon DMA driver -- RIO via PPC8641 DMA hardware"
-	depends on RDDMA 
+config FDDMA_DMA_RIO
+	tristate "FusionIPC Distributed DMA driver -- RIO via PPC8641 DMA hardware"
+	depends on FDDMA 
 	default m
 	---help---
-	  Enable support for Rincon DMA over Rapid I/O.
+	  Enable support for FusionIPC Distributed DMA over Rapid I/O.
 
-config RDDMA_DMA_6460
-	tristate "Rincon DMA driver -- RDDMA on MPC8245 (MPC10x DMA controller)"
-	depends on RDDMA && MPC10X_BRIDGE
+config FDDMA_DMA_6460
+	tristate "FusionIPC Distributed DMA driver -- FDDMA on MPC8245 (MPC10x DMA controller)"
+	depends on FDDMA && MPC10X_BRIDGE
 	default m
 	---help---
-	  Enable support for Rincon DMA over Rapid I/O.
+	  Enable support for FusionIPC Distributed DMA over Rapid I/O.
 
-config RDDMA_KOBJ_DEBUG
-	bool "Rincon RDDMA kobject debugging"
-	depends on RDDMA
+config FDDMA_KOBJ_DEBUG
+	bool "FDDMA kobject debugging"
+	depends on FDDMA
 	default n
 	---help---
 	  Enable additional debug traces that track kobject/kset refcount changes
@@ -53,7 +53,7 @@ config RDDMA_KOBJ_DEBUG
 
 	  This feature produces a wheen of otherwise-useless messages in the system
 	  log, so should be DISABLED by DEFAULT, and used only when you're trying to
-	  find leaks in RDDMA put/get refcounting.
+	  find leaks in FDDMA put/get refcounting.
 
 	  Use an expression like the one below to extract these messages out of a log:
 	  

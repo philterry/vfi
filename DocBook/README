@@ -1,11 +1,11 @@
-In your kernel source tree create a sysmlink drivers/rddma to this
+In your kernel source tree create a sysmlink drivers/vfi to this
 source tree (the parent of the directory containing this README).
 
-In your kernel source tree create a symlink Documentation/DocBook/rddma.tmpl 
-to the rddma.tmpl file in this directory.
+In your kernel source tree create a symlink Documentation/DocBook/vfi.tmpl 
+to the vfi.tmpl file in this directory.
 
-Edit the Makefile in Documentation/DocBook to add rddma.xml to DOCBOOKS or
-make rddma.xml the only documentation to be produced, your choice.
+Edit the Makefile in Documentation/DocBook to add vfi.xml to DOCBOOKS or
+make vfi.xml the only documentation to be produced, your choice.
 
 Now where ever you build your *kernel* you can issue make with the normal
 documentation targets to build the documentation of your choice.
