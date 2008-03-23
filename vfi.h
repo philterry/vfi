@@ -96,7 +96,7 @@ static void vfi_debug(char *format, ...)
 static inline int vfi_error(int level, int err)
 {
 	if (err)
-		VFI_DEBUG(level,"%s:%d %s returns error %d\n",__FILE__,__LINE__, __FUNCTION__,err);
+		VFI_DEBUG(level,"%s:%d:%s returns error %d\n",__FILE__,__LINE__, __FUNCTION__,err);
 	return err;
 }
 #define VFI_RESULT(x) vfi_error(MY_ERROR,(x))
