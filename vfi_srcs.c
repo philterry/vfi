@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_SRC | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_SRC | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_SRC | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_srcs.h>
 #include <linux/vfi_dst.h>
@@ -122,7 +123,7 @@ int new_vfi_srcs(struct vfi_srcs **srcs, struct vfi_bind_param *desc, struct vfi
     
     *srcs = new;
     if (NULL == new)
-	return -ENOMEM;
+	return VFI_RESULT(-ENOMEM);
 
     kobject_set_name(&new->kset.kobj,"%s.%s#%llx:%x",desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
     new->kset.kobj.ktype = &vfi_srcs_type;
@@ -133,7 +134,7 @@ int new_vfi_srcs(struct vfi_srcs **srcs, struct vfi_bind_param *desc, struct vfi
     parent->srcs = new;
 
     VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return 0;
+    return VFI_RESULT(0);
 }
 
 int vfi_srcs_register(struct vfi_srcs *vfi_srcs)
@@ -143,7 +144,7 @@ int vfi_srcs_register(struct vfi_srcs *vfi_srcs)
 	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
 	ret = kset_register(&vfi_srcs->kset);
 	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_srcs_unregister(struct vfi_srcs *vfi_srcs)
@@ -163,7 +164,7 @@ int vfi_srcs_create(struct vfi_srcs **srcs, struct vfi_dst *parent, struct vfi_b
 	ret = new_vfi_srcs(srcs,desc,parent);
 
 	if (ret)
-		return ret;
+		return VFI_RESULT(ret);
 
 	ret = vfi_srcs_register(*srcs);
 	if (ret) {
@@ -171,7 +172,7 @@ int vfi_srcs_create(struct vfi_srcs **srcs, struct vfi_dst *parent, struct vfi_b
 		*srcs = NULL;
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_srcs_delete(struct vfi_srcs *srcs)

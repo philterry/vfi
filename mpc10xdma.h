@@ -1,3 +1,14 @@
+/* 
+ * 
+ * Copyright 2008 Vmetro. 
+ * Jimmy Blair <jblair@vmetro.com> 
+ * 
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or  (at your
+ * option) any later version.
+ */
+
 
 #define MPC10X_DMA_NCHANS 2
 #define DMA_MAX_XFER ((1<<26) - 1)

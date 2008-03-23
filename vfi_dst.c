@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_DST | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_DST | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_DST | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_dst.h>
 #include <linux/vfi_parse.h>
@@ -145,7 +146,7 @@ int new_vfi_dst(struct vfi_dst **dst, struct vfi_bind *parent, struct vfi_bind_p
 	*dst = new;
 
 	if (NULL == new)
-		return -ENOMEM;
+		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_bind(&new->desc, desc);
 	new->kobj.ktype = &vfi_dst_type;
@@ -155,7 +156,7 @@ int new_vfi_dst(struct vfi_dst **dst, struct vfi_bind *parent, struct vfi_bind_p
 	vfi_bind_inherit(&new->desc,&parent->desc);
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return 0;
+	return VFI_RESULT(0);
 }
 
 int vfi_dst_register(struct vfi_dst *vfi_dst)
@@ -165,7 +166,7 @@ int vfi_dst_register(struct vfi_dst *vfi_dst)
 	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
 	ret = kobject_register(&vfi_dst->kobj);
 	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_dst_unregister(struct vfi_dst *vfi_dst)
@@ -201,7 +202,7 @@ int find_vfi_dst_in(struct vfi_dst **dst,struct vfi_bind *bind, struct vfi_bind_
 	if (mybind == NULL) {
 		ret = find_vfi_bind(&mybind,&desc->xfer);
 		if (ret)
-			return ret;
+			return VFI_RESULT(ret);
 	}
 
 	vfi_dsts_create(&dsts,mybind,desc);
@@ -218,7 +219,7 @@ int find_vfi_dst_in(struct vfi_dst **dst,struct vfi_bind *bind, struct vfi_bind_
 		vfi_bind_put (mybind);
 	}
 
-	return ret ? ret : *dst == NULL;
+	return VFI_RESULT(ret ? ret : *dst == NULL);
 }
 
 int vfi_dst_create(struct vfi_dst **dst, struct vfi_bind *bind, struct vfi_bind_param *desc)
@@ -228,14 +229,14 @@ int vfi_dst_create(struct vfi_dst **dst, struct vfi_bind *bind, struct vfi_bind_
 	ret = new_vfi_dst(dst,bind,desc);
 
 	if (ret)
-		return ret;
+		return VFI_RESULT(ret);
 
 	ret = vfi_dst_register(*dst);
 
 	if (ret) 
 		vfi_dst_put(*dst);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_dst_delete (struct vfi_bind *bind, struct vfi_bind_param *desc)

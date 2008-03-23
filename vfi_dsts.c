@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_DST | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_DST | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_DST | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_dsts.h>
 #include <linux/vfi_bind.h>
@@ -123,7 +124,7 @@ int new_vfi_dsts(struct vfi_dsts **dsts,struct vfi_bind_param *params, struct vf
 	*dsts = new;
 
 	if (NULL == new)
-		return -ENOMEM;
+		return VFI_RESULT(-ENOMEM);
     
 	kobject_set_name(&new->kset.kobj,"%s.%s#%llx:%x=%s.%s#%llx:%x",
 						    params->dst.name,params->dst.location,params->dst.offset,params->dst.extent,
@@ -134,7 +135,7 @@ int new_vfi_dsts(struct vfi_dsts **dsts,struct vfi_bind_param *params, struct vf
 	INIT_LIST_HEAD(&new->dma_chain);
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return 0;
+	return VFI_RESULT(0);
 }
 
 int vfi_dsts_register(struct vfi_dsts *vfi_dsts)
@@ -144,7 +145,7 @@ int vfi_dsts_register(struct vfi_dsts *vfi_dsts)
 	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
 	ret = kset_register(&vfi_dsts->kset);
 	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_dsts_unregister(struct vfi_dsts *vfi_dsts)
@@ -173,12 +174,12 @@ int vfi_dsts_create(struct vfi_dsts **dsts, struct vfi_bind *parent, struct vfi_
 
 	if (parent->dsts) {
 		*dsts = parent->dsts;
-		return 0;
+		return VFI_RESULT(0);
 	}
 
 	ret = new_vfi_dsts(dsts,desc,parent);
 	if (ret) 
-		return ret;
+		return VFI_RESULT(ret);
 
 	ret = vfi_dsts_register(*dsts);
 	if (ret){
@@ -186,7 +187,7 @@ int vfi_dsts_create(struct vfi_dsts **dsts, struct vfi_bind *parent, struct vfi_
 		*dsts = NULL;
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_dsts_delete(struct vfi_dsts *dsts)

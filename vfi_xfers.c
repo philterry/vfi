@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_XFER | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_XFER | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_XFER | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_xfers.h>
 
@@ -112,7 +113,7 @@ int new_vfi_xfers(struct vfi_xfers **xfers, char *name, struct vfi_location *par
     *xfers = new;
 
     if (NULL == new)
-	return -ENOMEM;
+	return VFI_RESULT(-ENOMEM);
 
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &vfi_xfers_type;
@@ -120,7 +121,7 @@ int new_vfi_xfers(struct vfi_xfers **xfers, char *name, struct vfi_location *par
     new->kset.kobj.parent = &parent->kset.kobj;
 
     VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return 0;
+    return VFI_RESULT(0);
 }
 
 int vfi_xfers_register(struct vfi_xfers *vfi_xfers)
@@ -130,10 +131,10 @@ int vfi_xfers_register(struct vfi_xfers *vfi_xfers)
     if ( (ret = kset_register(&vfi_xfers->kset) ) )
 	goto out;
 
-      return ret;
+      return VFI_RESULT(ret);
 
 out:
-    return ret;
+    return VFI_RESULT(ret);
 }
 
 void vfi_xfers_unregister(struct vfi_xfers *vfi_xfers)

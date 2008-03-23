@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_MMAP | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_MMAP | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_MMAP | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_mmaps.h>
 
@@ -68,7 +69,7 @@ struct kobj_type vfi_mmaps_type = {
 int find_vfi_mmaps(struct vfi_mmaps **mmaps, char *name)
 {
 	*mmaps = NULL;
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 static int vfi_mmaps_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -100,14 +101,14 @@ int new_vfi_mmaps(struct vfi_mmaps **mmaps, struct vfi_smb *parent, char *name)
     *mmaps = new;
 
     if (NULL == new)
-	return -ENOMEM;
+	return VFI_RESULT(-ENOMEM);
 
     kobject_set_name(&new->kset.kobj,"%s",name);
     new->kset.kobj.ktype = &vfi_mmaps_type;
     new->kset.uevent_ops = &vfi_mmaps_uevent_ops;
     new->kset.kobj.parent = &parent->kobj;
     VFI_DEBUG(MY_LIFE_DEBUG,"%s %p %s %p\n",__FUNCTION__,new, kobject_name(&new->kset.kobj),parent);
-    return 0;
+    return VFI_RESULT(0);
 }
 
 int vfi_mmaps_register(struct vfi_mmaps *vfi_mmaps)
@@ -117,10 +118,10 @@ int vfi_mmaps_register(struct vfi_mmaps *vfi_mmaps)
     if ( (ret = kset_register(&vfi_mmaps->kset) ) )
 	goto out;
 
-      return ret;
+      return VFI_RESULT(ret);
 
 out:
-    return ret;
+    return VFI_RESULT(ret);
 }
 
 void vfi_mmaps_unregister(struct vfi_mmaps *vfi_mmaps)

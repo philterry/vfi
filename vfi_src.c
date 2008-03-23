@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_SRC | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_SRC | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_SRC | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_src.h>
 #include <linux/vfi_parse.h>
@@ -155,7 +156,7 @@ int new_vfi_src(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind_pa
 
 	*src = new;
 	if (NULL == new)
-		return -ENOMEM;
+		return VFI_RESULT(-ENOMEM);
 
 	/* DMA descriptors are embedded in the vfi_src struct, so
 	 * align the struct to what the DMA hardware requires
@@ -181,7 +182,7 @@ int new_vfi_src(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind_pa
 	vfi_bind_inherit(&new->desc,&parent->desc);
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p %p\n",__FUNCTION__,new,parent->srcs);
-	return 0;
+	return VFI_RESULT(0);
 }
 
 int vfi_src_register(struct vfi_src *vfi_src)
@@ -191,7 +192,7 @@ int vfi_src_register(struct vfi_src *vfi_src)
 	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
 	ret = kobject_register(&vfi_src->kobj);
 	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_src_unregister(struct vfi_src *vfi_src)
@@ -207,7 +208,7 @@ int find_vfi_src(struct vfi_src **src, struct vfi_desc_param *desc, struct vfi_d
 	char name[128];
 	sprintf(name,"#%llx:%x",desc->offset,desc->extent);
 	*src = to_vfi_src(kset_find_obj(&parent->srcs->kset, name));
-	return *src == NULL;
+	return VFI_RESULT(*src == NULL);
 }
 
 int vfi_src_create(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind_param *desc)
@@ -219,7 +220,7 @@ int vfi_src_create(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind
 	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,*src);
 
 	if (ret)
-		return ret;
+		return VFI_RESULT(ret);
 
 	ret = vfi_src_register(*src);
 
@@ -228,7 +229,7 @@ int vfi_src_create(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind
 		*src = NULL;
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_src_delete (struct vfi_dst *parent, struct vfi_bind_param *desc)

@@ -11,7 +11,7 @@
 
 
 /*
- * The Rincon Distributed DMA Driver Implementation
+ * The Vmetro FusionIPC Distributed DMA Driver Implementation
  */
 
 #define MY_DEBUG      VFI_DBG_SUBSYS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
@@ -100,4 +100,4 @@ module_exit(vfi_cleanup);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Phil Terry <pterry@vmetro.com>");
-MODULE_DESCRIPTION("The Micromemory Rincon Distributed DMA Driver");
+MODULE_DESCRIPTION("The Vmetro FusionIPC Distributed DMA Driver");

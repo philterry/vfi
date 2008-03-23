@@ -1,5 +1,17 @@
+/* 
+ * 
+ * Copyright 2008 Vmetro. 
+ * Phil Terry <pterry@vmetro.com> 
+ * 
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or  (at your
+ * option) any later version.
+ */
+
 #define MY_DEBUG      VFI_DBG_RDYS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_RDYS | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_RDYS | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_drv.h>
 #include <linux/vfi_readies.h>
@@ -75,13 +87,13 @@ struct kobj_type vfi_readies_type = {
 int find_vfi_readies(struct vfi_events **events, struct vfi_subsys *parent, char *name)
 {
     *events = to_vfi_events(kset_find_obj(&parent->events->kset,name));
-    return *events == NULL;
+    return VFI_RESULT(*events == NULL);
 }
 
 int find_vfi_dones(struct vfi_events **events, struct vfi_subsys *parent, char *name)
 {
     *events = to_vfi_events(kset_find_obj(&parent->events->kset,name));
-    return *events == NULL;
+    return VFI_RESULT(*events == NULL);
 }
 
 static int vfi_readies_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -113,19 +125,19 @@ int new_vfi_readies(struct vfi_readies **newreadies, struct vfi_subsys *parent, 
     *newreadies = new;
 
     if (NULL == new)
-	return -ENOMEM;
+	return VFI_RESULT(-ENOMEM);
 
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &vfi_readies_type;
     new->kset.uevent_ops = &vfi_readies_uevent_ops;
     new->kset.kobj.parent = &parent->kset.kobj;
 
-    return 0;
+    return VFI_RESULT(0);
 }
 
 int vfi_readies_register(struct vfi_readies *vfi_readies)
 {
-	return kset_register(&vfi_readies->kset);
+	return VFI_RESULT(kset_register(&vfi_readies->kset));
 }
 
 void vfi_readies_unregister(struct vfi_readies *vfi_readies)
@@ -141,16 +153,16 @@ int vfi_readies_create(struct vfi_readies **new, struct vfi_subsys *parent, char
 	ret = new_vfi_readies(new, parent, name);
 
 	if (ret) 
-		return ret;
+		return VFI_RESULT(ret);
 
 	ret = vfi_readies_register(*new);
 	
 	if (ret) {
 		vfi_readies_put(*new);
-		return -EINVAL;
+		return VFI_RESULT(-EINVAL);
 	}
 
-	return 0;
+	return VFI_RESULT(0);
 }
 
 void vfi_readies_delete(struct vfi_readies *vfi_readies)

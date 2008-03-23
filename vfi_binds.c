@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_BIND | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_BIND | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_BIND | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_binds.h>
 #include <linux/vfi_xfer.h>
@@ -113,7 +114,7 @@ int new_vfi_binds(struct vfi_binds **binds,char *name, struct vfi_xfer *parent)
     *binds = new;
 
     if (NULL == new)
-	return -ENOMEM;
+	    return VFI_RESULT(-ENOMEM);
 
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &vfi_binds_type;
@@ -121,7 +122,7 @@ int new_vfi_binds(struct vfi_binds **binds,char *name, struct vfi_xfer *parent)
     new->kset.kobj.parent = &parent->kobj;
 
     VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return 0;
+    return VFI_RESULT(0);
 }
 
 int vfi_binds_register(struct vfi_binds *vfi_binds)
@@ -131,7 +132,7 @@ int vfi_binds_register(struct vfi_binds *vfi_binds)
 	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
 	ret = kset_register(&vfi_binds->kset);
 	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_binds_unregister(struct vfi_binds *vfi_binds)

@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_SUBSYS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_SUBSYS | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_SUBSYS | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_subsys.h>
 #include <linux/vfi_location.h>
@@ -211,7 +212,7 @@ int new_vfi_subsys(struct vfi_subsys **subsys, char *name)
     
     *subsys = new;
     if (NULL == new)
-	return -ENOMEM;
+	return VFI_RESULT(-ENOMEM);
 
     if ( vfi_parse_desc( &new->desc, name) )
 	    goto out;
@@ -221,12 +222,12 @@ int new_vfi_subsys(struct vfi_subsys **subsys, char *name)
     new->kset.kobj.ktype = &vfi_subsys_type;
 
     VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return 0;
+    return VFI_RESULT(0);
 out:
     vfi_subsys_put(new);
     *subsys = NULL;
     VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,NULL);
-    return -EINVAL;
+    return VFI_RESULT(-EINVAL);
 }
 
 int vfi_subsys_register(struct vfi_subsys *parent)
@@ -238,7 +239,7 @@ int vfi_subsys_register(struct vfi_subsys *parent)
 
 	if ( (ret = kset_register(&parent->kset) ) ) {
 		kset_put(&parent->kset);
-		return ret;
+		return VFI_RESULT(ret);
 	}
 
 	ret = vfi_readies_create(&readies,parent,"events");
@@ -248,11 +249,11 @@ int vfi_subsys_register(struct vfi_subsys *parent)
 
 	parent->events = readies;
 
-	return 0;
+	return VFI_RESULT(0);
 
 out:
 	vfi_subsys_unregister(parent);
-	return -ENOMEM;
+	return VFI_RESULT(-ENOMEM);
 }
 
 void vfi_subsys_unregister(struct vfi_subsys *parent)

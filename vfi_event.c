@@ -1,5 +1,17 @@
+/* 
+ * 
+ * Copyright 2008 Vmetro. 
+ * Phil Terry <pterry@vmetro.com> 
+ * 
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or  (at your
+ * option) any later version.
+ */
+
 #define MY_DEBUG      VFI_DBG_RDYS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_RDYS | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_RDYS | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_event.h>
 #include <linux/vfi_fabric.h>
@@ -117,7 +129,7 @@ int find_vfi_event(struct vfi_event **event, struct vfi_events *parent, int id)
 	char buf[20];
 	sprintf(buf,"%x",id);
 	*event = to_vfi_event(kset_find_obj(&parent->kset,buf));
-	return *event == NULL;
+	return VFI_RESULT(*event == NULL);
 }
 
 static int vfi_event_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -151,7 +163,7 @@ int new_vfi_event(struct vfi_event **event, struct vfi_events *parent, struct vf
 	*event = new;
 
 	if (NULL == new)
-		return -ENOMEM;
+		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_desc(&new->desc,desc);
 	kobject_set_name(&new->kobj,"%p:%x", desc,id);
@@ -162,14 +174,14 @@ int new_vfi_event(struct vfi_event **event, struct vfi_events *parent, struct vf
 	new->event_id = id;
 
 	VFI_DEBUG(MY_DEBUG,"%s returns %p\n",__FUNCTION__,new);
-	return 0;
+	return VFI_RESULT(0);
 }
 
 int vfi_event_register(struct vfi_event *vfi_event)
 {
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	return kobject_register(&vfi_event->kobj);
+	return VFI_RESULT(kobject_register(&vfi_event->kobj));
 }
 
 void vfi_event_unregister(struct vfi_event *vfi_event)
@@ -188,15 +200,15 @@ int vfi_event_create(struct vfi_event **new, struct vfi_events *parent, struct v
 	ret = new_vfi_event(new,parent, desc, bind, f, id);
 
 	if (ret) 
-		return ret;
+		return VFI_RESULT(ret);
 
 	if (vfi_event_register(*new)) {
 			vfi_event_put(*new);
 			*new = NULL;
-			return -EINVAL;
+			return VFI_RESULT(-EINVAL);
 	}
 
-	return 0;
+	return VFI_RESULT(0);
 }
 
 void vfi_event_delete (struct vfi_event *vfi_event)

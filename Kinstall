@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2007 MicroMemory, LLC.
+# Copyright 2008 Vmetro.
 # Phil Terry <pterry@vmetro.com>
 
 # This program is free software; you can redistribute  it and/or modify it
@@ -189,7 +189,7 @@ for file in *.[ch] ; do
     sed -i -e "1i\
 /* \\
  * \\
- * Copyright 2007 MicroMemory, LLC. \\
+ * Copyright 2008 Vmetro. \\
  * ${name:-Phil Terry} <${email:-pterry}@vmetro.com> \\
  * \\
  * This program is free software; you can redistribute  it and/or modify it\\

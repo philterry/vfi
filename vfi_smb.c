@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_SMB | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_SMB | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_SMB | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_smb.h>
 #include <linux/vfi_parse.h>
@@ -156,7 +157,7 @@ int new_vfi_smb(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_desc_
     
 	*smb = new;
 	if (NULL == new)
-		return -ENOMEM;
+		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_desc(&new->desc, desc);
 	new->size = new->desc.extent;
@@ -170,7 +171,7 @@ int new_vfi_smb(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_desc_
 	new->desc.ploc = loc;
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return 0;
+	return VFI_RESULT(0);
 }
 
 int vfi_smb_register(struct vfi_smb *vfi_smb)
@@ -183,11 +184,11 @@ int vfi_smb_register(struct vfi_smb *vfi_smb)
 	if ( vfi_smb->mmaps )
 		if ( (ret = vfi_mmaps_register(vfi_smb->mmaps)) )
 			goto mmaps;
-	return ret;
+	return VFI_RESULT(ret);
 mmaps:
 	vfi_smb_unregister(vfi_smb);
 out:
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_smb_unregister(struct vfi_smb *vfi_smb)
@@ -202,23 +203,23 @@ int find_vfi_smb_in(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_d
 	struct vfi_location *tmploc;
 
 	if (loc)
-		return loc->desc.ops->smb_find(smb,loc,desc);
+		return VFI_RESULT(loc->desc.ops->smb_find(smb,loc,desc));
 
 	if (desc->ploc)
-		return desc->ploc->desc.ops->smb_find(smb,loc,desc);
+		return VFI_RESULT(desc->ploc->desc.ops->smb_find(smb,loc,desc));
 
 	*smb = NULL;
 
 	ret = locate_vfi_location(&tmploc, NULL,desc);
 	if (ret)
-		return ret;
+		return VFI_RESULT(ret);
 
 	if (tmploc) {
 		ret = loc->desc.ops->smb_find(smb,tmploc,desc);
 		vfi_location_put(tmploc);
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -244,12 +245,12 @@ int vfi_smb_create(struct vfi_smb **smb,struct vfi_location *loc, struct vfi_des
 	if ( (vfi_smb_register(*smb)) ) 
 		goto fail_reg;
 	
-	return 0;
+	return VFI_RESULT(0);
 
 fail_reg:
 	vfi_smb_put(*smb);
 out:
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 

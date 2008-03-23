@@ -1,5 +1,17 @@
+/* 
+ * 
+ * Copyright 2008 Vmetro. 
+ * Phil Terry <pterry@vmetro.com> 
+ * 
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or  (at your
+ * option) any later version.
+ */
+
 #define MY_DEBUG      VFI_DBG_RDYS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_RDYS | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_RDYS | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_events.h>
 #include <linux/vfi_subsys.h>
@@ -112,7 +124,7 @@ int new_vfi_events(struct vfi_events **events, struct vfi_readies *parent, char 
     *events = new;
 
     if (NULL == new)
-	return -ENOMEM;
+	return VFI_RESULT(-ENOMEM);
 
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &vfi_events_type;
@@ -121,13 +133,13 @@ int new_vfi_events(struct vfi_events **events, struct vfi_readies *parent, char 
     init_MUTEX(&new->start_lock);
     init_completion(&new->dma_sync);
 
-    return 0;
+    return VFI_RESULT(0);
 }
 
 int vfi_events_register(struct vfi_events *vfi_events)
 {
 	VFI_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,vfi_events);
-	return kset_register(&vfi_events->kset);
+	return VFI_RESULT(kset_register(&vfi_events->kset));
 }
 
 void vfi_events_unregister(struct vfi_events *vfi_events)
@@ -148,16 +160,16 @@ int vfi_events_create(struct vfi_events **events, struct vfi_readies *parent, ch
 	*events = new;
 
 	if ( ret ) 
-		return ret;
+		return VFI_RESULT(ret);
 
 	if (vfi_events_register(new)) {
 		vfi_events_put(new);
 		*events = NULL;
-		return -EINVAL;
+		return VFI_RESULT(-EINVAL);
 	}
 
 	VFI_DEBUG(MY_DEBUG,"%s returns(%p)\n",__FUNCTION__,new);
-	return 0;
+	return VFI_RESULT(0);
 }
 
 void vfi_events_delete(struct vfi_events *vfi_events)

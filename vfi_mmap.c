@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_MMAP | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_MMAP | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_MMAP | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_mmap.h>
 #include <linux/vfi_smb.h>
@@ -131,7 +132,7 @@ int find_vfi_mmap(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc_p
 	char buf[512];
 	snprintf(buf,512,"%d#%llx:%x",current->pid,desc->offset,desc->extent);
 	*mmap = to_vfi_mmap(kset_find_obj(&smb->mmaps->kset,buf));
-	return *mmap == NULL;
+	return VFI_RESULT(*mmap == NULL);
 }
 static struct vfi_mmap *frm_by_loc(struct vfi_location *loc,unsigned long tid)
 {
@@ -181,7 +182,7 @@ int find_vfi_mmap_by_id(struct vfi_mmap **mmap, unsigned long tid)
 	ret = -EINVAL;
 out:
 	spin_unlock(&vfi_subsys->kset.list_lock);
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 static int vfi_mmap_uevent_filter(struct kset *kset, struct kobject *kobj)
@@ -213,13 +214,13 @@ int new_vfi_mmap(struct vfi_mmap **mmap, struct vfi_smb *parent, struct vfi_desc
     *mmap = new;
 
     if (NULL == new)
-	return -ENOMEM;
+	return VFI_RESULT(-ENOMEM);
 
     kobject_set_name(&new->kobj,"%d#%llx:%x",current->pid, desc->offset,desc->extent);
     new->kobj.ktype = &vfi_mmap_type;
     new->kobj.kset = &parent->mmaps->kset;
 
-    return 0;
+    return VFI_RESULT(0);
 }
 
 int vfi_mmap_register(struct vfi_mmap *vfi_mmap)
@@ -229,10 +230,10 @@ int vfi_mmap_register(struct vfi_mmap *vfi_mmap)
     if ( (ret = kobject_register(&vfi_mmap->kobj) ) )
 	goto out;
 
-      return ret;
+      return VFI_RESULT(ret);
 
 out:
-    return ret;
+    return VFI_RESULT(ret);
 }
 
 void vfi_mmap_unregister(struct vfi_mmap *vfi_mmap)
@@ -258,7 +259,7 @@ int vfi_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc
 	lastpage = ((offset + extent - 1) >> PAGE_SHIFT);
 	if (lastpage >= n_pg) {
 		VFI_DEBUG (MY_DEBUG, "xx Requested region exceeds page table.\n"); 
-		return 0;
+		return VFI_RESULT(0);
 	}
 	ret = new_vfi_mmap(mmap,smb,desc);
 	if (!ret) {
@@ -274,7 +275,7 @@ int vfi_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc
 	}
 	VFI_DEBUG_SAFE (MY_DEBUG, *mmap, "-- Assigned %lu pages at %p\n",(*mmap)->n_pg, (*mmap)->pg_tbl);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_mmap_delete(struct vfi_smb *smb, struct vfi_desc_param *desc)

@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_LOCATION | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_LOCATION | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_LOCATION | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_location.h>
 #include <linux/vfi_drv.h>
@@ -172,7 +173,7 @@ int new_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, str
 	*newloc = new;
 
 	if (NULL == new)
-		return -ENOMEM;
+		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_desc(&new->desc, desc);
 	new->kset.kobj.ktype = &vfi_location_type;
@@ -252,7 +253,7 @@ int new_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, str
 	spin_lock_init(&new->kset.list_lock);
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return 0;
+	return VFI_RESULT(0);
 }
 
 int vfi_location_register(struct vfi_location *vfi_location)
@@ -291,7 +292,7 @@ int vfi_location_register(struct vfi_location *vfi_location)
 	if ( (ret = vfi_xfers_register(vfi_location->xfers)) )
 		goto fail_xfers_reg;
 
-	return ret;
+	return VFI_RESULT(ret);
 
 fail_xfers_reg:
 	vfi_smbs_unregister(vfi_location->smbs);
@@ -302,7 +303,7 @@ fail_xfers:
 fail_smbs:
 	kobject_unregister(&vfi_location->kset.kobj);
 out:
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_location_unregister(struct vfi_location *vfi_location)
@@ -323,7 +324,7 @@ int find_vfi_name(struct vfi_location **newloc, struct vfi_location *loc, struct
 	else
 		*newloc = to_vfi_location(kset_find_obj(&vfi_subsys->kset,params->name));
 	VFI_DEBUG_SAFE(MY_DEBUG,*newloc,"%s -> %p %s,%s\n",__FUNCTION__,*newloc,(*newloc)->desc.name,(*newloc)->desc.location);
-	return *newloc != 0;
+	return VFI_RESULT(*newloc != 0);
 }
 
 /**
@@ -359,7 +360,7 @@ int find_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, st
 	if (loc) {
 		ret = loc->desc.ops->location_find(newloc,loc,params);
 		VFI_DEBUG(MY_DEBUG,"%s %p %s %p %s -> %p\n",__FUNCTION__,loc,loc->desc.name,params,params->name,newloc);
-		return ret;
+		return VFI_RESULT(ret);
 	}
 
 	if (params->location && *params->location) {
@@ -379,7 +380,7 @@ int find_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, st
 		*newloc = to_vfi_location(kset_find_obj(&vfi_subsys->kset,params->name));
 
 	VFI_DEBUG_SAFE(MY_DEBUG,*newloc,"%s -> %p %s,%s\n",__FUNCTION__,*newloc,(*newloc)->desc.name,(*newloc)->desc.location);
-	return *newloc != 0;
+	return VFI_RESULT(*newloc != 0);
 }
 
 /**
@@ -446,7 +447,7 @@ int locate_vfi_location(struct vfi_location **new_loc,struct vfi_location *loc, 
 	if (new_locstr)
 		*new_locstr = '.';
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 int vfi_location_create(struct vfi_location **newloc, struct vfi_location *loc, struct vfi_desc_param *desc)
@@ -463,12 +464,12 @@ int vfi_location_create(struct vfi_location **newloc, struct vfi_location *loc, 
 	if ( ( vfi_location_register(*newloc)) )
 		goto fail_reg;
 
-	return 0;
+	return VFI_RESULT(0);
 
 fail_reg:
 	vfi_location_put(*newloc);
 out:
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 void vfi_location_delete(struct vfi_location *loc)

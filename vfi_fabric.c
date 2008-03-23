@@ -11,7 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_FABRIC | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_FABRIC | VFI_DBG_LIFE    | VFI_DBG_DEBUG
-#define MY_ERROR(x) ( 0x80000000 | 0x00020000 | ((x) & 0xffff))
+#define MY_ERROR      VFI_DBG_FABRIC | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi.h>
 #include <linux/vfi_subsys.h>
@@ -121,7 +121,7 @@ int __must_check vfi_fabric_tx(struct vfi_fabric_address *address, struct sk_buf
 		dev_kfree_skb(skb);
 
 	VFI_DEBUG(MY_DEBUG,"%s %d\n",__FUNCTION__,ret);
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 int vfi_address_register(struct vfi_location *loc)
@@ -131,7 +131,7 @@ int vfi_address_register(struct vfi_location *loc)
 
 	if (loc && loc->desc.address && loc->desc.address->ops)
 		ret = loc->desc.address->ops->register_location(loc);
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_address_unregister(struct vfi_location *loc)
@@ -147,10 +147,10 @@ int vfi_doorbell_register(struct vfi_fabric_address *address, void (*callback)(v
 	if (address->ops && address->ops->register_doorbell) {
 		int ret = address->ops->register_doorbell(callback,var);
 		VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
-		return ret;
+		return VFI_RESULT(ret);
 	}
 	VFI_KTRACE ("<*** xxx %s - did nothing, OUT ***>\n", __func__);
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 void vfi_doorbell_unregister(struct vfi_fabric_address *address, int doorbell)
@@ -177,6 +177,7 @@ void vfi_doorbell_send(struct vfi_fabric_address *address, int doorbell)
 
 int vfi_fabric_call(struct sk_buff **retskb, struct vfi_location *loc, int to, char *f, ...)
 {
+	int ret;
 	va_list ap;
 	struct call_back_tag *cb = kzalloc(sizeof(struct call_back_tag),GFP_KERNEL);
 	VFI_DEBUG(MY_DEBUG,"%s entered - call \"%s.%s\"\n",__FUNCTION__, (loc) ? loc->desc.name : "<NULL>", (loc) ? loc->desc.location : "<NULL>");
@@ -196,10 +197,10 @@ int vfi_fabric_call(struct sk_buff **retskb, struct vfi_location *loc, int to, c
 			
 			vfi_address_register(loc);
 
-			if (vfi_fabric_tx(loc->desc.address, skb)) {
+			if ((ret = vfi_fabric_tx(loc->desc.address, skb))) {
 				kfree(cb);
 				VFI_DEBUG (MY_DEBUG, "xx\t%s: failed to transmit command over fabric!\n", __func__);
-				return MY_ERROR(__LINE__);
+				return VFI_RESULT(ret);
 			}
 				
 		
@@ -214,14 +215,14 @@ int vfi_fabric_call(struct sk_buff **retskb, struct vfi_location *loc, int to, c
 			if (wait_event_interruptible_timeout(cb->wq, (cb->rply_skb != NULL), to*HZ) == 0) {
 				kfree(cb);
 				VFI_DEBUG (MY_DEBUG, "xx\t%s: TIMEOUT waiting for response!\n", __func__);
-				return MY_ERROR(__LINE__);
+				return VFI_RESULT(-EIO);
 			}
 
 			skb = cb->rply_skb;
 			VFI_DEBUG (MY_DEBUG, "--\t%s: reply [ %s ]\n",__FUNCTION__, skb->data);
 			kfree(cb);
 			*retskb = skb;
-			return 0;
+			return VFI_RESULT(0);
 		}
 		else {
 			VFI_DEBUG (MY_DEBUG, "xx\t%s: no reply\n", __func__);
@@ -230,7 +231,7 @@ int vfi_fabric_call(struct sk_buff **retskb, struct vfi_location *loc, int to, c
 	else {
 		VFI_DEBUG (MY_DEBUG, "xx\t%s failed to kzalloc a callback tag\n", __func__);
 	}
-	return MY_ERROR(__LINE__);
+	return VFI_RESULT(-ENOMEM);
 }
 
 /* Upcalls */
@@ -252,7 +253,7 @@ int vfi_fabric_receive(struct vfi_fabric_address *sender, struct sk_buff *skb)
 				VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,cb);
 				cb->rply_skb = skb;
 				wake_up_interruptible(&cb->wq);
-				return 0;
+				return VFI_RESULT(0);
 			}
 		}
 		VFI_DEBUG(MY_DEBUG,"%s ret(%d) %p\n",__FUNCTION__,ret,cb);
@@ -268,7 +269,7 @@ int vfi_fabric_receive(struct vfi_fabric_address *sender, struct sk_buff *skb)
 			INIT_WORK(&cb->wo, fabric_sched_rqst);
 #endif
 			schedule_work(&cb->wo);
-			return 0;
+			return VFI_RESULT(0);
 		}
 		else {
 			kfree(cb);
@@ -276,7 +277,7 @@ int vfi_fabric_receive(struct vfi_fabric_address *sender, struct sk_buff *skb)
 	}
 	sender->ops->put(sender);
 	dev_kfree_skb(skb);
-	return NET_RX_DROP;
+	return VFI_RESULT(NET_RX_DROP);
 
 }
 
@@ -301,7 +302,7 @@ int vfi_fabric_register(struct vfi_fabric_address *addr)
 
 	VFI_DEBUG_SAFE(MY_DEBUG,(addr),"%s ops=%p\n",__FUNCTION__,addr->ops);
 	VFI_DEBUG_SAFE(MY_DEBUG,(addr),"%s register %s returns %d\n",__FUNCTION__,addr->name,ret);
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 void vfi_fabric_unregister(const char *name)

@@ -67,7 +67,7 @@ extern unsigned int vfi_debug_level;
 #define VFI_DBG_FUNCALL  0x00000010
 #define VFI_DBG_LIFE     0x00000020
 #define VFI_DBG_DMA_CHAIN   0x00000040
-
+#define VFI_DBG_ERROR    0x00000080
 #define VFI_DBG_WHAT     (~VFI_DBG_WHO & VFI_DBG_WHO_WHAT)
 
 /* So from msb to lsb debug_level can be thought of as defining who, what, when */
@@ -93,10 +93,18 @@ static void vfi_debug(char *format, ...)
 #define VFI_DEBUG(l,f, arg...) if ((((l) & VFI_DBG_WHEN) <= (vfi_debug_level & VFI_DBG_WHEN)) && \
 				     ((((l) & VFI_DBG_WHO_WHAT) & vfi_debug_level ) == ((l) & VFI_DBG_WHO_WHAT)) ) vfi_debug(VFI_DBG_SYSLOG_LEVEL f, ## arg)
 #define VFI_DEBUG_SAFE(l,c,f,arg...) if ((c)) VFI_DEBUG((l),f, ## arg)
+static inline int vfi_error(int level, int err)
+{
+	if (err)
+		VFI_DEBUG(level,"%s:%d %s returns error %d\n",__FILE__,__LINE__, __FUNCTION__,err);
+	return err;
+}
+#define VFI_RESULT(x) vfi_error(MY_ERROR,(x))
 #else
 #define VFI_ASSERT(c,f,arg...) do {} while (0)
 #define VFI_DEBUG(l,f,arg...) do {} while (0)
 #define VFI_DEBUG_SAFE(l,c,f,arg...) do {} while (0)
+#define VFI_RESULT(x) (x)
 #endif
 
 #ifdef CONFIG_VFI_KOBJ_DEBUG

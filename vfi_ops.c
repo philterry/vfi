@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_OPS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_OPS | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_OPS | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_drv.h>
 #include <linux/vfi_parse.h>
@@ -77,7 +78,7 @@ fail:
 
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -117,7 +118,7 @@ out:
 		*size = snprintf(result,*size,"location_delete://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, vfi_get_option(&params,"request"));
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -172,7 +173,7 @@ out:
 	}
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -213,7 +214,7 @@ out:
 			       ret, vfi_get_option(&params,"request"));
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 
@@ -269,7 +270,7 @@ out:
 
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -312,7 +313,7 @@ out:
 
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -363,7 +364,7 @@ out:
 
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -494,7 +495,7 @@ out:
 	
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 static int smb_unmmap (const char* desc, char* result, int *size)
@@ -532,7 +533,7 @@ out:
 	
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -577,7 +578,7 @@ out:
 
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -620,7 +621,7 @@ out:
 
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -670,7 +671,7 @@ out:
 
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -758,7 +759,7 @@ out:
 
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -838,7 +839,7 @@ out:
 
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -892,7 +893,7 @@ out:
 
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -947,7 +948,7 @@ out:
 
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -1001,7 +1002,7 @@ out:
 
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -1056,7 +1057,7 @@ out:
 
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -1118,7 +1119,7 @@ out:
 
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -1164,7 +1165,7 @@ out:
 
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -1218,7 +1219,7 @@ out:
 
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -1298,7 +1299,7 @@ out:
 			       ret,vfi_get_option(&params.src,"request"));
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -1365,7 +1366,7 @@ out:
 
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -1408,7 +1409,7 @@ out:
 			       ret,vfi_get_option(&params.src,"request"));
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 /**
  * dsts_create - Creates set holder for destinations.
@@ -1493,7 +1494,7 @@ out:
 			       ret,vfi_get_option(&params.src,"request"));
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -1558,7 +1559,7 @@ out:
 
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -1602,7 +1603,7 @@ out:
 			       ret,vfi_get_option(&params.src,"request"));
 	vfi_clean_bind(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 static int event_start(const char *desc, char *result, int *size)
@@ -1634,7 +1635,7 @@ out:
 			       ret,vfi_get_option(&params,"request"));
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 
@@ -1677,7 +1678,7 @@ out:
 			       ret,vfi_get_option(&params,"request"));
 	vfi_clean_desc(&params);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 
@@ -1777,6 +1778,6 @@ out:
 
 	nested--;
 	VFI_DEBUG (MY_DEBUG, "#### [ done_operation (%d) \"%s\" ]\n", this_nested, cmd);
-	return ret;
+	return VFI_RESULT(ret);
 }
 

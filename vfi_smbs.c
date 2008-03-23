@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_SMB | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_SMB | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_SMB | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_smbs.h>
 
@@ -112,7 +113,7 @@ int new_vfi_smbs(struct vfi_smbs **smbs, char *name, struct vfi_location *parent
     *smbs = new;
 
     if (NULL == new)
-	return -ENOMEM;
+	return VFI_RESULT(-ENOMEM);
 
     kobject_set_name(&new->kset.kobj,name);
     new->kset.kobj.ktype = &vfi_smbs_type;
@@ -120,7 +121,7 @@ int new_vfi_smbs(struct vfi_smbs **smbs, char *name, struct vfi_location *parent
     new->kset.kobj.parent = &parent->kset.kobj;
 
     VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return 0;
+    return VFI_RESULT(0);
 }
 
 int vfi_smbs_register(struct vfi_smbs *vfi_smbs)
@@ -130,10 +131,10 @@ int vfi_smbs_register(struct vfi_smbs *vfi_smbs)
     if ( (ret = kset_register(&vfi_smbs->kset) ) )
 	goto out;
 
-      return ret;
+      return VFI_RESULT(ret);
 
 out:
-    return ret;
+    return VFI_RESULT(ret);
 }
 
 void vfi_smbs_unregister(struct vfi_smbs *vfi_smbs)

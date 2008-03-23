@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_BIND | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_BIND | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_BIND | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_bind.h>
 #include <linux/vfi_xfer.h>
@@ -144,7 +145,7 @@ int new_vfi_bind(struct vfi_bind **bind, struct vfi_xfer *parent, struct vfi_bin
 	*bind = new;
 
 	if (NULL == new)
-		return -ENOMEM;
+		return VFI_RESULT(-ENOMEM);
 	
 	vfi_clone_bind(&new->desc, desc);
 	
@@ -167,7 +168,7 @@ int new_vfi_bind(struct vfi_bind **bind, struct vfi_xfer *parent, struct vfi_bin
 	INIT_LIST_HEAD(&new->dma_chain);
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return 0;
+	return VFI_RESULT(0);
 }
 
 int vfi_bind_register(struct vfi_bind *vfi_bind)
@@ -176,7 +177,7 @@ int vfi_bind_register(struct vfi_bind *vfi_bind)
 	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
 	rslt = kobject_register(&vfi_bind->kobj);
 	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
-	return rslt;
+	return VFI_RESULT(rslt);
 }
 
 void vfi_bind_unregister(struct vfi_bind *vfi_bind)
@@ -213,7 +214,7 @@ int find_vfi_bind_in(struct vfi_bind **bind, struct vfi_xfer *xfer, struct vfi_d
 	*
 	*/
 	if (xfer && xfer->desc.ops)
-		return xfer->desc.ops->bind_find(bind,xfer,desc);
+		return VFI_RESULT(xfer->desc.ops->bind_find(bind,xfer,desc));
 
 	/*
 	* Otherwise try to find the xfer in the local tree, and
@@ -228,7 +229,7 @@ int find_vfi_bind_in(struct vfi_bind **bind, struct vfi_xfer *xfer, struct vfi_d
 	*/
 	ret = find_vfi_xfer(&xfer,desc);
 	if (ret)
-		return ret;
+		return VFI_RESULT(ret);
 
 	ret = -EINVAL;
 
@@ -239,7 +240,7 @@ int find_vfi_bind_in(struct vfi_bind **bind, struct vfi_xfer *xfer, struct vfi_d
 	}
 
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -271,19 +272,19 @@ int vfi_bind_create(struct vfi_bind **newbind, struct vfi_xfer *xfer, struct vfi
 	if (new) {
 		VFI_DEBUG(MY_DEBUG,"%s found %p locally in %p\n",__FUNCTION__,new,xfer);
 		*newbind = new;
-		return 0;
+		return VFI_RESULT(0);
 	}
 
 	ret = new_vfi_bind(newbind,xfer,desc);
 
 	if (ret)
-		return ret;
+		return VFI_RESULT(ret);
 
 	ret = vfi_bind_register(*newbind);
 	if (ret)
-		return -EINVAL;
+		return VFI_RESULT(ret);
 
-	return 0;
+	return VFI_RESULT(0);
 }
 
 /**

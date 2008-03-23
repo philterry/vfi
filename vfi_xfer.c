@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_XFER | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_XFER | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_XFER | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_xfer.h>
 #include <linux/vfi_parse.h>
@@ -159,7 +160,7 @@ int new_vfi_xfer(struct vfi_xfer **xfer, struct vfi_location *parent, struct vfi
 	*xfer = new;
 	
 	if (NULL == new)
-		return -ENOMEM;
+		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_desc(&new->desc, desc);
 	new->kobj.ktype = &vfi_xfer_type;
@@ -172,7 +173,7 @@ int new_vfi_xfer(struct vfi_xfer **xfer, struct vfi_location *parent, struct vfi
 	new->desc.ploc = parent;			/* Pointer to complete location object */
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return 0;
+	return VFI_RESULT(0);
 }
 
 /**
@@ -207,14 +208,14 @@ int vfi_xfer_register(struct vfi_xfer *vfi_xfer)
     if ( (ret = vfi_binds_register(vfi_xfer->binds)) )
 	    goto fail_binds_reg;
 
-    return ret;
+    return VFI_RESULT(ret);
 
 fail_binds_reg:
     vfi_binds_put(vfi_xfer->binds);
 fail_binds:
     kobject_unregister(&vfi_xfer->kobj);
 out:
-    return ret;
+    return VFI_RESULT(ret);
 }
 
 void vfi_xfer_unregister(struct vfi_xfer *vfi_xfer)
@@ -248,14 +249,14 @@ int find_vfi_xfer_in(struct vfi_xfer **xfer,struct vfi_location *loc, struct vfi
 	* then use that location's xfer_find op to complete the search.
 	*/
 	if (loc && loc->desc.ops && loc->desc.ops->xfer_find)
-		return loc->desc.ops->xfer_find(xfer,loc,desc);
+		return VFI_RESULT(loc->desc.ops->xfer_find(xfer,loc,desc));
 
 	/*
 	* If a prior location has been found for this descriptor - if its ploc
 	* field is non-zero - then invoke the xfer_find op for that location.
 	*/
 	if (desc->ploc && desc->ploc->desc.ops && desc->ploc->desc.ops->xfer_find)
-		return desc->ploc->desc.ops->xfer_find(xfer,desc->ploc,desc);
+		return VFI_RESULT(desc->ploc->desc.ops->xfer_find(xfer,desc->ploc,desc));
 
 	/*
 	* If we reach here, it means that we do not yet know where to look
@@ -264,7 +265,7 @@ int find_vfi_xfer_in(struct vfi_xfer **xfer,struct vfi_location *loc, struct vfi
 	*/
 	ret = locate_vfi_location(&loc,NULL,desc);
 	if (ret)
-		return ret;
+		return VFI_RESULT(ret);
 
 	/*
 	* Save the result of the location search in the xfer
@@ -273,9 +274,9 @@ int find_vfi_xfer_in(struct vfi_xfer **xfer,struct vfi_location *loc, struct vfi
 	desc->ploc = loc;
 
 	if (loc && loc->desc.ops && loc->desc.ops->xfer_find) 
-		return loc->desc.ops->xfer_find(xfer,loc,desc);
+		return VFI_RESULT(loc->desc.ops->xfer_find(xfer,loc,desc));
 
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 /**
@@ -313,13 +314,13 @@ int vfi_xfer_create(struct vfi_xfer **xfer, struct vfi_location *loc, struct vfi
 	else {
 		ret = new_vfi_xfer(xfer,loc,desc);
 		if (ret)
-			return ret;
+			return VFI_RESULT(ret);
 		if (*xfer)
 			if ( (ret = vfi_xfer_register(*xfer)))
-				return ret;
+				return VFI_RESULT(ret);
 	}
 
-	return 0;
+	return VFI_RESULT(0);
 }
 
 void vfi_xfer_delete(struct vfi_location *loc, struct vfi_desc_param *desc)

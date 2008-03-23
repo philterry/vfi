@@ -11,8 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_FABOPS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_FABOPS | VFI_DBG_LIFE    | VFI_DBG_DEBUG
-
-#define MY_ERROR(x) (0x80000000 | 0x0001 | ((x) & 0xffff))
+#define MY_ERROR      VFI_DBG_FABOPS | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_location.h>
 #include <linux/vfi_ops.h>
@@ -51,7 +50,7 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 
 	ret = find_vfi_name(&oldloc,loc,desc);
 	if (ret)
-		return ret;
+		return VFI_RESULT(ret);
 
 	if (loc) {
 		ret = vfi_fabric_call(&skb, loc, 5, "location_find://%s.%s", desc->name,desc->location);
@@ -59,10 +58,12 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 	else {
 		ret = new_vfi_location(&myloc,NULL,desc);
 		if (ret)
-			return ret;
+			return VFI_RESULT(ret);
 		ret = vfi_fabric_call(&skb, myloc, 5, "location_find://%s", desc->name);
 		vfi_location_put(myloc);
 	}
+	if (ret)
+		return VFI_RESULT(ret);
 
 	VFI_DEBUG(MY_DEBUG,"%s skb(%p)\n",__FUNCTION__,skb);
 
@@ -94,22 +95,22 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 					oldloc->desc.extent = desc->extent;
 					oldloc->desc.offset = desc->offset;
 					*newloc = oldloc;
-					return 0;
+					return VFI_RESULT(0);
 				}
 
 				ret = vfi_location_create(&myloc,loc,desc);
 				if (ret)
-					return ret;
+					return VFI_RESULT(ret);
 				if (loc && loc->desc.address)
 					loc->desc.address->ops->register_location(myloc);
 				*newloc = myloc;
-				return 0;
+				return VFI_RESULT(0);
 			}
 			vfi_clean_desc(&reply);
 		}
 	}
 
-	return MY_ERROR(__LINE__);
+	return VFI_RESULT(-EINVAL);
 }
 
 static void vfi_fabric_location_put(struct vfi_location *loc, struct vfi_desc_param *desc)
@@ -164,7 +165,7 @@ int vfi_fabric_smb_find(struct vfi_smb **smb, struct vfi_location *parent, struc
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	if ( (*smb = to_vfi_smb(kset_find_obj(&parent->smbs->kset,desc->name))) )
-		return 0;
+		return VFI_RESULT(0);
 
 	ret = vfi_fabric_call(&skb, parent, 5, "smb_find://%s.%s", desc->name,desc->location);
 
@@ -178,14 +179,14 @@ int vfi_fabric_smb_find(struct vfi_smb **smb, struct vfi_location *parent, struc
 		}
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 static int vfi_fabric_mmap_find(struct vfi_mmap **mmap, struct vfi_smb *parent, struct vfi_desc_param *desc)
 {
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 /**
@@ -214,7 +215,7 @@ static int vfi_fabric_xfer_find(struct vfi_xfer **xfer, struct vfi_location *loc
 	* 
 	*/
 	if ( (*xfer = to_vfi_xfer(kset_find_obj(&loc->xfers->kset,desc->name))) )
-		return 0;
+		return VFI_RESULT(0);
 
 	/*
 	* If no such xfer object currently exists at that site, then deliver an 
@@ -228,7 +229,7 @@ static int vfi_fabric_xfer_find(struct vfi_xfer **xfer, struct vfi_location *loc
 	*/
 	if (skb) {
 		struct vfi_desc_param reply;
-		ret = MY_ERROR(__LINE__);
+		ret = -EINVAL;
 		/*
 		* Parse the reply into a descriptor...
 		*/
@@ -248,7 +249,7 @@ static int vfi_fabric_xfer_find(struct vfi_xfer **xfer, struct vfi_location *loc
 		}
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -281,7 +282,7 @@ static int vfi_fabric_bind_find(struct vfi_bind **bind, struct vfi_xfer *parent,
 	VFI_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p) bind(%s)\n",__FUNCTION__,parent,desc,buf);
 
 	if ( (*bind = to_vfi_bind(kset_find_obj(&parent->binds->kset,buf))) )
-		return 0;
+		return VFI_RESULT(0);
 
 	ret = vfi_fabric_call(&skb, parent->desc.ploc, 5, "bind_find://%s.%s#%llx:%x",
 				desc->name,desc->location,desc->offset,desc->extent);
@@ -292,7 +293,7 @@ static int vfi_fabric_bind_find(struct vfi_bind **bind, struct vfi_xfer *parent,
 	*/
 	if (skb) {
 		struct vfi_bind_param reply;
-		ret = MY_ERROR(__LINE__);
+		ret = -EINVAL;
 		if (!vfi_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
@@ -301,7 +302,7 @@ static int vfi_fabric_bind_find(struct vfi_bind **bind, struct vfi_xfer *parent,
 		}
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 extern int vfi_local_dst_find(struct vfi_dst **, struct vfi_bind *, struct vfi_bind_param *);
@@ -315,7 +316,7 @@ static int vfi_fabric_dst_find(struct vfi_dst **dst, struct vfi_bind *parent, st
 	VFI_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p) dst(%p)\n",__FUNCTION__,parent,desc,dst);
 
 	if (*dst)
-		return 0;
+		return VFI_RESULT(0);
 
 	ret = vfi_fabric_call(&skb,loc, 5, "dst_find://%s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x",
 				desc->xfer.name,desc->xfer.location,desc->xfer.offset,desc->xfer.extent,
@@ -332,7 +333,7 @@ static int vfi_fabric_dst_find(struct vfi_dst **dst, struct vfi_bind *parent, st
 		}
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 static int vfi_fabric_src_find(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind_param *desc)
@@ -360,7 +361,7 @@ static int vfi_fabric_src_find(struct vfi_src **src, struct vfi_dst *parent, str
 		}
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /*
@@ -375,7 +376,7 @@ static int vfi_fabric_location_create(struct vfi_location **newloc,struct vfi_lo
 	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	if (!loc)
-		return new_vfi_location(newloc,NULL,desc);
+		return VFI_RESULT(new_vfi_location(newloc,NULL,desc));
 
 	ret = vfi_fabric_call(&skb, loc, 5, "location_create://%s.%s#%llx:%x",
 				desc->name, desc->location, desc->offset, loc->desc.extent);
@@ -406,7 +407,7 @@ static int vfi_fabric_location_create(struct vfi_location **newloc,struct vfi_lo
 		}
 	}
 
-	return *newloc != 0;
+	return VFI_RESULT(*newloc != 0);
 }
 
 /**
@@ -429,7 +430,7 @@ static int vfi_fabric_smb_create(struct vfi_smb **smb, struct vfi_location *loc,
 	ret = vfi_fabric_call(&skb, loc, 5, "smb_create://%s.%s#%llx:%x", desc->name,desc->location,desc->offset, desc->extent);
 	if (skb) {
 		struct vfi_desc_param reply;
-		ret = MY_ERROR(__LINE__);
+		ret = -EINVAL;
 		if (!vfi_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
@@ -438,14 +439,14 @@ static int vfi_fabric_smb_create(struct vfi_smb **smb, struct vfi_location *loc,
 		}
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 static int vfi_fabric_mmap_create(struct vfi_mmap **mmap,struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 /**
@@ -482,7 +483,7 @@ static int vfi_fabric_bind_create(struct vfi_bind **bind, struct vfi_xfer *paren
 	*/
 	if (skb) {
 		struct vfi_bind_param reply;
-		ret = MY_ERROR(__LINE__);
+		ret = -EINVAL;
 		if (!vfi_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
@@ -491,7 +492,7 @@ static int vfi_fabric_bind_create(struct vfi_bind **bind, struct vfi_xfer *paren
 		}
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 static int vfi_fabric_xfer_create(struct vfi_xfer **xfer, struct vfi_location *loc, struct vfi_desc_param *desc)
@@ -508,7 +509,7 @@ static int vfi_fabric_xfer_create(struct vfi_xfer **xfer, struct vfi_location *l
 				);
 	if (skb) {
 		struct vfi_desc_param reply;
-		ret = MY_ERROR(__LINE__);
+		ret = -EINVAL;
 		if (!vfi_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
@@ -517,7 +518,7 @@ static int vfi_fabric_xfer_create(struct vfi_xfer **xfer, struct vfi_location *l
 		}
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -582,9 +583,9 @@ static int vfi_fabric_dst_events(struct vfi_bind *bind, struct vfi_bind_param *d
 
 		ret = vfi_event_create(&bind->dst_done_event,event_list,&desc->dst,bind,0,event_id);
 		bind->dst_done_event_id = event_id;
-		return 0;
+		return VFI_RESULT(0);
 	}
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 /**
@@ -720,7 +721,7 @@ static int vfi_fabric_dsts_create(struct vfi_dsts **dsts, struct vfi_bind *paren
 
 	dev_kfree_skb(skb);
 	vfi_clean_bind(&reply);
-	return 0;
+	return VFI_RESULT(0);
 
 result_fail:
 	vfi_clean_bind(&reply);
@@ -731,7 +732,7 @@ skb_fail:
 dsts_fail:
 	vfi_doorbell_unregister(parent->desc.xfer.address, event_id);
 event_fail:
-	return MY_ERROR(__LINE__);
+	return VFI_RESULT(-EINVAL);
 }
 
 /**
@@ -779,7 +780,7 @@ static int vfi_fabric_dst_create(struct vfi_dst **dst, struct vfi_bind *parent, 
 	}
 
 fail_event:
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -803,7 +804,7 @@ static int vfi_fabric_src_events(struct vfi_dst *parent, struct vfi_bind_param *
 	bind = vfi_dst_parent(parent);
 
 	if (bind->src_ready_event)
-		return 0;
+		return VFI_RESULT(0);
 	
 	event_str = vfi_get_option(&desc->src,"event_id");
 	event_name = vfi_get_option(&desc->src,"event_name");
@@ -824,9 +825,9 @@ static int vfi_fabric_src_events(struct vfi_dst *parent, struct vfi_bind_param *
 
 		ret = vfi_event_create(&bind->src_done_event, event_list,&desc->src,bind,0,event_id);
 		bind->src_done_event_id = event_id;
-		return 0;
+		return VFI_RESULT(0);
 	}
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 /**
@@ -932,7 +933,7 @@ static int vfi_fabric_srcs_create(struct vfi_srcs **srcs, struct vfi_dst *parent
 
 	vfi_clean_bind(&reply);
 	dev_kfree_skb(skb);
-	return ret;
+	return VFI_RESULT(ret);
 
 result_fail:
 	vfi_clean_bind(&reply);
@@ -946,7 +947,7 @@ srcs_fail:
 event_fail:
 	vfi_bind_put(bind);
 out:
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -984,7 +985,7 @@ static int vfi_fabric_src_create(struct vfi_src **src, struct vfi_dst *parent, s
 		}
 	}
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /*
@@ -1235,7 +1236,7 @@ static struct vfi_dst *vfi_fabric_srcs_delete(struct vfi_dst *parent, struct vfi
 			vfi_clean_bind(&reply);
 		}
 	}
-	return (parent);
+	return parent;
 }
 
 /**
@@ -1276,7 +1277,7 @@ static struct vfi_bind *vfi_fabric_dsts_delete (struct vfi_bind *parent, struct 
 			vfi_clean_bind(&reply);
 		}
 	}
-	return (parent);
+	return parent;
 }
 
 static void vfi_fabric_done(struct vfi_event *event)
@@ -1350,7 +1351,7 @@ static int vfi_fabric_event_start(struct vfi_location *loc, struct vfi_desc_para
 		}
 		dev_kfree_skb(skb);
 	}
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 struct vfi_ops vfi_fabric_ops = {

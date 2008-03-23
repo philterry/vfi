@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_LOCOPS | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_LOCOPS | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_LOCOPS | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_location.h>
 #include <linux/vfi_ops.h>
@@ -42,7 +43,7 @@ static int vfi_local_location_find(struct vfi_location **newloc,struct vfi_locat
 	VFI_DEBUG(MY_DEBUG,"%s %p %s %p %s,%s\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,desc->location);
 	*newloc  = to_vfi_location(kset_find_obj(&loc->kset,desc->name));
 	VFI_DEBUG(MY_DEBUG,"%s %p %s %p %s ->%p\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,*newloc);
-	return *newloc == NULL;
+	return VFI_RESULT(*newloc == NULL);
 }
 
 static void vfi_local_location_put(struct vfi_location *loc, struct vfi_desc_param *desc)
@@ -59,7 +60,7 @@ static int vfi_local_smb_find(struct vfi_smb **smb, struct vfi_location *parent,
 {
 	*smb = to_vfi_smb(kset_find_obj(&parent->smbs->kset,desc->name));
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*smb);
-	return *smb == NULL;
+	return VFI_RESULT(*smb == NULL);
 }
 
 /**
@@ -82,7 +83,7 @@ static int vfi_local_xfer_find(struct vfi_xfer **xfer, struct vfi_location *pare
 {
 	*xfer = to_vfi_xfer(kset_find_obj(&parent->xfers->kset,desc->name));
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*xfer);
-	return *xfer == NULL;
+	return VFI_RESULT(*xfer == NULL);
 }
 
 /**
@@ -120,7 +121,7 @@ static int vfi_local_bind_find(struct vfi_bind **bind, struct vfi_xfer *parent, 
 
 out:
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*bind);
-	return *bind == NULL;
+	return VFI_RESULT(*bind == NULL);
 }
 
 int vfi_local_dst_find(struct vfi_dst **dst, struct vfi_bind *parent, struct vfi_bind_param *desc)
@@ -144,7 +145,7 @@ fail_printf:
 	kfree (buf);
 out:
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*dst);
-	return *dst == NULL;
+	return VFI_RESULT(*dst == NULL);
 }
 
 static int vfi_local_src_find(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind_param *desc)
@@ -166,7 +167,7 @@ fail_printf:
 	kfree (buf);
 out:
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*src);
-	return *src == NULL;
+	return VFI_RESULT(*src == NULL);
 }
 
 /*
@@ -184,7 +185,7 @@ static int vfi_local_location_create(struct vfi_location **newloc,struct vfi_loc
 
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,loc,desc,*newloc);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 static int vfi_local_smb_create(struct vfi_smb **newsmb, struct vfi_location *loc, struct vfi_desc_param *desc)
@@ -199,26 +200,26 @@ static int vfi_local_smb_create(struct vfi_smb **newsmb, struct vfi_location *lo
 	ret = vfi_smb_create(&smb, loc, desc);
 
 	if (smb == NULL)
-		return -EINVAL;
+		return VFI_RESULT(-EINVAL);
 
 	*newsmb = smb;
 
 	/* Allocate memory for this SMB */
 	if (vfi_alloc_pages(smb->size, smb->desc.offset, &smb->pages, 
 		&smb->num_pages) == 0)
-		return 0;
+		return VFI_RESULT(0);
 
 	/* Failed */
 	vfi_smb_delete(smb);
 	*newsmb = NULL;
-	return -ENOMEM;
+	return VFI_RESULT(-ENOMEM);
 }
 
 static int vfi_local_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	return vfi_mmap_create(mmap,smb,desc);
+	return VFI_RESULT(vfi_mmap_create(mmap,smb,desc));
 }
 
 /**
@@ -265,10 +266,10 @@ static int vfi_local_dst_events(struct vfi_bind *bind, struct vfi_bind_param *de
 
 	ret = vfi_event_create(&bind->dst_ready_event,event_list,&desc->dst,bind,bind->desc.dst.ops->dst_ready,(int)&bind->dst_ready_event);
 						   
-	return 0;
+	return VFI_RESULT(0);
 
 fail:
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 /**
@@ -392,14 +393,14 @@ join:
 
 	parent->end_of_chain = parent->dma_chain.prev;
 
-	return parent->dsts == NULL;
+	return VFI_RESULT(parent->dsts == NULL);
 
 fail_newdst:
 fail_ddesc:
 	vfi_smb_put(dsmb);
 fail_dsmb:
 fail_events:
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 /**
@@ -525,15 +526,15 @@ static int vfi_local_bind_create(struct vfi_bind **bind, struct vfi_xfer *xfer, 
 			if (vfi_debug_level & VFI_DBG_DMA_CHAIN)
 				vfi_dma_chain_dump(&(*bind)->dma_chain);
 
-			return 0;
+			return VFI_RESULT(0);
 		}
 		VFI_DEBUG (MY_DEBUG, "xxx Failed to create bind %s - deleting\n", kobject_name (&(*bind)->kobj));
 		vfi_bind_delete(xfer,&desc->xfer);
 		*bind = NULL;
-		return ret;
+		return VFI_RESULT(ret);
 	}
 		
-	return ret;
+	return VFI_RESULT(ret);
 
 fail_dst:
 fail_sdesc:
@@ -544,7 +545,7 @@ fail_dsmb:
 	vfi_dsts_delete(dsts);
 	if (!ret)
 		ret = -ENOMEM;
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -568,19 +569,19 @@ static int vfi_local_dst_create(struct vfi_dst **dst, struct vfi_bind *parent, s
 	ret = vfi_dst_create(dst,parent,desc);
 
 	if (ret)
-		return ret;
+		return VFI_RESULT(ret);
 
 	if (*dst == NULL)
-		return -ENOMEM;
+		return VFI_RESULT(-ENOMEM);
 	
 	ret = parent->desc.src.ops->srcs_create(&srcs,*dst,desc);
 	
 	if (ret || !srcs) {
 		vfi_dst_put(*dst);
 		*dst = NULL;
-		return ret ? ret : -ENOMEM;
+		return VFI_RESULT(ret ? ret : -ENOMEM);
 	}
-	return 0;
+	return VFI_RESULT(0);
 }
 
 
@@ -600,7 +601,7 @@ static int vfi_local_xfer_create(struct vfi_xfer **xfer, struct vfi_location *lo
 
 	VFI_DEBUG(MY_DEBUG,"%s %p %p %p\n",__FUNCTION__,loc,desc,*xfer);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -640,7 +641,7 @@ static int vfi_local_src_events(struct vfi_dst *parent, struct vfi_bind_param *d
 
 	VFI_DEBUG(MY_DEBUG,"%s bind(%p)->src_done_event(%p)\n",__FUNCTION__,bind,bind->src_done_event);
 	if (bind->src_done_event)
-		return 0;
+		return VFI_RESULT(0);
 
 	event_name = vfi_get_option(&desc->src,"event_name");
 	
@@ -658,11 +659,11 @@ static int vfi_local_src_events(struct vfi_dst *parent, struct vfi_bind_param *d
 
 	ret = vfi_event_create(&bind->src_ready_event,event_list,&desc->src,bind,bind->desc.src.ops->src_ready,(int)&parent->srcs);
 		
-	return ret;
+	return VFI_RESULT(ret);
 
 dones_fail:
 event_name_fail:				   
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 /**
@@ -735,7 +736,7 @@ static int vfi_local_srcs_create(struct vfi_srcs **srcs, struct vfi_dst *parent,
 	ret = vfi_srcs_create(srcs,parent,desc);
 
 	if (ret)
-		return ret;
+		return VFI_RESULT(ret);
 
 	/*
 	* Source-related events stuff. Not yet figured what
@@ -743,7 +744,7 @@ static int vfi_local_srcs_create(struct vfi_srcs **srcs, struct vfi_dst *parent,
 	*
 	*/
 	if (parent->desc.xfer.ops->src_events(parent,desc))
-		return -EINVAL;
+		return VFI_RESULT(-EINVAL);
 
 	/*
 	* Find the local representation of the <smb> we are
@@ -793,13 +794,13 @@ join2:
 
 	vfi_dst_load_srcs(parent);
 
-	return 0;
+	return VFI_RESULT(0);
 
 fail_newsrc:
 	vfi_smb_put(smb);
 	vfi_srcs_delete(*srcs);
 	*srcs = NULL;
-	return -EINVAL;
+	return VFI_RESULT(-EINVAL);
 }
 
 /**
@@ -824,7 +825,7 @@ static int vfi_local_src_create(struct vfi_src **src, struct vfi_dst *parent, st
 
 	ret = vfi_src_create(src,parent,desc);
 
-	return ret;
+	return VFI_RESULT(ret);
 }
 
 
@@ -1208,7 +1209,7 @@ static int vfi_local_event_start(struct vfi_location *loc, struct vfi_desc_param
 	int ret;
 	ret = find_vfi_events(&event_list,vfi_subsys->events,desc->name);
 	if (event_list == NULL )
-		return -EINVAL;
+		return VFI_RESULT(-EINVAL);
 
 	/* Loop through the event chain if any */
 	while (event_list) {
@@ -1217,7 +1218,7 @@ static int vfi_local_event_start(struct vfi_location *loc, struct vfi_desc_param
 		event_list = event_list->next;
 	}
 
-	return 0;
+	return VFI_RESULT(0);
 }
 
 
@@ -1238,23 +1239,23 @@ static int vfi_local_event_chain(struct vfi_location *loc, struct vfi_desc_param
 	/* Find the event_name in the desc */
 	event_name = vfi_get_option(desc, "event_name");
 	if (event_name == NULL) 
-		return -EINVAL;
+		return VFI_RESULT(-EINVAL);
 
 	/* Lookup this event */
 	ret = find_vfi_events(&event_list_this,vfi_subsys->events, desc->name);
 	if (event_list_this == NULL)
-		return -EINVAL;
+		return VFI_RESULT(-EINVAL);
 
 	/* Lookup next event */
 	ret = find_vfi_events(&event_list_next,vfi_subsys->events, event_name);
 	if (event_list_next == NULL)
-		return -EINVAL;
+		return VFI_RESULT(-EINVAL);
 
 	/* Make this event point to next event */
 	event_list_this->next = event_list_next;
 	event_list_next->prev = event_list_this;
 
-	return 0;
+	return VFI_RESULT(0);
 }
 
 
