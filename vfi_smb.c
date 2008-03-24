@@ -215,7 +215,7 @@ int find_vfi_smb_in(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_d
 		return VFI_RESULT(ret);
 
 	if (tmploc) {
-		ret = loc->desc.ops->smb_find(smb,tmploc,desc);
+		ret = tmploc->desc.ops->smb_find(smb,tmploc,desc);
 		vfi_location_put(tmploc);
 	}
 

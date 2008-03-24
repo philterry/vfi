@@ -187,6 +187,8 @@ int vfi_dsts_create(struct vfi_dsts **dsts, struct vfi_bind *parent, struct vfi_
 		*dsts = NULL;
 	}
 
+	parent->dsts = *dsts;
+
 	return VFI_RESULT(ret);
 }
 

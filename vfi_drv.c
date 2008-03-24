@@ -32,7 +32,7 @@ int vfi_major = 0;
 int vfi_minor = 0;
 int vfi_nr_minor = 1;
 #ifdef CONFIG_VFI_DEBUG
-unsigned int vfi_debug_level = VFI_DBG_ALL & ~VFI_DBG_PARSE;
+unsigned int vfi_debug_level = VFI_DBG_DEFAULT;
 EXPORT_SYMBOL(vfi_debug_level);
 module_param(vfi_debug_level, uint, 0664);
 #endif

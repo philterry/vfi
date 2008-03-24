@@ -15,35 +15,36 @@ shift $[ OPTIND - 1 ]
 while [ -n "$1" ] ; do
 
 if [ "x$1" = "xinstall" ] ; then
-modprobe -r rddma_fabric_net rddma_dma_net rddma
-modprobe rddma_fabric_net
-modprobe rddma_dma_net
+modprobe -r vfi_fabric_net vfi_dma_net vfi
+modprobe vfi_fabric_net
+modprobe vfi_dma_net
 
-if [ ! -c /dev/rddma ] ; then
-    mknod /dev/rddma c 252 0
-    chmod 666 /dev/rddma
+if [ ! -c /dev/vfi ] ; then
+    mknod /dev/vfi c 252 0
+    chmod 666 /dev/vfi
 fi
 elif [ "x$1" = "xuninstall" ] ; then
-modprobe -r rddma_fabric_net rddma_dma_net rddma
+modprobe -r vfi_fabric_net vfi_dma_net vfi
 
 elif [ "x$1" = "xlocal" ] ; then
-$TESTPROG "location_create://fabric?default_ops(private),dma_name(rddma_net_dma)"
-$TESTPROG "location_create://radar.fabric?default_ops(private),dma_name(rddma_net_dma)"
-$TESTPROG "location_create://proc.fabric?default_ops(private),dma_name(rddma_net_dma)"
-$TESTPROG "location_create://me.fabric?default_ops(private),dma_name(rddma_net_dma)"
+$TESTPROG "location_create://fabric?default_ops(private),dma_name(vfi_net_dma)"
+$TESTPROG "location_create://radar.fabric?default_ops(private),dma_name(vfi_net_dma)"
+$TESTPROG "location_create://proc.fabric?default_ops(private),dma_name(vfi_net_dma)"
+$TESTPROG "location_create://me.fabric?default_ops(private),dma_name(vfi_net_dma)"
 $TESTPROG "smb_create://buf1.radar.fabric#400:4000"
 $TESTPROG "smb_create://buf2.proc.fabric#800:4000"
+$TESTPROG "xfer_create://tran1.me.fabric"
 $TESTPROG "bind_create://tran1.me.fabric:2000/buf2.proc.fabric#c00?event_name(local_dst)=buf1.radar.fabric#600?event_name(local_src)"
 
 elif [ "x$1" = "xmaster" ] ; then
 
-$TESTPROG "location_create://fabric#1:1?default_ops(private),dma_name(rddma_net_dma),fabric(rddma_fabric_net)"
+$TESTPROG "location_create://fabric#1:1?default_ops(private),dma_name(vfi_net_dma),fabric(vfi_fabric_net)"
 $TESTPROG "location_create://fujitsu.fabric#1"
 $TESTPROG "location_create://lenovo.fabric#2?default_ops(public)"
 
 elif [ "x$1" = "xslave" ] ; then
 
-$TESTPROG "location_find://fabric?dma_name(rddma_net_dma),default_ops(public),fabric(rddma_fabric_net)"
+$TESTPROG "location_find://fabric?dma_name(vfi_net_dma),default_ops(public),fabric(vfi_fabric_net)"
 $TESTPROG "location_find://lenovo.fabric"
 $TESTPROG "location_find://fujitsu.fabric"
 

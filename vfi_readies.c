@@ -159,7 +159,7 @@ int vfi_readies_create(struct vfi_readies **new, struct vfi_subsys *parent, char
 	
 	if (ret) {
 		vfi_readies_put(*new);
-		return VFI_RESULT(-EINVAL);
+		return VFI_RESULT(ret);
 	}
 
 	return VFI_RESULT(0);

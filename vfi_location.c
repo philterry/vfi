@@ -339,7 +339,7 @@ int find_vfi_name(struct vfi_location **newloc, struct vfi_location *loc, struct
 	else
 		*newloc = to_vfi_location(kset_find_obj(&vfi_subsys->kset,params->name));
 	VFI_DEBUG_SAFE(MY_DEBUG,*newloc,"%s -> %p %s,%s\n",__FUNCTION__,*newloc,(*newloc)->desc.name,(*newloc)->desc.location);
-	return VFI_RESULT(*newloc != 0);
+	return VFI_RESULT(*newloc == 0);
 }
 
 /**
@@ -384,7 +384,7 @@ int find_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, st
 
 		if ( !vfi_parse_desc(&tmpparams,params->location) ) {
 			VFI_DEBUG(MY_DEBUG,"%s %s,%s\n",__FUNCTION__,tmpparams.name,tmpparams.location);
-			if ( (ret = find_vfi_location(&tmploc,loc,&tmpparams)) ) {
+			if ( !(ret = find_vfi_location(&tmploc,loc,&tmpparams)) ) {
 				ret = tmploc->desc.ops->location_find(newloc,tmploc,params);
 				vfi_location_put(tmploc);
 			}
@@ -395,7 +395,7 @@ int find_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, st
 		*newloc = to_vfi_location(kset_find_obj(&vfi_subsys->kset,params->name));
 
 	VFI_DEBUG_SAFE(MY_DEBUG,*newloc,"%s -> %p %s,%s\n",__FUNCTION__,*newloc,(*newloc)->desc.name,(*newloc)->desc.location);
-	return VFI_RESULT(*newloc != 0);
+	return VFI_RESULT(*newloc == 0);
 }
 
 /**

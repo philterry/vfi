@@ -79,6 +79,8 @@ extern unsigned int vfi_debug_level;
 #define VFI_DBG_ALWAYS     VFI_DBG_WHEN
 #define VFI_DBG_ALL       (VFI_DBG_EVERYONE | VFI_DBG_EVERYTHING | VFI_DBG_ALWAYS)
 
+#define VFI_DBG_DEFAULT (VFI_DBG_EVERYONE | VFI_DBG_EVERYTHING | VFI_DBG_ERR)
+#define VFI_DBG_OLD_DEFAULT (VFI_DBG_ALL & ~VFI_DBG_PARSE)
 #define VFI_DBG_SYSLOG_LEVEL "<1>"
 #ifdef CONFIG_VFI_DEBUG
 
@@ -94,13 +96,8 @@ static void vfi_debug(char *format, ...)
 #define VFI_DEBUG(l,f, arg...) if ((((l) & VFI_DBG_WHEN) <= (vfi_debug_level & VFI_DBG_WHEN)) && \
 				     ((((l) & VFI_DBG_WHO_WHAT) & vfi_debug_level ) == ((l) & VFI_DBG_WHO_WHAT)) ) vfi_debug(VFI_DBG_SYSLOG_LEVEL f, ## arg)
 #define VFI_DEBUG_SAFE(l,c,f,arg...) if ((c)) VFI_DEBUG((l),f, ## arg)
-static inline int vfi_error(int level, int err)
-{
-	if (err)
-		VFI_DEBUG(level,"%s:%d:%s returns error %d\n",__FILE__,__LINE__, __FUNCTION__,err);
-	return err;
-}
-#define VFI_RESULT(x) vfi_error(MY_ERROR,(x))
+#define VFI_RESULT(x) ({int _myx = (x); if (_myx) VFI_DEBUG(MY_ERROR,"%s:%d:%s returns error %d\n",__FILE__,__LINE__, __FUNCTION__,_myx) ; _myx;});
+	
 #else
 #define VFI_ASSERT(c,f,arg...) do {} while (0)
 #define VFI_DEBUG(l,f,arg...) do {} while (0)
