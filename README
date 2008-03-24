@@ -864,3 +864,28 @@ location_find://fabric
 
 location_find://node.fabric
 	node.fabric#4:4
+
+Synchronization Objects
+=======================
+
+sync_create://ok.master.fabric#8
+
+creates a sync object called ok at master.fabric with an inital count of 8.
+
+Any one performing sync_wait://ok.master.fabric will block until at
+least eight people have performed sync_send://ok.master.fabric at
+which point all such blocked waiters will be unblocked.
+
+Wait blocks unless the count is zero. send decrements the count.
+create initializes the count.
+
+To reuse a sync object sync_wait://ok.master.fabrc#8 will set the
+count to eight if and only if it is currently zero and will then wait
+on it.
+
+If someone wants to re-initialize the count but not themselves block
+on wait they can similarly used sync_send://ok.master.fabric#8 which
+will set the count to 8 if and only if it is currently zero and will
+then immediately perform the normal send semantic and decrement it to
+7.
+
