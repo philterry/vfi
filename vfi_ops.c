@@ -25,6 +25,7 @@
 #include <linux/vfi_mmap.h>
 #include <linux/vfi_events.h>
 #include <linux/vfi_event.h>
+#include <linux/vfi_sync.h>
 
 #include <linux/device.h>
 
@@ -665,6 +666,144 @@ out:
 				       ret,vfi_get_option(&params,"request"));
 		else
 			*size = snprintf(result,*size,"xfer_find://%s.%s?result(%d),reply(%s)\n",
+				       params.name, params.location,
+				       ret,vfi_get_option(&params,"request"));
+	}
+
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+/**
+ * sync_create - Creates the named transfer bind component.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int sync_create(const char *desc, char *result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_sync *sync = NULL;
+	struct vfi_location *location;
+	struct vfi_desc_param params;
+
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+
+	if ( !(ret = locate_vfi_location(&location,NULL,&params) ) ) {
+		ret = -EINVAL;
+		
+		if (location && location->desc.ops && location->desc.ops->sync_create)
+			ret = location->desc.ops->sync_create(&sync,location, &params);
+	}
+
+	vfi_location_put(location);
+
+out:		
+	if (result)
+		*size = snprintf(result,*size,"sync_create://%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			       params.name, params.location,params.offset, params.extent,
+			       ret,vfi_get_option(&params,"request"));
+
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+/**
+ * sync_delete - Deletes the named transfer
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int sync_delete(const char *desc, char *result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_location *loc;
+	struct vfi_desc_param params;
+
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+
+	if ( !(ret = locate_vfi_location(&loc,NULL,&params) ) ) {
+		ret = -EINVAL;
+		if ( loc && loc->desc.ops && loc->desc.ops->sync_delete ) {
+			loc->desc.ops->sync_delete(loc, &params);
+		}
+	}
+
+	vfi_location_put(loc);
+
+out:
+	if (result) 
+		*size = snprintf(result,*size,"sync_delete://%s.%s?result(%d),reply(%s)\n",
+			       params.name, params.location,ret, vfi_get_option(&params,"request"));
+
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+/**
+ * sync_find - Finds the named transfer.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int sync_find(const char *desc, char *result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_sync *sync = NULL;
+	struct vfi_location *location;
+	struct vfi_desc_param params;
+
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+
+	if ( !(ret = locate_vfi_location(&location,NULL,&params)) ) {
+		ret = -EINVAL;
+		if (location && location->desc.ops && location->desc.ops->sync_find)
+			ret = location->desc.ops->sync_find(&sync,location,&params);
+	}
+
+	vfi_location_put(location);
+
+out:
+	if (result) {
+		if (sync)
+			*size = snprintf(result,*size,"sync_find://%s.%s#%llx:%x?result(%d),reply(%s)\n",
+				       params.name, params.location,sync->desc.offset, sync->desc.extent,
+				       ret,vfi_get_option(&params,"request"));
+		else
+			*size = snprintf(result,*size,"sync_find://%s.%s?result(%d),reply(%s)\n",
 				       params.name, params.location,
 				       ret,vfi_get_option(&params,"request"));
 	}
@@ -1706,6 +1845,9 @@ static struct ops {
 	{"xfer_create", xfer_create},
 	{"xfer_delete", xfer_delete},
 	{"xfer_find", xfer_find},
+	{"sync_create", sync_create},
+	{"sync_delete", sync_delete},
+	{"sync_find", sync_find},
 	{"bind_create", bind_create},
 	{"bind_delete", bind_delete},
 	{"bind_find", bind_find},

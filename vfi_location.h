@@ -24,6 +24,7 @@ struct vfi_location {
 	struct kset kset;
 	struct vfi_smbs *smbs;
 	struct vfi_xfers *xfers;
+	struct vfi_syncs *syncs;
 };
 
 static inline struct vfi_location *to_vfi_location(struct kobject *kobj)

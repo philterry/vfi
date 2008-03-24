@@ -30,6 +30,8 @@
 #include <linux/vfi_mmap.h>
 #include <linux/vfi_events.h>
 #include <linux/vfi_event.h>
+#include <linux/vfi_sync.h>
+#include <linux/vfi_syncs.h>
 
 #include <linux/device.h>
 #include <linux/mm.h>
@@ -84,6 +86,29 @@ static int vfi_local_xfer_find(struct vfi_xfer **xfer, struct vfi_location *pare
 	*xfer = to_vfi_xfer(kset_find_obj(&parent->xfers->kset,desc->name));
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*xfer);
 	return VFI_RESULT(*xfer == NULL);
+}
+
+/**
+* vfi_local_sync_find - find an vfi_sync object for a named sync at the local site.
+* @parent : location where sync officially resides (right here!)
+* @desc	  : target sync parameter descriptor
+*
+* This function attempts to find an vfi_sync object for the sync described by @desc, 
+* which officially resides at this site, whose location is formally defined by @parent.
+*
+* If no such sync exists, the function will NOT attempt to create one. This conflicts somewhat
+* with traditional "find" policy.
+*
+* The function returns a pointer to the vfi_sync object that represents the target sync in the
+* local tree, or NULL if nonesuch exists. It is the responsibility of the caller to create an sync
+* in that case.
+*
+**/
+static int vfi_local_sync_find(struct vfi_sync **sync, struct vfi_location *parent, struct vfi_desc_param *desc)
+{
+	*sync = to_vfi_sync(kset_find_obj(&parent->syncs->kset,desc->name));
+	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*sync);
+	return VFI_RESULT(*sync == NULL);
 }
 
 /**
@@ -600,6 +625,18 @@ static int vfi_local_xfer_create(struct vfi_xfer **xfer, struct vfi_location *lo
 	desc->extent = extent;
 
 	VFI_DEBUG(MY_DEBUG,"%s %p %p %p\n",__FUNCTION__,loc,desc,*xfer);
+
+	return VFI_RESULT(ret);
+}
+
+static int vfi_local_sync_create(struct vfi_sync **sync, struct vfi_location *loc, struct vfi_desc_param *desc)
+{
+
+	int ret;
+
+	ret = vfi_sync_create(sync,loc,desc);
+
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %p\n",__FUNCTION__,loc,desc,*sync);
 
 	return VFI_RESULT(ret);
 }
@@ -1302,6 +1339,20 @@ static void vfi_local_xfer_delete(struct vfi_location *parent, struct vfi_desc_p
 {
 }
 
+static void vfi_local_sync_delete(struct vfi_location *parent, struct vfi_desc_param *desc)
+{
+}
+
+static int vfi_local_sync_send(struct vfi_sync *parent, int count)
+{
+	return VFI_RESULT(0);
+}
+
+static int vfi_local_sync_wait(struct vfi_sync *parent, int count)
+{
+	return VFI_RESULT(0);
+}
+
 struct vfi_ops vfi_local_ops = {
 	.location_create = vfi_local_location_create,
 	.location_delete = vfi_local_location_delete,
@@ -1315,6 +1366,11 @@ struct vfi_ops vfi_local_ops = {
 	.xfer_create     = vfi_local_xfer_create,
 	.xfer_delete     = vfi_local_xfer_delete,
 	.xfer_find       = vfi_local_xfer_find,
+	.sync_create     = vfi_local_sync_create,
+	.sync_delete     = vfi_local_sync_delete,
+	.sync_find       = vfi_local_sync_find,
+	.sync_send       = vfi_local_sync_send,
+	.sync_wait       = vfi_local_sync_wait,
 	.srcs_create     = vfi_local_srcs_create,
 	.srcs_delete     = vfi_local_srcs_delete,
 	.src_create      = vfi_local_src_create,

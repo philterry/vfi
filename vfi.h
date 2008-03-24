@@ -61,7 +61,8 @@ extern unsigned int vfi_debug_level;
 #define VFI_DBG_EVNTS    0x00001000
 #define VFI_DBG_EVNT     0x00000800
 #define VFI_DBG_DMANET   0x00000400
-#define VFI_DBG_WHO      0xfffffc00
+#define VFI_DBG_SYNC     0x00000200
+#define VFI_DBG_WHO      0xfffffe00
 
 /* The bottom bits of who_what select a functional area, what to debug */
 #define VFI_DBG_FUNCALL  0x00000010

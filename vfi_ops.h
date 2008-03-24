@@ -23,6 +23,7 @@ struct vfi_srcs;
 struct vfi_dsts;
 struct vfi_dst;
 struct vfi_src;
+struct vfi_sync;
 
 struct vfi_ops {
 	int (*location_create)(struct vfi_location **, struct vfi_location *, struct vfi_desc_param *);
@@ -42,6 +43,12 @@ struct vfi_ops {
 	int (*xfer_create)(struct vfi_xfer **, struct vfi_location *, struct vfi_desc_param *);
 	void                        (*xfer_delete)(struct vfi_location *, struct vfi_desc_param *);
 	int (*xfer_find)(struct vfi_xfer **, struct vfi_location *, struct vfi_desc_param *);
+
+	int (*sync_create)(struct vfi_sync **, struct vfi_location *, struct vfi_desc_param *);
+	void                        (*sync_delete)(struct vfi_location *, struct vfi_desc_param *);
+	int (*sync_find)(struct vfi_sync **, struct vfi_location *, struct vfi_desc_param *);
+	int (*sync_send)(struct vfi_sync *, int);
+	int (*sync_wait)(struct vfi_sync *, int);
 
 	int (*bind_create)(struct vfi_bind **, struct vfi_xfer *,     struct vfi_bind_param *);
 	void                        (*bind_delete)(struct vfi_xfer *,     struct vfi_desc_param *);

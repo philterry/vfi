@@ -29,6 +29,8 @@ vfi-objs := \
 			vfi_readies.o \
 			vfi_events.o \
 			vfi_event.o \
+			vfi_syncs.o \
+			vfi_sync.o \
                         vfi_smbs.o \
                              vfi_smb.o \
 				vfi_mmaps.o \

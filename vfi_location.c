@@ -21,6 +21,8 @@
 #include <linux/vfi_smbs.h>
 #include <linux/vfi_xfer.h>
 #include <linux/vfi_xfers.h>
+#include <linux/vfi_sync.h>
+#include <linux/vfi_syncs.h>
 #include <linux/vfi_dma.h>
 
 #include <linux/slab.h>
@@ -286,18 +288,29 @@ int vfi_location_register(struct vfi_location *vfi_location)
 	if ( NULL == vfi_location->xfers)
 		goto fail_xfers;
 
+	ret = new_vfi_syncs(&vfi_location->syncs,"syncs",vfi_location);
+	if ( NULL == vfi_location->syncs)
+		goto fail_syncs;
+
 	if ( (ret = vfi_smbs_register(vfi_location->smbs)) )
 		goto fail_smbs_reg;
 
 	if ( (ret = vfi_xfers_register(vfi_location->xfers)) )
 		goto fail_xfers_reg;
 
+	if ( (ret = vfi_syncs_register(vfi_location->syncs)) )
+		goto fail_syncs_reg;
+
 	return VFI_RESULT(ret);
 
+fail_syncs_reg:
+	vfi_xfers_unregister(vfi_location->xfers);
 fail_xfers_reg:
 	vfi_smbs_unregister(vfi_location->smbs);
 fail_smbs_reg:
 	kset_put(&vfi_location->xfers->kset);
+fail_syncs:
+	kset_put(&vfi_location->syncs->kset);
 fail_xfers:
 	kset_put(&vfi_location->smbs->kset);
 fail_smbs:
@@ -309,6 +322,8 @@ out:
 void vfi_location_unregister(struct vfi_location *vfi_location)
 {
 	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,vfi_location);
+	vfi_syncs_unregister(vfi_location->syncs);
+
 	vfi_xfers_unregister(vfi_location->xfers);
 
 	vfi_smbs_unregister(vfi_location->smbs);
