@@ -15,16 +15,16 @@ shift $[ OPTIND - 1 ]
 while [ -n "$1" ] ; do
 
 if [ "x$1" = "xinstall" ] ; then
-modprobe -r vfi_fabric_net vfi_dma_net vfi
-modprobe vfi_fabric_net
-modprobe vfi_dma_net
+sudo modprobe -r vfi_fabric_net vfi_dma_net vfi
+sudo modprobe vfi_fabric_net
+sudo modprobe vfi_dma_net
 
 if [ ! -c /dev/vfi ] ; then
-    mknod /dev/vfi c 252 0
-    chmod 666 /dev/vfi
+    sudo mknod /dev/vfi c 252 0
+    sudo chmod 666 /dev/vfi
 fi
 elif [ "x$1" = "xuninstall" ] ; then
-modprobe -r vfi_fabric_net vfi_dma_net vfi
+sudo modprobe -r vfi_fabric_net vfi_dma_net vfi
 
 elif [ "x$1" = "xlocal" ] ; then
 $TESTPROG "location_create://fabric?default_ops(private),dma_name(vfi_net_dma)"
