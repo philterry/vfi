@@ -1,51 +1,58 @@
 #
-# FDDMA configuration
+# VFI configuration
 #
 
 menu "Vmetro FusionIPC Distributed DMA driver support"
 
-config FDDMA
+config VFI
 	tristate "Vmetro FusionIPC Distributed DMA driver"
 	default m
 	---help---
 	  Enable support for the Vmetro FusionIPC Distributed DMA engine.
 
-config FDDMA_FABRIC_NET
+config VFI_FABRIC_NET
 	tristate "FusionIPC Distributed DMA driver -- use ethernet in place of switch fabric"
-	depends on FDDMA && NET
+	depends on VFI && NET
 	default m
 	---help---
-	  Enable support for using the ethernet for FDDMA as if
+	  Enable support for using the ethernet for VFI as if
 	  it were a switch fabric.
 
 # Note: following depends on RAPIDIO, not NET, fixme later!
 
-config FDDMA_FABRIC_RIONET
+config VFI_FABRIC_RIONET
 	tristate "FusionIPC Distributed DMA driver -- RIO switch fabric"
-	depends on FDDMA && NET
+	depends on VFI && NET
 	default m
 	---help---
-	  Enable support for FDDMA communication over RIO switch fabric
+	  Enable support for VFI communication over RIO switch fabric
 
 # also depends on RAPIDIO, but removed for now
 
-config FDDMA_DMA_RIO
+config VFI_DMA_RIO
 	tristate "FusionIPC Distributed DMA driver -- RIO via PPC8641 DMA hardware"
-	depends on FDDMA 
+	depends on VFI 
 	default m
 	---help---
 	  Enable support for FusionIPC Distributed DMA over Rapid I/O.
 
-config FDDMA_DMA_6460
-	tristate "FusionIPC Distributed DMA driver -- FDDMA on MPC8245 (MPC10x DMA controller)"
-	depends on FDDMA && MPC10X_BRIDGE
+config VFI_DMA_6460
+	tristate "FusionIPC Distributed DMA driver -- VFI on MPC8245 (MPC10x DMA controller)"
+	depends on VFI && MPC10X_BRIDGE
 	default m
 	---help---
 	  Enable support for FusionIPC Distributed DMA over Rapid I/O.
 
-config FDDMA_KOBJ_DEBUG
-	bool "FDDMA kobject debugging"
-	depends on FDDMA
+config VFI_DEBUG
+	bool "VFI debugging"
+	depends on VFI
+	default n
+	---help---
+	  Enable debug of the VFI.
+
+config VFI_KOBJ_DEBUG
+	bool "VFI kobject debugging"
+	depends on VFI
 	default n
 	---help---
 	  Enable additional debug traces that track kobject/kset refcount changes
@@ -53,7 +60,7 @@ config FDDMA_KOBJ_DEBUG
 
 	  This feature produces a wheen of otherwise-useless messages in the system
 	  log, so should be DISABLED by DEFAULT, and used only when you're trying to
-	  find leaks in FDDMA put/get refcounting.
+	  find leaks in VFI put/get refcounting.
 
 	  Use an expression like the one below to extract these messages out of a log:
 	  

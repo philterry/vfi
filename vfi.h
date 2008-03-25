@@ -105,7 +105,7 @@ static void vfi_debug(char *format, ...)
 #define VFI_RESULT(x) (x)
 #endif
 
-#ifdef CONFIG_VFI_KOBJ_DEBUG
+#ifdef CONFIG_FDDMA_KOBJ_DEBUG
 #define VFI_KTRACE(arg...) printk (arg)
 #else
 #define VFI_KTRACE(arg...) do {} while (0)
