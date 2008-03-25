@@ -814,6 +814,94 @@ out:
 }
 
 /**
+ * sync_send - Sends the named sync component.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int sync_send(const char *desc, char *result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_sync *sync = NULL;
+	struct vfi_desc_param params;
+
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+
+	if ( !(ret = find_vfi_sync(&sync,&params) ) ) {
+		ret = -EINVAL;
+		
+		if (sync && sync->desc.ops && sync->desc.ops->sync_send)
+			ret = sync->desc.ops->sync_send(sync,&params);
+	}
+
+	vfi_sync_put(sync);
+
+out:		
+	if (result)
+		*size = snprintf(result,*size,"sync_send://%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			       params.name, params.location,params.offset, params.extent,
+			       ret,vfi_get_option(&params,"request"));
+
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+/**
+ * sync_wait - Waits the sync component.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int sync_wait(const char *desc, char *result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_sync *sync = NULL;
+	struct vfi_desc_param params;
+
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+
+	if ( !(ret = find_vfi_sync(&sync,&params) ) ) {
+		ret = -EINVAL;
+		
+		if (sync && sync->desc.ops && sync->desc.ops->sync_wait)
+			ret = sync->desc.ops->sync_wait(sync,&params);
+	}
+
+	vfi_sync_put(sync);
+
+out:		
+	if (result)
+		*size = snprintf(result,*size,"sync_wait://%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			       params.name, params.location,params.offset, params.extent,
+			       ret,vfi_get_option(&params,"request"));
+
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+/**
  * bind_create - Creates a bind component.
  *
  * @desc: Null terminated string with parameters of operation
@@ -1848,6 +1936,8 @@ static struct ops {
 	{"sync_create", sync_create},
 	{"sync_delete", sync_delete},
 	{"sync_find", sync_find},
+	{"sync_send", sync_send},
+	{"sync_wait", sync_wait},
 	{"bind_create", bind_create},
 	{"bind_delete", bind_delete},
 	{"bind_find", bind_find},

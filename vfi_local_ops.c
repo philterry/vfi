@@ -1344,13 +1344,13 @@ static void vfi_local_sync_delete(struct vfi_location *parent, struct vfi_desc_p
 {
 }
 
-static int vfi_local_sync_send(struct vfi_sync *sync, int count)
+static int vfi_local_sync_send(struct vfi_sync *sync, struct vfi_desc_param *desc)
 {
 	if (down_interruptible(&sync->sem))
 		return VFI_RESULT(-ERESTARTSYS);
 
 	if (sync->count == 0)
-		sync->count += sync->desc.offset;
+		sync->count += desc->offset;
 
 	if (sync->count)
 		sync->count--;
@@ -1363,13 +1363,13 @@ static int vfi_local_sync_send(struct vfi_sync *sync, int count)
 	return VFI_RESULT(0);
 }
 
-static int vfi_local_sync_wait(struct vfi_sync *sync, int count)
+static int vfi_local_sync_wait(struct vfi_sync *sync, struct vfi_desc_param *desc)
 {
 	if (down_interruptible(&sync->sem))
 		return VFI_RESULT(-ERESTARTSYS);
 	
 	if (sync->count == 0)
-		sync->count += sync->desc.offset;
+		sync->count += desc->offset;
 
 	while (sync->count) {
 		up(&sync->sem);

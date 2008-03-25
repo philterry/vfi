@@ -47,8 +47,8 @@ struct vfi_ops {
 	int (*sync_create)(struct vfi_sync **, struct vfi_location *, struct vfi_desc_param *);
 	void                        (*sync_delete)(struct vfi_location *, struct vfi_desc_param *);
 	int (*sync_find)(struct vfi_sync **, struct vfi_location *, struct vfi_desc_param *);
-	int (*sync_send)(struct vfi_sync *, int);
-	int (*sync_wait)(struct vfi_sync *, int);
+	int (*sync_send)(struct vfi_sync *, struct vfi_desc_param *);
+	int (*sync_wait)(struct vfi_sync *, struct vfi_desc_param *);
 
 	int (*bind_create)(struct vfi_bind **, struct vfi_xfer *,     struct vfi_bind_param *);
 	void                        (*bind_delete)(struct vfi_xfer *,     struct vfi_desc_param *);

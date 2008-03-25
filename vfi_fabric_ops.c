@@ -317,13 +317,13 @@ static int vfi_fabric_sync_find(struct vfi_sync **sync, struct vfi_location *loc
 	return VFI_RESULT(ret);
 }
 
-static int vfi_fabric_sync_send(struct vfi_sync *sync, int count)
+static int vfi_fabric_sync_send(struct vfi_sync *sync, struct vfi_desc_param *desc)
 {
 	struct sk_buff  *skb;
 	int ret;
 
-	ret = vfi_fabric_call(&skb, sync->desc.ploc, 5, "sync_send://%s.%s#%d",
-			      sync->desc.name,sync->desc.location, count
+	ret = vfi_fabric_call(&skb, sync->desc.ploc, 5, "sync_send://%s.%s#%lld",
+			      sync->desc.name,sync->desc.location, desc->offset
 				);
 	/*
 	* We need a reply...
@@ -344,13 +344,13 @@ static int vfi_fabric_sync_send(struct vfi_sync *sync, int count)
 	return VFI_RESULT(ret);
 }
 
-static int vfi_fabric_sync_wait(struct vfi_sync *sync, int count)
+static int vfi_fabric_sync_wait(struct vfi_sync *sync, struct vfi_desc_param *desc)
 {
 	struct sk_buff  *skb;
 	int ret;
 
-	ret = vfi_fabric_call(&skb, sync->desc.ploc, 5, "sync_wait://%s.%s#%d",
-			      sync->desc.name,sync->desc.location,count
+	ret = vfi_fabric_call(&skb, sync->desc.ploc, 5, "sync_wait://%s.%s#%lld",
+			      sync->desc.name,sync->desc.location,desc->offset
 				);
 	/*
 	* We need a reply...
