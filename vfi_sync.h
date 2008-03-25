@@ -17,10 +17,13 @@
 #include <linux/vfi_parse.h>
 #include <linux/vfi_dsts.h>
 #include <linux/vfi_srcs.h>
+#include <linux/wait.h>
 
 struct vfi_sync {
 	struct vfi_desc_param desc;
-
+	struct semaphore sem;
+	wait_queue_head_t waitq;
+	int count;
 	struct kobject kobj;
 };
 

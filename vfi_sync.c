@@ -23,7 +23,7 @@
 #include <linux/vfi_dst.h>
 #include <linux/vfi_ops.h>
 
-
+#include <asm/semaphore.h>
 
 static void vfi_sync_release(struct kobject *kobj)
 {
@@ -166,6 +166,9 @@ int new_vfi_sync(struct vfi_sync **sync, struct vfi_location *loc, struct vfi_de
 	new->desc.ops = loc->desc.ops;
 	new->desc.rde = loc->desc.rde;
 	new->desc.ploc = loc;
+
+	sema_init(&new->sem,1);
+	init_waitqueue_head(&new->waitq);
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return VFI_RESULT(0);

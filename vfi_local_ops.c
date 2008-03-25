@@ -33,6 +33,7 @@
 #include <linux/vfi_sync.h>
 #include <linux/vfi_syncs.h>
 
+#include <linux/wait.h>
 #include <linux/device.h>
 #include <linux/mm.h>
 
@@ -1343,13 +1344,44 @@ static void vfi_local_sync_delete(struct vfi_location *parent, struct vfi_desc_p
 {
 }
 
-static int vfi_local_sync_send(struct vfi_sync *parent, int count)
+static int vfi_local_sync_send(struct vfi_sync *sync, int count)
 {
+	if (down_interruptible(&sync->sem))
+		return VFI_RESULT(-ERESTARTSYS);
+
+	if (sync->count == 0)
+		sync->count += sync->desc.offset;
+
+	if (sync->count)
+		sync->count--;
+
+	if (sync->count == 0)
+		wake_up_interruptible(&sync->waitq);
+
+	up(&sync->sem);
+	
 	return VFI_RESULT(0);
 }
 
-static int vfi_local_sync_wait(struct vfi_sync *parent, int count)
+static int vfi_local_sync_wait(struct vfi_sync *sync, int count)
 {
+	if (down_interruptible(&sync->sem))
+		return VFI_RESULT(-ERESTARTSYS);
+	
+	if (sync->count == 0)
+		sync->count += sync->desc.offset;
+
+	while (sync->count) {
+		up(&sync->sem);
+
+		if (wait_event_interruptible(sync->waitq, (sync->count)))
+			return VFI_RESULT(-ERESTARTSYS);
+
+		if (down_interruptible(&sync->sem))
+			return VFI_RESULT(-ERESTARTSYS);
+	}
+	up(&sync->sem);
+
 	return VFI_RESULT(0);
 }
 
