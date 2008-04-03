@@ -118,7 +118,12 @@ static ssize_t vfi_real_write(struct mybuffers *mybuf, size_t count, loff_t *off
 	ret = do_operation(mybuf->buf, mybuf->reply, &size);
 
 	*offset += count;
-	return ret;
+
+	/* If the call failed i.e. ret is something then we 
+	   must return 0. Else we may return the real value. */
+	if (ret) 
+		return 0;
+	return size;
 }
 
 static void queue_to_read(struct privdata *priv, struct mybuffers *mybuf)
@@ -136,6 +141,7 @@ static void queue_to_read(struct privdata *priv, struct mybuffers *mybuf)
 	kfree(mybuf->buf);
 	kfree(mybuf);
 }
+
 struct def_work {
 	struct mybuffers *mybuf;
 	struct privdata *priv;
@@ -157,6 +163,7 @@ static void write_disposeq(struct work_struct *wk)
 	destroy_workqueue(work->woq);
 	kfree(work);
 }
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 static void def_write(void *data)
 {

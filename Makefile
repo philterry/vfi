@@ -5,7 +5,7 @@ KERNELDIR ?= /lib/modules/`uname -r`/build
 
 modules:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` CONFIG_VFI_DEBUG=1 CONFIG_VFI_KOBJ_DEBUG=1 \
-                   CONFIG_FDDMA_FABRIC_NET=m CONFIG_FDDMA_FABRIC_RIONET=n CONFIG_FDDMA=m CONFIG_FDDMA_DMA_NET=m CONFIG_FDDMA_DMA_RIO=n $@
+                   CONFIG_VFI_FABRIC_NET=m CONFIG_VFI_FABRIC_RIONET=m CONFIG_VFI=m CONFIG_VFI_DMA_NET=n CONFIG_VFI_DMA_RIO=m $@
 install:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` modules_install
 clean:

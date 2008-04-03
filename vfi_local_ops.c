@@ -1251,7 +1251,6 @@ static int vfi_local_event_start(struct vfi_location *loc, struct vfi_desc_param
 
 	/* Loop through the event chain if any */
 	while (event_list) {
-		VFI_DEBUG(MY_DEBUG,"--TSH-- %s: Starting event\n",__FUNCTION__);
 		vfi_events_start(event_list);
 		event_list = event_list->next;
 	}
