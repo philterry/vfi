@@ -467,7 +467,7 @@ static int smb_mmap (const char* desc, char* result, int *size)
 
 	ret = -ENODEV;
 
-	if ( (ret = find_vfi_smb(&smb,&params)) ) {
+	if ( !(ret = find_vfi_smb(&smb,&params)) ) {
 		ret = -EINVAL;
 		
 		if (smb && smb->desc.ops && smb->desc.ops->mmap_create)

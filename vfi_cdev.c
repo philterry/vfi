@@ -118,11 +118,6 @@ static ssize_t vfi_real_write(struct mybuffers *mybuf, size_t count, loff_t *off
 	ret = do_operation(mybuf->buf, mybuf->reply, &size);
 
 	*offset += count;
-
-	/* If the call failed i.e. ret is something then we 
-	   must return 0. Else we may return the real value. */
-	if (ret) 
-		return 0;
 	return size;
 }
 

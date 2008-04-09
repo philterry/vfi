@@ -51,8 +51,10 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 	VFI_DEBUG(MY_DEBUG,"%s %p %p %s,%s\n",__FUNCTION__,loc,desc,desc->name,desc->location);
 
 	ret = find_vfi_name(&oldloc,loc,desc);
-	if (ret)
+	if (!ret) {
+		*newloc = oldloc;
 		return VFI_RESULT(ret);
+	}
 
 	if (loc) {
 		ret = vfi_fabric_call(&skb, loc, 5, "location_find://%s.%s", desc->name,desc->location);
@@ -207,7 +209,7 @@ static int vfi_fabric_mmap_find(struct vfi_mmap **mmap, struct vfi_smb *parent, 
 **/
 static int vfi_fabric_xfer_find(struct vfi_xfer **xfer, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	struct sk_buff  *skb;
+	struct sk_buff  *skb = NULL;
 	int ret;
 
 	VFI_DEBUG (MY_DEBUG, "%s (%s)\n", __func__, ((desc) ? ((desc->name) ? : "<UNK>") : "<NULL>"));
