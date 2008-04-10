@@ -81,6 +81,7 @@ struct vfi_ops {
 	void		          (*dst_ev_delete)(struct vfi_bind *,     struct vfi_bind_param *);
 	void		          (*src_ev_delete)(struct vfi_dst *,      struct vfi_bind_param *);
 	int                         (*event_start)(struct vfi_location *, struct vfi_desc_param *);
+	int                          (*event_find)(struct vfi_location *, struct vfi_desc_param *);
 	int                         (*event_chain)(struct vfi_location *, struct vfi_desc_param *);
 };
 

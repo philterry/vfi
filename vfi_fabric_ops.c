@@ -1522,6 +1522,44 @@ static int vfi_fabric_event_start(struct vfi_location *loc, struct vfi_desc_para
 	return VFI_RESULT(ret);
 }
 
+static int vfi_fabric_event_find(struct vfi_location *loc, struct vfi_desc_param *desc)
+{
+	struct sk_buff  *skb;
+	int ret = -EINVAL;
+
+	VFI_DEBUG(MY_DEBUG,"%s loc(%p) desc(%p)\n",__FUNCTION__, loc, desc);
+
+	vfi_fabric_call(&skb,loc, 5, "event_find://%s.%s", desc->name,desc->location);
+	if (skb) {
+		struct vfi_desc_param reply;
+		if (!vfi_parse_desc(&reply,skb->data)) {
+			sscanf(vfi_get_option(&reply,"result"),"%d",&ret);
+			vfi_clean_desc(&reply);
+		}
+		dev_kfree_skb(skb);
+	}
+	return VFI_RESULT(ret);
+}
+
+static int vfi_fabric_event_chain(struct vfi_location *loc, struct vfi_desc_param *desc)
+{
+	struct sk_buff  *skb;
+	int ret = -EINVAL;
+
+	VFI_DEBUG(MY_DEBUG,"%s loc(%p) desc(%p)\n",__FUNCTION__, loc, desc);
+
+	vfi_fabric_call(&skb,loc, 5, "event_chain://%s.%s?event_name(%s)", desc->name,desc->location,vfi_get_option(desc,"event_name"));
+	if (skb) {
+		struct vfi_desc_param reply;
+		if (!vfi_parse_desc(&reply,skb->data)) {
+			sscanf(vfi_get_option(&reply,"result"),"%d",&ret);
+			vfi_clean_desc(&reply);
+		}
+		dev_kfree_skb(skb);
+	}
+	return VFI_RESULT(ret);
+}
+
 struct vfi_ops vfi_fabric_ops = {
 	.location_create = vfi_fabric_location_create,
 	.location_delete = vfi_fabric_location_delete,
@@ -1564,5 +1602,7 @@ struct vfi_ops vfi_fabric_ops = {
 	.src_ev_delete   = vfi_fabric_src_ev_delete,
 	.dst_ev_delete   = vfi_fabric_dst_ev_delete,
 	.event_start     = vfi_fabric_event_start,
+	.event_find     = vfi_fabric_event_find,
+	.event_chain     = vfi_fabric_event_chain,
 };
 

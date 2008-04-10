@@ -1865,11 +1865,37 @@ out:
 	return VFI_RESULT(ret);
 }
 
+static int event_find(const char *desc, char *result, int *size)
+{
+	struct vfi_desc_param params;
+	struct vfi_location *loc;
+	int ret = -EINVAL;
 
+	if ( (ret = vfi_parse_desc(&params,desc)) ) {
+		goto out;
+	}
 
+	if ( params.location && *params.location ) {
+		if ( !(ret = locate_vfi_location(&loc,NULL,&params))) {
+			if (loc && loc->desc.ops && loc->desc.ops->event_find) {
+				ret = loc->desc.ops->event_find(loc,&params);
+			}
+			vfi_location_put(loc);
+		}
+	}
+	else if (params.ops) {
+		ret = params.ops->event_find(NULL,&params);
+	}
 
+out:
+	if (result)
+		*size = snprintf(result,*size,"event_find://%s.%s?result(%d),reply(%s)\n",
+			       params.name,params.location,
+			       ret,vfi_get_option(&params,"request"));
+	vfi_clean_desc(&params);
 
-
+	return VFI_RESULT(ret);
+}
 
 static int event_chain(const char *desc, char *result, int *size)
 {
@@ -1954,6 +1980,7 @@ static struct ops {
 	{"dsts_delete", dsts_delete},
 	{"dsts_find", dsts_find},
 	{"event_start",event_start},
+	{"event_find",event_find},
 	{"event_chain",event_chain},
 	{0,0},
 };

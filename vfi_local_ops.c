@@ -1260,6 +1260,20 @@ static int vfi_local_event_start(struct vfi_location *loc, struct vfi_desc_param
 
 
 
+static int vfi_local_event_find(struct vfi_location *loc, struct vfi_desc_param *desc)
+{
+	struct vfi_events *event_list_this;
+	int ret;
+
+	VFI_DEBUG (MY_DEBUG, "#### %s entered \n", __FUNCTION__);
+
+	ret = find_vfi_events(&event_list_this,vfi_subsys->events, desc->name);
+	if (event_list_this == NULL)
+		return VFI_RESULT(-EINVAL);
+
+	return VFI_RESULT(ret);
+}
+
 static int vfi_local_event_chain(struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 
@@ -1425,6 +1439,7 @@ struct vfi_ops vfi_local_ops = {
 	.dst_ev_delete	 = vfi_local_dst_ev_delete,
 	.src_ev_delete	 = vfi_local_src_ev_delete,
 	.event_start     = vfi_local_event_start,
+	.event_find     = vfi_local_event_find,
 	.event_chain     = vfi_local_event_chain,
 };
 
