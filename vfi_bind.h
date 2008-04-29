@@ -43,6 +43,7 @@ struct vfi_bind {
 #define VFI_BIND_SRC_RDY 1
 #define VFI_BIND_DST_RDY 2
 #define VFI_BIND_RDY 3
+#define VFI_BIND_DONE_PEND 4
 
 };
 
@@ -81,6 +82,14 @@ static inline void vfi_bind_dst_done(struct vfi_bind *b)
 { 
 	b->ready ^= VFI_BIND_DST_RDY;
 	VFI_ASSERT(!(b->ready & VFI_BIND_DST_RDY),"%s\n",__FUNCTION__);
+}
+
+static inline void vfi_bind_done_pending(struct vfi_bind *b)
+{
+	b->ready ^= VFI_BIND_DONE_PEND;
+	if (is_vfi_bind_ready(b))
+		b->desc.xfer.rde->ops->queue_transfer(&b->descriptor);
+
 }
 
 static inline struct vfi_bind *to_vfi_bind(struct kobject *kobj)

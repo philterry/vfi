@@ -201,10 +201,12 @@ void vfi_dma_complete(struct vfi_bind *bind)
 	 * that a chain of descriptors representing a bind has
 	 * completed. */
 	if (bind) {
+		vfi_bind_done_pending(bind);
 		if (bind->desc.dst.ops && bind->desc.dst.ops->dst_done)
 			bind->desc.dst.ops->dst_done(bind);
 		if (bind->desc.src.ops && bind->desc.src.ops->dst_done)
 			bind->desc.src.ops->src_done(bind);
+		vfi_bind_done_pending(bind);
 	}
 }
 
