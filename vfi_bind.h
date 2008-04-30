@@ -45,6 +45,7 @@ struct vfi_bind {
 #define VFI_BIND_RDY 3
 #define VFI_BIND_DONE_PEND 4
 
+	spinlock_t lock;
 };
 
 static inline int is_vfi_bind_ready(struct vfi_bind *b)
@@ -52,44 +53,60 @@ static inline int is_vfi_bind_ready(struct vfi_bind *b)
 	return b->ready == VFI_BIND_RDY;
 }
 
-static inline int is_vfi_bind_done(struct vfi_bind *b)
-{ 
-	b->ready ^= VFI_BIND_RDY;
-	return ! b->ready;
-}
-
 static inline int vfi_bind_src_ready(struct vfi_bind *b)
 { 
+	int res;
+	unsigned long flags;
+
+	spin_lock_irqsave(&b->lock, flags);
 	b->ready ^= VFI_BIND_SRC_RDY;
-	VFI_ASSERT(b->ready & VFI_BIND_SRC_RDY,"%s\n",__FUNCTION__);
-	return b->ready == VFI_BIND_RDY;
+	VFI_ASSERT(b->ready & VFI_BIND_SRC_RDY,"Assertion in %s\n",__FUNCTION__);
+	res = b->ready == VFI_BIND_RDY;
+      	spin_unlock_irqrestore(&b->lock, flags);
+	return res;
 }
 
 static inline int vfi_bind_dst_ready(struct vfi_bind *b)
 { 
-	b->ready ^= VFI_BIND_DST_RDY;
-	VFI_ASSERT(b->ready & VFI_BIND_DST_RDY,"%s\n",__FUNCTION__);
-	return b->ready == VFI_BIND_RDY;
-}
+	int res;
+	unsigned long flags;
 
-static inline void vfi_bind_src_done(struct vfi_bind *b)
-{ 
-	b->ready ^= VFI_BIND_SRC_RDY;
-	VFI_ASSERT(!(b->ready & VFI_BIND_SRC_RDY),"%s\n",__FUNCTION__);
-}
-
-static inline void vfi_bind_dst_done(struct vfi_bind *b)
-{ 
+	spin_lock_irqsave(&b->lock, flags);
 	b->ready ^= VFI_BIND_DST_RDY;
-	VFI_ASSERT(!(b->ready & VFI_BIND_DST_RDY),"%s\n",__FUNCTION__);
+	VFI_ASSERT(b->ready & VFI_BIND_DST_RDY,"Assertion in %s\n",__FUNCTION__);
+	res = b->ready == VFI_BIND_RDY;
+	spin_unlock_irqrestore(&b->lock, flags);
+	return res;
 }
 
 static inline void vfi_bind_done_pending(struct vfi_bind *b)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&b->lock, flags);
 	b->ready ^= VFI_BIND_DONE_PEND;
 	if (is_vfi_bind_ready(b))
 		b->desc.xfer.rde->ops->queue_transfer(&b->descriptor);
+	spin_unlock_irqrestore(&b->lock, flags);
+}
 
+static inline void vfi_bind_src_done(struct vfi_bind *b)
+{ 
+	unsigned long flags;
+
+	spin_lock_irqsave(&b->lock, flags);
+	b->ready ^= VFI_BIND_SRC_RDY ;
+	VFI_ASSERT(!(b->ready & VFI_BIND_SRC_RDY),"Assertion in %s\n",__FUNCTION__);
+	spin_unlock_irqrestore(&b->lock, flags);
+}
+
+static inline void vfi_bind_dst_done(struct vfi_bind *b)
+{ 
+	unsigned long flags;
+
+	spin_lock_irqsave(&b->lock, flags);
+	b->ready ^= VFI_BIND_DST_RDY;
+	VFI_ASSERT(!(b->ready & VFI_BIND_DST_RDY),"Assertion in %s\n",__FUNCTION__);
+	spin_unlock_irqrestore(&b->lock, flags);
 }
 
 static inline struct vfi_bind *to_vfi_bind(struct kobject *kobj)

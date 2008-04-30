@@ -88,8 +88,8 @@ static ssize_t vfi_bind_default_show(struct vfi_bind *vfi_bind, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("Bind %p is %s.%s = %s.%s \n",vfi_bind,vfi_bind->desc.dst.name, vfi_bind->desc.dst.location,
-		    vfi_bind->desc.src.name,vfi_bind->desc.src.location);
+	ATTR_PRINTF("Bind %p is %s.%s = %s.%s ready is %d\n",vfi_bind,vfi_bind->desc.dst.name, vfi_bind->desc.dst.location,
+		    vfi_bind->desc.src.name,vfi_bind->desc.src.location,vfi_bind->ready);
 	if (vfi_bind) {
 		ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",vfi_bind->desc.dst.ops,vfi_bind->desc.dst.rde,vfi_bind->desc.dst.address);
 		ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",vfi_bind->desc.src.ops,vfi_bind->desc.src.rde,vfi_bind->desc.src.address);
@@ -166,6 +166,7 @@ int new_vfi_bind(struct vfi_bind **bind, struct vfi_xfer *parent, struct vfi_bin
 	new->dst_ready_event_id = -1;
 
 	INIT_LIST_HEAD(&new->dma_chain);
+	spin_lock_init(&new->lock);
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return VFI_RESULT(0);
