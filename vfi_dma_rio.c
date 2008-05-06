@@ -143,7 +143,7 @@ static int dma_completion_thread(void *data)
 	struct ppc_dma_event *pevent;
 	struct ppc_dma_chan *chan;
 	struct my_xfer_object *xfo;
-	printk("Starting completion thread\n");
+	printk("VFI: Starting completion thread\n");
 	/* Send completion messages to registered callback function */
 	while (1) {
 		wait_for_completion(&de->dma_callback_sem);
@@ -153,7 +153,7 @@ static int dma_completion_thread(void *data)
 		    (struct ppc_dma_event *) ringbuf_get(event_ring_out);
 		while (pevent) {
 			chan = &de->ppc8641_dma_chans[pevent->chan_num];
-			printk("DMA completion event on channel %d\n", chan->num);
+			VFI_DEBUG(MY_DEBUG,"DMA completion event on channel %d\n", chan->num);
 			xfo = pevent->desc;
 			/* Jimmy, take semaphore here */
 			chan->bytes_queued -= xfo->xf.len;
@@ -179,7 +179,7 @@ static int dma_completion_thread(void *data)
 		}
 	}
 stop_thread:
-	printk("Exiting completion thread\n");
+	printk("VFI: Exiting completion thread\n");
 	return 0;
 }
 
@@ -608,7 +608,7 @@ static irqreturn_t do_interrupt(int irq, void *data)
 #endif
 	chan->jtotal += (jend - chan->jstart);
 	status = dma_get_reg(chan, DMA_SR);
-printk("DMA interrupt, status = 0x%x\n", status);
+	VFI_DEBUG(MY_DEBUG,"DMA interrupt, status = 0x%x\n", status);
 
 	/* Clear interrupts */
 	dma_set_reg(chan, DMA_SR, status);
@@ -653,7 +653,7 @@ printk("DMA interrupt, status = 0x%x\n", status);
 			chan->err_int++;
 	}
 
-printk("DMA interrupt, chan->state = 0x%x\n", chan->state);
+	VFI_DEBUG(MY_DEBUG,"DMA interrupt, chan->state = 0x%x\n", chan->state);
 
 #ifdef MY_DEBUG
 if (te || pe)
@@ -689,6 +689,7 @@ printk("DMA interrupt, empty list\n");
 	}
 	return (IRQ_HANDLED);
 }
+
 static void start_dma(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
 {
 	chan->state = DMA_RUNNING;
@@ -874,6 +875,9 @@ static int setup_vfi_channel(struct platform_device *pdev)
 #else
 	chan->op_mode |= DMA_MODE_CHAIN_INT_EN;
 #endif
+	
+	/* Disable bandwidth sharing */
+	chan->op_mode |= DMA_MODE_BANDWIDTH_CONTROL;
 
 	/* Might move this!! Jimmy */
 	dma_set_reg(chan, DMA_MR, chan->op_mode);
