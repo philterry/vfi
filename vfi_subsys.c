@@ -68,6 +68,7 @@ static struct sysfs_ops vfi_subsys_sysfs_ops = {
     .store = vfi_subsys_store,
 };
 
+#ifdef CONFIG_VFI_DEBUG
 #define SHOW_BIT(s,b) if (left && (vfi_debug_level & (b))) size = snprintf(bp,left,"%s ",s); bp+= size ; left -= size
 #define SHOW_LEVEL() size = snprintf(bp, PAGE_SIZE, "%d\n", vfi_debug_level & VFI_DBG_WHEN); bp+= size ; left -= size
 static ssize_t vfi_subsys_debug_show(struct vfi_subsys *vfi_subsys, char *buffer)
@@ -156,6 +157,7 @@ static ssize_t vfi_subsys_debug_store(struct vfi_subsys *vfi_subsys, const char 
 }
 
 VFI_SUBSYS_ATTR(debug, 0644, vfi_subsys_debug_show, vfi_subsys_debug_store);
+#endif
 
 static ssize_t vfi_subsys_location_show(struct vfi_subsys *vfi_subsys, char *buffer)
 {
@@ -172,7 +174,9 @@ static ssize_t vfi_subsys_name_show(struct vfi_subsys *vfi_subsys, char *buffer)
 VFI_SUBSYS_ATTR(name, 0644, vfi_subsys_name_show, 0);
 
 static struct attribute *vfi_subsys_default_attrs[] = {
+#ifdef CONFIG_VFI_DEBUG
     &vfi_subsys_attr_debug.attr,
+#endif
     &vfi_subsys_attr_location.attr,
     &vfi_subsys_attr_name.attr,
     0,

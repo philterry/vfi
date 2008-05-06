@@ -861,8 +861,10 @@ static int vfi_fabric_dsts_create(struct vfi_dsts **dsts, struct vfi_bind *paren
 
 	vfi_bind_load_dsts(parent);
 
+#ifdef CONFIG_VFI_DEBUG
 	if (vfi_debug_level & VFI_DBG_DMA_CHAIN)
 		vfi_dma_chain_dump(&parent->dma_chain);
+#endif
 
 	parent->end_of_chain = parent->dma_chain.prev;
 

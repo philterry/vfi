@@ -414,8 +414,10 @@ join:
 
 	vfi_bind_load_dsts(parent);
 
+#ifdef CONFIG_VFI_DEBUG
 	if (vfi_debug_level & VFI_DBG_DMA_CHAIN)
 		vfi_dma_chain_dump(&parent->dma_chain);
+#endif
 
 	parent->end_of_chain = parent->dma_chain.prev;
 
@@ -549,8 +551,10 @@ static int vfi_local_bind_create(struct vfi_bind **bind, struct vfi_xfer *xfer, 
 
 			vfi_xfer_load_binds(xfer,*bind);
 
+#ifdef CONFIG_VFI_DEBUG
 			if (vfi_debug_level & VFI_DBG_DMA_CHAIN)
 				vfi_dma_chain_dump(&(*bind)->dma_chain);
+#endif
 
 			return VFI_RESULT(0);
 		}
