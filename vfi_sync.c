@@ -169,6 +169,8 @@ int new_vfi_sync(struct vfi_sync **sync, struct vfi_location *loc, struct vfi_de
 
 	sema_init(&new->sem,1);
 	init_waitqueue_head(&new->waitq);
+	
+	new->count = (int)desc->offset;
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 	return VFI_RESULT(0);
