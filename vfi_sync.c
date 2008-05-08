@@ -206,7 +206,7 @@ int find_vfi_sync_in(struct vfi_sync **sync, struct vfi_location *loc, struct vf
 		return VFI_RESULT(ret);
 
 	if (tmploc) {
-		ret = loc->desc.ops->sync_find(sync,tmploc,desc);
+		ret = tmploc->desc.ops->sync_find(sync,tmploc,desc);
 		vfi_location_put(tmploc);
 	}
 
