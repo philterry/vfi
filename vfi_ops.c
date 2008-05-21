@@ -299,7 +299,6 @@ static int smb_delete(const char *desc, char *result, int *size)
 	ret = -ENODEV;
 
 	if ( !(ret = locate_vfi_location(&loc,NULL,&params) ) ) {
-		ret = -EINVAL;
 		if ( loc && loc->desc.ops && loc->desc.ops->smb_delete ) {
 			loc->desc.ops->smb_delete(loc, &params);
 		}
