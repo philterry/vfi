@@ -43,20 +43,18 @@ extern void vfi_dma_chain_dump(struct list_head *h);
  */
 static int vfi_local_location_find(struct vfi_location **newloc,struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	VFI_DEBUG(MY_DEBUG,"%s %p %s %p %s,%s\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,desc->location);
-	*newloc  = to_vfi_location(kset_find_obj(&loc->kset,desc->name));
-	VFI_DEBUG(MY_DEBUG,"%s %p %s %p %s ->%p\n",__FUNCTION__,loc,loc->desc.name,desc,desc->name,*newloc);
-	return VFI_RESULT(*newloc == NULL);
+	return VFI_RESULT(find_vfi_name(newloc,loc,desc));
 }
 
 static void vfi_local_location_put(struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 	struct vfi_location *newloc;
 	VFI_DEBUG(MY_DEBUG,"%s %p %p %s\n",__FUNCTION__,loc,desc,desc->name);
-	newloc = to_vfi_location(kset_find_obj(&loc->kset,desc->name));
-	VFI_DEBUG(MY_DEBUG,"%s %p %p %s ->%p\n",__FUNCTION__,loc,desc,desc->name,newloc);
-	vfi_location_put(newloc);
-	vfi_location_put(newloc);
+
+	if (!find_vfi_name(&newloc,loc,desc)) {
+		vfi_location_put(newloc);
+		vfi_location_put(newloc);
+	}
 }
 
 static int vfi_local_smb_find(struct vfi_smb **smb, struct vfi_location *parent, struct vfi_desc_param *desc)
