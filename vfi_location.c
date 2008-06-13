@@ -395,7 +395,9 @@ int find_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, st
 		*newloc = to_vfi_location(kset_find_obj(&vfi_subsys->kset,params->name));
 
 	VFI_DEBUG_SAFE(MY_DEBUG,*newloc,"%s -> %p %s,%s\n",__FUNCTION__,*newloc,(*newloc)->desc.name,(*newloc)->desc.location);
-	return VFI_RESULT(*newloc == 0);
+	if (*newloc)
+		return VFI_RESULT(0);
+	return VFI_RESULT(-EINVAL);
 }
 
 /**

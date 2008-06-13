@@ -63,7 +63,9 @@ static int vfi_local_smb_find(struct vfi_smb **smb, struct vfi_location *parent,
 {
 	*smb = to_vfi_smb(kset_find_obj(&parent->smbs->kset,desc->name));
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*smb);
-	return VFI_RESULT(*smb == NULL);
+	if (*smb == NULL)
+		return VFI_RESULT(-EINVAL);
+	return VFI_RESULT(0);
 }
 
 /**
