@@ -506,9 +506,17 @@ static int vfi_fabric_src_find(struct vfi_src **src, struct vfi_dst *parent, str
 static int vfi_fabric_location_create(struct vfi_location **newloc,struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 	int ret;
+	struct vfi_location *oldloc;
 	*newloc = NULL;
 
 	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
+
+	/* Check if the location already exists */
+	ret = find_vfi_name(&oldloc,loc,desc);
+	if (!ret) {
+		vfi_location_put(oldloc);
+		return VFI_RESULT(-EEXIST);
+	}
 
 	if (!loc) {
 		/* Create a top level location as public */
