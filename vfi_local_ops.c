@@ -208,6 +208,13 @@ static int vfi_local_location_create(struct vfi_location **newloc,struct vfi_loc
 
 	ret = vfi_location_create(newloc,loc,desc);
 
+	/* 
+	   If the parent location has a extent of 0 we need to set that here.
+	   This can and will happen if the parent is a public root location. 
+	*/
+	if (loc && !(loc->desc.extent))
+		loc->desc.extent = (*newloc)->desc.extent;
+
 	if (*newloc && (*newloc)->desc.address)
 		(*newloc)->desc.address->ops->register_location(*newloc);
 
