@@ -54,17 +54,28 @@ static int location_create(const char *desc, char *result, int *size)
 
 	ret = -EINVAL;
 
+	/* Leaf location f.ex node.domain */
 	if ( params.location && *params.location ) {
 		if ( !(ret = locate_vfi_location(&loc, NULL, &params))) {
-			if (loc && loc->desc.ops && loc->desc.ops->location_create) {
+			/* 
+			   To get the creations right we need to be able to override the 
+			   parents location. This is typically necessary when the fabric 
+			   is public (no name service used) and we want to create our own 
+			   locations (as private). 
+			*/
+			ret = -EINVAL;
+			if (params.ops && params.ops->location_create)
+				ret = params.ops->location_create(&new_loc, loc, &params);
+			else if (loc && loc->desc.ops && loc->desc.ops->location_create)
 				ret = loc->desc.ops->location_create(&new_loc, loc, &params);
-			}
 			vfi_location_put(loc);
 		}
 	}
-	else if (params.ops) {
+
+	/* Root location */
+	else if (params.ops)
 		ret = params.ops->location_create(&new_loc, NULL, &params);
-	}
+
 fail:
 	if (result) {
 		if (ret)
