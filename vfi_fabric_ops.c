@@ -488,47 +488,44 @@ static int vfi_fabric_src_find(struct vfi_src **src, struct vfi_dst *parent, str
 /*
  * C R E A T E     O P E R A T I O N S
  */
+
+/**
+* vfi_fabric_location_create - Create a fabric location
+* @desc   : <location create> specification string
+*
+* Create a public location i.e a location with default_ops specified
+* as public.
+* If we are not to use the top level location as a name
+* service we will declare it public. The top level location 
+* must be created with offset and extent #0:0 (address) so we 
+* will not register an address, but just add the node to sysfs 
+* so we can find it later. Creating a lower level location as
+* public is only meaningful if the top level location is private
+* (name service enabled).
+**/
 static int vfi_fabric_location_create(struct vfi_location **newloc,struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	struct sk_buff  *skb = NULL;
 	int ret;
 	*newloc = NULL;
 
 	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
-	if (!loc)
-		return VFI_RESULT(new_vfi_location(newloc,NULL,desc));
+	if (!loc) {
+		/* Create a top level location as public */
+		if (desc->extent || desc->offset)
+			return VFI_RESULT(-EINVAL);
 
-	ret = vfi_fabric_call(&skb, loc, 5, "location_create://%s.%s#%llx:%x",
-				desc->name, desc->location, desc->offset, loc->desc.extent);
-
-	if (skb) {
-		struct vfi_desc_param reply;
-		if (!vfi_parse_desc(&reply,skb->data)) {
-			dev_kfree_skb(skb);
-			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
-				desc->extent = reply.offset;
-				desc->offset = reply.extent;
-
-				if (desc->extent == desc->offset) {
-					desc->extent = loc ? loc->desc.extent : 0;
-				}
-				else {
-					desc->offset = desc->extent;
-					desc->ops = &vfi_local_ops;
-					if (loc)
-						loc->desc.extent = desc->extent;
-				}
-				
-				ret = vfi_location_create(newloc,loc,desc);
-				if (*newloc && (*newloc)->desc.address)
-					(*newloc)->desc.address->ops->register_location(*newloc);
-			}
-			vfi_clean_desc(&reply);
-		}
+		return VFI_RESULT(vfi_location_create(newloc,NULL,desc));
+		//return VFI_RESULT(new_vfi_location(newloc,NULL,desc));
 	}
 
-	return VFI_RESULT(*newloc != 0);
+	/* Create a second level or more location */
+	/* TODO: Check that root location is private */
+	ret = vfi_location_create(newloc,loc,desc);
+	if (*newloc && (*newloc)->desc.address)
+		(*newloc)->desc.address->ops->register_location(*newloc);
+
+	return VFI_RESULT(ret);
 }
 
 /**
