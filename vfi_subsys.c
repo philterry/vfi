@@ -198,7 +198,7 @@ static const char *vfi_subsys_uevent_name(struct kset *kset, struct kobject *kob
 	return "dunno";
 }
 
-static int vfi_subsys_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
+static int vfi_subsys_uevent(struct kset *kset, struct kobject *kobj, struct kobj_uevent_env *env)
 {
 	return -ENODEV; /* Do not generate event */
 }
@@ -221,7 +221,6 @@ int new_vfi_subsys(struct vfi_subsys **subsys, char *name)
     if ( vfi_parse_desc( &new->desc, name) )
 	    goto out;
 
-    new->kset.ktype = &vfi_location_type;
     new->kset.uevent_ops = &vfi_subsys_uevent_ops;
     new->kset.kobj.ktype = &vfi_subsys_type;
 

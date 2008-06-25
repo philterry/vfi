@@ -142,7 +142,7 @@ static const char *vfi_event_uevent_name(struct kset *kset, struct kobject *kobj
 	return "dunno";
 }
 
-static int vfi_event_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
+static int vfi_event_uevent(struct kset *kset, struct kobject *kobj, struct kobj_uevent_env *env)
 {
 	return 0; /* Do not generate event */
 }
@@ -157,6 +157,7 @@ static struct kset_uevent_ops vfi_event_uevent_ops = {
 int new_vfi_event(struct vfi_event **event, struct vfi_events *parent, struct vfi_desc_param *desc, struct vfi_bind *bind, void (*f)(struct vfi_bind *),int id)
 {
 	struct vfi_event *new = kzalloc(sizeof(struct vfi_event), GFP_KERNEL);
+	int ret;
     
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
@@ -166,28 +167,15 @@ int new_vfi_event(struct vfi_event **event, struct vfi_events *parent, struct vf
 		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_desc(&new->desc,desc);
-	kobject_set_name(&new->kobj,"%p:%x", desc,id);
-	new->kobj.ktype = &vfi_event_type;
-	new->kobj.kset = &parent->kset;
 	new->start_event = f;
 	new->bind = bind;
 	new->event_id = id;
 
-	VFI_DEBUG(MY_DEBUG,"%s returns %p\n",__FUNCTION__,new);
-	return VFI_RESULT(0);
-}
+	ret = kobject_init_and_add(&new->kobj, &vfi_event_type, &parent->kset.kobj, "%p:%x", desc, id);
+	if (ret) 
+		kobject_put(&new->kobj);
 
-int vfi_event_register(struct vfi_event *vfi_event)
-{
-	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-
-	return VFI_RESULT(kobject_register(&vfi_event->kobj));
-}
-
-void vfi_event_unregister(struct vfi_event *vfi_event)
-{
-	if (vfi_event)
-		kobject_unregister(&vfi_event->kobj);
+	return VFI_RESULT(ret);
 }
 
 int vfi_event_create(struct vfi_event **new, struct vfi_events *parent, struct vfi_desc_param *desc,
@@ -202,19 +190,13 @@ int vfi_event_create(struct vfi_event **new, struct vfi_events *parent, struct v
 	if (ret) 
 		return VFI_RESULT(ret);
 
-	if (vfi_event_register(*new)) {
-			vfi_event_put(*new);
-			*new = NULL;
-			return VFI_RESULT(-EINVAL);
-	}
-
 	return VFI_RESULT(0);
 }
 
 void vfi_event_delete (struct vfi_event *vfi_event)
 {
 	VFI_KTRACE ("<*** %s (%p) Id: %08x IN ***>\n", __func__, vfi_event, (vfi_event) ? vfi_event->event_id : 0xffffffff);
-	vfi_event_unregister (vfi_event);
+	kobject_del (&vfi_event->kobj);
 	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 

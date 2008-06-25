@@ -100,8 +100,7 @@ static struct fabric_address *new_fabric_address(unsigned long idx, unsigned lon
 
 	INIT_LIST_HEAD(&new->list);
 
-	new->kobj.ktype = &fabric_address_type;
-	kobject_init(&new->kobj);
+	kobject_init(&new->kobj,&fabric_address_type);
 
 	new->idx = idx;
 
@@ -510,12 +509,12 @@ static int fabric_register(struct vfi_location *loc)
 /* 		return -EEXIST; */
 
 	if ( (ndev_name = vfi_get_option(&loc->desc,"netdev")) ) {
-		if ( !(ndev = dev_get_by_name(ndev_name)) )
+		if ( !(ndev = dev_get_by_name(&init_net,ndev_name)) )
 			return -ENODEV;
 	}
 	else if (old && old->ndev)
 		ndev = old->ndev;
-	else if ( !(ndev = dev_get_by_name(netdev_name)) )
+	else if ( !(ndev = dev_get_by_name(&init_net,netdev_name)) )
 		return -ENODEV;
 	
 	fna = find_fabric_address(loc->desc.offset,loc->desc.extent,0,ndev);
@@ -555,7 +554,7 @@ static int __init fabric_net_init(void)
 	if ( (fna = new_fabric_address(UNKNOWN_IDX,0,0,0)) ) {
 		snprintf(fna->rfa.name, VFI_MAX_FABRIC_NAME_LEN, "%s", "vfi_fabric_net");
 		if (netdev_name)
-			if ( (fna->ndev = dev_get_by_name(netdev_name)) ) {
+			if ( (fna->ndev = dev_get_by_name(&init_net, netdev_name)) ) {
 				vfi_packets.dev = fna->ndev;
 				vfi_packets.type = htons(netdev_type);
 				dev_add_pack(&vfi_packets);

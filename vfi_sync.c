@@ -151,6 +151,7 @@ struct kobj_type vfi_sync_type = {
 
 int new_vfi_sync(struct vfi_sync **sync, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
+	int ret;
 	struct vfi_sync *new = kzalloc(sizeof(struct vfi_sync), GFP_KERNEL);
     
 	*sync = new;
@@ -159,10 +160,6 @@ int new_vfi_sync(struct vfi_sync **sync, struct vfi_location *loc, struct vfi_de
 
 	vfi_clone_desc(&new->desc, desc);
 	
-	kobject_set_name(&new->kobj,"%s",new->desc.name);
-	new->kobj.ktype = &vfi_sync_type;
-
-	new->kobj.kset = &loc->syncs->kset;
 	new->desc.ops = loc->desc.ops;
 	new->desc.rde = loc->desc.rde;
 	new->desc.ploc = loc;
@@ -172,22 +169,11 @@ int new_vfi_sync(struct vfi_sync **sync, struct vfi_location *loc, struct vfi_de
 	
 	new->count = (int)desc->offset;
 
-	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return VFI_RESULT(0);
-}
-
-int vfi_sync_register(struct vfi_sync *vfi_sync)
-{
-	int ret = 0;
-
-	ret = kobject_register(&vfi_sync->kobj);
-
+	ret = kobject_init_and_add(&new->kobj, &vfi_sync_type, &loc->syncs->kset.kobj, "%s", new->desc.name);
+	if (ret)
+		kobject_put(&new->kobj);
+		
 	return VFI_RESULT(ret);
-}
-
-void vfi_sync_unregister(struct vfi_sync *vfi_sync)
-{
-	kobject_unregister(&vfi_sync->kobj);
 }
 
 int find_vfi_sync_in(struct vfi_sync **sync, struct vfi_location *loc, struct vfi_desc_param *desc)
@@ -232,18 +218,10 @@ int vfi_sync_create(struct vfi_sync **sync,struct vfi_location *loc, struct vfi_
 {
 	int ret = new_vfi_sync(sync,loc,desc);
 
-	if ( ret || NULL == *sync)
-		goto out;
+	if (ret)
+		vfi_sync_put(*sync);
 
-	if ( (vfi_sync_register(*sync)) ) 
-		goto fail_reg;
-	
-	return VFI_RESULT(0);
-
-fail_reg:
-	vfi_sync_put(*sync);
-out:
-	return VFI_RESULT(-EINVAL);
+	return VFI_RESULT(ret);
 }
 
 
@@ -253,6 +231,6 @@ void vfi_sync_delete(struct vfi_location *loc, struct vfi_desc_param *desc)
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	sync = to_vfi_sync(kset_find_obj(&loc->syncs->kset,desc->name));
 	vfi_sync_put(sync);
-	vfi_sync_unregister(sync);
+	kobject_del(&sync->kobj);
 }
 

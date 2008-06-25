@@ -195,7 +195,7 @@ static const char *vfi_mmap_uevent_name(struct kset *kset, struct kobject *kobj)
 	return "dunno";
 }
 
-static int vfi_mmap_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
+static int vfi_mmap_uevent(struct kset *kset, struct kobject *kobj, struct kobj_uevent_env *env)
 {
 	return 0; /* Do not generate event */
 }
@@ -209,37 +209,19 @@ static struct kset_uevent_ops vfi_mmap_uevent_ops = {
 
 int new_vfi_mmap(struct vfi_mmap **mmap, struct vfi_smb *parent, struct vfi_desc_param *desc)
 {
-    struct vfi_mmap *new = kzalloc(sizeof(struct vfi_mmap), GFP_KERNEL);
+	int ret;
+	struct vfi_mmap *new = kzalloc(sizeof(struct vfi_mmap), GFP_KERNEL);
     
-    *mmap = new;
+	*mmap = new;
 
-    if (NULL == new)
-	return VFI_RESULT(-ENOMEM);
+	if (NULL == new)
+		return VFI_RESULT(-ENOMEM);
 
-    kobject_set_name(&new->kobj,"%d#%llx:%x",current->pid, desc->offset,desc->extent);
-    new->kobj.ktype = &vfi_mmap_type;
-    new->kobj.kset = &parent->mmaps->kset;
+	ret = kobject_init_and_add(&new->kobj, &vfi_mmap_type, &parent->mmaps->kset.kobj, "%d#%llx:%x",current->pid, desc->offset,desc->extent);
+	if (ret)
+		kobject_put(&new->kobj);
 
-    return VFI_RESULT(0);
-}
-
-int vfi_mmap_register(struct vfi_mmap *vfi_mmap)
-{
-    int ret = 0;
-
-    if ( (ret = kobject_register(&vfi_mmap->kobj) ) )
-	goto out;
-
-      return VFI_RESULT(ret);
-
-out:
-    return VFI_RESULT(ret);
-}
-
-void vfi_mmap_unregister(struct vfi_mmap *vfi_mmap)
-{
-    
-     kobject_unregister(&vfi_mmap->kobj);
+	return VFI_RESULT(ret);
 }
 
 int vfi_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc_param *desc)
@@ -261,19 +243,14 @@ int vfi_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc
 		VFI_DEBUG (MY_DEBUG, "xx Requested region exceeds page table.\n"); 
 		return VFI_RESULT(0);
 	}
+
 	ret = new_vfi_mmap(mmap,smb,desc);
 	if (!ret) {
-		ret = vfi_mmap_register(*mmap);
-		if (!ret) {
-			(*mmap)->pg_tbl = &pg_tbl[firstpage];
-			(*mmap)->n_pg = lastpage - firstpage + 1;
-		}
-		else {
-			vfi_mmap_put(*mmap);
-			*mmap = NULL;
-		}
+		(*mmap)->pg_tbl = &pg_tbl[firstpage];
+		(*mmap)->n_pg = lastpage - firstpage + 1;
+
+		VFI_DEBUG_SAFE (MY_DEBUG, *mmap, "-- Assigned %lu pages at %p\n",(*mmap)->n_pg, (*mmap)->pg_tbl);
 	}
-	VFI_DEBUG_SAFE (MY_DEBUG, *mmap, "-- Assigned %lu pages at %p\n",(*mmap)->n_pg, (*mmap)->pg_tbl);
 
 	return VFI_RESULT(ret);
 }
@@ -283,5 +260,5 @@ void vfi_mmap_delete(struct vfi_smb *smb, struct vfi_desc_param *desc)
 	struct vfi_mmap *mmap;
 	int ret;
 	ret = find_vfi_mmap(&mmap,smb,desc);
-	vfi_mmap_unregister(mmap);
+	kobject_del(&mmap->kobj);
 }

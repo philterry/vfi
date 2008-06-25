@@ -637,8 +637,7 @@ static int vfi_open(struct inode *inode, struct file *filep)
 	sema_init(&priv->sem,1);
 	init_waitqueue_head(&priv->rwq);
 	INIT_LIST_HEAD(&priv->list);
-	priv->kobj.ktype = &privtype;
-	kobject_init(&priv->kobj);
+	kobject_init(&priv->kobj, &privtype);
 	priv->open = 1;
 	filep->private_data = priv;
 	return 0;

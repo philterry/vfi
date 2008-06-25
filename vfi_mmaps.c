@@ -82,7 +82,7 @@ static const char *vfi_mmaps_uevent_name(struct kset *kset, struct kobject *kobj
 	return "dunno";
 }
 
-static int vfi_mmaps_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
+static int vfi_mmaps_uevent(struct kset *kset, struct kobject *kobj, struct kobj_uevent_env *env)
 {
 	return 0; /* Do not generate event */
 }

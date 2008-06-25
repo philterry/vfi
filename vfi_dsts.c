@@ -105,7 +105,7 @@ static const char *vfi_dsts_uevent_name(struct kset *kset, struct kobject *kobj)
 	return "dunno";
 }
 
-static int vfi_dsts_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
+static int vfi_dsts_uevent(struct kset *kset, struct kobject *kobj, struct kobj_uevent_env *env)
 {
 	return -ENODEV; /* Do not generate event */
 }

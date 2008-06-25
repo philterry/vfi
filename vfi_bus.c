@@ -43,7 +43,7 @@ int vfi_bus_probe(struct device *dev)
 	return 0;
 }
 
-int vfi_bus_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
+int vfi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	return -ENODEV;
 }

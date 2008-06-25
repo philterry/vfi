@@ -155,6 +155,7 @@ struct kobj_type vfi_xfer_type = {
 
 int new_vfi_xfer(struct vfi_xfer **xfer, struct vfi_location *parent, struct vfi_desc_param *desc)
 {
+	int ret = 0;
 	struct vfi_xfer *new = kzalloc(sizeof(struct vfi_xfer), GFP_KERNEL);
     
 	*xfer = new;
@@ -163,66 +164,35 @@ int new_vfi_xfer(struct vfi_xfer **xfer, struct vfi_location *parent, struct vfi
 		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_desc(&new->desc, desc);
-	new->kobj.ktype = &vfi_xfer_type;
-	kobject_set_name(&new->kobj,"%s", desc->name);
 
-	new->kobj.kset = &parent->xfers->kset;		/* Pointer to location xfers kset, where this xfer will later hang */
 	new->desc.ops = parent->desc.ops;		/* Pointer to location core ops */
 	new->desc.address = parent->desc.address;	/* Pointer to location address ops */
 	new->desc.rde = parent->desc.rde;		/* Pointer to location DMA engine ops */
 	new->desc.ploc = parent;			/* Pointer to complete location object */
 
+	ret = kobject_init_and_add(&new->kobj, &vfi_xfer_type, &parent->xfers->kset.kobj, "%s", desc->name);
+	if (ret)
+		goto out;
+
+	ret = new_vfi_binds(&new->binds,"binds", new);
+	if (ret) 
+		goto fail_binds;
+
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return VFI_RESULT(0);
-}
+	return VFI_RESULT(ret);
 
-/**
-* vfi_xfer_register - Register an xfer object with sysfs tree
-* @xfer : xfer object to be registered.
-*
-* This function "registers" a new xfer object, to install it within the
-* local VFI object hierarchy and the sysfs tree.
-*
-* Once the core xfer object has been registered with sysfs, a "binds/"
-* subdirectory (kset) is created for the xfer and registered too.
-*
-**/
-int vfi_xfer_register(struct vfi_xfer *vfi_xfer)
-{
-    int ret = 0;
-
-    if ( (ret = kobject_register(&vfi_xfer->kobj) ) ) {
-	    vfi_xfer_put(vfi_xfer);
-	    goto out;
-    }
-
-    ret = new_vfi_binds(&vfi_xfer->binds,"binds",vfi_xfer);
-    if (ret) 
-	    goto fail_binds;
-
-    ret = -ENOMEM;
-
-    if ( NULL == vfi_xfer->binds)
-	    goto fail_binds;
-
-    if ( (ret = vfi_binds_register(vfi_xfer->binds)) )
-	    goto fail_binds_reg;
-
-    return VFI_RESULT(ret);
-
-fail_binds_reg:
-    vfi_binds_put(vfi_xfer->binds);
 fail_binds:
-    kobject_unregister(&vfi_xfer->kobj);
+	kset_unregister(&new->binds->kset);
 out:
-    return VFI_RESULT(ret);
+	kobject_put(&new->kobj);
+	return VFI_RESULT(ret);
 }
 
 void vfi_xfer_unregister(struct vfi_xfer *vfi_xfer)
 {
 	if (vfi_xfer) {
 		vfi_binds_unregister(vfi_xfer->binds);
-		kobject_unregister(&vfi_xfer->kobj);
+		kobject_del(&vfi_xfer->kobj);
 	}
 }
 
@@ -293,34 +263,21 @@ int find_vfi_xfer_in(struct vfi_xfer **xfer,struct vfi_location *loc, struct vfi
 **/
 int vfi_xfer_create(struct vfi_xfer **xfer, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	int ret;
+	int ret = 0;
 	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
 
-	/*
-	* First, check that no such xfer entry already exists at this 
-	* location. If one does - one with the same name - then do not
-	* create a new xfer, just return a pointer to the extant xfer.
-	*/
 	*xfer = to_vfi_xfer(kset_find_obj(&loc->xfers->kset,desc->name));
 	
 	if (*xfer) {
 		VFI_DEBUG(MY_DEBUG,"%s found %p %s locally in %p %s\n",__FUNCTION__,*xfer,desc->name,loc,loc->desc.name);
 	}
-	/*
-	* If no existing xfer kobject could be found with that name,
-	* then create one here and bind it to the location.
-	*
-	*/
 	else {
 		ret = new_vfi_xfer(xfer,loc,desc);
 		if (ret)
-			return VFI_RESULT(ret);
-		if (*xfer)
-			if ( (ret = vfi_xfer_register(*xfer)))
-				return VFI_RESULT(ret);
+			kobject_put(&(*xfer)->kobj);
 	}
 
-	return VFI_RESULT(0);
+	return VFI_RESULT(ret);
 }
 
 void vfi_xfer_delete(struct vfi_location *loc, struct vfi_desc_param *desc)

@@ -1020,7 +1020,7 @@ static struct vfi_dst *vfi_local_srcs_delete (struct vfi_dst *parent, struct vfi
 			
 			VFI_KTRACE ("<*** %s - unravel on-the-fly bind...dst IN ***>\n", __func__);
 			VFI_KTRACE ("-- %s: Bind (%p), Dsts (%p), Dst (%p)\n", __func__, bind, dsts, parent);
-			vfi_dst_unregister (parent);
+			kobject_del(&parent->kobj);
 			parent = NULL;
 			
 			/*
@@ -1043,7 +1043,7 @@ static struct vfi_dst *vfi_local_srcs_delete (struct vfi_dst *parent, struct vfi
 					}
 				}
 				vfi_dsts_unregister (dsts);
-				vfi_bind_unregister (bind);
+				kobject_del (&bind->kobj);
 			}
 			VFI_KTRACE ("<*** %s - unravel on-the-fly bind...dst OUT ***>\n", __func__);
 		}
@@ -1155,7 +1155,7 @@ static struct vfi_bind *vfi_local_dsts_delete (struct vfi_bind *parent, struct v
 			else {
 				printk ("-- Bindref is now at %d\n", bindref);
 			}
-			vfi_bind_unregister (parent);
+			kobject_del (&parent->kobj);
 			parent = NULL;
 		}
 	}

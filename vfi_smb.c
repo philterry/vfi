@@ -153,6 +153,7 @@ struct kobj_type vfi_smb_type = {
 
 int new_vfi_smb(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
+	int ret = 0;
 	struct vfi_smb *new = kzalloc(sizeof(struct vfi_smb), GFP_KERNEL);
     
 	*smb = new;
@@ -162,39 +163,25 @@ int new_vfi_smb(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_desc_
 	vfi_clone_desc(&new->desc, desc);
 	new->size = new->desc.extent;
 	
-	kobject_set_name(&new->kobj,"%s",new->desc.name);
-	new->kobj.ktype = &vfi_smb_type;
-
-	new->kobj.kset = &loc->smbs->kset;
 	new->desc.ops = loc->desc.ops;
 	new->desc.rde = loc->desc.rde;
 	new->desc.ploc = loc;
 
-	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return VFI_RESULT(0);
-}
-
-int vfi_smb_register(struct vfi_smb *vfi_smb)
-{
-	int ret = 0;
-
-	if ( (ret = kobject_register(&vfi_smb->kobj) ) )
+	ret = kobject_init_and_add(&new->kobj, &vfi_smb_type, &loc->smbs->kset.kobj, "%s",new->desc.name);
+	if (ret)
 		goto out;
-	ret = new_vfi_mmaps(&vfi_smb->mmaps,vfi_smb, "mmaps");
-	if ( vfi_smb->mmaps )
-		if ( (ret = vfi_mmaps_register(vfi_smb->mmaps)) )
-			goto mmaps;
+
+	ret = new_vfi_mmaps(&new->mmaps, new, "mmaps");
+	if (ret)
+		goto mmaps;
+
 	return VFI_RESULT(ret);
 mmaps:
-	vfi_smb_unregister(vfi_smb);
+	kset_unregister(&new->mmaps->kset);
 out:
-	return VFI_RESULT(ret);
-}
+	kobject_put(&new->kobj);
 
-void vfi_smb_unregister(struct vfi_smb *vfi_smb)
-{
-	vfi_mmaps_unregister(vfi_smb->mmaps);
-	kobject_unregister(&vfi_smb->kobj);
+	return VFI_RESULT(ret);
 }
 
 int find_vfi_smb_in(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_desc_param *desc)
@@ -239,25 +226,18 @@ int vfi_smb_create(struct vfi_smb **smb,struct vfi_location *loc, struct vfi_des
 {
 	int ret = new_vfi_smb(smb,loc,desc);
 
-	if ( ret || NULL == *smb)
-		goto out;
+	if (ret)
+		vfi_smb_put(*smb);
 
-	if ( (vfi_smb_register(*smb)) ) 
-		goto fail_reg;
-	
-	return VFI_RESULT(0);
-
-fail_reg:
-	vfi_smb_put(*smb);
-out:
-	return VFI_RESULT(-EINVAL);
+	return VFI_RESULT(ret);
 }
 
 
 void vfi_smb_delete(struct vfi_smb *smb)
 {
 	if (smb) {
-		vfi_smb_unregister(smb);
+		vfi_mmaps_unregister(smb->mmaps);
+		kobject_del(&smb->kobj);
 	}
 }
 

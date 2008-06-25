@@ -140,6 +140,7 @@ struct kobj_type vfi_bind_type = {
 **/
 int new_vfi_bind(struct vfi_bind **bind, struct vfi_xfer *parent, struct vfi_bind_param *desc)
 {
+	int ret;
 	struct vfi_bind *new = kzalloc(sizeof(struct vfi_bind), GFP_KERNEL);
 	
 	*bind = new;
@@ -149,11 +150,6 @@ int new_vfi_bind(struct vfi_bind **bind, struct vfi_xfer *parent, struct vfi_bin
 	
 	vfi_clone_bind(&new->desc, desc);
 	
-	kobject_set_name(&new->kobj,"#%llx:%x",desc->xfer.offset,desc->xfer.extent);
-	new->kobj.ktype = &vfi_bind_type;
-	
-	new->kobj.kset = &parent->binds->kset;
-
 	vfi_inherit(&new->desc.xfer,&parent->desc);
 	vfi_inherit(&new->desc.dst,&parent->desc);
 	vfi_inherit(&new->desc.src,&parent->desc);
@@ -168,25 +164,13 @@ int new_vfi_bind(struct vfi_bind **bind, struct vfi_xfer *parent, struct vfi_bin
 	INIT_LIST_HEAD(&new->dma_chain);
 	spin_lock_init(&new->lock);
 
+	ret = kobject_init_and_add(&new->kobj, &vfi_bind_type, &parent->binds->kset.kobj, "#%llx:%x",desc->xfer.offset,desc->xfer.extent);
+	if (ret)
+		kobject_put(&new->kobj);
+
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return VFI_RESULT(0);
-}
 
-int vfi_bind_register(struct vfi_bind *vfi_bind)
-{
-	int rslt;
-	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
-	rslt = kobject_register(&vfi_bind->kobj);
-	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
-	return VFI_RESULT(rslt);
-}
-
-void vfi_bind_unregister(struct vfi_bind *vfi_bind)
-{
-    
-	VFI_KTRACE ("<*** %s (%s) IN ***>\n", __func__, (vfi_bind) ? kobject_name (&vfi_bind->kobj) : "<NULL>");
-	kobject_unregister(&vfi_bind->kobj);
-	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
+	return VFI_RESULT(ret);
 }
 
 /*
@@ -281,10 +265,6 @@ int vfi_bind_create(struct vfi_bind **newbind, struct vfi_xfer *xfer, struct vfi
 	if (ret)
 		return VFI_RESULT(ret);
 
-	ret = vfi_bind_register(*newbind);
-	if (ret)
-		return VFI_RESULT(ret);
-
 	return VFI_RESULT(0);
 }
 
@@ -309,7 +289,7 @@ void vfi_bind_delete(struct vfi_xfer *xfer, struct vfi_desc_param *desc)
 	bind = to_vfi_bind(kset_find_obj(&xfer->binds->kset, buf));
 
 	if (bind) 
-		vfi_bind_unregister (bind);
+		kobject_del (&bind->kobj);
 out:
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,xfer,desc,bind);
 }

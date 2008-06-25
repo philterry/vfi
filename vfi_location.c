@@ -178,7 +178,6 @@ int new_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, str
 		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_desc(&new->desc, desc);
-	new->kset.kobj.ktype = &vfi_location_type;
 	kobject_set_name(&new->kset.kobj, "%s", new->desc.name);
 
 	/*
@@ -250,7 +249,7 @@ int new_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, str
 	*/
 	new->desc.ploc = loc;
 
-	kobject_init(&new->kset.kobj);
+	kobject_init(&new->kset.kobj, &vfi_location_type);
 	INIT_LIST_HEAD(&new->kset.list);
 	spin_lock_init(&new->kset.list_lock);
 
@@ -268,7 +267,7 @@ int vfi_location_register(struct vfi_location *vfi_location)
 	* Hook the new kobject into the sysfs hierarchy.
 	*
 	*/
-	if ( (ret = kobject_add(&vfi_location->kset.kobj) ) )
+	if ( (ret = kobject_add(&vfi_location->kset.kobj, &vfi_location->desc.ploc->kset.kobj, "%s", vfi_location->desc.name) ) )
 		goto out;
 
 /* 	kobject_uevent(&vfi_location->kset.kobj, KOBJ_ADD); */
@@ -314,7 +313,7 @@ fail_syncs:
 fail_xfers:
 	kset_put(&vfi_location->smbs->kset);
 fail_smbs:
-	kobject_unregister(&vfi_location->kset.kobj);
+	kobject_del(&vfi_location->kset.kobj);
 out:
 	return VFI_RESULT(ret);
 }
@@ -328,7 +327,7 @@ void vfi_location_unregister(struct vfi_location *vfi_location)
 
 	vfi_smbs_unregister(vfi_location->smbs);
 
-	kobject_unregister(&vfi_location->kset.kobj);
+	kobject_del(&vfi_location->kset.kobj);
 }
 
 int find_vfi_name(struct vfi_location **newloc, struct vfi_location *loc, struct vfi_desc_param *params)

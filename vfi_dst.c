@@ -141,6 +141,7 @@ struct kobj_type vfi_dst_type = {
 
 int new_vfi_dst(struct vfi_dst **dst, struct vfi_bind *parent, struct vfi_bind_param *desc)
 {
+	int ret;
 	struct vfi_dst *new = kzalloc(sizeof(struct vfi_dst), GFP_KERNEL);
     
 	*dst = new;
@@ -149,32 +150,21 @@ int new_vfi_dst(struct vfi_dst **dst, struct vfi_bind *parent, struct vfi_bind_p
 		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_bind(&new->desc, desc);
-	new->kobj.ktype = &vfi_dst_type;
-	kobject_set_name(&new->kobj,"%s.%s#%llx", new->desc.dst.name, new->desc.dst.location, new->desc.dst.offset);
+
 	new->bind = parent;
-	new->kobj.kset = &parent->dsts->kset;
+
 	vfi_bind_inherit(&new->desc,&parent->desc);
 
+	ret = kobject_init_and_add(&new->kobj, &vfi_dst_type, &parent->dsts->kset.kobj,
+				   "%s.%s#%llx",
+				   new->desc.dst.name,
+				   new->desc.dst.location,
+				   new->desc.dst.offset);
+	if (ret)
+		kobject_put(&new->kobj);
+
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return VFI_RESULT(0);
-}
-
-int vfi_dst_register(struct vfi_dst *vfi_dst)
-{
-	int ret = 0;
-
-	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
-	ret = kobject_register(&vfi_dst->kobj);
-	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 	return VFI_RESULT(ret);
-}
-
-void vfi_dst_unregister(struct vfi_dst *vfi_dst)
-{
-	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
-	if (vfi_dst)
-		kobject_unregister(&vfi_dst->kobj);
-	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
 /**
@@ -231,11 +221,6 @@ int vfi_dst_create(struct vfi_dst **dst, struct vfi_bind *bind, struct vfi_bind_
 	if (ret)
 		return VFI_RESULT(ret);
 
-	ret = vfi_dst_register(*dst);
-
-	if (ret) 
-		vfi_dst_put(*dst);
-
 	return VFI_RESULT(ret);
 }
 
@@ -261,7 +246,7 @@ void vfi_dst_delete (struct vfi_bind *bind, struct vfi_bind_param *desc)
 	dst = to_vfi_dst (kset_find_obj (&bind->dsts->kset, buf));
 	if (dst) {
 		vfi_dst_put (dst);		/* Put, to counteract the find... */
-		vfi_dst_unregister(dst);
+		kobject_del(&dst->kobj);
 	}
 }
 

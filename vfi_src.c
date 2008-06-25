@@ -152,6 +152,7 @@ struct kobj_type vfi_src_type = {
 
 int new_vfi_src(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind_param *desc)
 {
+	int ret;
 	struct vfi_src *new = kzalloc(sizeof(struct vfi_src) + VFI_DESC_ALIGN - 1, GFP_KERNEL);
 
 	*src = new;
@@ -172,35 +173,24 @@ int new_vfi_src(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind_pa
 	vfi_clone_bind(&new->desc, desc);
 	new->desc.dst.offset = new->desc.dst.extent;
 	new->desc.dst.extent = new->desc.src.extent;
-	new->kobj.ktype = &vfi_src_type;
-	kobject_set_name(&new->kobj,"%s.%s#%llx:%x",new->desc.src.name, new->desc.src.location, new->desc.src.offset, new->desc.src.extent);
-
-	new->kobj.kset = &parent->srcs->kset;
 	new->desc.src.ops = parent->desc.src.ops;
 	new->desc.src.rde = parent->desc.src.rde;
 	new->dst = parent;
 	vfi_bind_inherit(&new->desc,&parent->desc);
 
-	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p %p\n",__FUNCTION__,new,parent->srcs);
-	return VFI_RESULT(0);
-}
+	ret = kobject_init_and_add(&new->kobj, &vfi_src_type, &parent->srcs->kset.kobj,
+				       "%s.%s#%llx:%x",
+				       new->desc.src.name,
+				       new->desc.src.location,
+				       new->desc.src.offset,
+				       new->desc.src.extent);
+	if (ret) {
+		kobject_put(&new->kobj);
+		*src = NULL;
+	}
 
-int vfi_src_register(struct vfi_src *vfi_src)
-{
-	int ret = 0;
-	
-	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
-	ret = kobject_register(&vfi_src->kobj);
-	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p %p\n",__FUNCTION__,*src,parent->srcs);
 	return VFI_RESULT(ret);
-}
-
-void vfi_src_unregister(struct vfi_src *vfi_src)
-{
-    
-	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
-	kobject_unregister(&vfi_src->kobj);
-	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
 int find_vfi_src(struct vfi_src **src, struct vfi_desc_param *desc, struct vfi_dst *parent)
@@ -218,17 +208,6 @@ int vfi_src_create(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind
 	ret  = new_vfi_src(src,parent,desc);
 
 	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,*src);
-
-	if (ret)
-		return VFI_RESULT(ret);
-
-	ret = vfi_src_register(*src);
-
-	if (ret) {
-		vfi_src_put(*src);
-		*src = NULL;
-	}
-
 	return VFI_RESULT(ret);
 }
 
@@ -252,6 +231,6 @@ void vfi_src_delete (struct vfi_dst *parent, struct vfi_bind_param *desc)
 		return;
 	}
 	vfi_src_put (src);		/* Put, to counteract the find... */
-	vfi_src_unregister(src);
+	kobject_del(&src->kobj);
 }
 

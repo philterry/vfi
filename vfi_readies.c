@@ -106,7 +106,7 @@ static const char *vfi_readies_uevent_name(struct kset *kset, struct kobject *ko
 	return "dunno";
 }
 
-static int vfi_readies_uevent(struct kset *kset, struct kobject *kobj, char **envp, int num_envp, char *buffer, int buf_size)
+static int vfi_readies_uevent(struct kset *kset, struct kobject *kobj, struct kobj_uevent_env *env)
 {
 	return 0; /* Do not generate event */
 }
