@@ -584,7 +584,6 @@ static void send_completion (struct ppc_dma_chan *chan,
 }
 
 #ifdef MY_DEBUG
-extern	int mpc85xx_rio_error_check(struct rio_mport *vfi_rio_port);
 extern	struct rio_mport *vfi_rio_port;
 #endif
 
@@ -654,11 +653,6 @@ static irqreturn_t do_interrupt(int irq, void *data)
 	}
 
 	VFI_DEBUG(MY_DEBUG,"DMA interrupt, chan->state = 0x%x\n", chan->state);
-
-#ifdef MY_DEBUG
-if (te || pe)
-	mpc85xx_rio_error_check(vfi_rio_port);
-#endif
 
 	if (status & DMA_STAT_LIST_INTERRUPT)
 		chan->list_int++;
