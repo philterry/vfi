@@ -18,7 +18,7 @@ cat<<EOF
 This script can install or uninstall this vfi system:
 	$(pwd)
 in your kernel:
-	${kernelsrc:=/lib/modules/`uname -r`/build}
+	${kernelsrc:=/lib/modules/`uname -r`/source}
 
 which should be a softlink:
 $(ls -ld $kernelsrc)
@@ -106,7 +106,7 @@ if [ -z "$dowhat" ] ; then
 fi
 
 if [ -n "$doInstall" -o -n "$doSymlink" ] ; then
-    echo Populating ${kernelsrc:=/lib/modules/`uname -r`/build}/include/linux
+    echo Populating ${kernelsrc:=/lib/modules/`uname -r`/source}/include/linux
     for file in *.h ; do
 	if [ -L $kernelsrc/include/linux/$file ] ; then
 	    if [ -n "$V" ]; then
@@ -136,27 +136,48 @@ if [ -n "$doInstall" -o -n "$doSymlink" ] ; then
 
     done
 
-    echo "Patching $kernelsrc/drivers/Kconfig"
 patch -p0 <<EOF
 --- $kernelsrc/drivers/Kconfig~	2007-08-02 13:26:43.000000000 -0700
 +++ $kernelsrc/drivers/Kconfig	2007-08-14 10:13:47.000000000 -0700
-@@ -82,6 +82,8 @@
+@@ -94,6 +94,8 @@
  
- source "drivers/dma/Kconfig"
+ source "drivers/dca/Kconfig"
  
 +source "drivers/vfi/Kconfig"
 +
  source "drivers/auxdisplay/Kconfig"
  
- source "drivers/kvm/Kconfig"
+ source "drivers/uio/Kconfig"
 EOF
 
+patch -p0 <<EOF
+--- $kernelsrc/drivers/Makefile~	2008-06-25 10:23:16.000000000 -0700
++++ $kernelsrc/drivers/Makefile	2008-06-25 12:02:57.000000000 -0700
+@@ -94,3 +94,17 @@
+ obj-\$(CONFIG_SSB)		+= ssb/
+ obj-\$(CONFIG_VIRTIO)		+= virtio/
+ obj-\$(CONFIG_VMEBUS)		+= vme/
++
++obj-\$(CONFIG_VFI_DMA_6460) += vfi_6460.o
++vfi_6460-objs := vfi_dma_6460.o 
++
++obj-\$(CONFIG_VFI_DMA_RIO) += vfi_dma_rio.o
++obj-\$(CONFIG_VFI_DMA_NET) += vfi_dma_net.o
++
++obj-\$(CONFIG_VFI_FABRIC_NET) += vfi_fabric_net.o
++obj-\$(CONFIG_VFI_FABRIC_RIONET) += vfi_fabric_rionet.o
++
++obj-\$(CONFIG_VFI) += vfi.o
++vfi-objs := vfi_drv.o vfi_bus.o  ringbuf.o vfi_class.o vfi_fabric.o vfi_dma.o vfi_cdev.o vfi_parse.o vfi_dump.o vfi_ops.o vfi_fabric_ops.o vfi_local_ops.o vfi_subsys.o vfi_location.o vfi_readies.o vfi_events.o vfi_event.o vfi_syncs.o vfi_sync.o  vfi_smbs.o vfi_smb.o vfi_mmaps.o vfi_mmap.o vfi_xfers.o vfi_xfer.o vfi_binds.o vfi_bind.o vfi_dsts.o vfi_dst.o vfi_srcs.o vfi_src.o
++
++
+EOF
     echo Populating $kernelsrc/Documentation/DocBook
     cp $V --backup=numbered DocBook/vfi.tmpl $kernelsrc/Documentation/DocBook
 fi
 
 if [ -n "$doUninstall" ] ; then
-    if [ -L ${kernelsrc:=/lib/modules/`uname -r`/build}/drivers/vfi ]; then
+    if [ -L ${kernelsrc:=/lib/modules/`uname -r`/source}/drivers/vfi ]; then
 	rm $kernelsrc/drivers/vfi
     elif [ -n "$doforce" ] ; then
 	rm -rf $kernelsrc/drivers/vfi
@@ -164,20 +185,43 @@ if [ -n "$doUninstall" ] ; then
 	rm $kernelsrc/drivers/vfi/*.[ch]
 	rm $kernelsrc/drivers/vfi/{Kconfig,Kbuild,Makefile}
     fi
-    rm $kernelsrc/include/linux/vfi*
+    rm $kernelsrc/include/linux/vfi* $kernelsrc/include/linux/ringbuf.h $kernelsrc/include/linux/mpc10xdma.h
     rm $kernelsrc/Documentation/DocBook/vfi.tmpl
 patch -p0 -R <<EOF
 --- $kernelsrc/drivers/Kconfig~	2007-08-02 13:26:43.000000000 -0700
 +++ $kernelsrc/drivers/Kconfig	2007-08-14 10:13:47.000000000 -0700
-@@ -82,6 +82,8 @@
+@@ -94,6 +94,8 @@
  
- source "drivers/dma/Kconfig"
+ source "drivers/dca/Kconfig"
  
 +source "drivers/vfi/Kconfig"
 +
  source "drivers/auxdisplay/Kconfig"
  
- source "drivers/kvm/Kconfig"
+ source "drivers/uio/Kconfig"
+EOF
+
+patch -p0 -R <<EOF
+--- $kernelsrc/drivers/Makefile~	2008-06-25 10:23:16.000000000 -0700
++++ $kernelsrc/drivers/Makefile	2008-06-25 12:02:57.000000000 -0700
+@@ -94,3 +94,17 @@
+ obj-\$(CONFIG_SSB)		+= ssb/
+ obj-\$(CONFIG_VIRTIO)		+= virtio/
+ obj-\$(CONFIG_VMEBUS)		+= vme/
++
++obj-\$(CONFIG_VFI_DMA_6460) += vfi_6460.o
++vfi_6460-objs := vfi_dma_6460.o 
++
++obj-\$(CONFIG_VFI_DMA_RIO) += vfi_dma_rio.o
++obj-\$(CONFIG_VFI_DMA_NET) += vfi_dma_net.o
++
++obj-\$(CONFIG_VFI_FABRIC_NET) += vfi_fabric_net.o
++obj-\$(CONFIG_VFI_FABRIC_RIONET) += vfi_fabric_rionet.o
++
++obj-\$(CONFIG_VFI) += vfi.o
++vfi-objs := vfi_drv.o vfi_bus.o  ringbuf.o vfi_class.o vfi_fabric.o vfi_dma.o vfi_cdev.o vfi_parse.o vfi_dump.o vfi_ops.o vfi_fabric_ops.o vfi_local_ops.o vfi_subsys.o vfi_location.o vfi_readies.o vfi_events.o vfi_event.o vfi_syncs.o vfi_sync.o  vfi_smbs.o vfi_smb.o vfi_mmaps.o vfi_mmap.o vfi_xfers.o vfi_xfer.o vfi_binds.o vfi_bind.o vfi_dsts.o vfi_dst.o vfi_srcs.o vfi_src.o
++
++
 EOF
 fi 
 
