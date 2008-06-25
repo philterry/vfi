@@ -18,20 +18,25 @@ config VFI_FABRIC_NET
 	  Enable support for using the ethernet for VFI as if
 	  it were a switch fabric.
 
-# Note: following depends on RAPIDIO, not NET, fixme later!
+config VFI_DMA_NET
+	tristate "FusionIPC Distributed DMA driver dummy"
+	depends on VFI && NET
+	default m
+	---help---
+	  Enable support for FusionIPC Distributed DMA over ethernet for debug
+	  simulation purposes. Doesn't support actual DMA of data only the
+	  messaging to set it up.
 
 config VFI_FABRIC_RIONET
 	tristate "FusionIPC Distributed DMA driver -- RIO switch fabric"
-	depends on VFI && NET
+	depends on VFI && RIONET
 	default m
 	---help---
 	  Enable support for VFI communication over RIO switch fabric
 
-# also depends on RAPIDIO, but removed for now
-
 config VFI_DMA_RIO
 	tristate "FusionIPC Distributed DMA driver -- RIO via PPC8641 DMA hardware"
-	depends on VFI 
+	depends on VFI && RAPIDIO
 	default m
 	---help---
 	  Enable support for FusionIPC Distributed DMA over Rapid I/O.
