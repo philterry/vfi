@@ -127,14 +127,18 @@ if [ -n "$doInstall" -o -n "$doSymlink" ] ; then
 	rm $kernelsrc/drivers/vfi
     fi
     mkdir -p $kernelsrc/drivers/vfi
-    for file in *.c Makefile Kbuild Kconfig ringbuf.h mpc10xdma.h ; do
+    for file in *.c Kconfig ringbuf.h mpc10xdma.h ; do
 	if [ -n "$doSymlink" ]; then
 	    ln -s $(pwd)/$file $kernelsrc/drivers/vfi/$file
 	else
 	    cp $V --backup=numbered $file $kernelsrc/drivers/vfi
 	fi
-
     done
+    if [ -n "$doSymlink" ]; then
+	ln -s $(pwd)/Kbuild $kernelsrc/drivers/vfi/Makefile
+    else
+	cp $V --backup=numbered Kbuild $kernelsrc/drivers/vfi/Makefile
+    fi
 
 patch -p0 <<EOF
 --- $kernelsrc/drivers/Kconfig~	2007-08-02 13:26:43.000000000 -0700
@@ -153,24 +157,11 @@ EOF
 patch -p0 <<EOF
 --- $kernelsrc/drivers/Makefile~	2008-06-25 10:23:16.000000000 -0700
 +++ $kernelsrc/drivers/Makefile	2008-06-25 12:02:57.000000000 -0700
-@@ -94,3 +94,17 @@
+@@ -94,3 +94,4 @@
  obj-\$(CONFIG_SSB)		+= ssb/
  obj-\$(CONFIG_VIRTIO)		+= virtio/
  obj-\$(CONFIG_VMEBUS)		+= vme/
-+
-+obj-\$(CONFIG_VFI_DMA_6460) += vfi_6460.o
-+vfi_6460-objs := vfi_dma_6460.o 
-+
-+obj-\$(CONFIG_VFI_DMA_RIO) += vfi_dma_rio.o
-+obj-\$(CONFIG_VFI_DMA_NET) += vfi_dma_net.o
-+
-+obj-\$(CONFIG_VFI_FABRIC_NET) += vfi_fabric_net.o
-+obj-\$(CONFIG_VFI_FABRIC_RIONET) += vfi_fabric_rionet.o
-+
-+obj-\$(CONFIG_VFI) += vfi.o
-+vfi-objs := vfi_drv.o vfi_bus.o  ringbuf.o vfi_class.o vfi_fabric.o vfi_dma.o vfi_cdev.o vfi_parse.o vfi_dump.o vfi_ops.o vfi_fabric_ops.o vfi_local_ops.o vfi_subsys.o vfi_location.o vfi_readies.o vfi_events.o vfi_event.o vfi_syncs.o vfi_sync.o  vfi_smbs.o vfi_smb.o vfi_mmaps.o vfi_mmap.o vfi_xfers.o vfi_xfer.o vfi_binds.o vfi_bind.o vfi_dsts.o vfi_dst.o vfi_srcs.o vfi_src.o
-+
-+
++obj-\$(CONFIG_VFI)             += vfi/
 EOF
     echo Populating $kernelsrc/Documentation/DocBook
     cp $V --backup=numbered DocBook/vfi.tmpl $kernelsrc/Documentation/DocBook
@@ -183,7 +174,7 @@ if [ -n "$doUninstall" ] ; then
 	rm -rf $kernelsrc/drivers/vfi
     else
 	rm $kernelsrc/drivers/vfi/*.[ch]
-	rm $kernelsrc/drivers/vfi/{Kconfig,Kbuild,Makefile}
+	rm $kernelsrc/drivers/vfi/{Kconfig,Makefile}
     fi
     rm $kernelsrc/include/linux/vfi* $kernelsrc/include/linux/ringbuf.h $kernelsrc/include/linux/mpc10xdma.h
     rm $kernelsrc/Documentation/DocBook/vfi.tmpl
@@ -204,24 +195,11 @@ EOF
 patch -p0 -R <<EOF
 --- $kernelsrc/drivers/Makefile~	2008-06-25 10:23:16.000000000 -0700
 +++ $kernelsrc/drivers/Makefile	2008-06-25 12:02:57.000000000 -0700
-@@ -94,3 +94,17 @@
+@@ -94,3 +94,4 @@
  obj-\$(CONFIG_SSB)		+= ssb/
  obj-\$(CONFIG_VIRTIO)		+= virtio/
  obj-\$(CONFIG_VMEBUS)		+= vme/
-+
-+obj-\$(CONFIG_VFI_DMA_6460) += vfi_6460.o
-+vfi_6460-objs := vfi_dma_6460.o 
-+
-+obj-\$(CONFIG_VFI_DMA_RIO) += vfi_dma_rio.o
-+obj-\$(CONFIG_VFI_DMA_NET) += vfi_dma_net.o
-+
-+obj-\$(CONFIG_VFI_FABRIC_NET) += vfi_fabric_net.o
-+obj-\$(CONFIG_VFI_FABRIC_RIONET) += vfi_fabric_rionet.o
-+
-+obj-\$(CONFIG_VFI) += vfi.o
-+vfi-objs := vfi_drv.o vfi_bus.o  ringbuf.o vfi_class.o vfi_fabric.o vfi_dma.o vfi_cdev.o vfi_parse.o vfi_dump.o vfi_ops.o vfi_fabric_ops.o vfi_local_ops.o vfi_subsys.o vfi_location.o vfi_readies.o vfi_events.o vfi_event.o vfi_syncs.o vfi_sync.o  vfi_smbs.o vfi_smb.o vfi_mmaps.o vfi_mmap.o vfi_xfers.o vfi_xfer.o vfi_binds.o vfi_bind.o vfi_dsts.o vfi_dst.o vfi_srcs.o vfi_src.o
-+
-+
++obj-\$(CONFIG_VFI)             += vfi/
 EOF
 fi 
 
