@@ -49,8 +49,6 @@ static inline struct vfi_bind *vfi_dst_parent(struct vfi_dst *dst)
 
 
 extern int new_vfi_dst(struct vfi_dst **, struct vfi_bind *, struct vfi_bind_param *);
-extern int vfi_dst_register(struct vfi_dst *);
-extern void vfi_dst_unregister(struct vfi_dst *);
 extern int find_vfi_dst_in(struct vfi_dst **, struct vfi_bind *, struct vfi_bind_param *);
 static inline int find_vfi_dst(struct vfi_dst **dst, struct vfi_bind_param *desc)
 {

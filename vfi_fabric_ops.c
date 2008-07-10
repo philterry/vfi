@@ -20,7 +20,6 @@
 #include <linux/vfi_src.h>
 #include <linux/vfi_xfer.h>
 #include <linux/vfi_bind.h>
-#include <linux/vfi_binds.h>
 #include <linux/vfi_smbs.h>
 #include <linux/vfi_xfers.h>
 #include <linux/vfi_srcs.h>
@@ -161,7 +160,7 @@ static void vfi_fabric_location_put(struct vfi_location *loc, struct vfi_desc_pa
 	return;
 }
 
-int vfi_fabric_smb_find(struct vfi_smb **smb, struct vfi_location *parent, struct vfi_desc_param *desc)
+static int vfi_fabric_smb_find(struct vfi_smb **smb, struct vfi_location *parent, struct vfi_desc_param *desc)
 {
 	struct sk_buff  *skb;
 	int ret;
@@ -184,6 +183,26 @@ int vfi_fabric_smb_find(struct vfi_smb **smb, struct vfi_location *parent, struc
 	}
 
 	return VFI_RESULT(ret);
+}
+
+static void vfi_fabric_smb_put(struct vfi_smb *smb)
+{
+	struct sk_buff  *skb;
+	int ret;
+
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
+	ret = vfi_fabric_call(&skb, smb->desc.ploc, 5, "smb_put://%s.%s", smb->desc.name,smb->desc.location);
+
+	if (skb) {
+		struct vfi_desc_param reply;
+		if (!vfi_parse_desc(&reply,skb->data)) {
+			dev_kfree_skb(skb);
+			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
+				vfi_smb_put(smb);
+			vfi_clean_desc(&reply);
+		}
+	}
 }
 
 static int vfi_fabric_mmap_find(struct vfi_mmap **mmap, struct vfi_smb *parent, struct vfi_desc_param *desc)
@@ -402,7 +421,7 @@ static int vfi_fabric_bind_find(struct vfi_bind **bind, struct vfi_xfer *parent,
 
 	VFI_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p) bind(%s)\n",__FUNCTION__,parent,desc,buf);
 
-	if ( (*bind = to_vfi_bind(kset_find_obj(&parent->binds->kset,buf))) )
+	if ( (*bind = to_vfi_bind(kset_find_obj(&parent->kset,buf))) )
 		return VFI_RESULT(0);
 
 	ret = vfi_fabric_call(&skb, parent->desc.ploc, 5, "bind_find://%s.%s#%llx:%x",
@@ -1165,18 +1184,14 @@ static void vfi_fabric_location_delete(struct vfi_location *loc, struct vfi_desc
 	}
 }
 
-static void vfi_fabric_smb_delete(struct vfi_location *loc, struct vfi_desc_param *desc)
+static void vfi_fabric_smb_delete(struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
 	struct sk_buff  *skb;
-	struct vfi_smb *smb;
 
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	VFI_DEBUG(MY_DEBUG,"%s (%s.%s)\n",__FUNCTION__, desc->name, desc->location);
 
-	if (NULL == (smb = to_vfi_smb(kset_find_obj(&loc->smbs->kset,desc->name))) )
-		return;
-
-	vfi_fabric_call(&skb, loc, 5, "smb_delete://%s.%s", desc->name, desc->location);
+	vfi_fabric_call(&skb, smb->desc.ploc, 5, "smb_delete://%s.%s", desc->name, desc->location);
 	if (skb) {
 		struct vfi_desc_param reply;
 		int ret = -EINVAL;
@@ -1233,20 +1248,20 @@ static void vfi_fabric_bind_delete(struct vfi_xfer *xfer, struct vfi_desc_param 
 	}
 }
 
-static void vfi_fabric_xfer_delete(struct vfi_location *loc, struct vfi_desc_param *desc)
+static void vfi_fabric_xfer_delete(struct vfi_xfer *xfer, struct vfi_desc_param *desc)
 {
 	struct sk_buff  *skb;
 
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	vfi_fabric_call(&skb,loc, 5, "xfer_delete://%s.%s", desc->name,desc->location);
+	vfi_fabric_call(&skb,xfer->desc.ploc, 5, "xfer_delete://%s.%s", desc->name,desc->location);
 	if (skb) {
 		struct vfi_desc_param reply;
 		int ret = -EINVAL;
 		if (!vfi_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
-				vfi_xfer_delete(loc,&reply);
+				vfi_xfer_delete(xfer,&reply);
 			vfi_clean_desc(&reply);
 
 		}
@@ -1387,7 +1402,7 @@ static void vfi_fabric_src_delete(struct vfi_dst *parent, struct vfi_bind_param 
 * srcs_delete must always run on the bind <src> agent.
 *
 **/
-static struct vfi_dst *vfi_fabric_srcs_delete(struct vfi_dst *parent, struct vfi_bind_param *desc)
+static void vfi_fabric_srcs_delete(struct vfi_dst *parent, struct vfi_bind_param *desc)
 {
 	struct sk_buff  *skb;
 	struct vfi_location *loc = parent->desc.src.ploc;	/* srcs_delete runs on <src> */
@@ -1411,7 +1426,6 @@ static struct vfi_dst *vfi_fabric_srcs_delete(struct vfi_dst *parent, struct vfi
 			vfi_clean_bind(&reply);
 		}
 	}
-	return parent;
 }
 
 /**
@@ -1429,7 +1443,7 @@ static struct vfi_dst *vfi_fabric_srcs_delete(struct vfi_dst *parent, struct vfi
 * instance of <dsts> is deleted too.
 *
 **/
-static struct vfi_bind *vfi_fabric_dsts_delete (struct vfi_bind *parent, struct vfi_bind_param *desc)
+static void vfi_fabric_dsts_delete (struct vfi_bind *parent, struct vfi_bind_param *desc)
 {
 	struct sk_buff  *skb;
 	struct vfi_location *loc = parent->desc.dst.ploc;	/* dsts_delete runs on <dst> */
@@ -1447,12 +1461,10 @@ static struct vfi_bind *vfi_fabric_dsts_delete (struct vfi_bind *parent, struct 
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
 				vfi_doorbell_unregister (parent->desc.xfer.address, parent->dst_ready_event_id);
-				vfi_dsts_delete(parent->dsts);
 			}
 			vfi_clean_bind(&reply);
 		}
 	}
-	return parent;
 }
 
 static void vfi_fabric_done(struct vfi_event *event)
@@ -1575,6 +1587,7 @@ struct vfi_ops vfi_fabric_ops = {
 	.smb_create      = vfi_fabric_smb_create,
 	.smb_delete      = vfi_fabric_smb_delete,
 	.smb_find        = vfi_fabric_smb_find,
+	.smb_put         = vfi_fabric_smb_put,
 	.mmap_create     = vfi_fabric_mmap_create,
 	.mmap_delete     = vfi_fabric_mmap_delete,
 	.mmap_find       = vfi_fabric_mmap_find,

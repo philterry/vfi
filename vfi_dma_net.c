@@ -16,7 +16,6 @@
 #include <linux/vfi_dma_net.h>
 #include <linux/vfi_src.h>
 #include <linux/vfi_srcs.h>
-#include <linux/vfi_binds.h>
 
 struct dma_engine {
 	struct vfi_dma_engine rde;

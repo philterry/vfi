@@ -48,7 +48,7 @@ static void vfi_src_release (struct kobject *kobj)
 	* the working structure body. If the embedded pointer is NULL 
 	* then the working pointer is good.
 	*/
-	kfree ((p->free_p) ? : p);
+	kfree ((p->free_p) ? p->free_p : p);
 }
 
 struct vfi_src_attribute {
@@ -97,10 +97,13 @@ static ssize_t vfi_src_default_show(struct vfi_src *vfi_src, char *buffer)
 	int left = PAGE_SIZE;
 	int size = 0;
 	ATTR_PRINTF("Src %p is %s = %s\n",vfi_src,vfi_src->desc.dst.name,vfi_src->desc.src.name);
-	if (vfi_src) {
-		ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",vfi_src->desc.dst.ops,vfi_src->desc.dst.rde,vfi_src->desc.dst.address);
-		ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",vfi_src->desc.src.ops,vfi_src->desc.src.rde,vfi_src->desc.src.address);
-	}
+	ATTR_PRINTF("xfr: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_src->desc.xfer.ops,vfi_src->desc.xfer.rde,vfi_src->desc.xfer.address,vfi_src->desc.xfer.ploc);
+	ATTR_PRINTF("dst: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_src->desc.dst.ops,vfi_src->desc.dst.rde,vfi_src->desc.dst.address,vfi_src->desc.dst.ploc);
+	ATTR_PRINTF("src: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_src->desc.src.ops,vfi_src->desc.src.rde,vfi_src->desc.src.address,vfi_src->desc.src.ploc);
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_src->kobj.kref.refcount));
 	return size;
 
 }
@@ -166,19 +169,19 @@ int new_vfi_src(struct vfi_src **src, struct vfi_dst *parent, struct vfi_bind_pa
 	 * TJA: further, need to embed original kzalloc'ed address so that it can be kfree'd without breaking.
 	 */
 	if ((unsigned long) new & (VFI_DESC_ALIGN-1)) {
-		struct vfi_src *alt = (struct vfi_src *) (((unsigned long) new + VFI_DESC_ALIGN) & ~(VFI_DESC_ALIGN - 1));
-		alt->free_p = new;
-		new = alt;
+		*src = (struct vfi_src *) (((unsigned long) new + VFI_DESC_ALIGN) & ~(VFI_DESC_ALIGN - 1));
+		(*src)->free_p = new;
 	}
+
 	vfi_clone_bind(&new->desc, desc);
-	new->desc.dst.offset = new->desc.dst.extent;
-	new->desc.dst.extent = new->desc.src.extent;
-	new->desc.src.ops = parent->desc.src.ops;
-	new->desc.src.rde = parent->desc.src.rde;
-	new->dst = parent;
 	vfi_bind_inherit(&new->desc,&parent->desc);
 
-	ret = kobject_init_and_add(&new->kobj, &vfi_src_type, &parent->srcs->kset.kobj,
+	new->desc.dst.offset = new->desc.dst.extent;
+	new->desc.dst.extent = new->desc.src.extent;
+	new->dst = parent;
+
+	new->kobj.kset = &parent->srcs->kset;
+	ret = kobject_init_and_add(&new->kobj, &vfi_src_type, NULL,
 				       "%s.%s#%llx:%x",
 				       new->desc.src.name,
 				       new->desc.src.location,
@@ -230,7 +233,7 @@ void vfi_src_delete (struct vfi_dst *parent, struct vfi_bind_param *desc)
 		VFI_DEBUG (MY_DEBUG, "xxx %s failed to find \"%s\"\n", __func__, buf);
 		return;
 	}
-	vfi_src_put (src);		/* Put, to counteract the find... */
-	kobject_del(&src->kobj);
+	vfi_src_put(src);		/* Put, to counteract the find... */
+	vfi_src_put(src);
 }
 

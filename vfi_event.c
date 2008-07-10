@@ -23,6 +23,7 @@
 static void vfi_event_release(struct kobject *kobj)
 {
     struct vfi_event *p = to_vfi_event(kobj);
+    vfi_clean_desc(&p->desc);
     kfree(p);
 }
 
@@ -64,7 +65,10 @@ static struct sysfs_ops vfi_event_sysfs_ops = {
 
 static ssize_t vfi_event_default_show(struct vfi_event *vfi_event, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "vfi_event_default");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_event->kobj.kref.refcount));
+	return size;
 }
 
 static ssize_t vfi_event_default_store(struct vfi_event *vfi_event, const char *buffer, size_t size)
@@ -187,17 +191,12 @@ int vfi_event_create(struct vfi_event **new, struct vfi_events *parent, struct v
 
 	ret = new_vfi_event(new,parent, desc, bind, f, id);
 
-	if (ret) 
-		return VFI_RESULT(ret);
-
-	return VFI_RESULT(0);
+	return VFI_RESULT(ret);
 }
 
 void vfi_event_delete (struct vfi_event *vfi_event)
 {
-	VFI_KTRACE ("<*** %s (%p) Id: %08x IN ***>\n", __func__, vfi_event, (vfi_event) ? vfi_event->event_id : 0xffffffff);
-	kobject_del (&vfi_event->kobj);
-	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
+	vfi_event_put(vfi_event);
 }
 
 void vfi_event_send(struct vfi_event *event)

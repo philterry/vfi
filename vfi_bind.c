@@ -16,7 +16,6 @@
 #include <linux/vfi_bind.h>
 #include <linux/vfi_xfer.h>
 #include <linux/vfi_ops.h>
-#include <linux/vfi_binds.h>
 #include <linux/vfi_dsts.h>
 #include <linux/vfi_dst.h>
 #include <linux/vfi_dma.h>
@@ -90,10 +89,13 @@ static ssize_t vfi_bind_default_show(struct vfi_bind *vfi_bind, char *buffer)
 	int size = 0;
 	ATTR_PRINTF("Bind %p is %s.%s = %s.%s ready is %d\n",vfi_bind,vfi_bind->desc.dst.name, vfi_bind->desc.dst.location,
 		    vfi_bind->desc.src.name,vfi_bind->desc.src.location,vfi_bind->ready);
-	if (vfi_bind) {
-		ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",vfi_bind->desc.dst.ops,vfi_bind->desc.dst.rde,vfi_bind->desc.dst.address);
-		ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",vfi_bind->desc.src.ops,vfi_bind->desc.src.rde,vfi_bind->desc.src.address);
-	}
+	ATTR_PRINTF("xfr: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_bind->desc.xfer.ops,vfi_bind->desc.xfer.rde,vfi_bind->desc.xfer.address,vfi_bind->desc.xfer.ploc);
+	ATTR_PRINTF("dst: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_bind->desc.dst.ops,vfi_bind->desc.dst.rde,vfi_bind->desc.dst.address,vfi_bind->desc.dst.ploc);
+	ATTR_PRINTF("src: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_bind->desc.src.ops,vfi_bind->desc.src.rde,vfi_bind->desc.src.address,vfi_bind->desc.src.ploc);
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_bind->kobj.kref.refcount));
 	return size;
 
 }
@@ -164,11 +166,14 @@ int new_vfi_bind(struct vfi_bind **bind, struct vfi_xfer *parent, struct vfi_bin
 	INIT_LIST_HEAD(&new->dma_chain);
 	spin_lock_init(&new->lock);
 
-	ret = kobject_init_and_add(&new->kobj, &vfi_bind_type, &parent->binds->kset.kobj, "#%llx:%x",desc->xfer.offset,desc->xfer.extent);
-	if (ret)
+	new->kobj.kset = &parent->kset;
+	ret = kobject_init_and_add(&new->kobj, &vfi_bind_type, NULL, "#%llx:%x",desc->xfer.offset,desc->xfer.extent);
+	if (ret) {
 		kobject_put(&new->kobj);
+		*bind = NULL;
+	}
 
-	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,*bind);
 
 	return VFI_RESULT(ret);
 }
@@ -252,20 +257,18 @@ int vfi_bind_create(struct vfi_bind **newbind, struct vfi_xfer *xfer, struct vfi
 
 	snprintf(buf,128,"#%llx:%x",desc->xfer.offset,desc->xfer.extent);
 
-	new = to_vfi_bind(kset_find_obj(&xfer->binds->kset,buf));
+	new = to_vfi_bind(kset_find_obj(&xfer->kset,buf));
 
 	if (new) {
 		VFI_DEBUG(MY_DEBUG,"%s found %p locally in %p\n",__FUNCTION__,new,xfer);
 		*newbind = new;
+		vfi_bind_put(new);
 		return VFI_RESULT(0);
 	}
 
 	ret = new_vfi_bind(newbind,xfer,desc);
 
-	if (ret)
-		return VFI_RESULT(ret);
-
-	return VFI_RESULT(0);
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -286,10 +289,10 @@ void vfi_bind_delete(struct vfi_xfer *xfer, struct vfi_desc_param *desc)
 	if ( snprintf(buf,128,"#%llx:%x", desc->offset, desc->extent) > 128 )
 		goto out;
 
-	bind = to_vfi_bind(kset_find_obj(&xfer->binds->kset, buf));
+	bind = to_vfi_bind(kset_find_obj(&xfer->kset, buf));
 
-	if (bind) 
-		kobject_del (&bind->kobj);
+	vfi_bind_put(bind);
+	vfi_bind_put(bind);
 out:
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,xfer,desc,bind);
 }

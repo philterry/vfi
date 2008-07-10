@@ -16,7 +16,6 @@
 #include <linux/vfi_mmap.h>
 #include <linux/vfi_smb.h>
 #include <linux/vfi_smbs.h>
-#include <linux/vfi_mmaps.h>
 #include <linux/vfi_drv.h>
 #include <linux/vfi_location.h>
 
@@ -26,6 +25,7 @@
 static void vfi_mmap_release(struct kobject *kobj)
 {
     struct vfi_mmap *p = to_vfi_mmap(kobj);
+    vfi_clean_desc(&p->desc);
     kfree(p);
 }
 
@@ -67,7 +67,12 @@ static struct sysfs_ops vfi_mmap_sysfs_ops = {
 
 static ssize_t vfi_mmap_default_show(struct vfi_mmap *vfi_mmap, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "vfi_mmap_default");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("Mmap %p is %s \n",vfi_mmap,vfi_mmap ? vfi_mmap->desc.name : NULL);
+	ATTR_PRINTF("mmap: ops is %p rde is %p address is %p ploc is %p\n",vfi_mmap->desc.ops,vfi_mmap->desc.rde,vfi_mmap->desc.address, vfi_mmap->desc.ploc);
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_mmap->kobj.kref.refcount));
+	return size;
 }
 
 static ssize_t vfi_mmap_default_store(struct vfi_mmap *vfi_mmap, const char *buffer, size_t size)
@@ -131,7 +136,7 @@ int find_vfi_mmap(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc_p
 {
 	char buf[512];
 	snprintf(buf,512,"%d#%llx:%x",current->pid,desc->offset,desc->extent);
-	*mmap = to_vfi_mmap(kset_find_obj(&smb->mmaps->kset,buf));
+	*mmap = to_vfi_mmap(kset_find_obj(&smb->kset,buf));
 	return VFI_RESULT(*mmap == NULL);
 }
 static struct vfi_mmap *frm_by_loc(struct vfi_location *loc,unsigned long tid)
@@ -148,20 +153,20 @@ static struct vfi_mmap *frm_by_loc(struct vfi_location *loc,unsigned long tid)
 	spin_unlock(&loc->kset.list_lock);
 
 	spin_lock(&loc->smbs->kset.list_lock);
-	list_for_each_entry(smb,&loc->smbs->kset.list,kobj.entry) {
+	list_for_each_entry(smb,&loc->smbs->kset.list,kset.kobj.entry) {
 
-		spin_lock(&smb->mmaps->kset.list_lock);
-		list_for_each_entry(mmap,&smb->mmaps->kset.list,kobj.entry) {
+		spin_lock(&smb->kset.list_lock);
+		list_for_each_entry(mmap,&smb->kset.list,kobj.entry) {
 			if (is_mmap_ticket(mmap,tid))
 				goto out;
 		}
-		spin_unlock(&smb->mmaps->kset.list_lock);
+		spin_unlock(&smb->kset.list_lock);
 	}
 	spin_unlock(&loc->smbs->kset.list_lock);
 
 	return NULL;
 out:
-	spin_unlock(&smb->mmaps->kset.list_lock);
+	spin_unlock(&smb->kset.list_lock);
 	spin_unlock(&loc->smbs->kset.list_lock);
 	return mmap;
 outloc:
@@ -217,7 +222,8 @@ int new_vfi_mmap(struct vfi_mmap **mmap, struct vfi_smb *parent, struct vfi_desc
 	if (NULL == new)
 		return VFI_RESULT(-ENOMEM);
 
-	ret = kobject_init_and_add(&new->kobj, &vfi_mmap_type, &parent->mmaps->kset.kobj, "%d#%llx:%x",current->pid, desc->offset,desc->extent);
+	new->kobj.kset = &parent->kset;
+	ret = kobject_init_and_add(&new->kobj, &vfi_mmap_type, NULL, "%d#%llx:%x",current->pid, desc->offset,desc->extent);
 	if (ret)
 		kobject_put(&new->kobj);
 
@@ -260,5 +266,6 @@ void vfi_mmap_delete(struct vfi_smb *smb, struct vfi_desc_param *desc)
 	struct vfi_mmap *mmap;
 	int ret;
 	ret = find_vfi_mmap(&mmap,smb,desc);
-	kobject_del(&mmap->kobj);
+	vfi_mmap_put(mmap);
+	vfi_mmap_put(mmap);
 }

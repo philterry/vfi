@@ -29,10 +29,7 @@ static void vfi_sync_release(struct kobject *kobj)
 {
 	struct vfi_sync *p = to_vfi_sync(kobj);
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-	if (p->desc.name) {
-		VFI_DEBUG(MY_LIFE_DEBUG,"%s name %p\n",__FUNCTION__,p->desc.name);
-		kfree(p->desc.name);
-	}
+	vfi_clean_desc(&p->desc);
 	kfree(p);
 }
 
@@ -81,9 +78,8 @@ static ssize_t vfi_sync_default_show(struct vfi_sync *vfi_sync, char *buffer)
 	int left = PAGE_SIZE;
 	int size = 0;
 	ATTR_PRINTF("Sync %p is %s \n",vfi_sync,vfi_sync ? vfi_sync->desc.name : NULL);
-	if (vfi_sync) {
-		ATTR_PRINTF("ops is %p rde is %p address is %p\n",vfi_sync->desc.ops,vfi_sync->desc.rde,vfi_sync->desc.address);
-	}
+	ATTR_PRINTF("ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_sync->desc.ops,vfi_sync->desc.rde,vfi_sync->desc.address,vfi_sync->desc.ploc);
 	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_sync->kobj.kref.refcount));
 	return size;
 }
@@ -159,19 +155,21 @@ int new_vfi_sync(struct vfi_sync **sync, struct vfi_location *loc, struct vfi_de
 		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_desc(&new->desc, desc);
-	
-	new->desc.ops = loc->desc.ops;
-	new->desc.rde = loc->desc.rde;
-	new->desc.ploc = loc;
+	vfi_inherit(&new->desc, &loc->desc);
+	vfi_location_put(new->desc.ploc);
+	new->desc.ploc = vfi_location_get(loc);
 
 	sema_init(&new->sem,1);
 	init_waitqueue_head(&new->waitq);
 	
 	new->count = (int)desc->offset;
 
-	ret = kobject_init_and_add(&new->kobj, &vfi_sync_type, &loc->syncs->kset.kobj, "%s", new->desc.name);
-	if (ret)
+	new->kobj.kset = &loc->syncs->kset;
+	ret = kobject_init_and_add(&new->kobj, &vfi_sync_type, NULL , "%s", new->desc.name);
+	if (ret) {
 		kobject_put(&new->kobj);
+		*sync = NULL;
+	}
 		
 	return VFI_RESULT(ret);
 }
@@ -218,9 +216,6 @@ int vfi_sync_create(struct vfi_sync **sync,struct vfi_location *loc, struct vfi_
 {
 	int ret = new_vfi_sync(sync,loc,desc);
 
-	if (ret)
-		vfi_sync_put(*sync);
-
 	return VFI_RESULT(ret);
 }
 
@@ -231,6 +226,6 @@ void vfi_sync_delete(struct vfi_location *loc, struct vfi_desc_param *desc)
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	sync = to_vfi_sync(kset_find_obj(&loc->syncs->kset,desc->name));
 	vfi_sync_put(sync);
-	kobject_del(&sync->kobj);
+	vfi_sync_put(sync);
 }
 

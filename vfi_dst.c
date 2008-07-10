@@ -87,9 +87,13 @@ static ssize_t vfi_dst_default_show(struct vfi_dst *vfi_dst, char *buffer)
 	int size = 0;
 	ATTR_PRINTF("Dst %p is %s.%s = %s.%s\n",vfi_dst,vfi_dst->desc.dst.name,vfi_dst->desc.dst.location,
 		    vfi_dst->desc.src.name,vfi_dst->desc.src.location);
-	ATTR_PRINTF("xfer: ops is %p rde is %p address is %p\n",vfi_dst->desc.xfer.ops,vfi_dst->desc.xfer.rde,vfi_dst->desc.xfer.address);
-	ATTR_PRINTF("dst: ops is %p rde is %p address is %p\n",vfi_dst->desc.dst.ops,vfi_dst->desc.dst.rde,vfi_dst->desc.dst.address);
-	ATTR_PRINTF("src: ops is %p rde is %p address is %p\n",vfi_dst->desc.src.ops,vfi_dst->desc.src.rde,vfi_dst->desc.src.address);
+	ATTR_PRINTF("xfer: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_dst->desc.xfer.ops,vfi_dst->desc.xfer.rde,vfi_dst->desc.xfer.address,vfi_dst->desc.xfer.ploc);
+	ATTR_PRINTF("dst: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_dst->desc.dst.ops,vfi_dst->desc.dst.rde,vfi_dst->desc.dst.address,vfi_dst->desc.dst.ploc);
+	ATTR_PRINTF("src: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_dst->desc.src.ops,vfi_dst->desc.src.rde,vfi_dst->desc.src.address,vfi_dst->desc.src.ploc);
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_dst->kobj.kref.refcount));
 	return size;
 
 }
@@ -155,15 +159,20 @@ int new_vfi_dst(struct vfi_dst **dst, struct vfi_bind *parent, struct vfi_bind_p
 
 	vfi_bind_inherit(&new->desc,&parent->desc);
 
-	ret = kobject_init_and_add(&new->kobj, &vfi_dst_type, &parent->dsts->kset.kobj,
-				   "%s.%s#%llx",
+	new->kobj.kset = &parent->dsts->kset;
+
+	ret = kobject_init_and_add(&new->kobj, &vfi_dst_type, NULL,
+				   "%s.%s#%llx:%x",
 				   new->desc.dst.name,
 				   new->desc.dst.location,
-				   new->desc.dst.offset);
-	if (ret)
+				   new->desc.dst.offset,
+				   new->desc.dst.extent);
+	if (ret) {
 		kobject_put(&new->kobj);
+		*dst = NULL;
+	}
 
-	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,*dst);
 	return VFI_RESULT(ret);
 }
 
@@ -218,36 +227,34 @@ int vfi_dst_create(struct vfi_dst **dst, struct vfi_bind *bind, struct vfi_bind_
 
 	ret = new_vfi_dst(dst,bind,desc);
 
-	if (ret)
-		return VFI_RESULT(ret);
-
 	return VFI_RESULT(ret);
 }
 
 void vfi_dst_delete (struct vfi_bind *bind, struct vfi_bind_param *desc)
 {
 	struct vfi_dst *dst;
-	char buf[128];
+	int ret;
+	char *buf = kmalloc(128,GFP_KERNEL);
 
 	VFI_DEBUG(MY_DEBUG,"%s: %s.%s#%llx:%x/%s.%s#%llx:%x\n", __FUNCTION__, 
 		    desc->xfer.name, desc->xfer.location,desc->xfer.offset, desc->xfer.extent, 
 		    desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent);
 	
-	/*
-	* Hah - dst object name is composed "<name>.<loc>#<address>" - there is no
-	* extent suffix.
-	*
-	*/
-	if (snprintf (buf, 128, "%s.%s#%llx",
-		      desc->dst.name, desc->dst.location, desc->dst.offset) >= 128) {
+	ret = snprintf (buf, 128, "%s.%s#%llx:%x",
+			desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent);
+	if (ret >= 128) {
 		VFI_DEBUG(MY_DEBUG, "%s buffer not big enough\n",__FUNCTION__);
+		buf = krealloc(&buf,ret+1,GFP_KERNEL);
+		snprintf (buf, ret, "%s.%s#%llx:%x",
+			  desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent);
 	}
 	
 	dst = to_vfi_dst (kset_find_obj (&bind->dsts->kset, buf));
 	if (dst) {
-		vfi_dst_put (dst);		/* Put, to counteract the find... */
-		kobject_del(&dst->kobj);
+		vfi_dst_put(dst);		/* Put, to counteract the find... */
+		vfi_dst_put(dst);
 	}
+	kfree(buf);
 }
 
 void vfi_dst_load_srcs(struct vfi_dst *dst)

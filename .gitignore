@@ -46,3 +46,5 @@ series
 
 # cscope files
 cscope.*
+
+modules.order

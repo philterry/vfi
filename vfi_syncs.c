@@ -63,7 +63,10 @@ static struct sysfs_ops vfi_syncs_sysfs_ops = {
 
 static ssize_t vfi_syncs_default_show(struct vfi_syncs *vfi_syncs, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "vfi_syncs_default");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_syncs->kset.kobj.kref.refcount));
+	return size;
 }
 
 static ssize_t vfi_syncs_default_store(struct vfi_syncs *vfi_syncs, const char *buffer, size_t size)
@@ -108,38 +111,25 @@ static struct kset_uevent_ops vfi_syncs_uevent_ops = {
 
 int new_vfi_syncs(struct vfi_syncs **syncs, char *name, struct vfi_location *parent)
 {
-    struct vfi_syncs *new = kzalloc(sizeof(struct vfi_syncs), GFP_KERNEL);
+	int ret;
+	struct vfi_syncs *new = kzalloc(sizeof(struct vfi_syncs), GFP_KERNEL);
     
-    *syncs = new;
+	*syncs = new;
 
-    if (NULL == new)
-	return VFI_RESULT(-ENOMEM);
+	if (NULL == new)
+		return VFI_RESULT(-ENOMEM);
 
-    kobject_set_name(&new->kset.kobj,name);
-    new->kset.kobj.ktype = &vfi_syncs_type;
-    new->kset.uevent_ops = &vfi_syncs_uevent_ops;
-    new->kset.kobj.parent = &parent->kset.kobj;
+	kobject_set_name(&new->kset.kobj,name);
+	new->kset.kobj.ktype = &vfi_syncs_type;
+	new->kset.uevent_ops = &vfi_syncs_uevent_ops;
+	new->kset.kobj.parent = &parent->kset.kobj;
 
-    VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return VFI_RESULT(0);
+	ret = kset_register(&new->kset);
+	if (ret) {
+		vfi_syncs_put(new);
+		*syncs = NULL;
+	}
+
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
+	return VFI_RESULT(ret);
 }
-
-int vfi_syncs_register(struct vfi_syncs *vfi_syncs)
-{
-    int ret = 0;
-
-    if ( (ret = kset_register(&vfi_syncs->kset) ) )
-	goto out;
-
-      return VFI_RESULT(ret);
-
-out:
-    return VFI_RESULT(ret);
-}
-
-void vfi_syncs_unregister(struct vfi_syncs *vfi_syncs)
-{
-    
-     kset_unregister(&vfi_syncs->kset);
-}
-

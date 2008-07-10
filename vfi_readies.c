@@ -63,7 +63,10 @@ static struct sysfs_ops vfi_readies_sysfs_ops = {
 
 static ssize_t vfi_readies_default_show(struct vfi_readies *vfi_readies, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "vfi_readies_default");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_readies->kset.kobj.kref.refcount));
+	return size;
 }
 
 static ssize_t vfi_readies_default_store(struct vfi_readies *vfi_readies, const char *buffer, size_t size)
@@ -120,30 +123,26 @@ static struct kset_uevent_ops vfi_readies_uevent_ops = {
 
 int new_vfi_readies(struct vfi_readies **newreadies, struct vfi_subsys *parent, char *name)
 {
-    struct vfi_readies *new = kzalloc(sizeof(struct vfi_readies), GFP_KERNEL);
+	int ret;
+	struct vfi_readies *new = kzalloc(sizeof(struct vfi_readies), GFP_KERNEL);
 
-    *newreadies = new;
+	*newreadies = new;
 
-    if (NULL == new)
-	return VFI_RESULT(-ENOMEM);
+	if (NULL == new)
+		return VFI_RESULT(-ENOMEM);
 
-    kobject_set_name(&new->kset.kobj,name);
-    new->kset.kobj.ktype = &vfi_readies_type;
-    new->kset.uevent_ops = &vfi_readies_uevent_ops;
-    new->kset.kobj.parent = &parent->kset.kobj;
+	kobject_set_name(&new->kset.kobj,name);
+	new->kset.kobj.ktype = &vfi_readies_type;
+	new->kset.uevent_ops = &vfi_readies_uevent_ops;
+	new->kset.kobj.kset = &parent->kset;
 
-    return VFI_RESULT(0);
-}
+	ret = kset_register(&new->kset);
+	if (ret) {
+		vfi_readies_put(new);
+		*newreadies = NULL;
+	}
 
-int vfi_readies_register(struct vfi_readies *vfi_readies)
-{
-	return VFI_RESULT(kset_register(&vfi_readies->kset));
-}
-
-void vfi_readies_unregister(struct vfi_readies *vfi_readies)
-{
-	if (vfi_readies)
-		kset_unregister(&vfi_readies->kset);
+	return VFI_RESULT(ret);
 }
 
 int vfi_readies_create(struct vfi_readies **new, struct vfi_subsys *parent, char *name)
@@ -152,20 +151,10 @@ int vfi_readies_create(struct vfi_readies **new, struct vfi_subsys *parent, char
 
 	ret = new_vfi_readies(new, parent, name);
 
-	if (ret) 
-		return VFI_RESULT(ret);
-
-	ret = vfi_readies_register(*new);
-	
-	if (ret) {
-		vfi_readies_put(*new);
-		return VFI_RESULT(ret);
-	}
-
-	return VFI_RESULT(0);
+	return VFI_RESULT(ret);
 }
 
 void vfi_readies_delete(struct vfi_readies *vfi_readies)
 {
-	vfi_readies_unregister(vfi_readies);
+	vfi_readies_put(vfi_readies);
 }

@@ -37,7 +37,5 @@ static inline void vfi_xfers_put(struct vfi_xfers *vfi_xfers)
 }
 
 extern int new_vfi_xfers(struct vfi_xfers **, char *name, struct vfi_location *);
-extern int vfi_xfers_register(struct vfi_xfers *);
-extern void vfi_xfers_unregister(struct vfi_xfers *);
 extern struct kobj_type vfi_xfers_type;
 #endif /* VFI_XFERS_H */

@@ -39,26 +39,24 @@ struct vfi_smb {
 	struct page **pages;
 	int num_pages;
 
-	struct vfi_mmaps *mmaps;
-
-	struct kobject kobj;
+	struct kset kset;
 };
 
 static inline struct vfi_smb *to_vfi_smb(struct kobject *kobj)
 {
-    return kobj ? container_of(kobj, struct vfi_smb, kobj) : NULL;
+	return kobj ? container_of(to_kset(kobj), struct vfi_smb, kset) : NULL;
 }
 
 static inline struct vfi_smb *vfi_smb_get(struct vfi_smb *vfi_smb)
 {
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_smb);
-	return to_vfi_smb(kobject_get(&vfi_smb->kobj));
+	return to_vfi_smb(kobject_get(&vfi_smb->kset.kobj));
 }
 
 static inline void vfi_smb_put(struct vfi_smb *vfi_smb)
 {
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_smb);
-	if (vfi_smb) kobject_put(&vfi_smb->kobj);
+	if (vfi_smb) kobject_put(&vfi_smb->kset.kobj);
 }
 
 extern int find_vfi_smb_in(struct vfi_smb **, struct vfi_location *,struct vfi_desc_param *);
@@ -69,8 +67,6 @@ static inline int find_vfi_smb(struct vfi_smb **smb,struct vfi_desc_param *desc)
 }
 
 extern int new_vfi_smb(struct vfi_smb **, struct vfi_location *, struct vfi_desc_param *);
-extern int vfi_smb_register(struct vfi_smb *);
-extern void vfi_smb_unregister(struct vfi_smb *);
 extern int vfi_smb_create(struct vfi_smb **, struct vfi_location *, struct vfi_desc_param *);
 extern void vfi_smb_delete(struct vfi_smb *);
 extern struct kobj_type vfi_smb_type;

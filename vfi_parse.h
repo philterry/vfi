@@ -80,13 +80,7 @@ struct vfi_bind_param {
 	struct vfi_desc_param src;
 };
 
-static inline void vfi_inherit(struct vfi_desc_param *c, struct vfi_desc_param *p)
-{
-	c->address = p->address;
-	c->rde = p->rde;
-	c->ops = p->ops;
-	c->ploc = p->ploc;
-}
+extern void vfi_inherit(struct vfi_desc_param *, struct vfi_desc_param *);
 static inline void vfi_bind_inherit(struct vfi_bind_param *c, struct vfi_bind_param *p)
 {
 	vfi_inherit(&c->xfer,&p->xfer);

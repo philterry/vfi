@@ -404,6 +404,23 @@ out:
 }
 
 
+void vfi_inherit(struct vfi_desc_param *c, struct vfi_desc_param *p)
+{
+	if (c->address)
+		vfi_fabric_put(c->address);
+	c->address = vfi_fabric_get(p->address);
+	
+	if (c->rde)
+		vfi_dma_put(c->rde);
+	c->rde = vfi_dma_get(p->rde);
+
+	c->ops = p->ops;
+
+	if (c->ploc)
+		vfi_location_put(c->ploc);
+	c->ploc = vfi_location_get(p->ploc);
+}
+
 int vfi_clone_desc(struct vfi_desc_param *new, struct vfi_desc_param *old)
  {
 	int ret = -ENOMEM;
@@ -416,6 +433,9 @@ int vfi_clone_desc(struct vfi_desc_param *new, struct vfi_desc_param *old)
 
 	if (new->rde)
 		vfi_dma_get(new->rde);
+
+	if (new->ploc)
+		vfi_location_get(new->ploc);
 
 	if ( old->buf && old->buflen && (new->buf = kzalloc(old->buflen, GFP_KERNEL)) ) {
 		memcpy(new->buf, old->buf, old->buflen);
@@ -451,11 +471,9 @@ void vfi_clean_desc(struct vfi_desc_param *p)
 		if (p->buf && p->buflen)
 			kfree(p->buf);
 
-		if (p->address)
-			vfi_fabric_put(p->address);
-
-		if (p->rde)
-			vfi_dma_put(p->rde);
+		vfi_fabric_put(p->address);
+		vfi_dma_put(p->rde);
+		vfi_location_put(p->ploc);
 	}
 }
 

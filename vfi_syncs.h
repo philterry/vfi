@@ -37,7 +37,5 @@ static inline void vfi_syncs_put(struct vfi_syncs *vfi_syncs)
 }
 
 extern int new_vfi_syncs(struct vfi_syncs **, char *name, struct vfi_location *);
-extern int vfi_syncs_register(struct vfi_syncs *);
-extern void vfi_syncs_unregister(struct vfi_syncs *);
 extern struct kobj_type vfi_syncs_type;
 #endif /* VFI_SYNCS_H */

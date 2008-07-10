@@ -125,6 +125,14 @@ static int location_delete(const char *desc, char *result, int *size)
 	else if (params.ops) {
 		params.ops->location_delete(NULL,&params);
 	}
+	else {
+		loc = to_vfi_location(kset_find_obj(&vfi_subsys->kset,params.name));
+		VFI_DEBUG(MY_DEBUG, "%s kset_find %s gives %p\n", __FUNCTION__, params.name, loc);
+		if (loc) {
+			vfi_location_delete(loc);
+			vfi_location_put(loc);
+		}
+	}
 out:
 	if (result)
 		*size = snprintf(result,*size,"location_delete://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, vfi_get_option(&params,"request"));
@@ -299,7 +307,7 @@ out:
 static int smb_delete(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
-	struct vfi_location *loc;
+	struct vfi_smb *smb;
 	struct vfi_desc_param params;
 
 	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
@@ -309,18 +317,19 @@ static int smb_delete(const char *desc, char *result, int *size)
 
 	ret = -ENODEV;
 
-	if ( !(ret = locate_vfi_location(&loc,NULL,&params) ) ) {
-		if ( loc && loc->desc.ops && loc->desc.ops->smb_delete ) {
-			loc->desc.ops->smb_delete(loc, &params);
+	if ( !(ret = find_vfi_smb(&smb,&params) ) ) {
+		ret = -EINVAL;
+
+		if ( smb && smb->desc.ops && smb->desc.ops->smb_delete ) {
+			smb->desc.ops->smb_delete(smb, &params);
 		}
+		vfi_smb_put(smb);
 	}
-
-
-	vfi_location_put(loc);
 
 out:
 	if (result) 
-		*size = snprintf(result,*size,"smb_delete://%s.%s?result(%d),reply(%s)\n", params.name, params.location,ret, vfi_get_option(&params,"request"));
+		*size = snprintf(result,*size,"smb_delete://%s.%s?result(%d),reply(%s)\n",
+				 params.name, params.location,ret, vfi_get_option(&params,"request"));
 
 	vfi_clean_desc(&params);
 
@@ -606,7 +615,7 @@ out:
 static int xfer_delete(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
-	struct vfi_location *loc;
+	struct vfi_xfer *xfer;
 	struct vfi_desc_param params;
 
 	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
@@ -616,14 +625,14 @@ static int xfer_delete(const char *desc, char *result, int *size)
 
 	ret = -ENODEV;
 
-	if ( !(ret = locate_vfi_location(&loc,NULL,&params) ) ) {
+	if ( !(ret = find_vfi_xfer(&xfer, &params) ) ) {
 		ret = -EINVAL;
-		if ( loc && loc->desc.ops && loc->desc.ops->xfer_delete ) {
-			loc->desc.ops->xfer_delete(loc, &params);
-		}
-	}
 
-	vfi_location_put(loc);
+		if ( xfer && xfer->desc.ops && xfer->desc.ops->xfer_delete ) {
+			xfer->desc.ops->xfer_delete(xfer, &params);
+		}
+		vfi_xfer_put(xfer);
+	}
 
 out:
 	if (result) 
@@ -1029,44 +1038,20 @@ static int bind_delete(const char *desc, char *result, int *size)
 	struct vfi_desc_param params;
 	
 	VFI_DEBUG (MY_LIFE_DEBUG, "%s: \"%s\"\n", __FUNCTION__, desc);
-	if ( (ret = vfi_parse_desc(&params, desc)) ) {
-		VFI_DEBUG (MY_LIFE_DEBUG, "xx %s failed to parse bind_delete correctly\n", __FUNCTION__);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
 		goto out;
-	}
 
 	ret = -ENODEV;
 	
-	/*
-	* Identify the xfer agent and instruct it to perform the bind_delete.
-	*/
-	if ( !(ret = find_vfi_xfer (&xfer,&params) ) ) {
+	if ( !(ret = find_vfi_xfer(&xfer, &params) ) ) {
 		ret = -EINVAL;
-		/*
-		* Check specified bind offset/extent values and substitute
-		* or reject where necessary.
-		*
-		*/
-		if (!params.soffset) params.offset = 0;
-		if (!params.sextent) params.extent = xfer->desc.extent;
-		if (!params.extent) {
-			VFI_DEBUG (MY_LIFE_DEBUG, "xx %s failed: bind extent 0 not permitted!\n", __func__);
-			goto out;
-		}
-		
+
 		if ( xfer && xfer->desc.ops && xfer->desc.ops->bind_delete ) {
-			xfer->desc.ops->bind_delete (xfer, &params);
-		}
-		else {
-			VFI_DEBUG (MY_LIFE_DEBUG, "xx %s xfer %s has no bind_delete support\n", 
-					__FUNCTION__, xfer->desc.name);
+			xfer->desc.ops->bind_delete(xfer, &params);
 		}
 		vfi_xfer_put (xfer);
 	}
-	else {
-		VFI_DEBUG (MY_LIFE_DEBUG, "xx %s could not locate xfer %s\n", 
-			     __FUNCTION__, params.name);
-	}
-
 
 out:
 	if (result) 
@@ -1576,22 +1561,14 @@ static int srcs_delete(const char *desc, char *result, int *size)
 		goto out;
 
 	ret = -ENODEV;
-	/*
-	* Find the <dst> whose <srcs> are to be deleted.
-	*
-	* CAUTION: this call embedds further finds for xfer and
-	* bind, and gives rise to refcount anomalies when <src> is
-	* remote from <xfer>.
-	*/
+
 	if ( !(ret = find_vfi_dst(&dst,&params) ) ) {
 		ret = -EINVAL;
 		if ( dst && dst->desc.src.ops && dst->desc.src.ops->srcs_delete  ) {
-			dst = dst->desc.src.ops->srcs_delete(dst, &params);
+			dst->desc.src.ops->srcs_delete(dst, &params);
 		}
-		if (dst) 
-			vfi_dst_put(dst);	/* Counteract get from find, but only if dst still exists */
+		vfi_dst_put(dst);
 	}
-
 
 out:
 	if (result)
@@ -1777,13 +1754,10 @@ static int dsts_delete(const char *desc, char *result, int *size)
 			* is NULL, it means that the bind, too, has been deleted
 			* from the local tree.
 			*/
-			bind = bind->desc.dst.ops->dsts_delete(bind, &params);
+			bind->desc.dst.ops->dsts_delete(bind, &params);
 		}
 		
-		if (bind) {
-			VFI_KTRACE ("<*** %s bind put after dsts_delete opcall ***>\n", __func__);
-			vfi_bind_put (bind);	/* Counteract get from "find", but only if bind still exists */
-		}
+		vfi_bind_put (bind);
 	}
 
 out:

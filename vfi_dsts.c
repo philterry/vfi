@@ -15,7 +15,7 @@
 
 #include <linux/vfi_dsts.h>
 #include <linux/vfi_bind.h>
-
+#include <linux/vfi_smb.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 
@@ -33,6 +33,7 @@ static void vfi_dsts_release(struct kobject *kobj)
 {
     struct vfi_dsts *p = to_vfi_dsts(kobj);
     VFI_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
+    vfi_smb_put(p->smb);
     kfree(p);
 }
 
@@ -74,7 +75,10 @@ static struct sysfs_ops vfi_dsts_sysfs_ops = {
 
 static ssize_t vfi_dsts_default_show(struct vfi_dsts *vfi_dsts, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "vfi_dsts_default");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_dsts->kset.kobj.kref.refcount));
+	return size;
 }
 
 static ssize_t vfi_dsts_default_store(struct vfi_dsts *vfi_dsts, const char *buffer, size_t size)
@@ -119,6 +123,7 @@ static struct kset_uevent_ops vfi_dsts_uevent_ops = {
 
 int new_vfi_dsts(struct vfi_dsts **dsts,struct vfi_bind_param *params, struct vfi_bind *parent)
 {
+	int ret;
 	struct vfi_dsts *new = kzalloc(sizeof(struct vfi_dsts), GFP_KERNEL);
     
 	*dsts = new;
@@ -134,27 +139,17 @@ int new_vfi_dsts(struct vfi_dsts **dsts,struct vfi_bind_param *params, struct vf
 	new->kset.kobj.parent = &parent->kobj;
 	INIT_LIST_HEAD(&new->dma_chain);
 
-	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return VFI_RESULT(0);
-}
-
-int vfi_dsts_register(struct vfi_dsts *vfi_dsts)
-{
-    	int ret = 0;
-
-	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
-	ret = kset_register(&vfi_dsts->kset);
-	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
+	ret = kset_register(&new->kset);
+	if (ret) {
+		vfi_dsts_put(new);
+		*dsts = NULL;
+	}
+	else {
+		vfi_bind_put(parent);
+	}
+       
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,*dsts);
 	return VFI_RESULT(ret);
-}
-
-void vfi_dsts_unregister(struct vfi_dsts *vfi_dsts)
-{
-    
-	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
-	if (vfi_dsts)
-		kset_unregister(&vfi_dsts->kset);
-	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
 /**
@@ -178,14 +173,6 @@ int vfi_dsts_create(struct vfi_dsts **dsts, struct vfi_bind *parent, struct vfi_
 	}
 
 	ret = new_vfi_dsts(dsts,desc,parent);
-	if (ret) 
-		return VFI_RESULT(ret);
-
-	ret = vfi_dsts_register(*dsts);
-	if (ret){
-		vfi_dsts_put(*dsts);
-		*dsts = NULL;
-	}
 
 	parent->dsts = *dsts;
 
@@ -195,5 +182,5 @@ int vfi_dsts_create(struct vfi_dsts **dsts, struct vfi_bind *parent, struct vfi_
 void vfi_dsts_delete(struct vfi_dsts *dsts)
 {
 	if (dsts)
-		vfi_dsts_unregister(dsts);
+		kset_unregister(&dsts->kset);
 }

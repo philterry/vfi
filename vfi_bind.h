@@ -111,7 +111,7 @@ static inline void vfi_bind_dst_done(struct vfi_bind *b)
 
 static inline struct vfi_bind *to_vfi_bind(struct kobject *kobj)
 {
-    return kobj ? container_of(kobj, struct vfi_bind, kobj) : NULL;
+	return kobj ? container_of(kobj, struct vfi_bind, kobj) : NULL;
 }
 
 static inline struct vfi_bind *vfi_bind_get(struct vfi_bind *vfi_bind)
@@ -128,8 +128,6 @@ static inline void vfi_bind_put(struct vfi_bind *vfi_bind)
 }
 
 extern int new_vfi_bind(struct vfi_bind **, struct vfi_xfer *, struct vfi_bind_param *);
-extern int vfi_bind_register(struct vfi_bind *);
-extern void vfi_bind_unregister(struct vfi_bind *);
 extern int find_vfi_bind_in(struct vfi_bind **, struct vfi_xfer *, struct vfi_desc_param *);
 static inline int find_vfi_bind(struct vfi_bind **bind, struct vfi_desc_param *desc)
 {

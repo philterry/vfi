@@ -65,7 +65,10 @@ static struct sysfs_ops vfi_events_sysfs_ops = {
 
 static ssize_t vfi_events_default_show(struct vfi_events *vfi_events, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "vfi_events_default");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_events->kset.kobj.kref.refcount));
+	return size;
 }
 
 static ssize_t vfi_events_default_store(struct vfi_events *vfi_events, const char *buffer, size_t size)
@@ -117,65 +120,48 @@ static struct kset_uevent_ops vfi_events_uevent_ops = {
 
 int new_vfi_events(struct vfi_events **events, struct vfi_readies *parent, char *name)
 {
-    struct vfi_events *new = kzalloc(sizeof(struct vfi_events), GFP_KERNEL);
+	int ret;
+	struct vfi_events *new = kzalloc(sizeof(struct vfi_events), GFP_KERNEL);
     
-    VFI_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,parent,name);
+	VFI_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,parent,name);
     
-    *events = new;
+	*events = new;
 
-    if (NULL == new)
-	return VFI_RESULT(-ENOMEM);
+	if (NULL == new)
+		return VFI_RESULT(-ENOMEM);
 
-    kobject_set_name(&new->kset.kobj,name);
-    new->kset.kobj.ktype = &vfi_events_type;
-    new->kset.uevent_ops = &vfi_events_uevent_ops;
-    new->kset.kobj.kset = &parent->kset;
-    init_MUTEX(&new->start_lock);
-    init_completion(&new->dma_sync);
+	kobject_set_name(&new->kset.kobj,name);
+	new->kset.kobj.ktype = &vfi_events_type;
+	new->kset.uevent_ops = &vfi_events_uevent_ops;
+	new->kset.kobj.kset = &parent->kset;
+	init_MUTEX(&new->start_lock);
+	init_completion(&new->dma_sync);
 
-    return VFI_RESULT(0);
-}
+	ret = kset_register(&new->kset);
+	if (ret) {
+		vfi_events_put(new);
+		*events = NULL;
+	}
 
-int vfi_events_register(struct vfi_events *vfi_events)
-{
-	VFI_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,vfi_events);
-	return VFI_RESULT(kset_register(&vfi_events->kset));
-}
-
-void vfi_events_unregister(struct vfi_events *vfi_events)
-{
-	VFI_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,vfi_events);
-	if (vfi_events)
-		kset_unregister(&vfi_events->kset);
+	return VFI_RESULT(ret);
 }
 
 int vfi_events_create(struct vfi_events **events, struct vfi_readies *parent, char *name)
 {
-	struct vfi_events *new; 
 	int ret;
 	VFI_DEBUG(MY_DEBUG,"%s readies(%p) name(%s)\n",__FUNCTION__,parent,name);
 
-	ret = new_vfi_events(&new, parent, name);
+	ret = new_vfi_events(events, parent, name);
 
-	*events = new;
-
-	if ( ret ) 
-		return VFI_RESULT(ret);
-
-	if (vfi_events_register(new)) {
-		vfi_events_put(new);
-		*events = NULL;
-		return VFI_RESULT(-EINVAL);
-	}
-
-	VFI_DEBUG(MY_DEBUG,"%s returns(%p)\n",__FUNCTION__,new);
-	return VFI_RESULT(0);
+	VFI_DEBUG(MY_DEBUG,"%s returns(%p)\n",__FUNCTION__,*events);
+	return VFI_RESULT(ret);
 }
 
 void vfi_events_delete(struct vfi_events *vfi_events)
 {
 	VFI_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,vfi_events);
-	vfi_events_unregister(vfi_events);
+	if (vfi_events)
+		kset_unregister(&vfi_events->kset);
 }
 
 void vfi_events_start(struct vfi_events *events)

@@ -37,7 +37,5 @@ static inline void vfi_smbs_put(struct vfi_smbs *vfi_smbs)
 }
 
 extern int new_vfi_smbs(struct vfi_smbs **, char *name, struct vfi_location *);
-extern int vfi_smbs_register(struct vfi_smbs *);
-extern void vfi_smbs_unregister(struct vfi_smbs *);
 extern struct kobj_type vfi_smbs_type;
 #endif /* VFI_SMBS_H */

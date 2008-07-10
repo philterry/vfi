@@ -22,17 +22,13 @@
 #include <linux/vfi_src.h>
 #include <linux/vfi_dst.h>
 #include <linux/vfi_ops.h>
-#include <linux/vfi_mmaps.h>
 
 
 static void vfi_smb_release(struct kobject *kobj)
 {
 	struct vfi_smb *p = to_vfi_smb(kobj);
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-	if (p->desc.name) {
-		VFI_DEBUG(MY_LIFE_DEBUG,"%s name %p\n",__FUNCTION__,p->desc.name);
-		kfree(p->desc.name);
-	}
+	vfi_clean_desc(&p->desc);
 	if (p->pages)
 		vfi_dealloc_pages(p->pages, p->num_pages);
 	kfree(p);
@@ -83,10 +79,9 @@ static ssize_t vfi_smb_default_show(struct vfi_smb *vfi_smb, char *buffer)
 	int left = PAGE_SIZE;
 	int size = 0;
 	ATTR_PRINTF("Smb %p is %s \n",vfi_smb,vfi_smb ? vfi_smb->desc.name : NULL);
-	if (vfi_smb) {
-		ATTR_PRINTF("ops is %p rde is %p address is %p\n",vfi_smb->desc.ops,vfi_smb->desc.rde,vfi_smb->desc.address);
-	}
-	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_smb->kobj.kref.refcount));
+	ATTR_PRINTF("ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_smb->desc.ops,vfi_smb->desc.rde,vfi_smb->desc.address,vfi_smb->desc.ploc);
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_smb->kset.kobj.kref.refcount));
 	return size;
 }
 
@@ -155,31 +150,26 @@ int new_vfi_smb(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_desc_
 {
 	int ret = 0;
 	struct vfi_smb *new = kzalloc(sizeof(struct vfi_smb), GFP_KERNEL);
-    
+
 	*smb = new;
 	if (NULL == new)
 		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_desc(&new->desc, desc);
+	vfi_inherit(&new->desc,&loc->desc);
+	vfi_location_put(new->desc.ploc);
+	new->desc.ploc = vfi_location_get(loc);
+
 	new->size = new->desc.extent;
 	
-	new->desc.ops = loc->desc.ops;
-	new->desc.rde = loc->desc.rde;
-	new->desc.ploc = loc;
-
-	ret = kobject_init_and_add(&new->kobj, &vfi_smb_type, &loc->smbs->kset.kobj, "%s",new->desc.name);
-	if (ret)
-		goto out;
-
-	ret = new_vfi_mmaps(&new->mmaps, new, "mmaps");
-	if (ret)
-		goto mmaps;
-
-	return VFI_RESULT(ret);
-mmaps:
-	kset_unregister(&new->mmaps->kset);
-out:
-	kobject_put(&new->kobj);
+	new->kset.kobj.kset = &loc->smbs->kset;
+	kobject_set_name(&new->kset.kobj,"%s",new->desc.name);
+	new->kset.kobj.ktype = &vfi_smb_type;
+	ret = kset_register(&new->kset);
+	if (ret) {
+		kset_put(&new->kset);
+		*smb = NULL;
+	}
 
 	return VFI_RESULT(ret);
 }
@@ -188,12 +178,13 @@ int find_vfi_smb_in(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_d
 {
 	int ret;
 	struct vfi_location *tmploc;
+	VFI_DEBUG(MY_DEBUG,"%s desc(%p) ploc(%p)\n",__FUNCTION__,desc,desc->ploc);
 
-	if (loc)
+	if (loc && loc->desc.ops && loc->desc.ops->smb_find)
 		return VFI_RESULT(loc->desc.ops->smb_find(smb,loc,desc));
 
-	if (desc->ploc)
-		return VFI_RESULT(desc->ploc->desc.ops->smb_find(smb,loc,desc));
+	if (desc->ploc && desc->ploc->desc.ops && desc->ploc->desc.ops->smb_find)
+		return VFI_RESULT(desc->ploc->desc.ops->smb_find(smb,desc->ploc,desc));
 
 	*smb = NULL;
 
@@ -201,7 +192,9 @@ int find_vfi_smb_in(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_d
 	if (ret)
 		return VFI_RESULT(ret);
 
-	if (tmploc) {
+	desc->ploc = vfi_location_get(tmploc);
+
+	if (tmploc && tmploc->desc.ops && tmploc->desc.ops->xfer_find) {
 		ret = tmploc->desc.ops->smb_find(smb,tmploc,desc);
 		vfi_location_put(tmploc);
 	}
@@ -226,18 +219,12 @@ int vfi_smb_create(struct vfi_smb **smb,struct vfi_location *loc, struct vfi_des
 {
 	int ret = new_vfi_smb(smb,loc,desc);
 
-	if (ret)
-		vfi_smb_put(*smb);
-
 	return VFI_RESULT(ret);
 }
 
 
 void vfi_smb_delete(struct vfi_smb *smb)
 {
-	if (smb) {
-		vfi_mmaps_unregister(smb->mmaps);
-		kobject_del(&smb->kobj);
-	}
+	vfi_smb_put(smb);
 }
 

@@ -20,11 +20,9 @@
 #include <linux/vfi_src.h>
 #include <linux/vfi_xfer.h>
 #include <linux/vfi_bind.h>
-#include <linux/vfi_binds.h>
 #include <linux/vfi_smbs.h>
 #include <linux/vfi_xfers.h>
 #include <linux/vfi_srcs.h>
-#include <linux/vfi_dsts.h>
 #include <linux/vfi_parse.h>
 #include <linux/vfi_drv.h>
 #include <linux/vfi_mmap.h>
@@ -66,6 +64,10 @@ static int vfi_local_smb_find(struct vfi_smb **smb, struct vfi_location *parent,
 	return VFI_RESULT(0);
 }
 
+static void vfi_local_smb_put(struct vfi_smb *smb)
+{
+	vfi_smb_put(smb);
+}
 /**
 * vfi_local_xfer_find - find an vfi_xfer object for a named xfer at the local site.
 * @parent : location where xfer officially resides (right here!)
@@ -143,7 +145,7 @@ static int vfi_local_bind_find(struct vfi_bind **bind, struct vfi_xfer *parent, 
 	if ( snprintf(buf,128,"#%llx:%x", desc->offset, desc->extent) > 128 )
 		goto out;
 
-	*bind = to_vfi_bind(kset_find_obj(&parent->binds->kset,buf));
+	*bind = to_vfi_bind(kset_find_obj(&parent->kset,buf));
 
 out:
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*bind);
@@ -159,8 +161,8 @@ int vfi_local_dst_find(struct vfi_dst **dst, struct vfi_bind *parent, struct vfi
 
 	if (!buf) goto out;
 	
-	if (snprintf (buf, 2048, "%s.%s#%llx",
-		      desc->dst.name,desc->dst.location,desc->dst.offset
+	if (snprintf (buf, 2048, "%s.%s#%llx:%x",
+		      desc->dst.name,desc->dst.location,desc->dst.offset,desc->dst.extent
 		    ) >= 2048) {
 		goto fail_printf;
 	}
@@ -213,19 +215,19 @@ static int vfi_local_location_create(struct vfi_location **newloc,struct vfi_loc
 	}
 
 	ret = vfi_location_create(newloc,loc,desc);
-
-	/* 
-	   If the parent location has a extent of 0 we need to set that here.
-	   This can and will happen if the parent is a public root location. 
-	*/
-	if (loc && !(loc->desc.extent))
-		loc->desc.extent = (*newloc)->desc.extent;
-
-	if (*newloc && (*newloc)->desc.address)
-		(*newloc)->desc.address->ops->register_location(*newloc);
+	if (!ret) {
+		/* 
+		   If the parent location has a extent of 0 we need to set that here.
+		   This can and will happen if the parent is a public root location. 
+		*/
+		if (loc && !(loc->desc.extent))
+			loc->desc.extent = (*newloc)->desc.extent;
+		
+		if (*newloc && (*newloc)->desc.address)
+			(*newloc)->desc.address->ops->register_location(*newloc);
+	}
 
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,loc,desc,*newloc);
-
 	return VFI_RESULT(ret);
 }
 
@@ -304,11 +306,21 @@ static int vfi_local_dst_events(struct vfi_bind *bind, struct vfi_bind_param *de
 		goto fail;
 
 	ret = vfi_event_create(&bind->dst_done_event,event_list,&desc->dst,bind,0,(int)&bind->dst_done_event);
+	if (ret)
+		goto event_done_fail;
 
 	ret = vfi_event_create(&bind->dst_ready_event,event_list,&desc->dst,bind,bind->desc.dst.ops->dst_ready,(int)&bind->dst_ready_event);
-						   
-	return VFI_RESULT(0);
+	if (ret)
+		goto event_ready_fail;
 
+	vfi_events_put(event_list);
+						   
+	return VFI_RESULT(ret);
+
+event_ready_fail:
+	vfi_event_put(bind->dst_done_event);
+event_done_fail:
+	vfi_events_put(event_list);
 fail:
 	return VFI_RESULT(-EINVAL);
 }
@@ -365,39 +377,27 @@ static int vfi_local_dsts_create(struct vfi_dsts **dsts, struct vfi_bind *parent
 
 	VFI_DEBUG(MY_DEBUG,"%s parent(%p) desc(%p)\n",__FUNCTION__,parent,desc);
 
-	/*
-	* Invoke the <xfer> dst_events op, and check the result.
-	* A whole nother can o' worms to be explored, later...
-	*
-	*/
-	if (parent->desc.xfer.ops->dst_events(parent,desc))
+	ret = parent->desc.xfer.ops->dst_events(parent,desc);
+	if (ret)
 		goto fail_events;
 
 	ret = vfi_dsts_create(dsts,parent,desc);
+	if (ret)
+		goto fail_dsts;
 
 	ret = find_vfi_smb(&dsmb,&desc->dst);
-	if ( NULL == dsmb )
+	if (ret)
 		goto fail_dsmb;
 
 	if (!DESC_VALID(&dsmb->desc,&desc->dst))
 		goto fail_ddesc;
 
-	/*
-	* Decide how best to divvie-up the dst side of the full
-	* bind extent. 
-	*
-	*/
 	first_page = START_PAGE(&dsmb->desc,&desc->dst);
 	last_page = first_page + NUM_DMA(&dsmb->desc,&desc->dst);
 
 	params.dst.offset = START_OFFSET((&dsmb->desc), (&desc->dst));
 	params.src.extent = params.dst.extent = START_SIZE(&dsmb->desc, &desc->dst);
 	
-	/*
-	* And now, for each page of DMA transfers, create one dst object: in effect,
-	* a chain of dst objects that collectively cover the bind extent.
-	*
-	*/
 	for (page = first_page; page < last_page; page++) {
 		params.dst.offset += virt_to_phys(page_address(dsmb->pages[page]));
 #ifdef OPTIMIZE_DESCRIPTORS
@@ -416,7 +416,7 @@ join:
 #endif
 
 		ret = parent->desc.xfer.ops->dst_create(&new,parent,&params);
-		if (NULL == new)
+		if (ret)
 			goto fail_newdst;
 
 		params.dst.offset = 0;
@@ -434,14 +434,18 @@ join:
 		vfi_dma_chain_dump(&parent->dma_chain);
 #endif
 
+	(*dsts)->smb = dsmb;
+
 	parent->end_of_chain = parent->dma_chain.prev;
 
-	return VFI_RESULT(parent->dsts == NULL);
+	return VFI_RESULT(parent == NULL);
 
 fail_newdst:
 fail_ddesc:
 	vfi_smb_put(dsmb);
 fail_dsmb:
+	vfi_dsts_put(*dsts);
+fail_dsts:
 fail_events:
 	return VFI_RESULT(-EINVAL);
 }
@@ -469,127 +473,63 @@ static int vfi_local_bind_create(struct vfi_bind **bind, struct vfi_xfer *xfer, 
 		     desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent, 
 		     desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
 /* Start Atomic */
-	/*
-	* Adjust bind and xfer offset/extent values.
-	*
-	* Unless otherwise specified, the bind should begin at the
-	* current end of the xfer. The xfer extent should then increase
-	* by the bind extent.
-	*
-	* There may be a subtle flaw in this calculation: bind offset
-	* may be predefined in the descriptor, in which case it will 
-	* not be adjusted and may not be contiguous with the xfer. Not 
-	* sure what implications that might carry, if any.
-	*/
 	if (!desc->xfer.offset)
 		desc->xfer.offset = xfer->desc.extent;
 
 	xfer->desc.extent += desc->xfer.extent;
 /* End Atomic */
+	ret = vfi_bind_create(bind,xfer, desc);
+	if (ret)
+		goto fail_bind;
 
-	/*
-	* Create and register the bind object, and if that succeeds
-	* create its dsts/ subtree.
-	*
-	*/
-	if ( !(ret = vfi_bind_create(bind,xfer, desc))) {
-		/*
-		* Once the bind object has been installed in the sysfs
-		* tree, create and register its dsts subtree. Each bind
-		* object has a pointer to a dsts kset: that is what we
-		* try to create here.
-		*
-		* We begin by creating the dsts kobject/kset only, and 
-		* if that proves successful we try to build it out by
-		* populating the dst and src parts of the bind.
-		*
-		* Now: ask yourself why might we need multiple destination 
-		* objects when a bind, by definition, has one destination 
-		* component and one source component?
-		*
-		* The answer is that the complete bind is split into parts, 
-		* whose size is a function of the underlying page size.
-		* This occurs with the destination component, and with the
-		* source component, and allows different page sizes at
-		* different locations to interoperate.
-		*
-		*/
-		if ( !(ret = vfi_dsts_create(&dsts,*bind,desc)) ) {
-			/*
-			* The dsts object is simply a hook, beneath
-			* which we want to sling a series of bind
-			* destination specs (and beneath each of those, 
-			* a series of corresponding bind source specs).
-			*
-			* Before we do any of that, validate that the
-			* destination and source SMBs referenced by the
-			* bind exist, and are usable.
-			*
-			* 1. Destination SMB exists?
-			*
-			*/
-			ret = find_vfi_smb(&dsmb,&desc->dst);
-			if ( NULL == dsmb )
-				goto fail_dsmb;
-			/*
-			* 2. Destination offset+extent fits inside it?
-			*/
-			if (!DESC_VALID(&dsmb->desc,&desc->dst))
-				goto fail_ddesc;
-			/*
-			* 3. source SMB exists?
-			*/
-			ret = find_vfi_smb(&ssmb,&desc->src);
-			if ( NULL == ssmb)
-				goto fail_ddesc;
-			/*
-			* 4. Source offset_extent fits inside it?
-			*/
-			if (!DESC_VALID(&ssmb->desc,&desc->src))
-				goto fail_sdesc;
+	ret = vfi_dsts_create(&dsts,*bind,desc);
+	if (ret)
+		goto fail_dsts;
 
-			/*
-			* src and dst objects must inherit the various
-			* ops (and location) of their bind counterparts.
-			*
-			*/
-			vfi_inherit(&(*bind)->desc.src,&ssmb->desc);
-			vfi_inherit(&(*bind)->desc.dst,&dsmb->desc);
+	ret = find_vfi_smb(&dsmb,&desc->dst);
+	if ( NULL == dsmb )
+		goto fail_dsmb;
 
-			/*
-			* Create the dsts for real, and what lies beneath it.
-			*
-			*/
-			ret = (*bind)->desc.dst.ops->dsts_create(&rdsts,*bind,desc);
-			if ( NULL == rdsts)
-				goto fail_dst;
+	if (!DESC_VALID(&dsmb->desc,&desc->dst))
+		goto fail_ddesc;
 
-			vfi_xfer_load_binds(xfer,*bind);
+	ret = find_vfi_smb(&ssmb,&desc->src);
+	if ( NULL == ssmb)
+		goto fail_ddesc;
+
+	if (!DESC_VALID(&ssmb->desc,&desc->src))
+		goto fail_sdesc;
+
+	vfi_inherit(&(*bind)->desc.src,&ssmb->desc);
+	vfi_inherit(&(*bind)->desc.dst,&dsmb->desc);
+
+	ret = (*bind)->desc.dst.ops->dsts_create(&rdsts,*bind,desc);
+	if ( NULL == rdsts)
+		goto fail_dst;
+
+	vfi_xfer_load_binds(xfer,*bind);
 
 #ifdef CONFIG_VFI_DEBUG
-			if (vfi_debug_level & VFI_DBG_DMA_CHAIN)
-				vfi_dma_chain_dump(&(*bind)->dma_chain);
+	if (vfi_debug_level & VFI_DBG_DMA_CHAIN)
+		vfi_dma_chain_dump(&(*bind)->dma_chain);
 #endif
 
-			return VFI_RESULT(0);
-		}
-		VFI_DEBUG (MY_DEBUG, "xxx Failed to create bind %s - deleting\n", kobject_name (&(*bind)->kobj));
-		vfi_bind_delete(xfer,&desc->xfer);
-		*bind = NULL;
-		return VFI_RESULT(ret);
-	}
-		
-	return VFI_RESULT(ret);
+	ssmb->desc.ops->smb_put(ssmb);
+	dsmb->desc.ops->smb_put(dsmb);
+
+	return VFI_RESULT(0);
 
 fail_dst:
 fail_sdesc:
-	vfi_smb_put(ssmb);
+	ssmb->desc.ops->smb_put(ssmb);
 fail_ddesc:
-	vfi_smb_put(dsmb);
+	dsmb->desc.ops->smb_put(dsmb);
 fail_dsmb:
 	vfi_dsts_delete(dsts);
-	if (!ret)
-		ret = -ENOMEM;
+fail_dsts:
+	vfi_bind_delete(xfer,&desc->xfer);
+fail_bind:
+	*bind = NULL;
 	return VFI_RESULT(ret);
 }
 
@@ -709,16 +649,26 @@ static int vfi_local_src_events(struct vfi_dst *parent, struct vfi_bind_param *d
 	if (event_list == NULL)
 		ret = vfi_events_create(&event_list,vfi_subsys->events,event_name);
 
-	if (event_list == NULL)
-		goto dones_fail;
+	if (ret)
+		goto events_fail;
 
 	ret = vfi_event_create(&bind->src_done_event,event_list,&desc->src,bind,0,(int)parent);
+	if (ret)
+		goto event_done_fail;
 
 	ret = vfi_event_create(&bind->src_ready_event,event_list,&desc->src,bind,bind->desc.src.ops->src_ready,(int)&parent->srcs);
-		
+	if (ret)
+		goto event_ready_fail;
+
+	vfi_events_put(event_list);
+
 	return VFI_RESULT(ret);
 
-dones_fail:
+event_ready_fail:
+	vfi_event_put(bind->src_done_event);
+event_done_fail:
+	vfi_events_put(event_list);
+events_fail:
 event_name_fail:				   
 	return VFI_RESULT(-EINVAL);
 }
@@ -785,37 +735,21 @@ static int vfi_local_srcs_create(struct vfi_srcs **srcs, struct vfi_dst *parent,
 	struct vfi_bind_param params = *desc;
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	/*
-	* Create the <srcs> kset and install it in the
-	* local instance of its parent <dst>. 
-	*
-	*/
 	ret = vfi_srcs_create(srcs,parent,desc);
-
 	if (ret)
-		return VFI_RESULT(ret);
+		goto fail_srcs;
 
-	/*
-	* Source-related events stuff. Not yet figured what
-	* this does...
-	*
-	*/
-	if (parent->desc.xfer.ops->src_events(parent,desc))
-		return VFI_RESULT(-EINVAL);
+	ret = parent->desc.xfer.ops->src_events(parent,desc);
+	if (ret)
+		goto fail_events;
 
-	/*
-	* Find the local representation of the <smb> we are
-	* pulling data out of. This node we are running on
-	* is home to the <smb>, otherwise we wouldn't be here.
-	*
-	*/
 	ret = find_vfi_smb(&smb,&desc->src);
+	if (ret)
+		goto fail_smb;
 
-	/*
-	* Now for page calculations. Calculate page address
-	* for the start of the <src> and the number of pages
-	* that need to be transferred.
-	*/
+	if (!DESC_VALID(&smb->desc,&desc->src))
+		goto fail_sdesc;
+
 	first_page = START_PAGE(&smb->desc,&desc->src);
 	last_page = first_page + NUM_DMA(&smb->desc,&desc->src);
 
@@ -850,14 +784,20 @@ join2:
 	} 
 
 	vfi_dst_load_srcs(parent);
+	
+	(*srcs)->smb = smb;
 
 	return VFI_RESULT(0);
 
 fail_newsrc:
+fail_sdesc:
 	vfi_smb_put(smb);
+fail_smb:
+fail_events:
 	vfi_srcs_delete(*srcs);
+fail_srcs:
 	*srcs = NULL;
-	return VFI_RESULT(-EINVAL);
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -895,20 +835,17 @@ static void vfi_local_location_delete(struct vfi_location *loc, struct vfi_desc_
 	int ret;
 	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
 	
-	if (desc->location && *desc->location)
-		ret = find_vfi_name(&target,loc,desc);
-
+	ret = find_vfi_name(&target,loc,desc);
+	if (ret)
+		return;
 	vfi_location_delete(target);
+	vfi_location_put(target);
 }
 
-static void vfi_local_smb_delete(struct vfi_location *loc, struct vfi_desc_param *desc)
+static void vfi_local_smb_delete(struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
-	struct vfi_smb *smb;
-
-	vfi_local_smb_find(&smb, loc,desc);
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	if (smb) {
-		vfi_smb_put(smb);
 		vfi_smb_delete(smb);
 	}
 }
@@ -941,34 +878,15 @@ static void vfi_local_mmap_delete(struct vfi_smb *smb, struct vfi_desc_param *de
  * The function works by running through the list of <src> fragments in <srcs>, deleting
  * each in turn. It then "deletes" the <srcs> kset itself, by means of a put on its refcount.
  **/
-static struct vfi_dst *vfi_local_srcs_delete (struct vfi_dst *parent, struct vfi_bind_param *desc)
+static void vfi_local_srcs_delete (struct vfi_dst *parent, struct vfi_bind_param *desc)
 {
 	struct list_head *entry, *safety;
 	struct vfi_srcs *srcs = parent->srcs;
-	struct vfi_bind *bind = parent->bind;
 	
 	VFI_DEBUG (MY_DEBUG,"%s for %s.%s#%llx:%x\n",__FUNCTION__, 
 		     parent->desc.xfer.name, parent->desc.xfer.location,parent->desc.xfer.offset, parent->desc.xfer.extent);
-#if 0	
-	printk ("%s: Dst  - %s.%s#%llx:%x(%p)/%s.%s#%llx:%x(%p)=%s.%s#%llx:%x(%p)\n", 
-	        __func__, 
-	        parent->desc.xfer.name, parent->desc.xfer.location, parent->desc.xfer.offset, parent->desc.xfer.extent, parent->desc.xfer.ops, 
-	        parent->desc.dst.name, parent->desc.dst.location, parent->desc.dst.offset, parent->desc.dst.extent, parent->desc.dst.ops, 
-	        parent->desc.src.name, parent->desc.src.location, parent->desc.src.offset, parent->desc.src.extent, parent->desc.src.ops);
-	printk ("%s: Bind - %s.%s#%llx:%x(%p)/%s.%s#%llx:%x(%p)=%s.%s#%llx:%x(%p)\n", 
-	        __func__, 
-	        bind->desc.xfer.name, bind->desc.xfer.location, bind->desc.xfer.offset, bind->desc.xfer.extent, bind->desc.xfer.ops, 
-	        bind->desc.dst.name, bind->desc.dst.location, bind->desc.dst.offset, bind->desc.dst.extent, bind->desc.dst.ops, 
-	        bind->desc.src.name, bind->desc.src.location, bind->desc.src.offset, bind->desc.src.extent, bind->desc.src.ops);
-	printk ("%s: Desc - %s.%s#%llx:%x(%p)/%s.%s#%llx:%x(%p)=%s.%s#%llx:%x(%p)\n", 
-	        __func__, 
-	        desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, desc->xfer.ops, 
-	        desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent, desc->dst.ops, 
-	        desc->src.name, desc->src.location, desc->src.offset, desc->src.extent, desc->src.ops);
-#endif
 
 	if (srcs) {
-		int dstref = 0;
 		VFI_DEBUG (MY_DEBUG, "-- Srcs \"%s\"\n", kobject_name (&srcs->kset.kobj));
 		if (!list_empty (&srcs->kset.list)) {
 			list_for_each_safe (entry, safety, &srcs->kset.list) {
@@ -998,60 +916,8 @@ static struct vfi_dst *vfi_local_srcs_delete (struct vfi_dst *parent, struct vfi
 			printk ("xxx %s: bind xfer has no src_ev_delete() op!\n", __func__);
 		}
 		
-		
-
-		
 		vfi_srcs_delete (srcs);
-		
-		/*
-		* Clean-up on-the-fly bind hierarchy
-		*
-		* This clause only runs if <src> is remote from <xfer>. 
-		* BUT: it ought only to run if <src> is also remote from <dst>, 
-		* but we have no way to know that (the plocs and ops are screwed,
-		* so when one or other is remote from <xfer>, both appear to be
-		* remote at the same location).
-		*
-		*/
-		dstref = atomic_read (&parent->kobj.kref.refcount);
-//		printk ("%s: Parent Refcount is %d\n", __func__, dstref);
-		if (parent->desc.src.ops != parent->desc.xfer.ops && dstref == 2) {
-			struct vfi_dsts *dsts = (bind) ? bind->dsts : NULL;
-			
-			VFI_KTRACE ("<*** %s - unravel on-the-fly bind...dst IN ***>\n", __func__);
-			VFI_KTRACE ("-- %s: Bind (%p), Dsts (%p), Dst (%p)\n", __func__, bind, dsts, parent);
-			kobject_del(&parent->kobj);
-			parent = NULL;
-			
-			/*
-			* Examine the dsts list, and if it is empty, delete
-			* first <dsts> then <bind>.
-			*
-			*/
-			if (dsts && list_empty (&dsts->kset.list)) {
-				int bindref = atomic_read (&bind->kobj.kref.refcount);
-				/*
-				* HACK ATTACK> make sure the bind has a refcount of 
-				* three before we unregister the dsts and the bind.
-				*
-				*/
-				if (bindref < 3) {
-					VFI_KTRACE ("-- Whoopsie - bindref %d too small for \"%s\"\n", bindref, kobject_name (&bind->kobj));
-					while (bindref < 3) {
-						kobject_get (&bind->kobj);
-						bindref++;
-					}
-				}
-				vfi_dsts_unregister (dsts);
-				kobject_del (&bind->kobj);
-			}
-			VFI_KTRACE ("<*** %s - unravel on-the-fly bind...dst OUT ***>\n", __func__);
-		}
-		else {
-			VFI_KTRACE ("<*** %s - did NOT unravel any on-the-fly bind ***>\n", __func__);
-		}
 	}
-	return (parent);
 }
 
 /**
@@ -1091,7 +957,7 @@ static void vfi_local_src_delete (struct vfi_dst *parent, struct vfi_bind_param 
 * dst_delete requests for the <dst> fragments it carries.
 *
 **/
-static struct vfi_bind *vfi_local_dsts_delete (struct vfi_bind *parent, struct vfi_bind_param *desc)
+static void vfi_local_dsts_delete (struct vfi_bind *parent, struct vfi_bind_param *desc)
 {
 	struct list_head *entry, *safety;
 	struct vfi_dsts *dsts = parent->dsts;
@@ -1130,36 +996,7 @@ static struct vfi_bind *vfi_local_dsts_delete (struct vfi_bind *parent, struct v
 		}
 		
 		vfi_dsts_delete (dsts);
-		
-		/*
-		* HACK ALERT:
-		* -----------
-		* If the <dsts> site is not the same as the <xfer> site then the bind
-		* will have been created on-the-fly during dsts_create, and will have
-		* an imbalanced refcount that will not disappear when <dsts> unravels.
-		*
-		* So: compare the <dst> and <xfer> ops pointers to determine whether 
-		* they run on the same or on different sites. And if different, unregister
-		* the bind.
-		*
-		* Also take care of dubious refcounting: bind count needs to be 2, at least.
-		* Bump it up articifially if necessary. THIS IS A TEMPORARY HACK-OF-HACK.
-		*
-		*/
-		if (parent->desc.xfer.ops != parent->desc.dst.ops) {
-			int bindref = atomic_read (&parent->kobj.kref.refcount);
-			if (bindref < 2) {
-				printk ("-- Whoopsie - bindref %d too small for \"%s\"\n", bindref, kobject_name (&parent->kobj));
-				kobject_get (&parent->kobj);
-			}
-			else {
-				printk ("-- Bindref is now at %d\n", bindref);
-			}
-			kobject_del (&parent->kobj);
-			parent = NULL;
-		}
 	}
-	return (parent);
 }
 
 /**
@@ -1183,22 +1020,11 @@ static void vfi_local_dst_delete(struct vfi_bind *parent, struct vfi_bind_param 
 	VFI_DEBUG (MY_DEBUG, "%s (%s.%s#%llx:%x/%s.%s#%llx:%x=<*>)\n", __func__, 
 		desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent, 
 		desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent);
-/*
-	printk ("-- Parent bind: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", 
-		parent->desc.xfer.name, parent->desc.xfer.location, parent->desc.xfer.offset, parent->desc.xfer.extent, 
-		parent->desc.dst.name, parent->desc.dst.location, parent->desc.dst.offset, parent->desc.dst.extent, 
-		parent->desc.src.name, parent->desc.src.location, parent->desc.src.offset, parent->desc.src.extent);
-*/
 
-	/*
-	* INVESTIGATE: the find call will, if successful, leave
-	* the dst refcount incremented - need to ensure that this
-	* additional refcount is successfully countermanded somewhere
-	* in the dst_delete chain.
-	*/
 	if (!(ret = find_vfi_dst_in(&dst,parent,desc))) {
 		parent->desc.src.ops->srcs_delete(dst,desc);
 		vfi_dst_delete(parent,desc);
+		vfi_dst_put(dst);
 	}
 }
 
@@ -1352,28 +1178,27 @@ static void vfi_local_bind_delete(struct vfi_xfer *parent, struct vfi_desc_param
 	* any binds whose offset lies within the offset/extent range of the
 	* delete specification.
 	*/
-	if (!list_empty(&parent->binds->kset.list)) {
-		list_for_each_safe(entry,safety,&parent->binds->kset.list) {
+	if (!list_empty(&parent->kset.list)) {
+		list_for_each_safe(entry,safety,&parent->kset.list) {
 			struct vfi_bind *bind;
 			bind = to_vfi_bind(to_kobj(entry));
-			if (bind->desc.xfer.offset >= desc->offset &&
-			    bind->desc.xfer.offset <= desc->offset + desc->extent) {
+			if ( (bind->desc.xfer.offset >= desc->offset) &&
+			     (!desc->extent || (bind->desc.xfer.offset <= desc->offset + desc->extent))) {
 				bind->desc.dst.ops->dsts_delete(bind,&bind->desc);
 			}
 			vfi_bind_delete (parent, &bind->desc.xfer);
 		}
 	}
-	else {
-		printk ("xxx %s: binds kset is empty.\n", __func__);
-	}
 }
 
-static void vfi_local_xfer_delete(struct vfi_location *parent, struct vfi_desc_param *desc)
+static void vfi_local_xfer_delete(struct vfi_xfer *xfer, struct vfi_desc_param *desc)
 {
+	vfi_xfer_delete(xfer,desc);
 }
 
 static void vfi_local_sync_delete(struct vfi_location *parent, struct vfi_desc_param *desc)
 {
+	vfi_sync_delete(parent,desc);
 }
 
 static int vfi_local_sync_send(struct vfi_sync *sync, struct vfi_desc_param *desc)
@@ -1425,6 +1250,7 @@ struct vfi_ops vfi_local_ops = {
 	.smb_create      = vfi_local_smb_create,
 	.smb_delete      = vfi_local_smb_delete,
 	.smb_find        = vfi_local_smb_find,
+	.smb_put         = vfi_local_smb_put,
 	.mmap_create     = vfi_local_mmap_create,
 	.mmap_delete     = vfi_local_mmap_delete,
 	.xfer_create     = vfi_local_xfer_create,

@@ -35,18 +35,16 @@ static inline struct vfi_location *to_vfi_location(struct kobject *kobj)
 static inline struct vfi_location *vfi_location_get(struct vfi_location *vfi_location)
 {
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_location);
-	return to_vfi_location(kobject_get(&vfi_location->kset.kobj));
+	return vfi_location ? to_vfi_location(kobject_get(&vfi_location->kset.kobj)) : NULL;
 }
 
 static inline void vfi_location_put(struct vfi_location *vfi_location)
 {
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,vfi_location);
-	if (vfi_location) kobject_put(&vfi_location->kset.kobj);
+	if (vfi_location) kset_put(&vfi_location->kset);
 }
 
 extern int new_vfi_location(struct vfi_location **, struct vfi_location *, struct vfi_desc_param *);
-extern int vfi_location_register(struct vfi_location *);
-extern void vfi_location_unregister(struct vfi_location *);
 extern int find_vfi_name(struct vfi_location **, struct vfi_location *, struct vfi_desc_param *);
 extern int find_vfi_location(struct vfi_location **, struct vfi_location *, struct vfi_desc_param *);
 extern int locate_vfi_location(struct vfi_location  **, struct vfi_location *, struct vfi_desc_param *);

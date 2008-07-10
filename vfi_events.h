@@ -42,8 +42,6 @@ static inline void vfi_events_put(struct vfi_events *vfi_events)
 }
 
 extern int new_vfi_events(struct vfi_events **, struct vfi_readies *, char *name);
-extern int vfi_events_register(struct vfi_events *);
-extern void vfi_events_unregister(struct vfi_events *);
 extern int find_vfi_events(struct vfi_events **, struct vfi_readies *, char *);
 extern struct kobj_type vfi_events_type;
 extern int vfi_events_create(struct vfi_events **, struct vfi_readies *, char *name);

@@ -45,8 +45,6 @@ static inline void vfi_src_put(struct vfi_src *vfi_src)
 }
 
 extern int new_vfi_src(struct vfi_src **, struct vfi_dst *, struct vfi_bind_param *);
-extern int vfi_src_register(struct vfi_src *);
-extern void vfi_src_unregister(struct vfi_src *);
 extern int find_vfi_src(struct vfi_src **, struct vfi_desc_param *, struct vfi_dst *);
 extern int vfi_src_create(struct vfi_src **, struct vfi_dst *, struct vfi_bind_param *);
 extern void vfi_src_delete(struct vfi_dst *, struct vfi_bind_param *);

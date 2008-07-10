@@ -63,7 +63,10 @@ static struct sysfs_ops vfi_xfers_sysfs_ops = {
 
 static ssize_t vfi_xfers_default_show(struct vfi_xfers *vfi_xfers, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "vfi_xfers_default");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_xfers->kset.kobj.kref.refcount));
+	return size;
 }
 
 static ssize_t vfi_xfers_default_store(struct vfi_xfers *vfi_xfers, const char *buffer, size_t size)
@@ -108,38 +111,25 @@ static struct kset_uevent_ops vfi_xfers_uevent_ops = {
 
 int new_vfi_xfers(struct vfi_xfers **xfers, char *name, struct vfi_location *parent)
 {
-    struct vfi_xfers *new = kzalloc(sizeof(struct vfi_xfers), GFP_KERNEL);
+	int ret;
+	struct vfi_xfers *new = kzalloc(sizeof(struct vfi_xfers), GFP_KERNEL);
     
-    *xfers = new;
+	*xfers = new;
 
-    if (NULL == new)
-	return VFI_RESULT(-ENOMEM);
+	if (NULL == new)
+		return VFI_RESULT(-ENOMEM);
 
-    kobject_set_name(&new->kset.kobj,name);
-    new->kset.kobj.ktype = &vfi_xfers_type;
-    new->kset.uevent_ops = &vfi_xfers_uevent_ops;
-    new->kset.kobj.parent = &parent->kset.kobj;
+	kobject_set_name(&new->kset.kobj,name);
+	new->kset.kobj.ktype = &vfi_xfers_type;
+	new->kset.uevent_ops = &vfi_xfers_uevent_ops;
+	new->kset.kobj.parent = &parent->kset.kobj;
 
-    VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return VFI_RESULT(0);
+	ret = kset_register(&new->kset);
+	if (ret) {
+		vfi_xfers_put(new);
+		*xfers = NULL;
+	}
+
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,*xfers);
+	return VFI_RESULT(ret);
 }
-
-int vfi_xfers_register(struct vfi_xfers *vfi_xfers)
-{
-    int ret = 0;
-
-    if ( (ret = kset_register(&vfi_xfers->kset) ) )
-	goto out;
-
-      return VFI_RESULT(ret);
-
-out:
-    return VFI_RESULT(ret);
-}
-
-void vfi_xfers_unregister(struct vfi_xfers *vfi_xfers)
-{
-    
-     kset_unregister(&vfi_xfers->kset);
-}
-

@@ -14,10 +14,12 @@
 
 #include <linux/vfi.h>
 #include <linux/vfi_dst.h>
+#include <linux/vfi_smb.h>
 
 struct vfi_srcs {
 	struct kset kset;
 	struct list_head dma_chain;
+	struct vfi_smb *smb;
 };
 
 static inline struct vfi_srcs *to_vfi_srcs(struct kobject *kobj)
@@ -38,8 +40,6 @@ static inline void vfi_srcs_put(struct vfi_srcs *vfi_srcs)
 }
 
 extern int new_vfi_srcs(struct vfi_srcs **, struct vfi_bind_param *, struct vfi_dst *);
-extern int vfi_srcs_register(struct vfi_srcs *);
-extern void vfi_srcs_unregister(struct vfi_srcs *);
 extern int vfi_srcs_create(struct vfi_srcs **, struct vfi_dst *,struct vfi_bind_param *);
 extern void vfi_srcs_delete(struct vfi_srcs *srcs);
 extern struct kobj_type vfi_srcs_type;

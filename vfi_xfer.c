@@ -18,7 +18,6 @@
 #include <linux/vfi_location.h>
 #include <linux/vfi_xfers.h>
 #include <linux/vfi_ops.h>
-#include <linux/vfi_binds.h>
 #include <linux/vfi_bind.h>
 #include <linux/vfi_dma.h>
 
@@ -29,10 +28,8 @@ static void vfi_xfer_release(struct kobject *kobj)
 {
     struct vfi_xfer *p = to_vfi_xfer(kobj);
     VFI_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
-    if (p->desc.name) {
-	    VFI_DEBUG(MY_LIFE_DEBUG,"%s free xfer %p\n",__FUNCTION__,p->desc.name);
-	    vfi_clean_desc(&p->desc);
-    }
+    vfi_clean_desc(&p->desc);
+    
     kfree(p);
 }
 
@@ -77,9 +74,8 @@ static ssize_t vfi_xfer_default_show(struct vfi_xfer *vfi_xfer, char *buffer)
 	int left = PAGE_SIZE;
 	int size = 0;
 	ATTR_PRINTF("Xfer %p is %s \n",vfi_xfer,vfi_xfer ? vfi_xfer->desc.name : NULL);
-	if (vfi_xfer) {
-		ATTR_PRINTF("xfer: ops is %p rde is %p address is %p\n",vfi_xfer->desc.ops,vfi_xfer->desc.rde,vfi_xfer->desc.address);
-	}
+	ATTR_PRINTF("xfer: ops is %p rde is %p address is %p ploc is %p\n",vfi_xfer->desc.ops,vfi_xfer->desc.rde,vfi_xfer->desc.address, vfi_xfer->desc.ploc);
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_xfer->kset.kobj.kref.refcount));
 	return size;
 }
 
@@ -164,36 +160,21 @@ int new_vfi_xfer(struct vfi_xfer **xfer, struct vfi_location *parent, struct vfi
 		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_desc(&new->desc, desc);
+	vfi_inherit(&new->desc, &parent->desc);
+	vfi_location_put(new->desc.ploc);
+	new->desc.ploc = vfi_location_get(parent);
 
-	new->desc.ops = parent->desc.ops;		/* Pointer to location core ops */
-	new->desc.address = parent->desc.address;	/* Pointer to location address ops */
-	new->desc.rde = parent->desc.rde;		/* Pointer to location DMA engine ops */
-	new->desc.ploc = parent;			/* Pointer to complete location object */
-
-	ret = kobject_init_and_add(&new->kobj, &vfi_xfer_type, &parent->xfers->kset.kobj, "%s", desc->name);
-	if (ret)
-		goto out;
-
-	ret = new_vfi_binds(&new->binds,"binds", new);
-	if (ret) 
-		goto fail_binds;
-
-	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return VFI_RESULT(ret);
-
-fail_binds:
-	kset_unregister(&new->binds->kset);
-out:
-	kobject_put(&new->kobj);
-	return VFI_RESULT(ret);
-}
-
-void vfi_xfer_unregister(struct vfi_xfer *vfi_xfer)
-{
-	if (vfi_xfer) {
-		vfi_binds_unregister(vfi_xfer->binds);
-		kobject_del(&vfi_xfer->kobj);
+	new->kset.kobj.kset = &parent->xfers->kset;
+	new->kset.kobj.ktype = &vfi_xfer_type;
+	kobject_set_name(&new->kset.kobj, "%s", desc->name);
+	ret = kset_register(&new->kset);
+	if (ret) {
+		kset_put(&new->kset);
+		*xfer = NULL;
 	}
+
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,*xfer);
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -212,41 +193,29 @@ void vfi_xfer_unregister(struct vfi_xfer *vfi_xfer)
 int find_vfi_xfer_in(struct vfi_xfer **xfer,struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 	int ret;
+	struct vfi_location *tmploc;
 	VFI_DEBUG(MY_DEBUG,"%s desc(%p) ploc(%p)\n",__FUNCTION__,desc,desc->ploc);
 
-	/*
-	* If an explicit location has been specified for the target xfer, 
-	* then use that location's xfer_find op to complete the search.
-	*/
 	if (loc && loc->desc.ops && loc->desc.ops->xfer_find)
 		return VFI_RESULT(loc->desc.ops->xfer_find(xfer,loc,desc));
 
-	/*
-	* If a prior location has been found for this descriptor - if its ploc
-	* field is non-zero - then invoke the xfer_find op for that location.
-	*/
 	if (desc->ploc && desc->ploc->desc.ops && desc->ploc->desc.ops->xfer_find)
 		return VFI_RESULT(desc->ploc->desc.ops->xfer_find(xfer,desc->ploc,desc));
 
-	/*
-	* If we reach here, it means that we do not yet know where to look
-	* for the xfer. So find out where the xfer lives, and then use the
-	* resultant location xfer_find op to find the xfer object itself.
-	*/
-	ret = locate_vfi_location(&loc,NULL,desc);
+	*xfer = NULL;
+
+	ret = locate_vfi_location(&tmploc,NULL,desc);
 	if (ret)
 		return VFI_RESULT(ret);
 
-	/*
-	* Save the result of the location search in the xfer
-	* descriptor. 
-	*/
-	desc->ploc = loc;
+	desc->ploc = vfi_location_get(tmploc);
 
-	if (loc && loc->desc.ops && loc->desc.ops->xfer_find) 
-		return VFI_RESULT(loc->desc.ops->xfer_find(xfer,loc,desc));
+	if (tmploc && tmploc->desc.ops && tmploc->desc.ops->xfer_find) {
+		ret = tmploc->desc.ops->xfer_find(xfer,tmploc,desc);
+		vfi_location_put(tmploc);
+	}
 
-	return VFI_RESULT(-EINVAL);
+	return VFI_RESULT(ret);
 }
 
 /**
@@ -270,23 +239,21 @@ int vfi_xfer_create(struct vfi_xfer **xfer, struct vfi_location *loc, struct vfi
 	
 	if (*xfer) {
 		VFI_DEBUG(MY_DEBUG,"%s found %p %s locally in %p %s\n",__FUNCTION__,*xfer,desc->name,loc,loc->desc.name);
+		vfi_xfer_put(*xfer);
 	}
 	else {
 		ret = new_vfi_xfer(xfer,loc,desc);
 		if (ret)
-			kobject_put(&(*xfer)->kobj);
+			*xfer = NULL;
 	}
 
 	return VFI_RESULT(ret);
 }
 
-void vfi_xfer_delete(struct vfi_location *loc, struct vfi_desc_param *desc)
+void vfi_xfer_delete(struct vfi_xfer *xfer, struct vfi_desc_param *desc)
 {
-	struct vfi_xfer *xfer;
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	xfer = to_vfi_xfer(kset_find_obj(&loc->xfers->kset,desc->name));
 	vfi_xfer_put(xfer);
-	vfi_xfer_unregister(xfer);
 }
 
 void vfi_xfer_load_binds(struct vfi_xfer *xfer, struct vfi_bind *bind)
@@ -298,7 +265,7 @@ void vfi_xfer_load_binds(struct vfi_xfer *xfer, struct vfi_bind *bind)
 
 		return;
 	}
-	VFI_DEBUG (MY_DEBUG, "xx %s: Xfer %s has incomplete operations set.\n", __FUNCTION__, kobject_name (&xfer->kobj));
+	VFI_DEBUG (MY_DEBUG, "xx %s: Xfer %s has incomplete operations set.\n", __FUNCTION__, kobject_name (&xfer->kset.kobj));
 	VFI_DEBUG (MY_DEBUG, "   rde: %s\n", (xfer->desc.rde) ? "Present" : "Missing!");
 	VFI_DEBUG (MY_DEBUG, "   rde ops: %s\n", (xfer->desc.rde && xfer->desc.rde->ops) ? "Present" : "Missing!");
 	VFI_DEBUG (MY_DEBUG, "   rde link_bind op: %s\n", (xfer->desc.rde && xfer->desc.rde->ops && xfer->desc.rde->ops->link_bind) ? "Present" : "Missing!");

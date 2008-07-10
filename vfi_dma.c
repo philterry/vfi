@@ -179,10 +179,11 @@ struct vfi_dma_engine *vfi_dma_find(const char *name)
 struct vfi_dma_engine *vfi_dma_get(struct vfi_dma_engine *rde)
 {
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,rde);
-	if (try_module_get(rde->owner)) {
-		rde->ops->get(rde);
-		return rde;
-	}
+	if (rde)
+		if (try_module_get(rde->owner)) {
+			rde->ops->get(rde);
+			return rde;
+		}
 	return NULL;
 }
 

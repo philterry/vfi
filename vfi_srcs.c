@@ -15,7 +15,7 @@
 
 #include <linux/vfi_srcs.h>
 #include <linux/vfi_dst.h>
-
+#include <linux/vfi_smb.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 
@@ -33,6 +33,7 @@ static void vfi_srcs_release(struct kobject *kobj)
 {
     struct vfi_srcs *p = to_vfi_srcs(kobj);
     VFI_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
+    vfi_smb_put(p->smb);
     kfree(p);
 }
 
@@ -74,7 +75,10 @@ static struct sysfs_ops vfi_srcs_sysfs_ops = {
 
 static ssize_t vfi_srcs_default_show(struct vfi_srcs *vfi_srcs, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "vfi_srcs_default");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_srcs->kset.kobj.kref.refcount));
+	return size;
 }
 
 static ssize_t vfi_srcs_default_store(struct vfi_srcs *vfi_srcs, const char *buffer, size_t size)
@@ -119,41 +123,31 @@ static struct kset_uevent_ops vfi_srcs_uevent_ops = {
 
 int new_vfi_srcs(struct vfi_srcs **srcs, struct vfi_bind_param *desc, struct vfi_dst *parent)
 {
-    struct vfi_srcs *new = kzalloc(sizeof(struct vfi_srcs), GFP_KERNEL);
+	int ret;
+	struct vfi_srcs *new = kzalloc(sizeof(struct vfi_srcs), GFP_KERNEL);
     
-    *srcs = new;
-    if (NULL == new)
-	return VFI_RESULT(-ENOMEM);
+	*srcs = new;
+	if (NULL == new)
+		return VFI_RESULT(-ENOMEM);
 
-    kobject_set_name(&new->kset.kobj,"%s.%s#%llx:%x",desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
-    new->kset.kobj.ktype = &vfi_srcs_type;
-    new->kset.uevent_ops = &vfi_srcs_uevent_ops;
-    new->kset.kobj.parent = &parent->kobj;
-    INIT_LIST_HEAD(&new->dma_chain);
+	kobject_set_name(&new->kset.kobj,"%s.%s#%llx:%x",desc->src.name,desc->src.location,desc->src.offset,desc->src.extent);
+	new->kset.kobj.ktype = &vfi_srcs_type;
+	new->kset.uevent_ops = &vfi_srcs_uevent_ops;
+	new->kset.kobj.parent = &parent->kobj;
+	INIT_LIST_HEAD(&new->dma_chain);
 
-    parent->srcs = new;
+	ret = kset_register(&new->kset);
+	if (ret) {
+		vfi_srcs_put(new);
+		*srcs = NULL;
+	}
+	else
+		vfi_dst_put(parent);
 
-    VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-    return VFI_RESULT(0);
-}
+	parent->srcs = *srcs;
 
-int vfi_srcs_register(struct vfi_srcs *vfi_srcs)
-{
-	int ret = 0;
-
-	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
-	ret = kset_register(&vfi_srcs->kset);
-	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,*srcs);
 	return VFI_RESULT(ret);
-}
-
-void vfi_srcs_unregister(struct vfi_srcs *vfi_srcs)
-{
-    
-	VFI_KTRACE ("<*** %s IN ***>\n", __func__);
-	if (vfi_srcs)
-		kset_unregister(&vfi_srcs->kset);
-	VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
 }
 
 int vfi_srcs_create(struct vfi_srcs **srcs, struct vfi_dst *parent, struct vfi_bind_param *desc)
@@ -163,19 +157,10 @@ int vfi_srcs_create(struct vfi_srcs **srcs, struct vfi_dst *parent, struct vfi_b
 
 	ret = new_vfi_srcs(srcs,desc,parent);
 
-	if (ret)
-		return VFI_RESULT(ret);
-
-	ret = vfi_srcs_register(*srcs);
-	if (ret) {
-		vfi_srcs_put(*srcs);
-		*srcs = NULL;
-	}
-
 	return VFI_RESULT(ret);
 }
 
 void vfi_srcs_delete(struct vfi_srcs *srcs)
 {
-	vfi_srcs_unregister(srcs);
+	kset_unregister(&srcs->kset);
 }

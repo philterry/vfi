@@ -30,11 +30,11 @@
 
 static void vfi_location_release(struct kobject *kobj)
 {
-    struct vfi_location *p = to_vfi_location(kobj);
-    VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-    vfi_address_unregister(p);
-    vfi_clean_desc(&p->desc);
-    kfree(p);
+	struct vfi_location *p = to_vfi_location(kobj);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+	vfi_address_unregister(p);
+	vfi_clean_desc(&p->desc);
+	kfree(p);
 }
 
 struct vfi_location_attribute {
@@ -78,9 +78,8 @@ static ssize_t vfi_location_default_show(struct vfi_location *vfi_location, char
 	int left = PAGE_SIZE;
 	int size = 0;
 	ATTR_PRINTF("Location %p is %s \n",vfi_location,vfi_location ? vfi_location->desc.name : NULL);
-	if (vfi_location) {
-		ATTR_PRINTF("ops is %p rde is %p address is %p\n",vfi_location->desc.ops,vfi_location->desc.rde,vfi_location->desc.address);
-	}
+	ATTR_PRINTF("ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_location->desc.ops,vfi_location->desc.rde,vfi_location->desc.address,vfi_location->desc.ploc);
 	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_location->kset.kobj.kref.refcount));
 	return size;
 }
@@ -169,6 +168,9 @@ struct kobj_type vfi_location_type = {
 
 int new_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
+	int ret;
+	struct kset *parent;
+
 	struct vfi_location *new = kzalloc(sizeof(struct vfi_location), GFP_KERNEL);
  	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
    
@@ -178,39 +180,18 @@ int new_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, str
 		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_desc(&new->desc, desc);
-	kobject_set_name(&new->kset.kobj, "%s", new->desc.name);
 
-	/*
-	* Parentage: provide pointer to parent kset in the /sys/vfi hierarchy.
-	* Either we hook-up to a higher-level location, or we hook-up to /sys/vfi
-	* itself.
-	*
-	* Actual hooking does not happen here - see vfi_location_register
-	* for that.
-	*/
 	if (loc)
-		new->kset.kobj.kset = &loc->kset;
+		parent = &loc->kset;
 	else
-		new->kset.kobj.kset = &vfi_subsys->kset;
+		parent = &vfi_subsys->kset;
 
-	/*
-	* Node identifiers: the extent and offset fields in the descriptor
-	* are overloaded in this context to provide two degrees of node
-	* identification. Neither of which is documented.
-	*
-	* Just sayin' - these are not really extents or offsets.
-	*/
 	if (!new->desc.extent && loc)
 		new->desc.extent = loc->desc.extent;
 
 	if (!new->desc.offset && loc)
 		new->desc.offset = loc->desc.offset;
 
-	/*
-	* Inherit core operations from parent location, or default to
-	* fabric ops (default_ops(public))
-	*
-	*/
 	if (!new->desc.ops ) {
 		if (loc && loc->desc.ops)
 			new->desc.ops = loc->desc.ops;
@@ -218,116 +199,54 @@ int new_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, str
 			new->desc.ops = &vfi_fabric_ops;
 	}
 
-	/*
-	* Inherit Remote DMA Engine from parent, or leave unspecified.
-	*/
 	if (!new->desc.rde) {
 		if (loc && loc->desc.rde)
 			new->desc.rde = vfi_dma_get(loc->desc.rde);
 	}
 
-	/*
-	* Inherit fabric address ops from parent, or leave unspecified.
-	* The "address" - struct vfi_fabric_address - is not an actual
-	* address, but a set of ops for manipulating fabric addresses.
-	*
-	* JUST a thought: isn't all this inheritance stuff redundant
-	* because parent loc->desc is cloned at the start of this
-	* function?
-	*/
 	if (!new->desc.address) {
 		if (loc && loc->desc.address)
 			new->desc.address = vfi_fabric_get(loc->desc.address);
 	}
 
-	/*
-	* Parentage. Again.
-	*
-	* This time an explicit link to the parent's vfi_location
-	* structure, rather than the convoluted link to its kobject/kset
-	* laid down earlier for the benefit of sysfs. This one is for us.
-	*/
-	new->desc.ploc = loc;
+	if (!new->desc.ploc)
+		new->desc.ploc = vfi_location_get(loc);
 
-	kobject_init(&new->kset.kobj, &vfi_location_type);
-	INIT_LIST_HEAD(&new->kset.list);
-	spin_lock_init(&new->kset.list_lock);
+	kobject_set_name(&new->kset.kobj,"%s", new->desc.name);
+	new->kset.kobj.ktype = &vfi_location_type;
+	new->kset.kobj.kset = parent;
+	ret = kset_register(&new->kset);
 
-	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
-	return VFI_RESULT(0);
-}
-
-int vfi_location_register(struct vfi_location *vfi_location)
-{
-	int ret = 0;
-
-	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,vfi_location);
-	
-	/*
-	* Hook the new kobject into the sysfs hierarchy.
-	*
-	*/
-	if ( (ret = kobject_add(&vfi_location->kset.kobj, &vfi_location->desc.ploc->kset.kobj, "%s", vfi_location->desc.name) ) )
+	if (ret)
 		goto out;
 
-/* 	kobject_uevent(&vfi_location->kset.kobj, KOBJ_ADD); */
-
-	ret = -ENOMEM;
-
-	/*
-	* Create ksets for subsidiary SMBs and Xfers, and register those
-	* too. Presume we don't create these when we create the new location
-	* because we want to hook-up the new location first?
-	*/
-	ret= new_vfi_smbs(&vfi_location->smbs,"smbs",vfi_location);
-	if ( NULL == vfi_location->smbs)
+	ret= new_vfi_smbs(&new->smbs,"smbs",new);
+	if (ret)
 		goto fail_smbs;
 
-	ret = new_vfi_xfers(&vfi_location->xfers,"xfers",vfi_location);
-	if ( NULL == vfi_location->xfers)
+	ret = new_vfi_xfers(&new->xfers,"xfers",new);
+	if (ret)
 		goto fail_xfers;
 
-	ret = new_vfi_syncs(&vfi_location->syncs,"syncs",vfi_location);
-	if ( NULL == vfi_location->syncs)
+	ret = new_vfi_syncs(&new->syncs,"syncs",new);
+	if (ret)
 		goto fail_syncs;
 
-	if ( (ret = vfi_smbs_register(vfi_location->smbs)) )
-		goto fail_smbs_reg;
 
-	if ( (ret = vfi_xfers_register(vfi_location->xfers)) )
-		goto fail_xfers_reg;
-
-	if ( (ret = vfi_syncs_register(vfi_location->syncs)) )
-		goto fail_syncs_reg;
-
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,*newloc);
 	return VFI_RESULT(ret);
 
-fail_syncs_reg:
-	vfi_xfers_unregister(vfi_location->xfers);
-fail_xfers_reg:
-	vfi_smbs_unregister(vfi_location->smbs);
-fail_smbs_reg:
-	kset_put(&vfi_location->xfers->kset);
 fail_syncs:
-	kset_put(&vfi_location->syncs->kset);
+	vfi_xfers_put(new->xfers);
+
 fail_xfers:
-	kset_put(&vfi_location->smbs->kset);
+	vfi_smbs_put(new->smbs);
+
 fail_smbs:
-	kobject_del(&vfi_location->kset.kobj);
 out:
+	vfi_location_put(new);
+	*newloc = NULL;
 	return VFI_RESULT(ret);
-}
-
-void vfi_location_unregister(struct vfi_location *vfi_location)
-{
-	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,vfi_location);
-	vfi_syncs_unregister(vfi_location->syncs);
-
-	vfi_xfers_unregister(vfi_location->xfers);
-
-	vfi_smbs_unregister(vfi_location->smbs);
-
-	kobject_del(&vfi_location->kset.kobj);
 }
 
 int find_vfi_name(struct vfi_location **newloc, struct vfi_location *loc, struct vfi_desc_param *params)
@@ -344,7 +263,7 @@ int find_vfi_name(struct vfi_location **newloc, struct vfi_location *loc, struct
 }
 
 /**
-* find_vfi_location - find, or create, a named location on the VFI network.
+* find_vfi_location - find a named location on the VFI network.
 *
 * @params: pointer to command string descriptor for the command we are 
 *          currently servicing.
@@ -356,15 +275,17 @@ int find_vfi_name(struct vfi_location **newloc, struct vfi_location *loc, struct
 * If no such kobject can be found, the function will create one, with all 
 * necessary accoutrements, using vfi_location_create ().
 *
-* The function implements a recursive search for a given location, finding or
-* creating its parent before the original target. A multi-component location of
-* the form <a>.<b>.<c>... will therefore result in an inverted kobject
-* tree of the form:
+* The function implements a recursive search for a given location,
+* findingits parent before the original target. A multi-component
+* location of the form <a>.<b>.<c>... will therefore result in an
+* inverted kobject tree of the form:
 *			<c>
 *			   <b>
 *			      <a>
 *
-*
+* If one of the antecedents is a remote location this function will
+* appear to create local shadow locations as a side effect. However,
+* no actual location is created by this function.
 **/
 int find_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, struct vfi_desc_param *params)
 {
@@ -471,37 +392,20 @@ int locate_vfi_location(struct vfi_location **new_loc,struct vfi_location *loc, 
 int vfi_location_create(struct vfi_location **newloc, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
 	int ret;
-
 	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,loc,desc);
 
 	ret = new_vfi_location(newloc,loc,desc);
 
-	if (ret || NULL == *newloc)
-		goto out;
-
-	if ( ( vfi_location_register(*newloc)) )
-		goto fail_reg;
-
-	return VFI_RESULT(0);
-
-fail_reg:
-	vfi_location_put(*newloc);
-out:
-	return VFI_RESULT(-EINVAL);
+	return VFI_RESULT(ret);
 }
 
 void vfi_location_delete(struct vfi_location *loc)
 {
 	VFI_DEBUG(MY_DEBUG,"%s %p\n",__FUNCTION__,loc);
 	if (loc) {
-		vfi_location_unregister(loc);
-		
-		if (loc && loc->desc.rde)
-			vfi_dma_put(loc->desc.rde);
-		
-		if (loc && loc->desc.address)
-			vfi_fabric_put(loc->desc.address);
-		
-		vfi_location_put(loc);
+		vfi_smbs_put(loc->smbs);
+		vfi_xfers_put(loc->xfers);
+		vfi_syncs_put(loc->syncs);
 	}
+	vfi_location_put(loc);
 }

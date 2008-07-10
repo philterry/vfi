@@ -24,7 +24,7 @@ static void vfi_subsys_release(struct kobject *kobj)
 {
     struct vfi_subsys *p = to_vfi_subsys(kobj);
     VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-    
+    vfi_clean_desc(&p->desc);
     kfree(p);
 }
 
@@ -100,6 +100,7 @@ static ssize_t vfi_subsys_debug_show(struct vfi_subsys *vfi_subsys, char *buffer
 	SHOW_BIT( "evnt", VFI_DBG_EVNT);
 	SHOW_BIT( "funcall", VFI_DBG_FUNCALL);
 	SHOW_BIT( "life", VFI_DBG_LIFE);
+	SHOW_BIT( "error", VFI_DBG_ERROR);
 	SHOW_LEVEL();
 	return PAGE_SIZE - left;
 }
@@ -142,6 +143,7 @@ static ssize_t vfi_subsys_debug_store(struct vfi_subsys *vfi_subsys, const char 
 		STORE_BIT( "evnt", VFI_DBG_EVNT);
 		STORE_BIT("funcall", VFI_DBG_FUNCALL);
 		STORE_BIT("life", VFI_DBG_LIFE);
+		STORE_BIT("error", VFI_DBG_ERROR);
 		STORE_BIT("all", VFI_DBG_ALL);
 		STORE_BIT("everyone", VFI_DBG_EVERYONE);
 		STORE_BIT("everything", VFI_DBG_EVERYTHING);
@@ -173,12 +175,23 @@ static ssize_t vfi_subsys_name_show(struct vfi_subsys *vfi_subsys, char *buffer)
 
 VFI_SUBSYS_ATTR(name, 0644, vfi_subsys_name_show, 0);
 
+static ssize_t vfi_subsys_default_show(struct vfi_subsys *vfi_subsys, char *buffer)
+{
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_subsys->kset.kobj.kref.refcount));
+	return size;
+}
+
+VFI_SUBSYS_ATTR(default, 0644, vfi_subsys_default_show, 0);
+
 static struct attribute *vfi_subsys_default_attrs[] = {
 #ifdef CONFIG_VFI_DEBUG
     &vfi_subsys_attr_debug.attr,
 #endif
     &vfi_subsys_attr_location.attr,
     &vfi_subsys_attr_name.attr,
+    &vfi_subsys_attr_default.attr,
     0,
 };
 
@@ -227,7 +240,7 @@ int new_vfi_subsys(struct vfi_subsys **subsys, char *name)
     VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
     return VFI_RESULT(0);
 out:
-    vfi_subsys_put(new);
+    vfi_subsys_release(&new->kset.kobj);
     *subsys = NULL;
     VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,NULL);
     return VFI_RESULT(-EINVAL);
@@ -261,7 +274,9 @@ out:
 
 void vfi_subsys_unregister(struct vfi_subsys *parent)
 {
-	if (parent)
+	if (parent) {
+		vfi_readies_put(parent->events);
 		kset_unregister(&parent->kset);
+	}
 }
 

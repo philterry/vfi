@@ -53,8 +53,6 @@ static inline void vfi_mmap_put(struct vfi_mmap *vfi_mmap)
 }
 
 extern int new_vfi_mmap(struct vfi_mmap **, struct vfi_smb *, struct vfi_desc_param *);
-extern int vfi_mmap_register(struct vfi_mmap *);
-extern void vfi_mmap_unregister(struct vfi_mmap *);
 extern int find_vfi_mmap_by_id(struct vfi_mmap **, unsigned long);
 extern int find_vfi_mmap(struct vfi_mmap **, struct vfi_smb *, struct vfi_desc_param *);
 extern int vfi_mmap_create(struct vfi_mmap **, struct vfi_smb *, struct vfi_desc_param *);
