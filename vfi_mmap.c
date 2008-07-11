@@ -18,6 +18,7 @@
 #include <linux/vfi_smbs.h>
 #include <linux/vfi_drv.h>
 #include <linux/vfi_location.h>
+#include <linux/vfi_ops.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -132,13 +133,29 @@ struct kobj_type vfi_mmap_type = {
     .default_attrs = vfi_mmap_default_attrs,
 };
 
-int find_vfi_mmap(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc_param *desc)
+int find_vfi_mmap_in(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
-	char buf[512];
-	snprintf(buf,512,"%d#%llx:%x",current->pid,desc->offset,desc->extent);
-	*mmap = to_vfi_mmap(kset_find_obj(&smb->kset,buf));
-	return VFI_RESULT(*mmap == NULL);
+	int ret;
+	struct vfi_smb *tmpsmb;
+	VFI_DEBUG(MY_DEBUG,"%s desc(%p) ploc(%p)\n",__FUNCTION__,desc,desc->ploc);
+
+	if (smb && smb->desc.ops && smb->desc.ops->mmap_find)
+		return VFI_RESULT(smb->desc.ops->mmap_find(mmap,smb,desc));
+
+	*mmap = NULL;
+
+	ret = find_vfi_smb(&tmpsmb,desc);
+	if (ret)
+		return VFI_RESULT(ret);
+
+	if (tmpsmb && tmpsmb->desc.ops && tmpsmb->desc.ops->mmap_find) {
+		ret = tmpsmb->desc.ops->mmap_find(mmap,tmpsmb,desc);
+		vfi_smb_put(tmpsmb);
+	}
+
+	return VFI_RESULT(ret);
 }
+
 static struct vfi_mmap *frm_by_loc(struct vfi_location *loc,unsigned long tid)
 {
 	struct vfi_location *new_loc;
@@ -223,7 +240,7 @@ int new_vfi_mmap(struct vfi_mmap **mmap, struct vfi_smb *parent, struct vfi_desc
 		return VFI_RESULT(-ENOMEM);
 
 	new->kobj.kset = &parent->kset;
-	ret = kobject_init_and_add(&new->kobj, &vfi_mmap_type, NULL, "%d#%llx:%x",current->pid, desc->offset,desc->extent);
+	ret = kobject_init_and_add(&new->kobj, &vfi_mmap_type, NULL, "#%llx:%x",desc->offset,desc->extent);
 	if (ret)
 		kobject_put(&new->kobj);
 
@@ -261,11 +278,7 @@ int vfi_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc
 	return VFI_RESULT(ret);
 }
 
-void vfi_mmap_delete(struct vfi_smb *smb, struct vfi_desc_param *desc)
+void vfi_mmap_delete(struct vfi_mmap *mmap)
 {
-	struct vfi_mmap *mmap;
-	int ret;
-	ret = find_vfi_mmap(&mmap,smb,desc);
-	vfi_mmap_put(mmap);
 	vfi_mmap_put(mmap);
 }

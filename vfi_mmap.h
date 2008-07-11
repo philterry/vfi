@@ -52,10 +52,16 @@ static inline void vfi_mmap_put(struct vfi_mmap *vfi_mmap)
     kobject_put(&vfi_mmap->kobj);
 }
 
+extern int find_vfi_mmap_in(struct vfi_mmap **, struct vfi_smb *, struct vfi_desc_param *);
+
+static inline int find_vfi_mmap(struct vfi_mmap **mmap, struct vfi_desc_param *desc)
+{
+	return find_vfi_mmap_in(mmap, NULL, desc);
+}
+
 extern int new_vfi_mmap(struct vfi_mmap **, struct vfi_smb *, struct vfi_desc_param *);
 extern int find_vfi_mmap_by_id(struct vfi_mmap **, unsigned long);
-extern int find_vfi_mmap(struct vfi_mmap **, struct vfi_smb *, struct vfi_desc_param *);
 extern int vfi_mmap_create(struct vfi_mmap **, struct vfi_smb *, struct vfi_desc_param *);
-extern void vfi_mmap_delete(struct vfi_smb *, struct vfi_desc_param *);
+extern void vfi_mmap_delete(struct vfi_mmap *);
 extern struct kobj_type vfi_mmap_type;
 #endif /* VFI_MMAP_H */

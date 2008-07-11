@@ -64,8 +64,9 @@ static int vfi_local_smb_find(struct vfi_smb **smb, struct vfi_location *parent,
 	return VFI_RESULT(0);
 }
 
-static void vfi_local_smb_put(struct vfi_smb *smb)
+static void vfi_local_smb_put(struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
+	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,smb,desc);
 	vfi_smb_put(smb);
 }
 /**
@@ -91,6 +92,12 @@ static int vfi_local_xfer_find(struct vfi_xfer **xfer, struct vfi_location *pare
 	return VFI_RESULT(*xfer == NULL);
 }
 
+static void vfi_local_xfer_put(struct vfi_xfer *xfer,struct vfi_desc_param *desc)
+{
+	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,xfer,desc);
+	vfi_xfer_put(xfer);
+}
+
 /**
 * vfi_local_sync_find - find an vfi_sync object for a named sync at the local site.
 * @parent : location where sync officially resides (right here!)
@@ -112,6 +119,37 @@ static int vfi_local_sync_find(struct vfi_sync **sync, struct vfi_location *pare
 	*sync = to_vfi_sync(kset_find_obj(&parent->syncs->kset,desc->name));
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*sync);
 	return VFI_RESULT(*sync == NULL);
+}
+
+/**
+* vfi_local_sync_put - put an vfi_sync object for a named sync at the local site.
+* @sync: sync to be put
+* @desc: target sync parameter descriptor
+*
+*
+**/
+static void vfi_local_sync_put(struct vfi_sync *sync, struct vfi_desc_param *desc)
+{
+	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,sync,desc);
+	vfi_sync_put(sync);
+}
+
+static int vfi_local_mmap_find(struct vfi_mmap **mmap, struct vfi_smb *parent, struct vfi_desc_param *desc)
+{
+	char buf[512];
+	snprintf(buf,512,"#%llx:%x",desc->offset,desc->extent);
+	if (parent)
+		*mmap = to_vfi_mmap(kset_find_obj(&parent->kset,buf));
+	else
+		*mmap = NULL;
+	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*mmap);
+	return VFI_RESULT(*mmap == NULL);
+}
+
+static void vfi_local_mmap_put(struct vfi_mmap *mmap, struct vfi_desc_param *desc)
+{
+	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,mmap,desc);
+	vfi_mmap_put(mmap);
 }
 
 /**
@@ -260,9 +298,15 @@ static int vfi_local_smb_create(struct vfi_smb **newsmb, struct vfi_location *lo
 
 static int vfi_local_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
+	int ret;
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	return VFI_RESULT(vfi_mmap_create(mmap,smb,desc));
+	ret = find_vfi_mmap_in(mmap,smb,desc);
+
+	if (ret)
+		return VFI_RESULT(vfi_mmap_create(mmap,smb,desc));
+
+	return VFI_RESULT(0);
 }
 
 /**
@@ -514,16 +558,16 @@ static int vfi_local_bind_create(struct vfi_bind **bind, struct vfi_xfer *xfer, 
 		vfi_dma_chain_dump(&(*bind)->dma_chain);
 #endif
 
-	ssmb->desc.ops->smb_put(ssmb);
-	dsmb->desc.ops->smb_put(dsmb);
+	ssmb->desc.ops->smb_put(ssmb,&ssmb->desc);
+	dsmb->desc.ops->smb_put(dsmb,&dsmb->desc);
 
 	return VFI_RESULT(0);
 
 fail_dst:
 fail_sdesc:
-	ssmb->desc.ops->smb_put(ssmb);
+	ssmb->desc.ops->smb_put(ssmb,&ssmb->desc);
 fail_ddesc:
-	dsmb->desc.ops->smb_put(dsmb);
+	dsmb->desc.ops->smb_put(dsmb,&dsmb->desc);
 fail_dsmb:
 	vfi_dsts_delete(dsts);
 fail_dsts:
@@ -850,9 +894,9 @@ static void vfi_local_smb_delete(struct vfi_smb *smb, struct vfi_desc_param *des
 	}
 }
 
-static void vfi_local_mmap_delete(struct vfi_smb *smb, struct vfi_desc_param *desc)
+static void vfi_local_mmap_delete(struct vfi_mmap *mmap, struct vfi_desc_param *desc)
 {
-	vfi_mmap_delete(smb,desc);
+	vfi_mmap_delete(mmap);
 }
 
 /**
@@ -1192,9 +1236,9 @@ static void vfi_local_xfer_delete(struct vfi_xfer *xfer, struct vfi_desc_param *
 	vfi_xfer_delete(xfer,desc);
 }
 
-static void vfi_local_sync_delete(struct vfi_location *parent, struct vfi_desc_param *desc)
+static void vfi_local_sync_delete(struct vfi_sync *sync, struct vfi_desc_param *desc)
 {
-	vfi_sync_delete(parent,desc);
+	vfi_sync_delete(sync,desc);
 }
 
 static int vfi_local_sync_send(struct vfi_sync *sync, struct vfi_desc_param *desc)
@@ -1247,16 +1291,20 @@ struct vfi_ops vfi_local_ops = {
 	.smb_delete      = vfi_local_smb_delete,
 	.smb_find        = vfi_local_smb_find,
 	.smb_put         = vfi_local_smb_put,
-	.mmap_create     = vfi_local_mmap_create,
-	.mmap_delete     = vfi_local_mmap_delete,
 	.xfer_create     = vfi_local_xfer_create,
 	.xfer_delete     = vfi_local_xfer_delete,
 	.xfer_find       = vfi_local_xfer_find,
+	.xfer_put        = vfi_local_xfer_put,
 	.sync_create     = vfi_local_sync_create,
 	.sync_delete     = vfi_local_sync_delete,
 	.sync_find       = vfi_local_sync_find,
+	.sync_put        = vfi_local_sync_put,
 	.sync_send       = vfi_local_sync_send,
 	.sync_wait       = vfi_local_sync_wait,
+	.mmap_create     = vfi_local_mmap_create,
+	.mmap_delete     = vfi_local_mmap_delete,
+	.mmap_find       = vfi_local_mmap_find,
+	.mmap_put        = vfi_local_mmap_put,
 	.srcs_create     = vfi_local_srcs_create,
 	.srcs_delete     = vfi_local_srcs_delete,
 	.src_create      = vfi_local_src_create,

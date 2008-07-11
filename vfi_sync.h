@@ -53,6 +53,6 @@ static inline int find_vfi_sync(struct vfi_sync **sync,struct vfi_desc_param *de
 
 extern int new_vfi_sync(struct vfi_sync **, struct vfi_location *, struct vfi_desc_param *);
 extern int vfi_sync_create(struct vfi_sync **, struct vfi_location *, struct vfi_desc_param *);
-extern void vfi_sync_delete(struct vfi_location *, struct vfi_desc_param *);
+extern void vfi_sync_delete(struct vfi_sync *, struct vfi_desc_param *);
 extern struct kobj_type vfi_sync_type;
 #endif /* VFI_SYNC_H */

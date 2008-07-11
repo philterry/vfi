@@ -193,7 +193,7 @@ int find_vfi_smb_in(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_d
 
 	vfi_update_ploc(desc, tmploc);
 
-	if (tmploc && tmploc->desc.ops && tmploc->desc.ops->xfer_find) {
+	if (tmploc && tmploc->desc.ops && tmploc->desc.ops->smb_find) {
 		ret = tmploc->desc.ops->smb_find(smb,tmploc,desc);
 		vfi_location_put(tmploc);
 	}

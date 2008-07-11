@@ -152,6 +152,7 @@ static void vfi_fabric_location_put(struct vfi_location *loc, struct vfi_desc_pa
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0 ) {
 				vfi_location_put(oldloc);
+				vfi_location_put(oldloc);
 			}
 			vfi_clean_desc(&reply);
 		}
@@ -185,7 +186,7 @@ static int vfi_fabric_smb_find(struct vfi_smb **smb, struct vfi_location *parent
 	return VFI_RESULT(ret);
 }
 
-static void vfi_fabric_smb_put(struct vfi_smb *smb)
+static void vfi_fabric_smb_put(struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
 	struct sk_buff  *skb;
 	int ret;
@@ -233,36 +234,17 @@ static int vfi_fabric_xfer_find(struct vfi_xfer **xfer, struct vfi_location *loc
 
 	VFI_DEBUG (MY_DEBUG, "%s (%s)\n", __func__, ((desc) ? ((desc->name) ? : "<UNK>") : "<NULL>"));
 
-	/*
-	* Look for an existing stub for the target xfer in the local tree.
-	* 
-	*/
 	if ( (*xfer = to_vfi_xfer(kset_find_obj(&loc->xfers->kset,desc->name))) )
 		return VFI_RESULT(0);
 
-	/*
-	* If no such xfer object currently exists at that site, then deliver an 
-	* "xfer_find" request to the [remote] destination to look for it there.
-	*/
 	ret = vfi_fabric_call(&skb, loc, 5, "xfer_find://%s.%s",
 				desc->name,desc->location
 				);
-	/*
-	* We need a reply...
-	*/
 	if (skb) {
 		struct vfi_desc_param reply;
 		ret = -EINVAL;
-		/*
-		* Parse the reply into a descriptor...
-		*/
 		if (!vfi_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			/*
-			* ...and if the reply indicates success, create a local xfer object
-			* and bind it to the location. Thus our sysfs tree now has local knowledge
-			* of this xfer's existence, though it live somewhere else.
-			*/
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
 				reply.extent = 0;
 				reply.offset = 0;
@@ -273,6 +255,26 @@ static int vfi_fabric_xfer_find(struct vfi_xfer **xfer, struct vfi_location *loc
 	}
 
 	return VFI_RESULT(ret);
+}
+
+static void vfi_fabric_xfer_put(struct vfi_xfer *xfer, struct vfi_desc_param *desc)
+{
+	struct sk_buff  *skb;
+	int ret;
+
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
+	ret = vfi_fabric_call(&skb, xfer->desc.ploc, 5, "xfer_put://%s.%s", xfer->desc.name,xfer->desc.location);
+
+	if (skb) {
+		struct vfi_desc_param reply;
+		if (!vfi_parse_desc(&reply,skb->data)) {
+			dev_kfree_skb(skb);
+			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
+				vfi_xfer_put(xfer);
+			vfi_clean_desc(&reply);
+		}
+	}
 }
 
 /**
@@ -336,6 +338,44 @@ static int vfi_fabric_sync_find(struct vfi_sync **sync, struct vfi_location *loc
 	}
 
 	return VFI_RESULT(ret);
+}
+
+/**
+* vfi_fabric_sync_put - find, or create, an vfi_sync object for a named sync at a remote location
+* @loc	: location where sync officially resides
+* @desc	: target sync parameter descriptor
+*
+* This function finds an vfi_sync object for the sync described by @desc, which officially resides
+* at a remote fabric location defined by @loc.
+*
+* If the sync is found to exist at that site then a stub will be created for the sync in the local tree.
+*
+* The function returns a pointer to the vfi_sync object that represents the target sync in the
+* local tree. It will return NULL if no such sync exists at the remote site.
+*
+**/
+static void vfi_fabric_sync_put(struct vfi_sync *sync, struct vfi_desc_param *desc)
+{
+	struct sk_buff  *skb;
+	int ret;
+
+	VFI_DEBUG (MY_DEBUG, "%s %p %p\n", __func__, sync, desc);
+
+	ret = vfi_fabric_call(&skb, sync->desc.ploc, 5, "sync_put://%s.%s",
+				desc->name,desc->location
+				);
+	if (skb) {
+		struct vfi_desc_param reply;
+		ret = -EINVAL;
+		if (!vfi_parse_desc(&reply,skb->data)) {
+			dev_kfree_skb(skb);
+			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
+				ret = 0;
+				vfi_sync_put(sync);
+			}
+			vfi_clean_desc(&reply);
+		}
+	}
 }
 
 static int vfi_fabric_sync_send(struct vfi_sync *sync, struct vfi_desc_param *desc)
@@ -1204,7 +1244,13 @@ static void vfi_fabric_smb_delete(struct vfi_smb *smb, struct vfi_desc_param *de
 	}
 }
 
-static void vfi_fabric_mmap_delete(struct vfi_smb *smb, struct vfi_desc_param *desc)
+static void vfi_fabric_mmap_delete(struct vfi_mmap *mmap, struct vfi_desc_param *desc)
+{
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
+}
+
+static void vfi_fabric_mmap_put(struct vfi_mmap *mmap, struct vfi_desc_param *desc)
 {
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
@@ -1268,20 +1314,20 @@ static void vfi_fabric_xfer_delete(struct vfi_xfer *xfer, struct vfi_desc_param 
 	}
 }
 
-static void vfi_fabric_sync_delete(struct vfi_location *loc, struct vfi_desc_param *desc)
+static void vfi_fabric_sync_delete(struct vfi_sync *sync, struct vfi_desc_param *desc)
 {
 	struct sk_buff  *skb;
 
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	vfi_fabric_call(&skb,loc, 5, "sync_delete://%s.%s", desc->name,desc->location);
+	vfi_fabric_call(&skb,sync->desc.ploc, 5, "sync_delete://%s.%s", desc->name,desc->location);
 	if (skb) {
 		struct vfi_desc_param reply;
 		int ret = -EINVAL;
 		if (!vfi_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
-				vfi_sync_delete(loc,&reply);
+				vfi_sync_delete(sync,&reply);
 			vfi_clean_desc(&reply);
 
 		}
@@ -1581,12 +1627,15 @@ struct vfi_ops vfi_fabric_ops = {
 	.mmap_create     = vfi_fabric_mmap_create,
 	.mmap_delete     = vfi_fabric_mmap_delete,
 	.mmap_find       = vfi_fabric_mmap_find,
+	.mmap_put        = vfi_fabric_mmap_put,
 	.xfer_create     = vfi_fabric_xfer_create,
 	.xfer_delete     = vfi_fabric_xfer_delete,
 	.xfer_find       = vfi_fabric_xfer_find,
+	.xfer_put        = vfi_fabric_xfer_put,
 	.sync_create     = vfi_fabric_sync_create,
 	.sync_delete     = vfi_fabric_sync_delete,
 	.sync_find       = vfi_fabric_sync_find,
+	.sync_put        = vfi_fabric_sync_put,
 	.sync_wait       = vfi_fabric_sync_wait,
 	.sync_send       = vfi_fabric_sync_send,
 	.srcs_create     = vfi_fabric_srcs_create,

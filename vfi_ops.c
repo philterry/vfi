@@ -231,6 +231,18 @@ static int location_put(const char *desc, char *result, int *size)
 			vfi_location_put(loc);
 		}
 	}
+	else if (params.ops) {
+		params.ops->location_put(NULL,&params);
+	}
+	else {
+		ret = -EINVAL;
+		loc = to_vfi_location(kset_find_obj(&vfi_subsys->kset,params.name));
+		VFI_DEBUG(MY_DEBUG, "%s kset_find %s gives %p\n", __FUNCTION__, params.name, loc);
+		if (loc) {
+			ret = 0;
+			loc->desc.ops->location_put(NULL,&params);
+		}
+	}
 out:
 	if (result)
 		*size = snprintf(result,*size,"location_put://%s.%s?result(%d),reply(%s)\n",
@@ -393,6 +405,50 @@ out:
 }
 
 /**
+ * smb_put - Puts named SMB
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int smb_put(const char *desc, char *result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_smb *smb;
+	struct vfi_desc_param params;
+
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+
+	if ( !(ret = find_vfi_smb(&smb,&params) ) ) {
+		ret = -EINVAL;
+
+		if ( smb && smb->desc.ops && smb->desc.ops->smb_put ) {
+			smb->desc.ops->smb_put(smb, &params);
+			ret = 0;
+		}
+		vfi_smb_put(smb);
+	}
+
+out:
+	if (result) 
+		*size = snprintf(result,*size,"smb_put://%s.%s?result(%d),reply(%s)\n",
+				 params.name, params.location,ret, vfi_get_option(&params,"request"));
+
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+/**
 * valid_extents - validate any extents quoted in a bind specification
 * @x - pointer to bind parameter block
 *
@@ -447,13 +503,13 @@ static int valid_extents(struct vfi_bind_param *x)
 }
 
 /**
- * smb_mmap - Create mapping descriptor for mmap
+ * mmap_create - Create mapping descriptor for mmap
  *
  * @desc:   Null-terminated string with parameters of operation
  * @result: Pointer to buffer to contain result string
  * @size:   Maximum size of result buffer
  *
- * This function services "smb_mmap" requests, whose job is to prepare
+ * This function services "mmap_create" requests, whose job is to prepare
  * an mmap ticket that can be used to map user virtual memory to
  * all or part of a specified SMB. Ticketing is a scheme that allows
  * SMBs to be mmaped using indirect references to pre-stored "tickets"
@@ -472,7 +528,7 @@ static int valid_extents(struct vfi_bind_param *x)
  * for what happens next.
  *
  */
-static int smb_mmap (const char* desc, char* result, int *size)
+static int mmap_create (const char* desc, char* result, int *size)
 {
 	int ret = -ENOMEM;
 	struct vfi_smb *smb = NULL;
@@ -507,13 +563,13 @@ out:
 			* Note that because mmap identifiers are huge numbers, write
 			* them as hex digits in the response.
 			*/
-			*size = snprintf(result,*size,"smb_mmap://%s.%s?result(%d),reply(%s),mmap_offset(%lx)\n",
+			*size = snprintf(result,*size,"mmap_create://%s.%s?result(%d),reply(%s),mmap_offset(%lx)\n",
 				       params.name, params.location, ret, 
 				       vfi_get_option(&params,"request"),
 				       (unsigned long)mmap_to_ticket(mmap));
 		}
 		else {
-			*size = snprintf(result,*size,"smb_mmap://%s.%s?result(%d),reply(%s)\n", 
+			*size = snprintf(result,*size,"mmap_create://%s.%s?result(%d),reply(%s)\n", 
 				       params.name, params.location,ret, vfi_get_option(&params,"request"));
 		}
 	}
@@ -523,10 +579,45 @@ out:
 	return VFI_RESULT(ret);
 }
 
-static int smb_unmmap (const char* desc, char* result, int *size)
+static int mmap_find (const char* desc, char* result, int *size)
 {
 	int ret = -ENOMEM;
 	struct vfi_smb *smb = NULL;
+	struct vfi_mmap *mmap = NULL;
+	struct vfi_desc_param params;
+	
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = find_vfi_smb(&smb,&params);
+	if (ret)
+		goto out;
+
+	ret = -EINVAL;
+
+	if (smb && smb->desc.ops && smb->desc.ops->mmap_find)
+		ret = smb->desc.ops->mmap_find(&mmap,smb,&params);
+
+	vfi_smb_put(smb);
+
+out:		
+	if (result) {
+		*size = snprintf(result,*size,"mmap_find://%s.%s?result(%d),reply(%s),mmap_offset(%lx)\n",
+				 params.name, params.location, ret, vfi_get_option(&params,"request"), (unsigned long)mmap_to_ticket(mmap));
+	}
+	
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+static int mmap_delete (const char* desc, char* result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_smb *smb = NULL;
+	struct vfi_mmap *mmap = NULL;
 	struct vfi_desc_param params;
 	
 	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
@@ -539,28 +630,75 @@ static int smb_unmmap (const char* desc, char* result, int *size)
 		goto out;
 	}
 
-	ret = -ENODEV;
-
-	if ( !(ret = find_vfi_smb(&smb,&params)) ) {
-		ret = -EINVAL;
+	ret = find_vfi_smb(&smb,&params);
+	if (ret)
+		goto out;
 		
-		if (smb && smb->desc.ops && smb->desc.ops->mmap_delete) {
-			smb->desc.ops->mmap_delete(smb,&params);
-			ret = 0;
-		}
-	}
+	ret = -EINVAL;
 
+	if (smb && smb->desc.ops && smb->desc.ops->mmap_find)
+		ret = smb->desc.ops->mmap_find(&mmap,smb,&params);
+
+	if (ret)
+		goto fail;
+
+	mmap->desc.ops->mmap_delete(mmap,&params);
+	mmap->desc.ops->mmap_put(mmap,&params);
+fail:
 	vfi_smb_put(smb);
-
 out:		
 	if (result) {
-		*size = snprintf(result,*size,"smb_unmap://%s.%s?result(%d),reply(%s)\n", params.name, params.location, ret, vfi_get_option(&params,"request"));
+		*size = snprintf(result,*size,"mmap_delete://%s.%s?result(%d),reply(%s)\n", params.name, params.location, ret, vfi_get_option(&params,"request"));
 	}
 	
 	vfi_clean_desc(&params);
 
 	return VFI_RESULT(ret);
 }
+
+static int mmap_put (const char* desc, char* result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_smb *smb = NULL;
+	struct vfi_mmap *mmap = NULL;
+	struct vfi_desc_param params;
+	
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	if (params.offset % PAGE_SIZE) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = find_vfi_smb(&smb,&params);
+	if (ret)
+		goto out;
+		
+	ret = -EINVAL;
+
+	if (smb && smb->desc.ops && smb->desc.ops->mmap_find)
+		ret = smb->desc.ops->mmap_find(&mmap,smb,&params);
+
+	if (ret)
+		goto fail;
+
+	mmap->desc.ops->mmap_put(mmap,&params);
+	mmap->desc.ops->mmap_put(mmap,&params);
+fail:
+	vfi_smb_put(smb);
+out:		
+	if (result) {
+		*size = snprintf(result,*size,"mmap_put://%s.%s?result(%d),reply(%s)\n", params.name, params.location, ret, vfi_get_option(&params,"request"));
+	}
+	
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
 
 /**
  * xfer_create - Creates the named transfer bind component.
@@ -702,6 +840,50 @@ out:
 }
 
 /**
+ * xfer_put - Puts the named transfer
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int xfer_put(const char *desc, char *result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_xfer *xfer;
+	struct vfi_desc_param params;
+
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+
+	if ( !(ret = find_vfi_xfer(&xfer, &params) ) ) {
+		ret = -EINVAL;
+
+		if ( xfer && xfer->desc.ops && xfer->desc.ops->xfer_put ) {
+			xfer->desc.ops->xfer_put(xfer, &params);
+			ret = 0;
+		}
+		vfi_xfer_put(xfer);
+	}
+
+out:
+	if (result) 
+		*size = snprintf(result,*size,"xfer_put://%s.%s?result(%d),reply(%s)\n",
+			       params.name, params.location,ret, vfi_get_option(&params,"request"));
+
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+/**
  * sync_create - Creates the named transfer bind component.
  *
  * @desc: Null terminated string with parameters of operation
@@ -760,7 +942,7 @@ out:
 static int sync_delete(const char *desc, char *result, int *size)
 {
 	int ret = -ENOMEM;
-	struct vfi_location *loc;
+	struct vfi_sync *sync;
 	struct vfi_desc_param params;
 
 	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
@@ -770,15 +952,15 @@ static int sync_delete(const char *desc, char *result, int *size)
 
 	ret = -ENODEV;
 
-	if ( !(ret = locate_vfi_location(&loc,NULL,&params) ) ) {
+	if ( !(ret = find_vfi_sync(&sync,&params) ) ) {
 		ret = -EINVAL;
-		if ( loc && loc->desc.ops && loc->desc.ops->sync_delete ) {
-			loc->desc.ops->sync_delete(loc, &params);
+		if ( sync && sync->desc.ops && sync->desc.ops->sync_delete ) {
+			sync->desc.ops->sync_delete(sync, &params);
 			ret = 0;
 		}
 	}
 
-	vfi_location_put(loc);
+	vfi_sync_put(sync);
 
 out:
 	if (result) 
@@ -831,6 +1013,55 @@ out:
 				       ret,vfi_get_option(&params,"request"));
 		else
 			*size = snprintf(result,*size,"sync_find://%s.%s?result(%d),reply(%s)\n",
+				       params.name, params.location,
+				       ret,vfi_get_option(&params,"request"));
+	}
+
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+/**
+ * sync_put - Puts the named sync.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int sync_put(const char *desc, char *result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_sync *sync = NULL;
+	struct vfi_desc_param params;
+
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+
+	if ( !(ret = find_vfi_sync(&sync,&params)) ) {
+		ret = -EINVAL;
+		if (sync && sync->desc.ops && sync->desc.ops->sync_put)
+			sync->desc.ops->sync_put(sync,&params);
+	}
+
+	vfi_sync_put(sync);
+
+out:
+	if (result) {
+		if (sync)
+			*size = snprintf(result,*size,"sync_put://%s.%s?result(%d),reply(%s)\n",
+				       params.name, params.location,
+				       ret,vfi_get_option(&params,"request"));
+		else
+			*size = snprintf(result,*size,"sync_put://%s.%s?result(%d),reply(%s)\n",
 				       params.name, params.location,
 				       ret,vfi_get_option(&params,"request"));
 	}
@@ -1939,16 +2170,22 @@ static struct ops {
 	{"smb_create", smb_create},
 	{"smb_delete", smb_delete},
 	{"smb_find", smb_find},
-	{"smb_mmap", smb_mmap}, 
-	{"smb_unmmap",smb_unmmap},
+	{"smb_put", smb_put},
+
+	{"mmap_create", mmap_create}, 
+	{"mmap_delete",mmap_delete},
+	{"mmap_find", mmap_find}, 
+	{"mmap_put",mmap_put},
 
 	{"xfer_create", xfer_create},
 	{"xfer_delete", xfer_delete},
 	{"xfer_find", xfer_find},
+	{"xfer_put", xfer_put},
 
 	{"sync_create", sync_create},
 	{"sync_delete", sync_delete},
 	{"sync_find", sync_find},
+	{"sync_put", sync_put},
 	{"sync_send", sync_send},
 	{"sync_wait", sync_wait},
 

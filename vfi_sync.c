@@ -221,12 +221,9 @@ int vfi_sync_create(struct vfi_sync **sync,struct vfi_location *loc, struct vfi_
 }
 
 
-void vfi_sync_delete(struct vfi_location *loc, struct vfi_desc_param *desc)
+void vfi_sync_delete(struct vfi_sync *sync, struct vfi_desc_param *desc)
 {
-	struct vfi_sync *sync;
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-	sync = to_vfi_sync(kset_find_obj(&loc->syncs->kset,desc->name));
-	vfi_sync_put(sync);
 	vfi_sync_put(sync);
 }
 

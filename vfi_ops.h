@@ -35,12 +35,7 @@ struct vfi_ops {
 	int  (*smb_create)(struct vfi_smb **,     struct vfi_location *, struct vfi_desc_param *);
 	int  (*smb_find)  (struct vfi_smb **,     struct vfi_location *, struct vfi_desc_param *);
 	void (*smb_delete)(struct vfi_smb *,      struct vfi_desc_param *);
-	void (*smb_put)   (struct vfi_smb *);
-
-	int  (*mmap_create)(struct vfi_mmap **, struct vfi_smb *,      struct vfi_desc_param *);
-	int  (*mmap_find)  (struct vfi_mmap **, struct vfi_smb *,      struct vfi_desc_param *);
-	void (*mmap_delete)(struct vfi_smb *,   struct vfi_desc_param *);
-	void (*mmap_put)   (struct vfi_smb *,   struct vfi_desc_param *);
+	void (*smb_put)   (struct vfi_smb *,      struct vfi_desc_param *);
 
 	int  (*xfer_create)(struct vfi_xfer **,    struct vfi_location *, struct vfi_desc_param *);
 	int  (*xfer_find)  (struct vfi_xfer **,    struct vfi_location *, struct vfi_desc_param *);
@@ -49,10 +44,15 @@ struct vfi_ops {
 
 	int  (*sync_create)(struct vfi_sync **,    struct vfi_location *, struct vfi_desc_param *);
 	int  (*sync_find)  (struct vfi_sync **,    struct vfi_location *, struct vfi_desc_param *);
-	void (*sync_delete)(struct vfi_location *, struct vfi_desc_param *);
-	void (*sync_put)   (struct vfi_location *, struct vfi_desc_param *);
+	void (*sync_delete)(struct vfi_sync *,     struct vfi_desc_param *);
+	void (*sync_put)   (struct vfi_sync *,     struct vfi_desc_param *);
 	int  (*sync_send)  (struct vfi_sync *,     struct vfi_desc_param *);
 	int  (*sync_wait)  (struct vfi_sync *,     struct vfi_desc_param *);
+
+	int  (*mmap_create)(struct vfi_mmap **,  struct vfi_smb *,      struct vfi_desc_param *);
+	int  (*mmap_find)  (struct vfi_mmap **,  struct vfi_smb *,      struct vfi_desc_param *);
+	void (*mmap_delete)(struct vfi_mmap *,   struct vfi_desc_param *);
+	void (*mmap_put)   (struct vfi_mmap *,   struct vfi_desc_param *);
 
 	int  (*bind_create)(struct vfi_bind **,    struct vfi_xfer *,     struct vfi_bind_param *);
 	int  (*bind_find)  (struct vfi_bind **,    struct vfi_xfer *,     struct vfi_desc_param *);
