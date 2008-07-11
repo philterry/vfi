@@ -1353,16 +1353,6 @@ static void vfi_fabric_src_delete(struct vfi_dst *parent, struct vfi_bind_param 
 	int ret;
 
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
-/*
-	printk ("-- Parent: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", 
-		parent->desc.xfer.name, parent->desc.xfer.location, parent->desc.xfer.offset, parent->desc.xfer.extent,
-	        parent->desc.dst.name, parent->desc.dst.location, parent->desc.dst.offset, parent->desc.dst.extent,
-	        parent->desc.src.name, parent->desc.src.location, parent->desc.src.offset, parent->desc.src.extent);
-	printk ("--   Desc: %s.%s#%llx:%x/%s.%s#%llx:%x=%s.%s#%llx:%x\n", 
-		desc->xfer.name, desc->xfer.location, desc->xfer.offset, desc->xfer.extent,
-	        desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent,
-	        desc->src.name, desc->src.location, desc->src.offset, desc->src.extent);
-*/
 	
 	/*
 	* Compose and deliver src_delete command.

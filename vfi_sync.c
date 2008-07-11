@@ -156,8 +156,7 @@ int new_vfi_sync(struct vfi_sync **sync, struct vfi_location *loc, struct vfi_de
 
 	vfi_clone_desc(&new->desc, desc);
 	vfi_inherit(&new->desc, &loc->desc);
-	vfi_location_put(new->desc.ploc);
-	new->desc.ploc = vfi_location_get(loc);
+	vfi_update_ploc(&new->desc,loc);
 
 	sema_init(&new->sem,1);
 	init_waitqueue_head(&new->waitq);
@@ -190,6 +189,8 @@ int find_vfi_sync_in(struct vfi_sync **sync, struct vfi_location *loc, struct vf
 	ret = locate_vfi_location(&tmploc, NULL,desc);
 	if (ret)
 		return VFI_RESULT(ret);
+
+	vfi_update_ploc(desc,tmploc);
 
 	if (tmploc) {
 		ret = tmploc->desc.ops->sync_find(sync,tmploc,desc);

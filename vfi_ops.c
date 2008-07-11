@@ -116,8 +116,10 @@ static int location_delete(const char *desc, char *result, int *size)
 
 	if ( params.location && *params.location) {
 		if ( !(ret = locate_vfi_location(&loc, NULL, &params) ) ) {
+			ret = -EINVAL;
 			if ( loc && loc->desc.ops && loc->desc.ops->location_delete ) {
 				loc->desc.ops->location_delete(loc, &params);
+				ret = 0;
 			}
 			vfi_location_put(loc);
 		}
@@ -126,9 +128,11 @@ static int location_delete(const char *desc, char *result, int *size)
 		params.ops->location_delete(NULL,&params);
 	}
 	else {
+		ret = -EINVAL;
 		loc = to_vfi_location(kset_find_obj(&vfi_subsys->kset,params.name));
 		VFI_DEBUG(MY_DEBUG, "%s kset_find %s gives %p\n", __FUNCTION__, params.name, loc);
 		if (loc) {
+			ret = 0;
 			vfi_location_delete(loc);
 			vfi_location_put(loc);
 		}
@@ -322,6 +326,7 @@ static int smb_delete(const char *desc, char *result, int *size)
 
 		if ( smb && smb->desc.ops && smb->desc.ops->smb_delete ) {
 			smb->desc.ops->smb_delete(smb, &params);
+			ret = 0;
 		}
 		vfi_smb_put(smb);
 	}
@@ -541,6 +546,7 @@ static int smb_unmmap (const char* desc, char* result, int *size)
 		
 		if (smb && smb->desc.ops && smb->desc.ops->mmap_delete) {
 			smb->desc.ops->mmap_delete(smb,&params);
+			ret = 0;
 		}
 	}
 
@@ -630,6 +636,7 @@ static int xfer_delete(const char *desc, char *result, int *size)
 
 		if ( xfer && xfer->desc.ops && xfer->desc.ops->xfer_delete ) {
 			xfer->desc.ops->xfer_delete(xfer, &params);
+			ret = 0;
 		}
 		vfi_xfer_put(xfer);
 	}
@@ -767,6 +774,7 @@ static int sync_delete(const char *desc, char *result, int *size)
 		ret = -EINVAL;
 		if ( loc && loc->desc.ops && loc->desc.ops->sync_delete ) {
 			loc->desc.ops->sync_delete(loc, &params);
+			ret = 0;
 		}
 	}
 
@@ -1049,6 +1057,7 @@ static int bind_delete(const char *desc, char *result, int *size)
 
 		if ( xfer && xfer->desc.ops && xfer->desc.ops->bind_delete ) {
 			xfer->desc.ops->bind_delete(xfer, &params);
+			ret = 0;
 		}
 		vfi_xfer_put (xfer);
 	}
@@ -1208,10 +1217,10 @@ static int dst_delete(const char *desc, char *result, int *size)
 		ret = -EINVAL;
 		if ( bind && bind->desc.xfer.ops && bind->desc.xfer.ops->dst_delete ) {
 			bind->desc.xfer.ops->dst_delete(bind, &params);
+			ret = 0;
 		}
 	}
 
-	VFI_KTRACE ("<*** %s bind put after dst_delete opcall ***>\n", __func__);
 	vfi_bind_put(bind);
 
 out:
@@ -1372,6 +1381,7 @@ static int src_delete(const char *desc, char *result, int *size)
 		ret = -EINVAL;
 		if ( dst && dst->desc.xfer.ops && dst->desc.xfer.ops->src_delete ) {
 			dst->desc.xfer.ops->src_delete(dst, &params);
+			ret = 0;
 		}
 		vfi_dst_put(dst);
 	}
@@ -1417,8 +1427,10 @@ static int src_find(const char *desc, char *result, int *size)
 
 	if ( !(ret = find_vfi_dst(&dst,&params)) ) {
 		ret = -EINVAL;
-		if (dst && dst->desc.dst.ops && dst->desc.dst.ops->src_find)
+		if (dst && dst->desc.dst.ops && dst->desc.dst.ops->src_find) {
 			ret = dst->desc.dst.ops->src_find(&src,dst,&params);
+			ret = 0;
+		}
 	}
 
 	vfi_dst_put(dst);
@@ -1566,6 +1578,7 @@ static int srcs_delete(const char *desc, char *result, int *size)
 		ret = -EINVAL;
 		if ( dst && dst->desc.src.ops && dst->desc.src.ops->srcs_delete  ) {
 			dst->desc.src.ops->srcs_delete(dst, &params);
+			ret = 0;
 		}
 		vfi_dst_put(dst);
 	}
@@ -1737,24 +1750,11 @@ static int dsts_delete(const char *desc, char *result, int *size)
 	if ( (ret = vfi_parse_bind(&params, desc)) )
 		goto out;
 
-	/*
-	* Find the target bind in the local object tree, then invoke
-	* its <dst> agent dst_delete operation.
-	*
-	* NOTE: for sanity's sake, the bind "get" that is implicit in
-	* this find_vfi_bind call is "put" by the API function. Otherwise
-	* your head will explode if running a local dsts_delete.
-	*/
 	if ( !(ret = find_vfi_bind(&bind,&params.xfer) ) ) {
+		ret = -EINVAL;
 		if ( bind && bind->desc.dst.ops && bind->desc.dst.ops->dsts_delete ) {
-			/*
-			* Invoke the <dst> dsts_delete op to delete dsts.
-			* That function returns a pointer to the parent bind
-			* that we MUST take account of. If the return value
-			* is NULL, it means that the bind, too, has been deleted
-			* from the local tree.
-			*/
 			bind->desc.dst.ops->dsts_delete(bind, &params);
+			ret = 0;
 		}
 		
 		vfi_bind_put (bind);
@@ -1935,34 +1935,43 @@ static struct ops {
 	{"location_delete", location_delete},
 	{"location_find", location_find},
 	{"location_put", location_put},
+
 	{"smb_create", smb_create},
 	{"smb_delete", smb_delete},
 	{"smb_find", smb_find},
 	{"smb_mmap", smb_mmap}, 
 	{"smb_unmmap",smb_unmmap},
+
 	{"xfer_create", xfer_create},
 	{"xfer_delete", xfer_delete},
 	{"xfer_find", xfer_find},
+
 	{"sync_create", sync_create},
 	{"sync_delete", sync_delete},
 	{"sync_find", sync_find},
 	{"sync_send", sync_send},
 	{"sync_wait", sync_wait},
+
 	{"bind_create", bind_create},
 	{"bind_delete", bind_delete},
 	{"bind_find", bind_find},
+
 	{"src_create", src_create},
 	{"src_delete", src_delete},
 	{"src_find", src_find},
+
 	{"dst_create", dst_create},
 	{"dst_delete", dst_delete},
 	{"dst_find", dst_find},
+
 	{"srcs_create", srcs_create},
 	{"srcs_delete", srcs_delete},
 	{"srcs_find", srcs_find},
+
 	{"dsts_create", dsts_create},
 	{"dsts_delete", dsts_delete},
 	{"dsts_find", dsts_find},
+
 	{"event_start",event_start},
 	{"event_find",event_find},
 	{"event_chain",event_chain},

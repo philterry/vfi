@@ -80,6 +80,7 @@ struct vfi_bind_param {
 	struct vfi_desc_param src;
 };
 
+extern void vfi_update_ploc(struct vfi_desc_param *, struct vfi_location *);
 extern void vfi_inherit(struct vfi_desc_param *, struct vfi_desc_param *);
 static inline void vfi_bind_inherit(struct vfi_bind_param *c, struct vfi_bind_param *p)
 {

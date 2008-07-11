@@ -16,7 +16,6 @@
 #include <linux/vfi_dma_rio.h>
 #include <linux/vfi_src.h>
 #include <linux/vfi_srcs.h>
-#include <linux/vfi_binds.h>
 #include <linux/vfi_fabric.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>

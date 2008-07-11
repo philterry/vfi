@@ -161,8 +161,7 @@ int new_vfi_xfer(struct vfi_xfer **xfer, struct vfi_location *parent, struct vfi
 
 	vfi_clone_desc(&new->desc, desc);
 	vfi_inherit(&new->desc, &parent->desc);
-	vfi_location_put(new->desc.ploc);
-	new->desc.ploc = vfi_location_get(parent);
+	vfi_update_ploc(&new->desc, parent);
 
 	new->kset.kobj.kset = &parent->xfers->kset;
 	new->kset.kobj.ktype = &vfi_xfer_type;
@@ -208,7 +207,7 @@ int find_vfi_xfer_in(struct vfi_xfer **xfer,struct vfi_location *loc, struct vfi
 	if (ret)
 		return VFI_RESULT(ret);
 
-	desc->ploc = vfi_location_get(tmploc);
+	vfi_update_ploc(desc,tmploc);
 
 	if (tmploc && tmploc->desc.ops && tmploc->desc.ops->xfer_find) {
 		ret = tmploc->desc.ops->xfer_find(xfer,tmploc,desc);

@@ -403,22 +403,26 @@ out:
 	return ret;
 }
 
+void vfi_update_ploc(struct vfi_desc_param *desc, struct vfi_location *loc)
+{
+	if (desc) {
+		vfi_location_put(desc->ploc);
+		desc->ploc = vfi_location_get(loc);
+	}
+}
 
 void vfi_inherit(struct vfi_desc_param *c, struct vfi_desc_param *p)
 {
-	if (c->address)
-		vfi_fabric_put(c->address);
+	vfi_fabric_put(c->address);
 	c->address = vfi_fabric_get(p->address);
 	
-	if (c->rde)
-		vfi_dma_put(c->rde);
+	vfi_dma_put(c->rde);
 	c->rde = vfi_dma_get(p->rde);
 
-	c->ops = p->ops;
-
-	if (c->ploc)
-		vfi_location_put(c->ploc);
+	vfi_location_put(c->ploc);
 	c->ploc = vfi_location_get(p->ploc);
+
+	c->ops = p->ops;
 }
 
 int vfi_clone_desc(struct vfi_desc_param *new, struct vfi_desc_param *old)
@@ -426,16 +430,14 @@ int vfi_clone_desc(struct vfi_desc_param *new, struct vfi_desc_param *old)
 	int ret = -ENOMEM;
 	int i;
 	VFI_DEBUG(MY_DEBUG,"%s new(%p) old(%p)\n",__FUNCTION__,new,old);
+
+	vfi_fabric_put(new->address);
+	vfi_dma_put(new->rde);
+	vfi_location_put(new->ploc);
 	*new = *old;
-
-	if (new->address)
-		vfi_fabric_get(new->address);
-
-	if (new->rde)
-		vfi_dma_get(new->rde);
-
-	if (new->ploc)
-		vfi_location_get(new->ploc);
+	vfi_fabric_get(new->address);
+	vfi_dma_get(new->rde);
+	vfi_location_get(new->ploc);
 
 	if ( old->buf && old->buflen && (new->buf = kzalloc(old->buflen, GFP_KERNEL)) ) {
 		memcpy(new->buf, old->buf, old->buflen);

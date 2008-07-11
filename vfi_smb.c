@@ -157,8 +157,7 @@ int new_vfi_smb(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_desc_
 
 	vfi_clone_desc(&new->desc, desc);
 	vfi_inherit(&new->desc,&loc->desc);
-	vfi_location_put(new->desc.ploc);
-	new->desc.ploc = vfi_location_get(loc);
+	vfi_update_ploc(&new->desc,loc);
 
 	new->size = new->desc.extent;
 	
@@ -192,7 +191,7 @@ int find_vfi_smb_in(struct vfi_smb **smb, struct vfi_location *loc, struct vfi_d
 	if (ret)
 		return VFI_RESULT(ret);
 
-	desc->ploc = vfi_location_get(tmploc);
+	vfi_update_ploc(desc, tmploc);
 
 	if (tmploc && tmploc->desc.ops && tmploc->desc.ops->xfer_find) {
 		ret = tmploc->desc.ops->smb_find(smb,tmploc,desc);
