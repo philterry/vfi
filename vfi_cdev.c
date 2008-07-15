@@ -732,6 +732,11 @@ void vfi_cdev_unregister(struct vfi_subsys *vfi_dev)
 {
 	cdev_del(&vfi_dev->cdev);
 	unregister_chrdev_region(vfi_dev->dev, vfi_nr_minor);
+#ifdef CONFIG_PROC_FS
+	if (proc_root_vfi)
+		remove_proc_entry("vfi", proc_root_driver);
+	proc_root_vfi = NULL;
+#endif
 }
 
 EXPORT_SYMBOL(proc_root_vfi);
