@@ -22,10 +22,7 @@
 #include <linux/vfi.h>
 #include <linux/vfi_drv.h>
 #include <linux/vfi_subsys.h>
-#include <linux/vfi_class.h>
-#include <linux/vfi_bus.h>
 #include <linux/vfi_cdev.h>
-#include <linux/vfi_fabric.h>
 #include <linux/vfi_mmap.h>
 
 int vfi_major = 0;
@@ -55,30 +52,12 @@ static int  __init vfi_init(void)
 	if ( (ret = vfi_subsys_register(vfi_subsys)) )
 		goto subsys_fail;
 
-	if ( (ret = vfi_class_register(vfi_subsys)) )
-		goto class_fail;
-
-	if ( (ret = vfi_bus_register(vfi_subsys)) )
-		goto bus_fail;
-
-/* 	if ( (ret = vfi_fabric_register(vfi_subsys)) ) */
-/* 		goto fabric_fail; */
-
 	if ( (ret = vfi_cdev_register(vfi_subsys)) )
 		goto cdev_fail;
 	
 	return 0;
 
 cdev_fail:
-/* 	vfi_fabric_unregister(vfi_subsys); */
-
-/* fabric_fail: */
-	vfi_bus_unregister(vfi_subsys);
-
-bus_fail:
-	vfi_class_unregister(vfi_subsys);
-
-class_fail:
 	vfi_subsys_unregister(vfi_subsys);
 
 subsys_fail:
@@ -89,9 +68,6 @@ subsys_fail:
 static void __exit vfi_cleanup(void)
 {
 	vfi_cdev_unregister(vfi_subsys);
-/* 	vfi_fabric_unregister(vfi_subsys); */
-	vfi_bus_unregister(vfi_subsys);
-	vfi_class_unregister(vfi_subsys);
 	vfi_subsys_unregister(vfi_subsys);
 }
 

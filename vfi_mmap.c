@@ -85,7 +85,10 @@ VFI_MMAP_ATTR(default, 0644, vfi_mmap_default_show, vfi_mmap_default_store);
 
 static ssize_t vfi_mmap_offset_show(struct vfi_mmap *vfi_mmap, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "vfi_mmap_offset");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("%llx\n", vfi_mmap->desc.offset);
+	return size;
 }
 
 static ssize_t vfi_mmap_offset_store(struct vfi_mmap *vfi_mmap, const char *buffer, size_t size)
@@ -97,7 +100,10 @@ VFI_MMAP_ATTR(offset, 0644, vfi_mmap_offset_show, vfi_mmap_offset_store);
 
 static ssize_t vfi_mmap_extent_show(struct vfi_mmap *vfi_mmap, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "vfi_mmap_extent");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("%x\n", vfi_mmap->desc.extent);
+	return size;
 }
 
 static ssize_t vfi_mmap_extent_store(struct vfi_mmap *vfi_mmap, const char *buffer, size_t size)
@@ -107,23 +113,26 @@ static ssize_t vfi_mmap_extent_store(struct vfi_mmap *vfi_mmap, const char *buff
 
 VFI_MMAP_ATTR(extent, 0644, vfi_mmap_extent_show, vfi_mmap_extent_store);
 
-static ssize_t vfi_mmap_pid_show(struct vfi_mmap *vfi_mmap, char *buffer)
+static ssize_t vfi_mmap_tid_show(struct vfi_mmap *vfi_mmap, char *buffer)
 {
-    return snprintf(buffer, PAGE_SIZE, "vfi_mmap_pid");
+	int left = PAGE_SIZE;
+	int size = 0;
+	ATTR_PRINTF("%lx\n", vfi_mmap->t_id);
+	return size;
 }
 
-static ssize_t vfi_mmap_pid_store(struct vfi_mmap *vfi_mmap, const char *buffer, size_t size)
+static ssize_t vfi_mmap_tid_store(struct vfi_mmap *vfi_mmap, const char *buffer, size_t size)
 {
     return size;
 }
 
-VFI_MMAP_ATTR(pid, 0644, vfi_mmap_pid_show, vfi_mmap_pid_store);
+VFI_MMAP_ATTR(tid, 0644, vfi_mmap_tid_show, vfi_mmap_tid_store);
 
 static struct attribute *vfi_mmap_default_attrs[] = {
     &vfi_mmap_attr_default.attr,
     &vfi_mmap_attr_offset.attr,
     &vfi_mmap_attr_extent.attr,
-    &vfi_mmap_attr_pid.attr,
+    &vfi_mmap_attr_tid.attr,
     0,
 };
 
@@ -161,19 +170,22 @@ static struct vfi_mmap *frm_by_loc(struct vfi_location *loc,unsigned long tid)
 	struct vfi_location *new_loc;
 	struct vfi_smb *smb;
 	struct vfi_mmap *mmap = NULL;
-
+	VFI_DEBUG(MY_DEBUG,"%s: %p %lx %s.%s\n",__func__,loc,tid,loc->desc.name,loc->desc.location);
 	spin_lock(&loc->kset.list_lock);
 	list_for_each_entry(new_loc,&loc->kset.list, kset.kobj.entry) {
+		VFI_DEBUG(MY_DEBUG,"%s: %p %s.%s\n",__func__,new_loc,new_loc->desc.name,new_loc->desc.location);
 		if ((mmap = frm_by_loc(new_loc,tid)))
 			goto outloc;
 	}
-	spin_unlock(&loc->kset.list_lock);
+  	spin_unlock(&loc->kset.list_lock);
 
+	VFI_DEBUG(MY_DEBUG,"%s: loc %p %s.%s smbs %p\n",__func__,loc,loc->desc.name, loc->desc.location, loc->smbs);
 	spin_lock(&loc->smbs->kset.list_lock);
 	list_for_each_entry(smb,&loc->smbs->kset.list,kset.kobj.entry) {
-
+		VFI_DEBUG(MY_DEBUG,"%s: smb %s.%s\n",__func__,smb->desc.name,smb->desc.location);
 		spin_lock(&smb->kset.list_lock);
 		list_for_each_entry(mmap,&smb->kset.list,kobj.entry) {
+			VFI_DEBUG(MY_DEBUG,"%s: %p %s.%s %lx\n",__func__,mmap,mmap->desc.name, mmap->desc.location, mmap->t_id);
 			if (is_mmap_ticket(mmap,tid))
 				goto out;
 		}
@@ -198,6 +210,7 @@ int find_vfi_mmap_by_id(struct vfi_mmap **mmap, unsigned long tid)
 
 	spin_lock(&vfi_subsys->kset.list_lock);
 	list_for_each_entry(loc, &vfi_subsys->kset.list, kset.kobj.entry) {
+		VFI_DEBUG(MY_DEBUG, "%s: %p %s.%s\n",__func__,loc,loc->desc.name,loc->desc.location);
 		if ((*mmap = frm_by_loc(loc,tid))) 
 			goto out;
 	}
@@ -239,6 +252,8 @@ int new_vfi_mmap(struct vfi_mmap **mmap, struct vfi_smb *parent, struct vfi_desc
 	if (NULL == new)
 		return VFI_RESULT(-ENOMEM);
 
+	vfi_clone_desc(&new->desc, desc);
+	vfi_inherit(&new->desc, &parent->desc);
 	new->kobj.kset = &parent->kset;
 	ret = kobject_init_and_add(&new->kobj, &vfi_mmap_type, NULL, "#%llx:%x",desc->offset,desc->extent);
 	if (ret)
@@ -271,6 +286,7 @@ int vfi_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc
 	if (!ret) {
 		(*mmap)->pg_tbl = &pg_tbl[firstpage];
 		(*mmap)->n_pg = lastpage - firstpage + 1;
+		(*mmap)->t_id = mmap_to_ticket(*mmap);
 
 		VFI_DEBUG_SAFE (MY_DEBUG, *mmap, "-- Assigned %lu pages at %p\n",(*mmap)->n_pg, (*mmap)->pg_tbl);
 	}

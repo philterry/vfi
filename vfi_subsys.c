@@ -179,7 +179,21 @@ static ssize_t vfi_subsys_default_show(struct vfi_subsys *vfi_subsys, char *buff
 {
 	int left = PAGE_SIZE;
 	int size = 0;
+	struct vfi_location *loc;
+
+	ATTR_PRINTF("Subsys %p\n",vfi_subsys);
 	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_subsys->kset.kobj.kref.refcount));
+
+	spin_lock(&vfi_subsys->kset.list_lock);
+	if (list_empty(&vfi_subsys->kset.list)) {
+		ATTR_PRINTF("list empty\n");
+	}
+	else {
+		list_for_each_entry(loc, &vfi_subsys->kset.list, kset.kobj.entry) {
+			ATTR_PRINTF("%p %s.%s\n",loc,loc->desc.name,loc->desc.location);
+		}
+	}
+	spin_unlock(&vfi_subsys->kset.list_lock);
 	return size;
 }
 

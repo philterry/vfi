@@ -136,11 +136,11 @@ static void vfi_fabric_location_put(struct vfi_location *loc, struct vfi_desc_pa
 	else {
 		ret = new_vfi_location(&myloc,NULL,desc);
 		if (ret)
-			return;
+			goto out;
 		ret = vfi_fabric_call(&skb,myloc, 5, "location_put://%s", desc->name);
 		vfi_location_put(myloc);
 		if (ret)
-			return;
+			goto out;
 	}
 	
 	VFI_DEBUG(MY_DEBUG,"%s skb(%p)\n",__FUNCTION__,skb);
@@ -152,11 +152,12 @@ static void vfi_fabric_location_put(struct vfi_location *loc, struct vfi_desc_pa
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0 ) {
 				vfi_location_put(oldloc);
-				vfi_location_put(oldloc);
 			}
 			vfi_clean_desc(&reply);
 		}
 	}
+out:
+	vfi_location_put(oldloc);
 	
 	return;
 }

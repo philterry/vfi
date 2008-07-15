@@ -1276,7 +1276,7 @@ static int bind_delete(const char *desc, char *result, int *size)
 	struct vfi_xfer *xfer = NULL;
 	struct vfi_desc_param params;
 	
-	VFI_DEBUG (MY_LIFE_DEBUG, "%s: \"%s\"\n", __FUNCTION__, desc);
+	VFI_DEBUG (MY_DEBUG, "%s: \"%s\"\n", __FUNCTION__, desc);
 
 	if ( (ret = vfi_parse_desc(&params, desc)) )
 		goto out;
@@ -2149,19 +2149,15 @@ out:
 	return VFI_RESULT(ret);
 }
 
-
-
-
-
-
-
-
-
 #define MAX_OP_LEN 15		/* length of location_create */
 static struct ops {
 	char *cmd;
 	int (*f)(const char *, char *, int *);
 } ops [] = {
+	{"event_start",event_start},
+	{"event_find",event_find},
+	{"event_chain",event_chain},
+
 	{"location_create", location_create},
 	{"location_delete", location_delete},
 	{"location_find", location_find},
@@ -2177,11 +2173,6 @@ static struct ops {
 	{"mmap_find", mmap_find}, 
 	{"mmap_put",mmap_put},
 
-	{"xfer_create", xfer_create},
-	{"xfer_delete", xfer_delete},
-	{"xfer_find", xfer_find},
-	{"xfer_put", xfer_put},
-
 	{"sync_create", sync_create},
 	{"sync_delete", sync_delete},
 	{"sync_find", sync_find},
@@ -2189,13 +2180,18 @@ static struct ops {
 	{"sync_send", sync_send},
 	{"sync_wait", sync_wait},
 
+	{"xfer_create", xfer_create},
+	{"xfer_delete", xfer_delete},
+	{"xfer_find", xfer_find},
+	{"xfer_put", xfer_put},
+
 	{"bind_create", bind_create},
 	{"bind_delete", bind_delete},
 	{"bind_find", bind_find},
 
-	{"src_create", src_create},
-	{"src_delete", src_delete},
-	{"src_find", src_find},
+	{"dsts_create", dsts_create},
+	{"dsts_delete", dsts_delete},
+	{"dsts_find", dsts_find},
 
 	{"dst_create", dst_create},
 	{"dst_delete", dst_delete},
@@ -2205,13 +2201,10 @@ static struct ops {
 	{"srcs_delete", srcs_delete},
 	{"srcs_find", srcs_find},
 
-	{"dsts_create", dsts_create},
-	{"dsts_delete", dsts_delete},
-	{"dsts_find", dsts_find},
+	{"src_create", src_create},
+	{"src_delete", src_delete},
+	{"src_find", src_find},
 
-	{"event_start",event_start},
-	{"event_find",event_find},
-	{"event_chain",event_chain},
 	{0,0},
 };
 
@@ -2266,7 +2259,7 @@ out:
 	}
 
 	nested--;
-	VFI_DEBUG (MY_DEBUG, "#### [ done_operation (%d) \"%s\" ]\n", this_nested, cmd);
+	VFI_DEBUG (MY_DEBUG, "#### [ done_operation (%d) \"%s\" ]\n", this_nested, result);
 	return VFI_RESULT(ret);
 }
 

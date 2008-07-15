@@ -65,6 +65,7 @@ static ssize_t vfi_readies_default_show(struct vfi_readies *vfi_readies, char *b
 {
 	int left = PAGE_SIZE;
 	int size = 0;
+	ATTR_PRINTF("Readies %p\n",vfi_readies);
 	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_readies->kset.kobj.kref.refcount));
 	return size;
 }
@@ -134,7 +135,7 @@ int new_vfi_readies(struct vfi_readies **newreadies, struct vfi_subsys *parent, 
 	kobject_set_name(&new->kset.kobj,name);
 	new->kset.kobj.ktype = &vfi_readies_type;
 	new->kset.uevent_ops = &vfi_readies_uevent_ops;
-	new->kset.kobj.kset = &parent->kset;
+	new->kset.kobj.parent = &parent->kset.kobj;
 
 	ret = kset_register(&new->kset);
 	if (ret) {
