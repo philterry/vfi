@@ -541,10 +541,25 @@ static struct page* vfi_mmap_nopage (struct vm_area_struct* vma, unsigned long a
 		get_page(tkt->pg_tbl[pg_off]);
 		return (tkt->pg_tbl[pg_off]);
 	}
-	
+}
+
+static void vfi_vm_open(struct vm_area_struct *vma)
+{
+	struct vfi_mmap* tkt = (struct vfi_mmap *)vma->vm_private_data;
+	VFI_DEBUG(MY_DEBUG, "%s vma %p mmap %p\n",__func__,vma,tkt);
+	vfi_mmap_get(tkt);
+}
+
+static void vfi_vm_close(struct vm_area_struct *vma)
+{
+	struct vfi_mmap* tkt = (struct vfi_mmap *)vma->vm_private_data;
+	VFI_DEBUG(MY_DEBUG, "%s vma %p mmap %p\n",__func__,vma,tkt);
+	vfi_mmap_put(tkt);
 }
 
 static struct vm_operations_struct vm_ops = {
+	.open = vfi_vm_open,
+	.close = vfi_vm_close,
 	.nopage = vfi_mmap_nopage, 
 };
 

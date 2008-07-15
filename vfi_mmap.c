@@ -26,6 +26,7 @@
 static void vfi_mmap_release(struct kobject *kobj)
 {
     struct vfi_mmap *p = to_vfi_mmap(kobj);
+    vfi_smb_put(p->smb);
     vfi_clean_desc(&p->desc);
     kfree(p);
 }
@@ -197,7 +198,7 @@ static struct vfi_mmap *frm_by_loc(struct vfi_location *loc,unsigned long tid)
 out:
 	spin_unlock(&smb->kset.list_lock);
 	spin_unlock(&loc->smbs->kset.list_lock);
-	return mmap;
+	return vfi_mmap_get(mmap);
 outloc:
 	spin_unlock(&loc->kset.list_lock);
 	return mmap;
@@ -287,7 +288,7 @@ int vfi_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc
 		(*mmap)->pg_tbl = &pg_tbl[firstpage];
 		(*mmap)->n_pg = lastpage - firstpage + 1;
 		(*mmap)->t_id = mmap_to_ticket(*mmap);
-
+		(*mmap)->smb = vfi_smb_get(smb);
 		VFI_DEBUG_SAFE (MY_DEBUG, *mmap, "-- Assigned %lu pages at %p\n",(*mmap)->n_pg, (*mmap)->pg_tbl);
 	}
 

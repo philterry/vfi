@@ -21,6 +21,7 @@ struct vfi_mmap {
 	unsigned long		t_id;		/* Ticket number, for verification */
 	struct page		**pg_tbl;	/* Page table pointer to start of block */
 	unsigned long		n_pg;		/* Number of pages in block */
+	struct vfi_smb *smb;
 	struct kobject kobj;
 };
 
