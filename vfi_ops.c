@@ -277,11 +277,6 @@ static int smb_create(const char *desc, char *result, int *size)
 	if ( (ret = vfi_parse_desc(&params, desc)) )
 		goto out;
 
-	if (params.offset > (PAGE_SIZE - 32)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	ret = -ENODEV;
 
 	if ( !(ret = locate_vfi_location(&loc,NULL,&params) ) ) {

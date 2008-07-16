@@ -35,6 +35,7 @@
 struct vfi_smb {
 	struct vfi_desc_param desc;
 	size_t size;
+	unsigned long address;
 	
 	struct page **pages;
 	int num_pages;

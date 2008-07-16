@@ -19,6 +19,7 @@
 #include <linux/mm_types.h>
 #include <linux/vfi_bind.h>
 #include <linux/vfi_ops.h>
+#include <linux/vfi_smb.h>
 
 int order(int x) {
 	int ord = 0;
@@ -36,84 +37,84 @@ void vfi_dealloc_pages( struct page **pages, int num_pages)
 	kfree(pages);
 }
 
-#define CONTIGUOUS_PAGES
-int vfi_alloc_pages( size_t size, int offset, struct page **pages[], int *num_pages)
+int vfi_alloc_pages(struct vfi_smb *smb)
 {
+	size_t size = smb->size;
+	int offset = smb->desc.offset;
 	int page = 0;
 	struct page **page_ary;
-	if (pages)
-		*pages = 0;
-	else
+
+	if (smb->pages)
 		return -EINVAL;
  
-	if (num_pages)
-		*num_pages = ((size + offset) >> PAGE_SHIFT) + 
-			((size + offset) & ~PAGE_MASK ? 1 : 0);
-	else
-		return -EINVAL;
+	smb->num_pages = ((size + offset) >> PAGE_SHIFT) + 
+		((size + offset) & ~PAGE_MASK ? 1 : 0);
 
-	page_ary = kzalloc(sizeof(struct page *)* *num_pages, GFP_KERNEL);
+	page_ary = kzalloc(sizeof(struct page *)* smb->num_pages, GFP_KERNEL);
 	if (NULL == page_ary)
 		return -ENOMEM;
 
-#ifndef CONTIGUOUS_PAGES
-	for (page=0; page < *num_pages; page++) {
-		if ( (page_ary[page] = alloc_page(GFP_KERNEL)) )
-			continue;
-		break;
+	if (smb->address) {
+		down_read(&current->mm->mmap_sem);
+		page = get_user_pages(current,current->mm,smb->address,smb->num_pages,1,0,page_ary,NULL);
+		up_read(&current->mm->mmap_sem);
 	}
-#else
-	{
-	struct page *p;
-	int npages;
-	int i;
-	int remainder = *num_pages;
-	int ord;
-
-	ord = order(remainder);
-
-	/* Allocate pages in largest possible contiguous groups */
-
-	while(ord) {
-		p = alloc_pages(GFP_KERNEL, ord);
-		if (p == NULL) { 
-			/* Alloc failed, try a smaller size */
-			ord--;
-			continue;
+	else if (vfi_get_option(&smb->desc,"discontig")) 
+		for (page=0; page < smb->num_pages; page++) {
+			if ( (page_ary[page] = alloc_page(GFP_KERNEL)) )
+				continue;
+			break;
 		}
-		else {
-			/* Copy pointers to page_array */
-			npages = 1 << ord;
-			remainder -= npages;
+	else {
+		struct page *p;
+		int npages;
+		int i;
+		int remainder = smb->num_pages;
+		int ord;
 
-			for (i = 0; i < npages; i++) 
-				page_ary[page++] = (p + i);
+		ord = order(remainder);
 
-			if (remainder) 
-				ord = order(remainder);
+		/* Allocate pages in largest possible contiguous groups */
+
+		while(ord) {
+			p = alloc_pages(GFP_KERNEL, ord);
+			if (p == NULL) { 
+				/* Alloc failed, try a smaller size */
+				ord--;
+				continue;
+			}
+			else {
+				/* Copy pointers to page_array */
+				npages = 1 << ord;
+				remainder -= npages;
+
+				for (i = 0; i < npages; i++) 
+					page_ary[page++] = (p + i);
+
+				if (remainder) 
+					ord = order(remainder);
+				else
+					break;
+			}
+		}
+
+		while (remainder--) {
+			if ( (page_ary[page++] = alloc_page(GFP_KERNEL)) )
+				continue;
 			else
 				break;
 		}
 	}
-
-	while (remainder--) {
-		if ( (page_ary[page++] = alloc_page(GFP_KERNEL)) )
-			continue;
-		else
-			break;
-	}
-	}
-#endif
        
-	if ( page == *num_pages ) {
-		*pages = page_ary;
+	if ( page == smb->num_pages ) {
+		smb->pages = page_ary;
 		return 0;
 	}
 
 	while (page--)
 		__free_pages(page_ary[page],0);
 
-	*num_pages = 0;
+	smb->num_pages = 0;
 
 	kfree(page_ary);
 

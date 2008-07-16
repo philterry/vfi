@@ -273,27 +273,59 @@ static int vfi_local_smb_create(struct vfi_smb **newsmb, struct vfi_location *lo
 {
 	int ret;
 	struct vfi_smb *smb;
-
+	char *smap_address;
 	*newsmb = NULL;
 
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	ret = vfi_smb_create(&smb, loc, desc);
 
-	if (smb == NULL)
-		return VFI_RESULT(-EINVAL);
+	if (ret)
+		return VFI_RESULT(ret);
 
 	*newsmb = smb;
 
-	/* Allocate memory for this SMB */
-	if (vfi_alloc_pages(smb->size, smb->desc.offset, &smb->pages, 
-		&smb->num_pages) == 0)
-		return VFI_RESULT(0);
+/*
+ * We can be allocating a kernel smb to be mapped to the application
+ * or we can be allocating an smb to use an applications user
+ * pages. Use the option map_address(xxx) to determine.
+ *
+ * If the user gives us a map_address which is not on a page boundary
+ * *we can adjust the smb offset to account for it.
+ *
+ * In either case the user can give an offset of the logical smb which
+ * the user may require because of restrictions on address boundaries
+ * for some other devices so simply add map_address modulo page
+ * boundary to desc.offset before allocating.
+ *
+ * The desc.extent *gives the size required in both cases.
+ */
+	smb->size = smb->desc.extent;
 
+	if ((smap_address = vfi_get_option(&smb->desc,"map_address"))) {
+		unsigned long address;
+		unsigned long offset;
+		address = simple_strtoul(smap_address,NULL,16);
+		offset = address & ~PAGE_MASK;
+		address = address & PAGE_MASK;
+		smb->desc.offset += offset;
+		smb->address = address;
+	}
+
+	if (smb->desc.offset > (PAGE_SIZE - 32)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* Allocate memory for this SMB */
+	ret = vfi_alloc_pages(smb);
+	if (!ret)
+		return VFI_RESULT(0);
+out:
 	/* Failed */
 	vfi_smb_delete(smb);
 	*newsmb = NULL;
-	return VFI_RESULT(-ENOMEM);
+	return VFI_RESULT(ret);
 }
 
 static int vfi_local_mmap_create(struct vfi_mmap **mmap, struct vfi_smb *smb, struct vfi_desc_param *desc)

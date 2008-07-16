@@ -130,7 +130,8 @@ extern struct vfi_dma_engine *vfi_dma_get(struct vfi_dma_engine *);
 extern void vfi_dma_put(struct vfi_dma_engine *);
 
 extern void vfi_dealloc_pages( struct page **pages, int num_pages);
-extern int vfi_alloc_pages( size_t size, int offset, struct page **pages[], int *num_pages);
+struct vfi_smb;
+extern int vfi_alloc_pages(struct vfi_smb *smb);
 
 extern void vfi_dma_complete(struct vfi_bind *);
 #endif
