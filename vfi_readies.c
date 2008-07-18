@@ -22,6 +22,7 @@
 static void vfi_readies_release(struct kobject *kobj)
 {
     struct vfi_readies *p = to_vfi_readies(kobj);
+    VFI_DEBUG(MY_LIFE_DEBUG, "%s %p\n",__func__,p);
     kfree(p);
 }
 

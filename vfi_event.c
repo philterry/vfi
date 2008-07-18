@@ -23,6 +23,8 @@
 static void vfi_event_release(struct kobject *kobj)
 {
     struct vfi_event *p = to_vfi_event(kobj);
+
+    VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__func__,p);
     vfi_clean_desc(&p->desc);
     kfree(p);
 }
