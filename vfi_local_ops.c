@@ -273,7 +273,7 @@ static int vfi_local_smb_create(struct vfi_smb **newsmb, struct vfi_location *lo
 {
 	int ret;
 	struct vfi_smb *smb;
-	char *smap_address;
+	char *sopt;
 	*newsmb = NULL;
 
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
@@ -300,15 +300,22 @@ static int vfi_local_smb_create(struct vfi_smb **newsmb, struct vfi_location *lo
  *
  * The desc.extent *gives the size required in both cases.
  */
-	smb->size = smb->desc.extent;
+	if (smb->desc.extent)
+		smb->size = smb->desc.extent;
+	else if ( (sopt = vfi_get_option(&smb->desc,"map_extent")) ) 
+		smb->size = smb->desc.extent =  simple_strtoul(sopt,NULL,16);
+	else
+		goto out;
+		
 
-	if ((smap_address = vfi_get_option(&smb->desc,"map_address"))) {
+	if ((sopt = vfi_get_option(&smb->desc,"map_address"))) {
 		unsigned long address;
 		unsigned long offset;
-		address = simple_strtoul(smap_address,NULL,16);
+		address = simple_strtoul(sopt,NULL,16);
 		offset = address & ~PAGE_MASK;
 		address = address & PAGE_MASK;
 		smb->desc.offset += offset;
+		smb->size = smb->desc.extent += offset;
 		smb->address = address;
 	}
 

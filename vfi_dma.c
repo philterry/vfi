@@ -20,6 +20,7 @@
 #include <linux/vfi_bind.h>
 #include <linux/vfi_ops.h>
 #include <linux/vfi_smb.h>
+#include <linux/sched.h>
 
 int order(int x) {
 	int ord = 0;
@@ -55,9 +56,19 @@ int vfi_alloc_pages(struct vfi_smb *smb)
 		return -ENOMEM;
 
 	if (smb->address) {
-		down_read(&current->mm->mmap_sem);
-		page = get_user_pages(current,current->mm,smb->address,smb->num_pages,1,0,page_ary,NULL);
-		up_read(&current->mm->mmap_sem);
+		char *stid;
+		pid_t mytid;
+		stid = vfi_get_option(&smb->desc,"mytid");
+		if (stid) {
+			struct task_struct *mycurrent;
+			mytid = simple_strtoul(stid,NULL,10);
+			mycurrent = find_task_by_pid(mytid);
+			if (mycurrent) {
+				down_read(&mycurrent->mm->mmap_sem);
+				page = get_user_pages(mycurrent,mycurrent->mm,smb->address,smb->num_pages,1,0,page_ary,NULL);
+				up_read(&mycurrent->mm->mmap_sem);
+			}
+		}
 	}
 	else if (vfi_get_option(&smb->desc,"discontig")) 
 		for (page=0; page < smb->num_pages; page++) {
