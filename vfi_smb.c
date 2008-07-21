@@ -30,7 +30,7 @@ static void vfi_smb_release(struct kobject *kobj)
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
 	vfi_clean_desc(&p->desc);
 	if (p->pages)
-		vfi_dealloc_pages(p->pages, p->num_pages);
+		vfi_dealloc_pages(p);
 	kfree(p);
 }
 

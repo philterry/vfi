@@ -17,6 +17,7 @@
 #include <linux/rio_ids.h>
 #include <linux/rio_drv.h>
 #include <linux/mm_types.h>
+#include <linux/pagemap.h>
 #include <linux/vfi_bind.h>
 #include <linux/vfi_ops.h>
 #include <linux/vfi_smb.h>
@@ -31,11 +32,19 @@ int order(int x) {
 	return (ord);
 }
 
-void vfi_dealloc_pages( struct page **pages, int num_pages)
+void vfi_dealloc_pages(struct vfi_smb *smb)
 {
-	while(num_pages--)
-		__free_pages(pages[num_pages],0);
-	kfree(pages);
+	while(smb->num_pages--) {
+		struct page *page = smb->pages[smb->num_pages];
+		if (smb->address) {
+			if (! PageReserved(page))
+				SetPageDirty(page);
+			page_cache_release(page);
+		}
+		else 
+			__free_pages(smb->pages[smb->num_pages],0);
+	}
+	kfree(smb->pages);
 }
 
 int vfi_alloc_pages(struct vfi_smb *smb)
