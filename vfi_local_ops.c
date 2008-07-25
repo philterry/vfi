@@ -1310,7 +1310,7 @@ static int vfi_local_sync_wait(struct vfi_sync *sync, struct vfi_desc_param *des
 	while (sync->count) {
 		up(&sync->sem);
 
-		if (wait_event_interruptible(sync->waitq, (sync->count)))
+		if (wait_event_interruptible(sync->waitq, (sync->count == 0)))
 			return VFI_RESULT(-ERESTARTSYS);
 
 		if (down_interruptible(&sync->sem))
