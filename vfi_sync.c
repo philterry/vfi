@@ -80,6 +80,7 @@ static ssize_t vfi_sync_default_show(struct vfi_sync *vfi_sync, char *buffer)
 	ATTR_PRINTF("Sync %p is %s \n",vfi_sync,vfi_sync ? vfi_sync->desc.name : NULL);
 	ATTR_PRINTF("ops is %p rde is %p address is %p ploc is %p\n",
 		    vfi_sync->desc.ops,vfi_sync->desc.rde,vfi_sync->desc.address,vfi_sync->desc.ploc);
+	ATTR_PRINTF("semcount %d\n",vfi_sync->count);
 	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_sync->kobj.kref.refcount));
 	return size;
 }

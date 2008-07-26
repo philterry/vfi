@@ -1288,12 +1288,14 @@ static int vfi_local_sync_send(struct vfi_sync *sync, struct vfi_desc_param *des
 	if (sync->count == 0)
 		sync->count += desc->offset;
 
-	if (sync->count)
-		sync->count--;
+	if (sync->count == 0)
+		goto out;
+
+	sync->count--;
 
 	if (sync->count == 0)
 		wake_up_interruptible(&sync->waitq);
-
+out:
 	up(&sync->sem);
 	
 	return VFI_RESULT(0);
@@ -1307,15 +1309,24 @@ static int vfi_local_sync_wait(struct vfi_sync *sync, struct vfi_desc_param *des
 	if (sync->count == 0)
 		sync->count += desc->offset;
 
-	while (sync->count) {
-		up(&sync->sem);
+	if (sync->count == 0)
+		goto out;
 
-		if (wait_event_interruptible(sync->waitq, (sync->count == 0)))
-			return VFI_RESULT(-ERESTARTSYS);
+	sync->count--;
 
-		if (down_interruptible(&sync->sem))
-			return VFI_RESULT(-ERESTARTSYS);
-	}
+	if (sync->count == 0)
+		wake_up_interruptible(&sync->waitq);
+	else
+		while (sync->count) {
+			up(&sync->sem);
+
+			if (wait_event_interruptible(sync->waitq, (sync->count == 0)))
+				return VFI_RESULT(-ERESTARTSYS);
+
+			if (down_interruptible(&sync->sem))
+				return VFI_RESULT(-ERESTARTSYS);
+		}
+out:
 	up(&sync->sem);
 
 	return VFI_RESULT(0);
