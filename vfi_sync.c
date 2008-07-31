@@ -96,10 +96,7 @@ static ssize_t vfi_sync_location_show(struct vfi_sync *vfi_sync, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("Sync %p is %s \n",vfi_sync,vfi_sync ? vfi_sync->desc.name : NULL);
-	if (vfi_sync) {
-		ATTR_PRINTF("ops is %p rde is %p address is %p\n",vfi_sync->desc.ops,vfi_sync->desc.rde,vfi_sync->desc.address);
-	}
+	ATTR_PRINTF("%s\n",vfi_sync->desc.location);
 	return size;
 }
 

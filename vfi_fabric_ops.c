@@ -63,7 +63,8 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 		if (ret)
 			return VFI_RESULT(ret);
 		ret = vfi_fabric_call(&skb, myloc, 5, "location_find://%s", desc->name);
-		vfi_location_put(myloc);
+		vfi_address_unregister(myloc);
+		vfi_location_delete(myloc);
 	}
 	if (ret)
 		return VFI_RESULT(ret);

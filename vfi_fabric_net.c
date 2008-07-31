@@ -119,6 +119,10 @@ static struct fabric_address *find_fabric_mac(char *hwaddr, struct net_device *n
 	struct fabric_address *fp, *new;
 
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
+	if (!hwaddr)
+		return NULL;
+
 	for (i = 0, fp = address_table[i]; i < 16 ; i++, fp = address_table[i]) {
 		if (!fp)
 			continue;

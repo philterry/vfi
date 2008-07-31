@@ -5,7 +5,7 @@ KERNELDIR ?= /lib/modules/`uname -r`/build
 
 modules:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` CONFIG_VFI_DEBUG=1 CONFIG_VFI_KOBJ_DEBUG=1 \
-                   CONFIG_VFI_FABRIC_NET=m CONFIG_VFI_FABRIC_RIONET=n CONFIG_VFI=m CONFIG_VFI_DMA_NET=m CONFIG_VFI_DMA_RIO=n $@
+                   CONFIG_VFI_FABRIC_NET=m CONFIG_VFI_FABRIC_RIONET=m CONFIG_VFI=m CONFIG_VFI_DMA_NET=m CONFIG_VFI_DMA_RIO=m $@
 
 install:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` modules_install
@@ -18,7 +18,7 @@ etags:
 	etags *.[ch]
 
 tar: clean etags
-	cd ..;	tar zcvf vfi.tar.gz --exclude=.git --exclude=TAGS vfi
+	cd ..; tar zcvf vfi.tar.gz --exclude=.git --exclude=TAGS vfi
 
 publish: tar
 	cp ../vfi.tar.gz /mnt/Public/Rincon/PhilsWeb/dev
