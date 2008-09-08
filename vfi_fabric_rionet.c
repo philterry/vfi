@@ -315,7 +315,7 @@ forget:
 	return NET_RX_DROP;
 }
 
-struct packet_type vfi_packets = {
+static struct packet_type vfi_packets = {
 	.func = vfi_rx_packet,
 };
 
