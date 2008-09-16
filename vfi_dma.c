@@ -162,7 +162,7 @@ int vfi_dma_register(struct vfi_dma_engine *rde)
 
 	dma_engines[i] = rde;
 
-	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p -> %d = %p\n",__FUNCTION__,rde,i,rde);
+	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p -> %d = %s\n",__FUNCTION__,rde,i,rde->name);
 	return 0;
 }
 
