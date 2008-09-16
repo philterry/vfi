@@ -147,7 +147,7 @@ int vfi_doorbell_register(struct vfi_fabric_address *address, void (*callback)(v
 	if (address->ops && address->ops->register_doorbell) {
 		int ret = address->ops->register_doorbell(callback,var);
 		VFI_KTRACE ("<*** %s OUT ***>\n", __func__);
-		return VFI_RESULT(ret);
+		return ret > 0 ? ret : VFI_RESULT(ret);
 	}
 	VFI_KTRACE ("<*** xxx %s - did nothing, OUT ***>\n", __func__);
 	return VFI_RESULT(-EINVAL);
