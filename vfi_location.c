@@ -32,7 +32,6 @@ static void vfi_location_release(struct kobject *kobj)
 {
 	struct vfi_location *p = to_vfi_location(kobj);
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-	vfi_address_unregister(p);
 	vfi_clean_desc(&p->desc);
 	kfree(p);
 }
@@ -406,6 +405,7 @@ void vfi_location_delete(struct vfi_location *loc)
 		vfi_smbs_put(loc->smbs);
 		vfi_xfers_put(loc->xfers);
 		vfi_syncs_put(loc->syncs);
+		vfi_address_unregister(loc);
 	}
 	vfi_location_put(loc);
 }

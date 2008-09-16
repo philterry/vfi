@@ -262,7 +262,7 @@ static int vfi_local_location_create(struct vfi_location **newloc,struct vfi_loc
 			loc->desc.extent = (*newloc)->desc.extent;
 		
 		if (*newloc && (*newloc)->desc.address)
-			(*newloc)->desc.address->ops->register_location(*newloc);
+			vfi_address_register(*newloc);
 	}
 
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,loc,desc,*newloc);
