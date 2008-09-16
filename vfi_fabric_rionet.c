@@ -509,7 +509,7 @@ static int  fabric_rionet_probe(struct rio_dev *rdev,
 			if ( (fna->ndev = dev_get_by_name(&init_net, netdev_name)) ) {
 				vfi_packets.dev = fna->ndev;
 				vfi_packets.type = htons(netdev_type);
-				fna->rio_id = port->id;
+				update_fabric_address(fna, 0, fna->ndev->dev_addr, fna->ndev);
 				dev_add_pack(&vfi_packets);
 				return vfi_fabric_register(&fna->rfa);
 			}
