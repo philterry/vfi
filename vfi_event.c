@@ -176,6 +176,7 @@ int new_vfi_event(struct vfi_event **event, struct vfi_events *parent, struct vf
 	new->start_event = f;
 	new->bind = bind;
 	new->event_id = id;
+	new->kobj.kset = &parent->kset;
 
 	ret = kobject_init_and_add(&new->kobj, &vfi_event_type, &parent->kset.kobj, "%p:%x", desc, id);
 	if (ret) 
