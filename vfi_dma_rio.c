@@ -126,7 +126,7 @@ static inline dma_addr_t ldesc_virt_to_phys(struct dma_list *d)
 }
 
 static int __devinit mpc85xx_vfi_probe(struct platform_device *pdev);
-static int __devinit mpc85xx_vfi_remove(struct platform_device *pdev);
+static int __devexit mpc85xx_vfi_remove(struct platform_device *pdev);
 
 static struct platform_driver mpc85xx_vfi_driver = {
 	.probe = mpc85xx_vfi_probe,
@@ -1085,7 +1085,7 @@ static int __devinit mpc85xx_vfi_probe (struct platform_device *pdev)
 static int __devexit mpc85xx_vfi_remove (struct platform_device *pdev)
 {
 	printk("PIGGY! PIGGY!\n");
-	printk("start = 0x%x\n", pdev->resource[0].start);
+	printk("start = 0x%x\n", (unsigned int) pdev->resource[0].start);
 	return 0;
 }
 
