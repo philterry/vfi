@@ -35,7 +35,6 @@
 #include <linux/rio.h>
 #endif
 
-#define SPOOL_AND_KICK
 #undef LOCAL_DMA_ADDRESS_TEST
 
 extern int get_rio_id (struct vfi_fabric_address *x);
@@ -701,47 +700,27 @@ static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
 	struct my_xfer_object *xfo)
 {
 	unsigned long flags;
-#ifdef DEBUG_ON_6460
-	struct seg_desc *sdesc;
-	void *sdesc_phys;
+	struct dma_link *dlink;
+	unsigned int dlink_phys;
 
-	/* Jimmy, just dump descriptors and return! */
+	/* dump descriptors */
+ 	VFI_DEBUG(MY_DEBUG,"List descriptor at 0x%x (pa), %p (va)\n", ldesc_virt_to_phys(&xfo->hw), &xfo->hw);
+	VFI_DEBUG(MY_DEBUG," Next list desc 0x%x:0x%x\n", xfo->hw.next_ext, xfo->hw.next);
+	VFI_DEBUG(MY_DEBUG," First link desc 0x%x:0x%x\n", xfo->hw.link_ext, xfo->hw.link);
+	VFI_DEBUG(MY_DEBUG," Src stride = 0x%x, Dst stride = 0x%x\n", xfo->hw.src_stride, xfo->hw.dest_stride);
 
- 	printk("List descriptor at 0x%x (pa), 0x%x (va)\n", ldesc_virt_to_phys(&xfo->hw), &xfo->hw);
-	printk("\tNext list desc extended addr = 0x%x\n", xfo->hw.next_ext);
-	printk("\tNext list desc addr = 0x%x\n",xfo->hw.next);
-	printk("\tFirst link desc extended addr = 0x%x\n", xfo->hw.link_ext);
-	printk("\tFirst link desc addr = 0x%x\n", xfo->hw.link);
-	printk("\tSource stride = 0x%x\n", xfo->hw.src_stride);
-	printk("\tDest stride = 0x%x\n", xfo->hw.dest_stride);
+	dlink_phys = xfo->hw.link;
 
-	sdesc = (struct dma_link *) ((u32) phys_to_virt(xfo->hw.link) & 
-		0xffffffe0);
-	sdesc_phys = xfo->hw.link;
-
-print_loop:
-
- 	printk("List descriptor at 0x%x (pa), 0x%x (va)\n", sdesc_phys, sdesc);
-	printk("\tSource attributes = 0x%x\n", sdesc->hw.src_attr);
-	printk("\tSource address = 0x%x\n",sdesc->hw.saddr);
-	printk("\tDest attributes = 0x%x\n", sdesc->hw.dest_attr);
-	printk("\tDest addr = 0x%x\n", sdesc->hw.daddr);
-	printk("\tNext link desc extended addr = 0x%x\n",sdesc->hw.next_ext);
-	printk("\tNext link desc addr  = 0x%x\n", sdesc->hw.next);
-	printk("\tByte count  = 0x%x\n", sdesc->hw.nbytes);
-	
-	sdesc->hw.next = DMA_END_OF_CHAIN;
-	if (!(sdesc->hw.next == DMA_END_OF_CHAIN)) {
-		sdesc = (struct dma_link *)
-		       	((u32) phys_to_virt(sdesc->hw.next) & 0xffffffe0);
-		sdesc_phys = sdesc->hw.next;
-		goto print_loop;
+	while (( dlink_phys & DMA_END_OF_CHAIN ) == 0) {
+		dlink = (struct dma_link *) ((u32) phys_to_virt(dlink_phys) & 0xffffffe0);
+		VFI_DEBUG(MY_DEBUG,"  Link descriptor at 0x%x (pa), %p (va)\n", dlink_phys, dlink);
+		VFI_DEBUG(MY_DEBUG,"   Src attr = 0x%x, Src addr = 0x%x\n", dlink->src_attr, dlink->saddr);
+		VFI_DEBUG(MY_DEBUG,"   Dst attr = 0x%x, Dst addr = 0x%x\n", dlink->dest_attr, dlink->daddr);
+		VFI_DEBUG(MY_DEBUG,"   Next link desc = 0x%x:0x%x\n",dlink->next_ext, dlink->next);
+		VFI_DEBUG(MY_DEBUG,"   Byte count = 0x%x\n\n", dlink->nbytes);
+		dlink_phys = dlink->next;
 	}
-	return 0;
-
-#endif /* DEBUG_ON_6460 */
- 	
-
+	
 	/* Lock interrupts -- ISR can dequeue */
 	spin_lock_irqsave(&chan->queuelock, flags);
 	if (chan->state != DMA_IDLE && chan->state != DMA_RUNNING) {
@@ -844,33 +823,20 @@ static int setup_vfi_channel(struct platform_device *pdev)
 	memset(chan, 0, sizeof(struct ppc_dma_chan));
 	res = platform_get_resource (pdev, IORESOURCE_MEM, 0);
 	BUG_ON(!res);
-#if 0
-	chan->device = device;
-#endif
+
 	chan->regbase = ioremap_nocache(res->start, res->end - res->start + 1);
 	chan->xfercap = xfercap;
 	chan->num = index;
 
-	/* using chained list descriptors */
-#ifdef SPOOL_AND_KICK
 	/* 
-	 * Using chained list descriptors.
-	 * Write to CLSDAR register starts channel
+	 * - Using chained list descriptors.
+	 * - Write to CLSDAR register starts channel
+	 * - Enable interrupts in end of list and errors
+	 * - Disable bandwidth sharing
 	 */
-	chan->op_mode = DMA_MODE_EXTENDED | DMA_MODE_QUICKSTART;
-#else
-	/* Using chained list descriptors. */
-	chan->op_mode = DMA_MODE_EXTENDED;
-#endif
-	chan->op_mode |= DMA_MODE_ERR_INT_EN;
-#ifdef SPOOL_AND_KICK
-	chan->op_mode |= DMA_MODE_LIST_INT_EN;
-#else
-	chan->op_mode |= DMA_MODE_CHAIN_INT_EN;
-#endif
-	
-	/* Disable bandwidth sharing */
-	chan->op_mode |= DMA_MODE_BANDWIDTH_CONTROL;
+	chan->op_mode = DMA_MODE_EXTENDED | DMA_MODE_QUICKSTART |
+					DMA_MODE_ERR_INT_EN | DMA_MODE_LIST_INT_EN |
+					DMA_MODE_BANDWIDTH_CONTROL;
 
 	/* Might move this!! Jimmy */
 	dma_set_reg(chan, DMA_MR, chan->op_mode);
@@ -1085,7 +1051,7 @@ static int __devinit mpc85xx_vfi_probe (struct platform_device *pdev)
 static int __devexit mpc85xx_vfi_remove (struct platform_device *pdev)
 {
 	printk("PIGGY! PIGGY!\n");
-	printk("start = 0x%x\n", (unsigned int) pdev->resource[0].start);
+	printk("start = 0x%lx\n", pdev->resource[0].start);
 	return 0;
 }
 
