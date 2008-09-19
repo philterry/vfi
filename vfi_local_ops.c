@@ -1176,6 +1176,8 @@ static int vfi_local_event_start(struct vfi_location *loc, struct vfi_desc_param
 	/* Loop through the event chain if any */
 	while (event_list) {
 		vfi_events_start(event_list);
+		/* find_vfi_events is doing a get */
+		vfi_events_put(event_list);
 		event_list = event_list->next;
 	}
 
