@@ -1533,31 +1533,36 @@ static void vfi_fabric_dst_done(struct vfi_bind *bind)
 	 * votes. */
 	VFI_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	vfi_bind_dst_done(bind);
-	
 	address = (bind->desc.dst.address) ? : ((bind->desc.dst.ploc) ? bind->desc.dst.ploc->desc.address : NULL);
 	vfi_doorbell_send(address, bind->dst_done_event_id);
 }
 
 static void vfi_fabric_src_ready(struct vfi_bind *bind)
 {
+	struct vfi_fabric_address *address;
+
 	/* Someone locally executed start on an event associated with
 	 * the local source SMB in a bind assigned a remote DMA
 	 * engine. So we need to send the ready event to it so that it
 	 * may adjust its vote accordingly. */
 	VFI_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	vfi_bind_src_ready(bind);
-	vfi_doorbell_send(bind->desc.xfer.address,bind->src_ready_event_id);
+	address = (bind->desc.src.address) ? : ((bind->desc.src.ploc) ? bind->desc.src.ploc->desc.address : NULL);
+	vfi_doorbell_send(address,bind->src_ready_event_id);
 }
 
 static void vfi_fabric_dst_ready(struct vfi_bind *bind)
 {
+	struct vfi_fabric_address *address;
+
 	/* Someone locally executed start on an event associated with
 	 * the local destination SMB in a bind assigned a remote DMA
 	 * engine. So we need to send the ready event to it so that it
 	 * may adjust its vote accordingly. */
 	VFI_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	vfi_bind_dst_ready(bind);
-	vfi_doorbell_send(bind->desc.xfer.address,bind->dst_ready_event_id);
+	address = (bind->desc.dst.address) ? : ((bind->desc.dst.ploc) ? bind->desc.dst.ploc->desc.address : NULL);
+	vfi_doorbell_send(address,bind->dst_ready_event_id);
 }
 
 static int vfi_fabric_event_start(struct vfi_location *loc, struct vfi_desc_param *desc)
