@@ -1051,7 +1051,7 @@ static int __devinit mpc85xx_vfi_probe (struct platform_device *pdev)
 static int __devexit mpc85xx_vfi_remove (struct platform_device *pdev)
 {
 	printk("PIGGY! PIGGY!\n");
-	printk("start = 0x%lx\n", (unsigned long) pdev->resource[0].start);
+	printk("start = 0x%llx\n", pdev->resource[0].start);
 	return 0;
 }
 
