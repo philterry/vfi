@@ -87,10 +87,16 @@ int vfi_alloc_pages(struct vfi_smb *smb)
 		}
 	else {
 		struct page *p;
+		int remainder = smb->num_pages;
+#if 0
+		/*
+		 * When calling alloc_pages with order larger than 0, __free_pages has to be called
+		 * with the same order. Implementing it by saving the order did not work so for now we revert to
+		 * iterative allocation
+		 */
+		int ord;
 		int npages;
 		int i;
-		int remainder = smb->num_pages;
-		int ord;
 
 		ord = order(remainder);
 
@@ -117,7 +123,7 @@ int vfi_alloc_pages(struct vfi_smb *smb)
 					break;
 			}
 		}
-
+#endif
 		while (remainder--) {
 			if ( (page_ary[page++] = alloc_page(GFP_KERNEL)) )
 				continue;
