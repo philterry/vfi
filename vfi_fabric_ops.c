@@ -1547,7 +1547,7 @@ static void vfi_fabric_src_ready(struct vfi_bind *bind)
 	 * may adjust its vote accordingly. */
 	VFI_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	vfi_bind_src_ready(bind);
-	address = (bind->desc.src.address) ? : ((bind->desc.src.ploc) ? bind->desc.src.ploc->desc.address : NULL);
+	address = (bind->desc.xfer.address) ? : ((bind->desc.xfer.ploc) ? bind->desc.xfer.ploc->desc.address : NULL);
 	vfi_doorbell_send(address,bind->src_ready_event_id);
 }
 
@@ -1561,7 +1561,7 @@ static void vfi_fabric_dst_ready(struct vfi_bind *bind)
 	 * may adjust its vote accordingly. */
 	VFI_DEBUG(MY_DEBUG,"%s bind(%p)\n",__FUNCTION__,bind);
 	vfi_bind_dst_ready(bind);
-	address = (bind->desc.dst.address) ? : ((bind->desc.dst.ploc) ? bind->desc.dst.ploc->desc.address : NULL);
+	address = (bind->desc.xfer.address) ? : ((bind->desc.xfer.ploc) ? bind->desc.xfer.ploc->desc.address : NULL);
 	vfi_doorbell_send(address,bind->dst_ready_event_id);
 }
 
