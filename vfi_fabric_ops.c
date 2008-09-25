@@ -108,6 +108,12 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 				if (loc && loc->desc.address)
 					loc->desc.address->ops->register_location(myloc);
 				*newloc = myloc;
+				/*
+				 * Don't forget that this is a find function so the caller assumes a "get"
+				 * is performed on the searched object. If the object has just been created
+				 * do an artificial get
+				 */
+				vfi_location_get(myloc);
 				return VFI_RESULT(0);
 			}
 			vfi_clean_desc(&reply);
@@ -179,8 +185,15 @@ static int vfi_fabric_smb_find(struct vfi_smb **smb, struct vfi_location *parent
 		struct vfi_desc_param reply;
 		if (!vfi_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
 				ret = vfi_smb_create(smb,parent,&reply);
+				/*
+				 * Don't forget that this is a find function so the caller assumes a "get"
+				 * is performed on the searched object. If the object has just been created
+				 * do an artificial get
+				 */
+				vfi_smb_get(*smb);
+			}
 			vfi_clean_desc(&reply);
 		}
 	}
@@ -251,6 +264,12 @@ static int vfi_fabric_xfer_find(struct vfi_xfer **xfer, struct vfi_location *loc
 				reply.extent = 0;
 				reply.offset = 0;
 				ret =  vfi_xfer_create(xfer,loc,&reply);
+				/*
+				 * Don't forget that this is a find function so the caller assumes a "get"
+				 * is performed on the searched object. If the object has just been created
+				 * do an artificial get
+				 */
+				vfi_xfer_get(*xfer);
 			}
 			vfi_clean_desc(&reply);
 		}
@@ -334,6 +353,12 @@ static int vfi_fabric_sync_find(struct vfi_sync **sync, struct vfi_location *loc
 				reply.extent = 0;
 				reply.offset = 0;
 				ret =  vfi_sync_create(sync,loc,&reply);
+				/*
+				 * Don't forget that this is a find function so the caller assumes a "get"
+				 * is performed on the searched object. If the object has just been created
+				 * do an artificial get
+				 */
+				vfi_sync_get(*sync);
 			}
 			vfi_clean_desc(&reply);
 		}
@@ -478,8 +503,15 @@ static int vfi_fabric_bind_find(struct vfi_bind **bind, struct vfi_xfer *parent,
 		ret = -EINVAL;
 		if (!vfi_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
 				ret = vfi_bind_create(bind,parent,&reply);
+				/*
+				 * Don't forget that this is a find function so the caller assumes a "get"
+				 * is performed on the searched object. If the object has just been created
+				 * do an artificial get
+				 */
+				vfi_bind_get(*bind);
+			}
 			vfi_clean_bind(&reply);
 		}
 	}
@@ -509,8 +541,15 @@ static int vfi_fabric_dst_find(struct vfi_dst **dst, struct vfi_bind *parent, st
 		ret = -EINVAL;
 		if (!vfi_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
 				ret = vfi_dst_create(dst,parent,&reply);
+				/*
+				 * Don't forget that this is a find function so the caller assumes a "get"
+				 * is performed on the searched object. If the object has just been created
+				 * do an artificial get
+				*/
+				vfi_dst_get(*dst);
+			}
 			vfi_clean_bind(&reply);
 		}
 	}
@@ -537,8 +576,15 @@ static int vfi_fabric_src_find(struct vfi_src **src, struct vfi_dst *parent, str
 		ret = -EINVAL;
 		if (!vfi_parse_bind(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0)
+			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
 				ret = vfi_src_create(src,parent,&reply);
+				/*
+				 * Don't forget that this is a find function so the caller assumes a "get"
+				 * is performed on the searched object. If the object has just been created
+				 * do an artificial get
+				*/
+				vfi_src_get(*src);
+			}
 			vfi_clean_bind(&reply);
 		}
 	}
