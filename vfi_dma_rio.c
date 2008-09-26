@@ -771,14 +771,33 @@ static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
 	int active;
 	struct ppc_dma_chan *chan = &de->ppc8641_dma_chans[index];
 
+	switch (chan->state) {
+	  case DMA_UNINIT:   len += sprintf(buf + len, " State = UNINIT\n"); break;
+	  case DMA_IDLE:     len += sprintf(buf + len, " State = IDLE\n"); break;
+ 	  case DMA_RUNNING:  len += sprintf(buf + len, " State = RUNNING\n"); break;
+	  case DMA_ERR_STOP: len += sprintf(buf + len, " State = ERR_STOP\n"); break;
+	  case DMA_SHUTDOWN: len += sprintf(buf + len, " State = SHUTDOWN\n"); break;
+	  default:           len += sprintf(buf + len, " State = UNKNOWN(%d)\n", chan->state); break;
+	}
+
+	if (list_empty(&chan->dma_q)) 
+		len += sprintf(buf + len, " Transfer Queue is empty\n"); 
+	else
+		len += sprintf(buf + len, " Transfer Queue head = %p\n",
+			chan->dma_q.next);
+
+	len += sprintf(buf + len, " Number of bytes queued to transfer = %d\n", 
+			chan->bytes_queued);
 	len += sprintf(buf + len, " Number of DMA list complete interrupts = %d\n", 
 			chan->list_int);
 	len += sprintf(buf + len, " Number of bytes transmitted = %lld, (0x%llx)\n",
 			chan->bytes_tx, chan->bytes_tx);
 	len += sprintf(buf + len, " Number of unknown interrupts = %d\n", 
 			chan->bogus_int);
-	len += sprintf(buf + len, " Number of errors = %d\n", 
+	len += sprintf(buf + len, " Number of error interrupts = %d\n", 
 			chan->err_int);
+	len += sprintf(buf + len, " Number of errors = %d\n", 
+			chan->errors);
 #ifdef VFI_PERF_JIFFIES
 	/* Uses jiffies */
 	len += sprintf(buf + len, " Channel active time = %d msec\n", 
@@ -914,13 +933,6 @@ static int __init dma_rio_init(void)
 #endif
 
 	platform_driver_register(&mpc85xx_vfi_driver);
-
-#if 0  
-/* 85XX:  DMA chans will be setup via callback to platform driver probe func */
-#if defined(CONFIG_FSL_SOC) || defined(CONFIG_FSL_BOOKE)
-	setup_dma_channels(de);
-#endif
-#endif
 
 	/* Set up completion callback mechanism */
 	init_completion(&de->dma_callback_sem);

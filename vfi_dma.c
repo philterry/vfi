@@ -86,7 +86,6 @@ int vfi_alloc_pages(struct vfi_smb *smb)
 			break;
 		}
 	else {
-		struct page *p;
 		int remainder = smb->num_pages;
 #if 0
 		/*
@@ -94,6 +93,7 @@ int vfi_alloc_pages(struct vfi_smb *smb)
 		 * with the same order. Implementing it by saving the order did not work so for now we revert to
 		 * iterative allocation
 		 */
+		struct page *p;
 		int ord;
 		int npages;
 		int i;
