@@ -19,9 +19,6 @@
 #include <linux/vfi_dsts.h>
 #include <linux/vfi_dst.h>
 #include <linux/vfi_dma.h>
-//AM++
-#include <linux/vfi_event.h>
-//AM++
 
 #include <linux/slab.h>
 #include <linux/module.h>
