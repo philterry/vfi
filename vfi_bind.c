@@ -19,6 +19,9 @@
 #include <linux/vfi_dsts.h>
 #include <linux/vfi_dst.h>
 #include <linux/vfi_dma.h>
+//AM++
+#include <linux/vfi_event.h>
+//AM++
 
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -87,8 +90,15 @@ static ssize_t vfi_bind_default_show(struct vfi_bind *vfi_bind, char *buffer)
 {
 	int left = PAGE_SIZE;
 	int size = 0;
-	ATTR_PRINTF("Bind %p is %s.%s = %s.%s ready is %d\n",vfi_bind,vfi_bind->desc.dst.name, vfi_bind->desc.dst.location,
+	ATTR_PRINTF("Bind %p is %s.%s = %s.%s Ready is %d\n",vfi_bind,vfi_bind->desc.dst.name, vfi_bind->desc.dst.location,
 		    vfi_bind->desc.src.name,vfi_bind->desc.src.location,vfi_bind->ready);
+	switch (vfi_bind->ready & VFI_BIND_RDY) {
+	case VFI_BIND_DONE:    ATTR_PRINTF("Source and Destination are done\n"); break;
+	case VFI_BIND_SRC_RDY: ATTR_PRINTF("Source is ready\n"); break;
+	case VFI_BIND_DST_RDY: ATTR_PRINTF("Destination is ready\n"); break;
+	case VFI_BIND_RDY:     ATTR_PRINTF("Source and Destination are ready\n"); break;
+	}
+	if (vfi_bind->ready & VFI_BIND_DONE_PEND) ATTR_PRINTF("Done pending\n");
 	ATTR_PRINTF("xfr: ops is %p rde is %p address is %p ploc is %p\n",
 		    vfi_bind->desc.xfer.ops,vfi_bind->desc.xfer.rde,vfi_bind->desc.xfer.address,vfi_bind->desc.xfer.ploc);
 	ATTR_PRINTF("dst: ops is %p rde is %p address is %p ploc is %p\n",
@@ -97,7 +107,6 @@ static ssize_t vfi_bind_default_show(struct vfi_bind *vfi_bind, char *buffer)
 		    vfi_bind->desc.src.ops,vfi_bind->desc.src.rde,vfi_bind->desc.src.address,vfi_bind->desc.src.ploc);
 	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_bind->kobj.kref.refcount));
 	return size;
-
 }
 
 VFI_BIND_ATTR(default, 0644, vfi_bind_default_show, 0);
