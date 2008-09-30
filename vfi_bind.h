@@ -59,8 +59,9 @@ static inline int vfi_bind_src_ready(struct vfi_bind *b)
 	unsigned long flags;
 
 	spin_lock_irqsave(&b->lock, flags);
-	b->ready ^= VFI_BIND_SRC_RDY;
-	VFI_ASSERT(b->ready & VFI_BIND_SRC_RDY,"Assertion in %s\n",__FUNCTION__);
+	VFI_ASSERT(!(b->ready & VFI_BIND_SRC_RDY),"Assertion in %s\n",__FUNCTION__);
+	if (!(b->ready & VFI_BIND_SRC_RDY))
+		b->ready |= VFI_BIND_SRC_RDY;
 	res = b->ready == VFI_BIND_RDY;
       	spin_unlock_irqrestore(&b->lock, flags);
 	return res;
@@ -72,8 +73,9 @@ static inline int vfi_bind_dst_ready(struct vfi_bind *b)
 	unsigned long flags;
 
 	spin_lock_irqsave(&b->lock, flags);
-	b->ready ^= VFI_BIND_DST_RDY;
-	VFI_ASSERT(b->ready & VFI_BIND_DST_RDY,"Assertion in %s\n",__FUNCTION__);
+	VFI_ASSERT(!(b->ready & VFI_BIND_DST_RDY),"Assertion in %s\n",__FUNCTION__);
+	if (!(b->ready & VFI_BIND_DST_RDY)) 
+		b->ready |= VFI_BIND_DST_RDY;
 	res = b->ready == VFI_BIND_RDY;
 	spin_unlock_irqrestore(&b->lock, flags);
 	return res;
@@ -82,6 +84,7 @@ static inline int vfi_bind_dst_ready(struct vfi_bind *b)
 static inline void vfi_bind_done_pending(struct vfi_bind *b)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&b->lock, flags);
 	b->ready ^= VFI_BIND_DONE_PEND;
 	if (is_vfi_bind_ready(b))
@@ -94,8 +97,9 @@ static inline void vfi_bind_src_done(struct vfi_bind *b)
 	unsigned long flags;
 
 	spin_lock_irqsave(&b->lock, flags);
-	b->ready ^= VFI_BIND_SRC_RDY ;
-	VFI_ASSERT(!(b->ready & VFI_BIND_SRC_RDY),"Assertion in %s\n",__FUNCTION__);
+	VFI_ASSERT((b->ready & VFI_BIND_SRC_RDY),"Assertion in %s\n",__FUNCTION__);
+	if (b->ready & VFI_BIND_SRC_RDY) 
+		b->ready &= ~VFI_BIND_SRC_RDY;
 	spin_unlock_irqrestore(&b->lock, flags);
 }
 
@@ -104,8 +108,9 @@ static inline void vfi_bind_dst_done(struct vfi_bind *b)
 	unsigned long flags;
 
 	spin_lock_irqsave(&b->lock, flags);
-	b->ready ^= VFI_BIND_DST_RDY;
-	VFI_ASSERT(!(b->ready & VFI_BIND_DST_RDY),"Assertion in %s\n",__FUNCTION__);
+	VFI_ASSERT((b->ready & VFI_BIND_DST_RDY),"Assertion in %s\n",__FUNCTION__);
+	if (b->ready & VFI_BIND_DST_RDY) 
+		b->ready &= ~VFI_BIND_DST_RDY;
 	spin_unlock_irqrestore(&b->lock, flags);
 }
 

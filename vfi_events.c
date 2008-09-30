@@ -169,32 +169,35 @@ void vfi_events_start(struct vfi_events *events)
 {
 	struct vfi_event *ep;
 	struct list_head *entry;
+	unsigned long flags;
+
 	int wait = 0;
 
 	VFI_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,events);
 
-	if (events == NULL) 
+	if (events == NULL)
 		return;
 
-	if (!down_trylock(&events->start_lock)) {
-		spin_lock(&events->kset.list_lock);
-		if (!list_empty(&events->kset.list)) {
-			list_for_each(entry,&events->kset.list) {
-				ep = to_vfi_event(to_kobj(entry));
-				if (ep->start_event) {
-					wait = 1;
-					events->count++;
-					ep->start_event(ep->bind);
-				}
-			}
-		}
-		spin_unlock(&events->kset.list_lock);
-		if (wait)
-			wait_for_completion(&events->dma_sync);
-		up(&events->start_lock);
-	}
-	else {
+	if (down_trylock(&events->start_lock)) {
 		printk("Error, event already started\n");
+		return;
 	}
 
+	spin_lock_irqsave(&events->kset.list_lock, flags);
+	if (!list_empty(&events->kset.list)) {
+		list_for_each(entry,&events->kset.list) {
+			ep = to_vfi_event(to_kobj(entry));
+			if (ep->start_event) {
+				wait = 1;
+				events->count++;
+				ep->start_event(ep->bind);
+			}
+		}
+	}
+	spin_unlock_irqrestore(&events->kset.list_lock, flags);
+
+	if (wait)
+		wait_for_completion(&events->dma_sync);
+
+	up(&events->start_lock);
 }

@@ -1112,14 +1112,18 @@ static void vfi_local_done(struct vfi_event *event)
 	/* A DMA engine, either local or remote, has completed a
 	 * transfer involving a local smb as the source or
 	 * destination. Do vote adjustment. */
-	struct vfi_events *e = to_vfi_events(event->kobj.parent);
+	struct vfi_events *events = to_vfi_events(event->kobj.parent);
+	unsigned long flags;
+	int count;
 
-	e->count--;
+	spin_lock_irqsave(&events->kset.list_lock, flags);
+	count = --events->count;
+	spin_unlock_irqrestore(&events->kset.list_lock, flags);
 
-	if (e->count == 0)
-		complete(&e->dma_sync);
+	if (count == 0)
+		complete(&events->dma_sync);
 
-	VFI_DEBUG(MY_DEBUG,"%s event(%p) events(%p) count(%d)\n",__FUNCTION__,event,e,e->count);
+	VFI_DEBUG(MY_DEBUG,"%s event(%p) events(%p) count(%d)\n",__FUNCTION__,event,events,count);
 }
 
 static void vfi_local_src_done(struct vfi_bind *bind)
