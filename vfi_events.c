@@ -188,15 +188,14 @@ void vfi_events_start(struct vfi_events *events)
 		list_for_each(entry,&events->kset.list) {
 			ep = to_vfi_event(to_kobj(entry));
 			if (ep->start_event) {
-				wait = 1;
-				events->count++;
+				wait++;
 				ep->start_event(ep->bind);
 			}
 		}
 	}
 	spin_unlock_irqrestore(&events->kset.list_lock, flags);
 
-	if (wait)
+	while (wait--)
 		wait_for_completion(&events->dma_sync);
 
 	up(&events->start_lock);
