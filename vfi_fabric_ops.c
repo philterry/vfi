@@ -187,12 +187,6 @@ static int vfi_fabric_smb_find(struct vfi_smb **smb, struct vfi_location *parent
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
 				ret = vfi_smb_create(smb,parent,&reply);
-				/*
-				 * Don't forget that this is a find function so the caller assumes a "get"
-				 * is performed on the searched object. If the object has just been created
-				 * do an artificial get
-				 */
-				vfi_smb_get(*smb);
 			}
 			vfi_clean_desc(&reply);
 		}
@@ -215,7 +209,31 @@ static void vfi_fabric_smb_put(struct vfi_smb *smb, struct vfi_desc_param *desc)
 		if (!vfi_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
-				vfi_smb_put(smb);
+				vfi_smb_delete(smb);
+			vfi_clean_desc(&reply);
+		}
+	}
+}
+
+static void vfi_fabric_smb_lose(struct vfi_smb *smb, struct vfi_desc_param *desc)
+{
+	/*
+	 * This function gets called when the reference count of the smb component reaches 0, and 
+	 * the kobject's release function is invoked. It sends a private method over the fabric.
+	 */
+	struct sk_buff  *skb;
+	int ret;
+
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
+	ret = vfi_fabric_call(&skb, smb->desc.ploc, 5, "smb_lose://%s.%s", smb->desc.name,smb->desc.location);
+
+	if (skb) {
+		struct vfi_desc_param reply;
+		if (!vfi_parse_desc(&reply,skb->data)) {
+			dev_kfree_skb(skb);
+			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
+				VFI_DEBUG(MY_DEBUG,"%s:%d\n",__FUNCTION__,__LINE__);
 			vfi_clean_desc(&reply);
 		}
 	}
@@ -264,12 +282,6 @@ static int vfi_fabric_xfer_find(struct vfi_xfer **xfer, struct vfi_location *loc
 				reply.extent = 0;
 				reply.offset = 0;
 				ret =  vfi_xfer_create(xfer,loc,&reply);
-				/*
-				 * Don't forget that this is a find function so the caller assumes a "get"
-				 * is performed on the searched object. If the object has just been created
-				 * do an artificial get
-				 */
-				vfi_xfer_get(*xfer);
 			}
 			vfi_clean_desc(&reply);
 		}
@@ -293,6 +305,33 @@ static void vfi_fabric_xfer_put(struct vfi_xfer *xfer, struct vfi_desc_param *de
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
 				vfi_xfer_put(xfer);
+			vfi_clean_desc(&reply);
+		}
+	}
+}
+
+static void vfi_fabric_xfer_lose(struct vfi_xfer *xfer, struct vfi_desc_param *desc)
+{
+	struct sk_buff  *skb;
+	int ret;
+
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
+	/*
+	 * Send xfer_lose request to remote <xfer> agent using the 
+	 * offset and extent values specified in the descriptor. 
+	 * The request will end up in the local xfer_lose. This will decrement 
+	 * the reference count of the object and if it reaches 0, the
+	 * object local release function will be called.
+	 */
+	ret = vfi_fabric_call(&skb, xfer->desc.ploc, 5, "xfer_lose://%s.%s", xfer->desc.name,xfer->desc.location);
+
+	if (skb) {
+		struct vfi_desc_param reply;
+		if (!vfi_parse_desc(&reply,skb->data)) {
+			dev_kfree_skb(skb);
+			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
+				VFI_DEBUG(MY_DEBUG,"%s:%d\n",__FUNCTION__,__LINE__);
 			vfi_clean_desc(&reply);
 		}
 	}
@@ -505,12 +544,6 @@ static int vfi_fabric_bind_find(struct vfi_bind **bind, struct vfi_xfer *parent,
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
 				ret = vfi_bind_create(bind,parent,&reply);
-				/*
-				 * Don't forget that this is a find function so the caller assumes a "get"
-				 * is performed on the searched object. If the object has just been created
-				 * do an artificial get
-				 */
-				vfi_bind_get(*bind);
 			}
 			vfi_clean_bind(&reply);
 		}
@@ -1274,22 +1307,14 @@ static void vfi_fabric_location_delete(struct vfi_location *loc, struct vfi_desc
 
 static void vfi_fabric_smb_delete(struct vfi_smb *smb, struct vfi_desc_param *desc)
 {
-	struct sk_buff  *skb;
-
-	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 	VFI_DEBUG(MY_DEBUG,"%s (%s.%s)\n",__FUNCTION__, desc->name, desc->location);
 
-	vfi_fabric_call(&skb, smb->desc.ploc, 5, "smb_delete://%s.%s", desc->name, desc->location);
-	if (skb) {
-		struct vfi_desc_param reply;
-		int ret = -EINVAL;
-		if (!vfi_parse_desc(&reply,skb->data)) {
-			dev_kfree_skb(skb);
-			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
-				vfi_smb_delete(smb);
-			vfi_clean_desc(&reply);
-		}
-	}
+	/*
+	 * Just put the reference count of the local cache of the smb component 
+	 * if the kobject is released the local release function will be called
+	 * which will send smb_lose to the remote.
+	 */
+	vfi_smb_delete(smb);
 }
 
 static void vfi_fabric_mmap_delete(struct vfi_mmap *mmap, struct vfi_desc_param *desc)
@@ -1324,11 +1349,52 @@ static void vfi_fabric_bind_delete(struct vfi_xfer *xfer, struct vfi_desc_param 
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
 	/*
-	* Send bind_delete request to remote <xfer> agent using the 
-	* offset and extent values specified in the descriptor. 
-	*
+	 * Send bind_delete request to remote <xfer> agent using the 
+	 * offset and extent values specified in the descriptor. 
 	*/
 	vfi_fabric_call(&skb,loc, 5, "bind_delete://%s.%s#%llx:%x",
+			desc->name, desc->location, desc->offset, desc->extent);
+	if (skb) {
+		struct vfi_desc_param reply;
+		int ret = -EINVAL;
+		if (!vfi_parse_desc(&reply,skb->data)) {
+			dev_kfree_skb(skb);
+			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
+				vfi_bind_delete(xfer, desc);
+				VFI_DEBUG(MY_DEBUG,"%s:%d\n",__FUNCTION__,__LINE__);
+			}
+			vfi_clean_desc(&reply);
+		}
+	}
+}
+
+/**
+* vfi_fabric_bind_lose - send bind_lose request to remote Xfer agent
+* @xfer : pointer to xfer to be deleted, with ploc identifying <xfer> agent location
+* @desc : descriptor of the bind to be put
+*
+* bind_lose must always run on the bind <xfer> agent.
+*
+* This function decrement the reference count of the object and if it reaches 0, the
+* object release function will be called which in turn will send a delete over the fabric.
+* Delete is now a private method and should not be used by the user
+*
+**/
+static void vfi_fabric_bind_lose(struct vfi_xfer *xfer, struct vfi_desc_param *desc)
+{
+	struct sk_buff  *skb;
+	struct vfi_location *loc = xfer->desc.ploc;
+
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+
+	/*
+	 * Send bind_lose request to remote <xfer> agent using the 
+	 * offset and extent values specified in the descriptor. 
+	 * The request will end up in the local bind_lose. This will decrement 
+	 * the reference count of the object and if it reaches 0, the
+	 * object local release function will be called.
+	 */
+	vfi_fabric_call(&skb,loc, 5, "bind_lose://%s.%s#%llx:%x",
 				desc->name, desc->location, desc->offset, desc->extent);
 	if (skb) {
 		struct vfi_desc_param reply;
@@ -1336,7 +1402,7 @@ static void vfi_fabric_bind_delete(struct vfi_xfer *xfer, struct vfi_desc_param 
 		if (!vfi_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
-				vfi_bind_delete(xfer, &reply);
+				VFI_DEBUG(MY_DEBUG,"%s:%d\n",__FUNCTION__,__LINE__);
 			vfi_clean_desc(&reply);
 		}
 	}
@@ -1344,22 +1410,16 @@ static void vfi_fabric_bind_delete(struct vfi_xfer *xfer, struct vfi_desc_param 
 
 static void vfi_fabric_xfer_delete(struct vfi_xfer *xfer, struct vfi_desc_param *desc)
 {
-	struct sk_buff  *skb;
 
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	vfi_fabric_call(&skb,xfer->desc.ploc, 5, "xfer_delete://%s.%s", desc->name,desc->location);
-	if (skb) {
-		struct vfi_desc_param reply;
-		int ret = -EINVAL;
-		if (!vfi_parse_desc(&reply,skb->data)) {
-			dev_kfree_skb(skb);
-			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0)
-				vfi_xfer_delete(xfer,&reply);
-			vfi_clean_desc(&reply);
+	/*
+	 * Just put the reference count of the local cache of the xfer component 
+	 * if the kobject is released the local release function will be called
+	 * which will send xfer_lose to the remote.
+	 */
+	vfi_xfer_delete(xfer,NULL);
 
-		}
-	}
 }
 
 static void vfi_fabric_sync_delete(struct vfi_sync *sync, struct vfi_desc_param *desc)
@@ -1546,6 +1606,7 @@ static void vfi_fabric_dsts_delete (struct vfi_bind *parent, struct vfi_bind_par
 			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
 				vfi_doorbell_unregister (parent->desc.xfer.address, parent->dst_ready_event_id);
 			}
+			vfi_dsts_delete(parent->dsts);
 			vfi_clean_bind(&reply);
 		}
 	}
@@ -1677,6 +1738,7 @@ struct vfi_ops vfi_fabric_ops = {
 	.smb_delete      = vfi_fabric_smb_delete,
 	.smb_find        = vfi_fabric_smb_find,
 	.smb_put         = vfi_fabric_smb_put,
+	.smb_lose        = vfi_fabric_smb_lose,
 	.mmap_create     = vfi_fabric_mmap_create,
 	.mmap_delete     = vfi_fabric_mmap_delete,
 	.mmap_find       = vfi_fabric_mmap_find,
@@ -1685,6 +1747,7 @@ struct vfi_ops vfi_fabric_ops = {
 	.xfer_delete     = vfi_fabric_xfer_delete,
 	.xfer_find       = vfi_fabric_xfer_find,
 	.xfer_put        = vfi_fabric_xfer_put,
+	.xfer_lose       = vfi_fabric_xfer_lose,
 	.sync_create     = vfi_fabric_sync_create,
 	.sync_delete     = vfi_fabric_sync_delete,
 	.sync_find       = vfi_fabric_sync_find,
@@ -1704,6 +1767,7 @@ struct vfi_ops vfi_fabric_ops = {
 	.bind_find       = vfi_fabric_bind_find,
 	.bind_create     = vfi_fabric_bind_create,
 	.bind_delete     = vfi_fabric_bind_delete,
+	.bind_lose       = vfi_fabric_bind_lose,
 	.src_done        = vfi_fabric_src_done,
 	.dst_done        = vfi_fabric_dst_done,
 	.done            = vfi_fabric_done,

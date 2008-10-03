@@ -28,6 +28,10 @@ static void vfi_smb_release(struct kobject *kobj)
 {
 	struct vfi_smb *p = to_vfi_smb(kobj);
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+	/* If this smb is going away and it also resides on the fabric, release it there also */
+	if ( p->desc.ops == &vfi_fabric_ops ) {
+		p->desc.ops->smb_lose(p, &p->desc);
+	}
 	vfi_clean_desc(&p->desc);
 	if (p->pages)
 		vfi_dealloc_pages(p);

@@ -19,7 +19,6 @@
 struct vfi_dsts {
 	struct kset kset;
 	struct list_head dma_chain;
-	struct vfi_smb  *smb;
 };
 
 static inline struct vfi_dsts *to_vfi_dsts(struct kobject *kobj)

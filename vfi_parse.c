@@ -138,7 +138,7 @@ char *vfi_get_option(struct vfi_desc_param *desc, const char *needle)
 			query++;
 		}
 
-	VFI_DEBUG((VFI_DBG_FUNCALL | VFI_DBG_DEBUG),"%s %p,%s->%s\n",__FUNCTION__,desc,needle,found_val ? found_val+1 : found_var);
+	VFI_DEBUG(MY_DEBUG,"%s %p,%s->%s\n",__FUNCTION__,desc,needle,found_val ? found_val+1 : found_var);
 
 	return found_val ? found_val+1 : found_var ;
 }

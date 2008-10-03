@@ -36,11 +36,13 @@ struct vfi_ops {
 	int  (*smb_find)  (struct vfi_smb **,     struct vfi_location *, struct vfi_desc_param *);
 	void (*smb_delete)(struct vfi_smb *,      struct vfi_desc_param *);
 	void (*smb_put)   (struct vfi_smb *,      struct vfi_desc_param *);
+	void (*smb_lose)  (struct vfi_smb *,      struct vfi_desc_param *);
 
 	int  (*xfer_create)(struct vfi_xfer **,    struct vfi_location *, struct vfi_desc_param *);
 	int  (*xfer_find)  (struct vfi_xfer **,    struct vfi_location *, struct vfi_desc_param *);
 	void (*xfer_delete)(struct vfi_xfer *,     struct vfi_desc_param *);
 	void (*xfer_put)   (struct vfi_xfer *,     struct vfi_desc_param *);
+	void (*xfer_lose)  (struct vfi_xfer *,     struct vfi_desc_param *);
 
 	int  (*sync_create)(struct vfi_sync **,    struct vfi_location *, struct vfi_desc_param *);
 	int  (*sync_find)  (struct vfi_sync **,    struct vfi_location *, struct vfi_desc_param *);
@@ -57,7 +59,7 @@ struct vfi_ops {
 	int  (*bind_create)(struct vfi_bind **,    struct vfi_xfer *,     struct vfi_bind_param *);
 	int  (*bind_find)  (struct vfi_bind **,    struct vfi_xfer *,     struct vfi_desc_param *);
 	void (*bind_delete)(struct vfi_xfer *,     struct vfi_desc_param *);
-	void (*bind_put)   (struct vfi_xfer *,     struct vfi_desc_param *);
+	void (*bind_lose)  (struct vfi_xfer *,     struct vfi_desc_param *);
 	
 	int  (*dsts_create)(struct vfi_dsts **,    struct vfi_bind *,     struct vfi_bind_param *);
 	int  (*dsts_find)  (struct vfi_dsts **,    struct vfi_bind *,     struct vfi_bind_param *);

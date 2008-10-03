@@ -27,7 +27,12 @@
 static void vfi_xfer_release(struct kobject *kobj)
 {
     struct vfi_xfer *p = to_vfi_xfer(kobj);
+
     VFI_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
+	/* If this xfer is going away and it also resides on the fabric, release it there also */
+	if ( p->desc.ops == &vfi_fabric_ops ) {
+		p->desc.ops->xfer_lose(p, &p->desc);
+	}
     vfi_clean_desc(&p->desc);
     
     kfree(p);
@@ -238,7 +243,6 @@ int vfi_xfer_create(struct vfi_xfer **xfer, struct vfi_location *loc, struct vfi
 	
 	if (*xfer) {
 		VFI_DEBUG(MY_DEBUG,"%s found %p %s locally in %p %s\n",__FUNCTION__,*xfer,desc->name,loc,loc->desc.name);
-		vfi_xfer_put(*xfer);
 	}
 	else {
 		ret = new_vfi_xfer(xfer,loc,desc);

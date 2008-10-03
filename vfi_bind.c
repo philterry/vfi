@@ -37,7 +37,13 @@
 static void vfi_bind_release(struct kobject *kobj)
 {
     struct vfi_bind *p = to_vfi_bind(kobj);
+	struct vfi_xfer *x = to_vfi_xfer(&(p->kobj.kset->kobj));
+
     VFI_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
+	/* If this bind is going away and it also resides on the fabric, release it there also */
+	if ( x->desc.ops == &vfi_fabric_ops ) {
+		x->desc.ops->bind_lose(x, &p->desc.xfer);
+	}
     vfi_clean_bind (&p->desc);
     kfree(p);
 }
@@ -268,7 +274,6 @@ int vfi_bind_create(struct vfi_bind **newbind, struct vfi_xfer *xfer, struct vfi
 	if (new) {
 		VFI_DEBUG(MY_DEBUG,"%s found %p locally in %p\n",__FUNCTION__,new,xfer);
 		*newbind = new;
-		vfi_bind_put(new);
 		return VFI_RESULT(0);
 	}
 
