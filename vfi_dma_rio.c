@@ -768,7 +768,7 @@ static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
 {
 	int len = 0;
 	int index = (int) data;
-	int active;
+	unsigned long active;
 	struct ppc_dma_chan *chan = &de->ppc8641_dma_chans[index];
 
 	switch (chan->state) {
@@ -800,17 +800,17 @@ static int proc_dump_dma_stats(char *buf, char **start, off_t offset,
 			chan->errors);
 #ifdef VFI_PERF_JIFFIES
 	/* Uses jiffies */
-	len += sprintf(buf + len, " Channel active time = %d msec\n", 
+	len += sprintf(buf + len, " Channel active time = %ld msec\n", 
 			chan->jtotal * 1000 / HZ);
 #else
 	/* Assumes time base clock is 50 MHz */
 	active = (chan->jtotal * 1000) / 50000000;
         if (active > 10)
-		len += sprintf(buf + len, " Channel active time = %d msec\n", 
+		len += sprintf(buf + len, " Channel active time = %ld msec\n", 
 			active);
 	else
-		len += sprintf(buf + len, " Channel active time = %d usec\n", 
-			(chan->jtotal * 1000000) / 50000000);
+		len += sprintf(buf + len, " Channel active time = %ld usec\n", 
+			active = (chan->jtotal * 1000000) / 50000000);
 #endif
 
 	return len;
