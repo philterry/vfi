@@ -427,15 +427,65 @@ static int smb_put(const char *desc, char *result, int *size)
 		ret = -EINVAL;
 
 		if ( smb && smb->desc.ops && smb->desc.ops->smb_put ) {
-			smb->desc.ops->smb_put(smb, &params);
+			/* put to accomodate for the find */
+			vfi_smb_put(smb);
+			/* put will delete and make sure it works accross the fabric */
+			vfi_smb_put(smb);
 			ret = 0;
 		}
-		vfi_smb_put(smb);
 	}
 
 out:
 	if (result) 
 		*size = snprintf(result,*size,"smb_put://%s.%s?result(%d),reply(%s)\n",
+				 params.name, params.location,ret, vfi_get_option(&params,"request"));
+
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+/**
+ * smb_lose - Decrement the ref count of only the remote named smb component
+ * This method is here to solve the problem of decrementing the ref count
+ * of the remote instance of the smb component when the local one is destroyed.
+ * This method is private to the driver and should not be called by the user.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int smb_lose(const char *desc, char *result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_smb *smb;
+	struct vfi_desc_param params;
+
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+
+	if ( !(ret = find_vfi_smb(&smb,&params) ) ) {
+		ret = -EINVAL;
+
+		if ( smb && smb->desc.ops && smb->desc.ops->smb_lose ) {
+			smb->desc.ops->smb_lose(smb, &params);
+			ret = 0;
+		}
+		/* put to accomodate for the find */
+   		vfi_smb_put(smb);
+	}
+
+out:
+	if (result) 
+		*size = snprintf(result,*size,"smb_lose://%s.%s?result(%d),reply(%s)\n",
 				 params.name, params.location,ret, vfi_get_option(&params,"request"));
 
 	vfi_clean_desc(&params);
@@ -871,6 +921,54 @@ static int xfer_put(const char *desc, char *result, int *size)
 out:
 	if (result) 
 		*size = snprintf(result,*size,"xfer_put://%s.%s?result(%d),reply(%s)\n",
+			       params.name, params.location,ret, vfi_get_option(&params,"request"));
+
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+/**
+ * xfer_lose - Decrement the ref count of only the remote named xfer component
+ * This method is here to solve the problem of decrementing the ref count
+ * of the remote instance of the xfer component when the local one is destroyed.
+ * This method is private to the driver and should not be called by the user.
+ *
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ * returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ */
+static int xfer_lose(const char *desc, char *result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_xfer *xfer;
+	struct vfi_desc_param params;
+
+	VFI_DEBUG(MY_DEBUG,"%s %s\n",__FUNCTION__,desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+
+	if ( !(ret = find_vfi_xfer(&xfer, &params) ) ) {
+		ret = -EINVAL;
+
+		if ( xfer && xfer->desc.ops && xfer->desc.ops->xfer_lose ) {
+			xfer->desc.ops->xfer_lose(xfer, &params);
+			ret = 0;
+		}
+		vfi_xfer_put(xfer);
+	}
+
+out:
+	if (result) 
+		*size = snprintf(result,*size,"xfer_lose://%s.%s?result(%d),reply(%s)\n",
 			       params.name, params.location,ret, vfi_get_option(&params,"request"));
 
 	vfi_clean_desc(&params);
@@ -1347,6 +1445,66 @@ out:
 				       params.name, params.location,
 				       ret,vfi_get_option(&params,"request"));
 	}
+
+	vfi_clean_desc(&params);
+
+	return VFI_RESULT(ret);
+}
+
+/**
+ * bind_lose - Decrement the ref count of only the remote named bind component
+ * This method is here to solve the problem of decrementing the ref count
+ * of the remote instance of the bind component when the local one is destroyed.
+ * This method is private to the driver and should not be called by the user.
+ *
+ * @desc: Null terminated string with parameters of operation
+ * @result:Pointer to buffer to hold result string
+ * @size: Maximum size of result buffer.
+ *
+ * Returns the number of characters written into result (not including
+ * terminating null) or negative if an error.
+ * Passing a null result pointer is valid if you only need the success
+ * or failure return code.
+ *
+ * This function handles commands of the form:
+ *
+ *    bind_lose://<xfer>#<xo>
+ *
+ *	<xfer> - name of xfer the binding belongs to
+ *	<xo>   - Offset to the start of the bind within the transfer
+ *
+ * bind_lose must run on the Xfer agent. This function will find the named xfer 
+ * object in the local tree, and will then invoke its Xfer agent bind_lose operation.
+ *
+ */
+static int bind_lose(const char *desc, char *result, int *size)
+{
+	int ret = -ENOMEM;
+	struct vfi_xfer *xfer = NULL;
+	struct vfi_desc_param params;
+	
+	VFI_DEBUG (MY_DEBUG, "%s: \"%s\"\n", __FUNCTION__, desc);
+
+	if ( (ret = vfi_parse_desc(&params, desc)) )
+		goto out;
+
+	ret = -ENODEV;
+	
+	if ( !(ret = find_vfi_xfer(&xfer, &params) ) ) {
+		ret = -EINVAL;
+
+		if ( xfer && xfer->desc.ops && xfer->desc.ops->bind_lose ) {
+			xfer->desc.ops->bind_lose(xfer, &params);
+			ret = 0;
+		}
+		vfi_xfer_put (xfer);
+	}
+
+out:
+	if (result) 
+		*size = snprintf(result,*size,"bind_lose://%s.%s#%llx:%x?result(%d),reply(%s)\n",
+			       params.name, params.location,params.offset, params.extent,
+			       ret,vfi_get_option(&params,"request"));
 
 	vfi_clean_desc(&params);
 
@@ -2162,6 +2320,7 @@ static struct ops {
 	{"smb_delete", smb_delete},
 	{"smb_find", smb_find},
 	{"smb_put", smb_put},
+	{"smb_lose", smb_lose},
 
 	{"mmap_create", mmap_create}, 
 	{"mmap_delete",mmap_delete},
@@ -2179,10 +2338,12 @@ static struct ops {
 	{"xfer_delete", xfer_delete},
 	{"xfer_find", xfer_find},
 	{"xfer_put", xfer_put},
+	{"xfer_lose", xfer_lose},
 
 	{"bind_create", bind_create},
 	{"bind_delete", bind_delete},
 	{"bind_find", bind_find},
+	{"bind_lose", bind_lose},
 
 	{"dsts_create", dsts_create},
 	{"dsts_delete", dsts_delete},

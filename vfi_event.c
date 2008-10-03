@@ -116,11 +116,38 @@ static ssize_t vfi_event_offset_store(struct vfi_event *vfi_event, const char *b
 
 VFI_EVENT_ATTR(offset, 0644, vfi_event_offset_show, vfi_event_offset_store);
 
+static ssize_t vfi_event_bind_show(struct vfi_event *vfi_event, char *buffer)
+{
+	int left = PAGE_SIZE;
+	int size = 0;
+	struct vfi_bind *vfi_bind = vfi_event->bind;
+
+	ATTR_PRINTF("Bind %p is %s.%s = %s.%s ready is %d\n",vfi_bind,vfi_bind->desc.dst.name, vfi_bind->desc.dst.location,
+		    vfi_bind->desc.src.name,vfi_bind->desc.src.location,vfi_bind->ready);
+	ATTR_PRINTF("xfr: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_bind->desc.xfer.ops,vfi_bind->desc.xfer.rde,vfi_bind->desc.xfer.address,vfi_bind->desc.xfer.ploc);
+	ATTR_PRINTF("dst: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_bind->desc.dst.ops,vfi_bind->desc.dst.rde,vfi_bind->desc.dst.address,vfi_bind->desc.dst.ploc);
+	ATTR_PRINTF("src: ops is %p rde is %p address is %p ploc is %p\n",
+		    vfi_bind->desc.src.ops,vfi_bind->desc.src.rde,vfi_bind->desc.src.address,vfi_bind->desc.src.ploc);
+	ATTR_PRINTF("refcount %d\n",atomic_read(&vfi_bind->kobj.kref.refcount));
+
+	return size;
+}
+
+static ssize_t vfi_event_bind_store(struct vfi_event *vfi_event, const char *buffer, size_t size)
+{
+    return size;
+}
+
+VFI_EVENT_ATTR(bind, 0644, vfi_event_bind_show, vfi_event_bind_store);
+
 static struct attribute *vfi_event_default_attrs[] = {
     &vfi_event_attr_default.attr,
     &vfi_event_attr_name.attr,
     &vfi_event_attr_location.attr,
     &vfi_event_attr_offset.attr,
+    &vfi_event_attr_bind.attr,
     0,
 };
 
@@ -182,6 +209,7 @@ int new_vfi_event(struct vfi_event **event, struct vfi_events *parent, struct vf
 	if (ret) 
 		kobject_put(&new->kobj);
 
+//	printk("%s event %p:%x bind %p\n",__FUNCTION__, desc, id, bind);
 	return VFI_RESULT(ret);
 }
 

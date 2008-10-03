@@ -69,6 +69,17 @@ static void vfi_local_smb_put(struct vfi_smb *smb, struct vfi_desc_param *desc)
 	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,smb,desc);
 	vfi_smb_put(smb);
 }
+
+static void vfi_local_smb_lose(struct vfi_smb *smb, struct vfi_desc_param *desc)
+{
+	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,smb,desc);
+	/*
+	 * We end up here oly upon a private driver call with "smb_lose" when the ref count of the
+	 * remote cache instance has reached 0 and we want to decrement the refcount of the local instance
+	 */
+	vfi_smb_put(smb);
+}
+
 /**
 * vfi_local_xfer_find - find an vfi_xfer object for a named xfer at the local site.
 * @parent : location where xfer officially resides (right here!)
@@ -94,6 +105,16 @@ static int vfi_local_xfer_find(struct vfi_xfer **xfer, struct vfi_location *pare
 
 static void vfi_local_xfer_put(struct vfi_xfer *xfer,struct vfi_desc_param *desc)
 {
+	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,xfer,desc);
+	vfi_xfer_put(xfer);
+}
+
+static void vfi_local_xfer_lose(struct vfi_xfer *xfer,struct vfi_desc_param *desc)
+{
+	/*
+	 * We end up here oly upon a private driver call with "xfer_lose" when the ref count of the
+	 * remote cache instance has reached 0 and we want to decrement the refcount of the local instance
+	 */
 	VFI_DEBUG(MY_DEBUG,"%s %p %p\n",__FUNCTION__,xfer,desc);
 	vfi_xfer_put(xfer);
 }
@@ -517,7 +538,7 @@ join:
 		vfi_dma_chain_dump(&parent->dma_chain);
 #endif
 
-	(*dsts)->smb = dsmb;
+	vfi_smb_put(dsmb);
 
 	parent->end_of_chain = parent->dma_chain.prev;
 
@@ -597,8 +618,11 @@ static int vfi_local_bind_create(struct vfi_bind **bind, struct vfi_xfer *xfer, 
 		vfi_dma_chain_dump(&(*bind)->dma_chain);
 #endif
 
-	ssmb->desc.ops->smb_put(ssmb,&ssmb->desc);
-	dsmb->desc.ops->smb_put(dsmb,&dsmb->desc);
+	/*
+	 * The bind is keeping a reference on the SMBs until the bind itself is deleted
+	 */
+	// ssmb->desc.ops->smb_put(ssmb,&ssmb->desc);
+	// dsmb->desc.ops->smb_put(dsmb,&dsmb->desc);
 
 	return VFI_RESULT(0);
 
@@ -868,7 +892,7 @@ join2:
 
 	vfi_dst_load_srcs(parent);
 	
-	(*srcs)->smb = smb;
+	vfi_smb_put(smb);
 
 	return VFI_RESULT(0);
 
@@ -1257,13 +1281,83 @@ static void vfi_local_bind_delete(struct vfi_xfer *parent, struct vfi_desc_param
 	if (!list_empty(&parent->kset.list)) {
 		list_for_each_safe(entry,safety,&parent->kset.list) {
 			struct vfi_bind *bind;
+			struct vfi_smb *ssmb = NULL;
+			struct vfi_smb *dsmb = NULL;
+
 			bind = to_vfi_bind(to_kobj(entry));
 			if ( (bind->desc.xfer.offset >= desc->offset) &&
 			     (!desc->extent || (bind->desc.xfer.offset <= desc->offset + desc->extent))) {
+				VFI_DEBUG (MY_DEBUG, "%s:%d\n", __func__, __LINE__);
 				bind->desc.dst.ops->dsts_delete(bind,&bind->desc);
+			} else {
+				VFI_DEBUG (MY_DEBUG, "%s:%d\n", __func__, __LINE__);
+				continue;
 			}
+			/*
+			 * The bind is keeping a reference on the SMBs until the bind itself is deleted
+			 */
+			if ( !find_vfi_smb(&dsmb, &bind->desc.dst) ) {
+				/* put to accomodate for the find */
+				vfi_smb_put(dsmb);
+				/* put will release and  make sure it works accross the fabric */
+				vfi_smb_put(dsmb);
+			} else {
+				VFI_DEBUG (MY_DEBUG, "%s:%d dsmb not found\n", __func__, __LINE__);
+			}
+			if( !find_vfi_smb(&ssmb, &bind->desc.src) ) {
+				/* put to accomodate for the find */
+				vfi_smb_put(ssmb);
+				/* put will delete and make sure it works accross the fabric */
+				vfi_smb_put(ssmb);
+			} else {
+				VFI_DEBUG (MY_DEBUG, "%s:%d ssmb not found\n", __func__, __LINE__);
+			}
+
 			vfi_bind_delete (parent, &bind->desc.xfer);
 		}
+	} else {
+		VFI_DEBUG (MY_DEBUG, "%s:%d\n", __func__, __LINE__);
+	}
+}
+
+/**
+* vfi_local_bind_lose - puts a bind associated with an xfer
+* We end up here oly upon a private driver call with "bind_lose" when the ref count of the
+* remote cache instance has reached 0 and we want to decrement the refcount of the local instance.
+* 
+* @parent : pointer to the <xfer> that the target <bind> belongs to.
+* @desc   : descriptor for <xfer>. Its embedded offset is the primary means of bind selection.
+*
+* This function - which runs ONLY on the Xfer agent associated with the target bind - will
+* decrement the refcount of the specified bind and all of its subsidiaries.
+* 
+**/
+static void vfi_local_bind_lose(struct vfi_xfer *parent, struct vfi_desc_param *desc)
+{
+	struct list_head *entry, *safety;
+	struct vfi_bind *bind;
+
+	VFI_DEBUG (MY_DEBUG, "%s: (%s.%s#%llx:%x)\n", __func__, 
+			desc->name, desc->location, desc->offset, desc->extent);
+
+	/*
+	* Every <xfer> has a <binds> kset that lists the various binds 
+	* that exist for this transfer. Run through that list and delete
+	* any binds whose offset lies within the offset/extent range of the
+	* delete specification.
+	*/
+	if (!list_empty(&parent->kset.list)) {
+		list_for_each_safe(entry,safety,&parent->kset.list) {
+			bind = to_vfi_bind(to_kobj(entry));
+			if ( (bind->desc.xfer.offset >= desc->offset) &&
+				 (!desc->extent || (bind->desc.xfer.offset <= desc->offset + desc->extent))) {
+				vfi_bind_delete (parent, &bind->desc.xfer);
+			} else {
+				continue;
+			}
+		}
+	} else {
+		VFI_DEBUG (MY_DEBUG, "%s:%d\n", __func__, __LINE__);
 	}
 }
 
@@ -1338,10 +1432,12 @@ struct vfi_ops vfi_local_ops = {
 	.smb_delete      = vfi_local_smb_delete,
 	.smb_find        = vfi_local_smb_find,
 	.smb_put         = vfi_local_smb_put,
+	.smb_lose        = vfi_local_smb_lose,
 	.xfer_create     = vfi_local_xfer_create,
 	.xfer_delete     = vfi_local_xfer_delete,
 	.xfer_find       = vfi_local_xfer_find,
 	.xfer_put        = vfi_local_xfer_put,
+	.xfer_lose       = vfi_local_xfer_lose,
 	.sync_create     = vfi_local_sync_create,
 	.sync_delete     = vfi_local_sync_delete,
 	.sync_find       = vfi_local_sync_find,
@@ -1365,6 +1461,7 @@ struct vfi_ops vfi_local_ops = {
 	.bind_find       = vfi_local_bind_find,
 	.bind_create     = vfi_local_bind_create,
 	.bind_delete     = vfi_local_bind_delete, 
+	.bind_lose       = vfi_local_bind_lose, 
 	.src_done        = vfi_local_src_done,
 	.dst_done        = vfi_local_dst_done,
 	.done            = vfi_local_done,

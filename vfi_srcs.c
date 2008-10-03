@@ -15,7 +15,6 @@
 
 #include <linux/vfi_srcs.h>
 #include <linux/vfi_dst.h>
-#include <linux/vfi_smb.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 
@@ -33,7 +32,6 @@ static void vfi_srcs_release(struct kobject *kobj)
 {
     struct vfi_srcs *p = to_vfi_srcs(kobj);
     VFI_DEBUG(MY_LIFE_DEBUG,"XXX %s %p (refc %lx)\n", __FUNCTION__, p, (unsigned long)kobj->kref.refcount.counter);
-    vfi_smb_put(p->smb);
     kfree(p);
 }
 
@@ -141,8 +139,6 @@ int new_vfi_srcs(struct vfi_srcs **srcs, struct vfi_bind_param *desc, struct vfi
 		vfi_srcs_put(new);
 		*srcs = NULL;
 	}
-	else
-		vfi_dst_put(parent);
 
 	parent->srcs = *srcs;
 

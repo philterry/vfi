@@ -14,12 +14,10 @@
 
 #include <linux/vfi.h>
 #include <linux/vfi_dst.h>
-#include <linux/vfi_smb.h>
 
 struct vfi_srcs {
 	struct kset kset;
 	struct list_head dma_chain;
-	struct vfi_smb *smb;
 };
 
 static inline struct vfi_srcs *to_vfi_srcs(struct kobject *kobj)
