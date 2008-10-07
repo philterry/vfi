@@ -197,32 +197,33 @@ int vfi_fabric_call(struct sk_buff **retskb, struct vfi_location *loc, int to, c
 			
 			vfi_address_register(loc);
 
+			init_waitqueue_head(&cb->wq);
+
 			if ((ret = vfi_fabric_tx(loc->desc.address, skb))) {
 				kfree(cb);
 				VFI_DEBUG (MY_DEBUG, "xx\t%s: failed to transmit command over fabric!\n", __func__);
 				return VFI_RESULT(ret);
 			}
 				
-		
-			init_waitqueue_head(&cb->wq);
-
 			/* Jimmy hack!  Increased timeout value 20x for all
 			 * ops other than finds 
 			 */
 			if (strstr(f,"_find:") == NULL)
 				to *= 20;
 
-			if (wait_event_interruptible_timeout(cb->wq, (cb->rply_skb != NULL), to*HZ) == 0) {
-				kfree(cb);
+			wait_event_interruptible_timeout(cb->wq, (cb->rply_skb != NULL), to*HZ); 
+			skb = cb->rply_skb;
+			kfree(cb);
+
+			if (skb) {
+				VFI_DEBUG (MY_DEBUG, "--\t%s: reply [ %s ]\n",__FUNCTION__, skb->data);
+				*retskb = skb;
+				return VFI_RESULT(0);
+			}
+			else {
 				VFI_DEBUG (MY_DEBUG, "xx\t%s: TIMEOUT waiting for response!\n", __func__);
 				return VFI_RESULT(-EIO);
 			}
-
-			skb = cb->rply_skb;
-			VFI_DEBUG (MY_DEBUG, "--\t%s: reply [ %s ]\n",__FUNCTION__, skb->data);
-			kfree(cb);
-			*retskb = skb;
-			return VFI_RESULT(0);
 		}
 		else {
 			VFI_DEBUG (MY_DEBUG, "xx\t%s: no reply\n", __func__);
