@@ -408,13 +408,14 @@ static int vfi_fabric_sync_find(struct vfi_sync **sync, struct vfi_location *loc
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
 				reply.extent = 0;
 				reply.offset = 0;
-				ret =  vfi_sync_create(sync,loc,&reply);
-				/*
-				 * Don't forget that this is a find function so the caller assumes a "get"
-				 * is performed on the searched object. If the object has just been created
-				 * do an artificial get
-				 */
-				vfi_sync_get(*sync);
+				ret = vfi_sync_create(sync,loc,&reply);
+				if (ret == -EEXIST) {
+					if ( (*sync = to_vfi_sync(kset_find_obj(&loc->syncs->kset,desc->name))) ) {
+						if ((*sync)->desc.ops && (*sync)->desc.ops->sync_put) 
+							(*sync)->desc.ops->sync_put(*sync,desc);
+						ret = 0;
+					}
+				}
 			}
 			vfi_clean_desc(&reply);
 		}
