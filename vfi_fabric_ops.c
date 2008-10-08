@@ -103,17 +103,34 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 				}
 
 				ret = vfi_location_create(&myloc,loc,desc);
-				if (ret)
-					return VFI_RESULT(ret);
-				if (loc && loc->desc.address)
+				if (ret) { 
+					if (ret != -EEXIST)
+						return VFI_RESULT(ret);
+
+					ret = find_vfi_name(&myloc,loc,desc);
+					if (ret)
+						return VFI_RESULT(ret);
+
+					if (myloc && myloc->desc.ops && myloc->desc.ops->location_put)
+						loc->desc.ops->location_put(myloc,desc);
+
+					ret = new_vfi_smbs(&myloc->smbs,"smbs",myloc);
+					if (ret == 0 || ret == -EEXIST) {
+						ret = new_vfi_xfers(&myloc->xfers,"xfers",myloc);
+						if (ret == 0 || ret == -EEXIST) {
+							ret = new_vfi_syncs(&myloc->syncs,"syncs",myloc);
+						}
+					}
+
+					if (ret && ret != -EEXIST) {
+						vfi_location_put(myloc);
+						return VFI_RESULT(ret);
+					}
+				}
+				else if (loc && loc->desc.address)
 					loc->desc.address->ops->register_location(myloc);
+
 				*newloc = myloc;
-				/*
-				 * Don't forget that this is a find function so the caller assumes a "get"
-				 * is performed on the searched object. If the object has just been created
-				 * do an artificial get
-				 */
-				vfi_location_get(myloc);
 				return VFI_RESULT(0);
 			}
 			vfi_clean_desc(&reply);

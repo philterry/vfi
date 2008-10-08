@@ -215,25 +215,24 @@ int new_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, str
 	new->kset.kobj.ktype = &vfi_location_type;
 	new->kset.kobj.kset = parent;
 	ret = kset_register(&new->kset);
-
 	if (ret)
 		goto out;
 
-	ret= new_vfi_smbs(&new->smbs,"smbs",new);
-	if (ret)
+	ret = new_vfi_smbs(&new->smbs,"smbs",new);
+	if (ret && ret != -EEXIST)
 		goto fail_smbs;
 
 	ret = new_vfi_xfers(&new->xfers,"xfers",new);
-	if (ret)
+	if (ret && ret != -EEXIST)
 		goto fail_xfers;
 
 	ret = new_vfi_syncs(&new->syncs,"syncs",new);
-	if (ret)
+	if (ret && ret != -EEXIST)
 		goto fail_syncs;
 
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,*newloc);
-	return VFI_RESULT(ret);
+	return VFI_RESULT(0);
 
 fail_syncs:
 	vfi_xfers_put(new->xfers);
