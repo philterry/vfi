@@ -204,6 +204,13 @@ static int vfi_fabric_smb_find(struct vfi_smb **smb, struct vfi_location *parent
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
 				ret = vfi_smb_create(smb,parent,&reply);
+				if (ret == -EEXIST) {
+					if ( (*smb = to_vfi_smb(kset_find_obj(&parent->smbs->kset,desc->name))) ) {
+						if ((*smb)->desc.ops && (*smb)->desc.ops->smb_put) 
+							(*smb)->desc.ops->smb_put(*smb,desc);
+						ret = 0;
+					}
+				}
 			}
 			vfi_clean_desc(&reply);
 		}
