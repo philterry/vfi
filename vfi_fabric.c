@@ -342,11 +342,12 @@ struct vfi_fabric_address *vfi_fabric_find(const char *name)
 struct vfi_fabric_address *vfi_fabric_get(struct vfi_fabric_address *addr)
 {
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s entered addr=%p\n",__FUNCTION__,addr);
-	if (addr)
-		if (try_module_get(addr->owner)) {
-			addr->ops->get(addr);
-			return addr;
-		}
+	if (addr && addr->owner)
+		if (try_module_get(addr->owner))
+			if (addr->ops && addr->ops->get) {
+				addr->ops->get(addr);
+				return addr;
+			}
 	return NULL;
 }
 
