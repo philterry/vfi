@@ -154,6 +154,7 @@ int new_vfi_dst(struct vfi_dst **dst, struct vfi_bind *parent, struct vfi_bind_p
 		return VFI_RESULT(-ENOMEM);
 
 	vfi_clone_bind(&new->desc, desc);
+	new->desc.dst.extent = new->desc.src.extent;
 
 	new->bind = parent;
 
@@ -162,11 +163,10 @@ int new_vfi_dst(struct vfi_dst **dst, struct vfi_bind *parent, struct vfi_bind_p
 	new->kobj.kset = &parent->dsts->kset;
 
 	ret = kobject_init_and_add(&new->kobj, &vfi_dst_type, NULL,
-				   "%s.%s#%llx:%x",
+				   "%s.%s#%llx",
 				   new->desc.dst.name,
 				   new->desc.dst.location,
-				   new->desc.dst.offset,
-				   new->desc.dst.extent);
+				   new->desc.dst.offset);
 	if (ret) {
 		kobject_put(&new->kobj);
 		*dst = NULL;
