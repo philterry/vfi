@@ -74,7 +74,7 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 			if (ret != -ENOMEM)
 				vfi_address_unregister(uniqueloc);
 		}
-		vfi_location_delete(uniqueloc);
+		vfi_location_put(uniqueloc);
 	}
 	if (ret)
 		return VFI_RESULT(ret);
