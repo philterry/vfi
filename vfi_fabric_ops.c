@@ -124,11 +124,11 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 					if (myloc->desc.ops && myloc->desc.ops->location_lose)
 						myloc->desc.ops->location_lose(myloc,desc);
 
-					ret = new_vfi_smbs(&myloc->smbs,"smbs",myloc);
+					ret = myloc->smbs ? 0 : new_vfi_smbs(&myloc->smbs,"smbs",myloc);
 					if (ret == 0 || ret == -EEXIST) {
-						ret = new_vfi_xfers(&myloc->xfers,"xfers",myloc);
+						ret = myloc->xfers ? 0 : new_vfi_xfers(&myloc->xfers,"xfers",myloc);
 						if (ret == 0 || ret == -EEXIST) {
-							ret = new_vfi_syncs(&myloc->syncs,"syncs",myloc);
+							ret = myloc->syncs ? 0 : new_vfi_syncs(&myloc->syncs,"syncs",myloc);
 						}
 					}
 
