@@ -494,7 +494,7 @@ static int vfi_fabric_sync_send(struct vfi_sync *sync, struct vfi_desc_param *de
 	struct sk_buff  *skb;
 	int ret;
 
-	ret = vfi_fabric_call(&skb, sync->desc.ploc, 5, "sync_send://%s.%s#%lld",
+	ret = vfi_fabric_call(&skb, sync->desc.ploc, 5, "sync_send://%s.%s#%llx",
 			      sync->desc.name,sync->desc.location, desc->offset
 				);
 	/*
@@ -521,7 +521,7 @@ static int vfi_fabric_sync_wait(struct vfi_sync *sync, struct vfi_desc_param *de
 	struct sk_buff  *skb;
 	int ret;
 
-	ret = vfi_fabric_call(&skb, sync->desc.ploc, 5, "sync_wait://%s.%s#%lld",
+	ret = vfi_fabric_call(&skb, sync->desc.ploc, 5, "sync_wait://%s.%s#%llx",
 			      sync->desc.name,sync->desc.location,desc->offset
 				);
 	/*
