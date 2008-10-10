@@ -209,7 +209,8 @@ int new_vfi_location(struct vfi_location **newloc, struct vfi_location *loc, str
 	}
 
 	if (!new->desc.ploc)
-		new->desc.ploc = vfi_location_get(loc);
+		if (loc)
+			new->desc.ploc = vfi_location_get(loc);
 
 	kobject_set_name(&new->kset.kobj,"%s", new->desc.name);
 	new->kset.kobj.ktype = &vfi_location_type;
@@ -405,6 +406,6 @@ void vfi_location_delete(struct vfi_location *loc)
 		vfi_xfers_put(loc->xfers);
 		vfi_syncs_put(loc->syncs);
 		vfi_address_unregister(loc);
+		vfi_location_put(loc);
 	}
-	vfi_location_put(loc);
 }

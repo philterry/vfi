@@ -129,17 +129,22 @@ int vfi_address_register(struct vfi_location *loc)
 	int ret = -EINVAL;
 	VFI_DEBUG(MY_DEBUG,"%s entered for \"%s.%s\"\n",__FUNCTION__, loc->desc.name, loc->desc.location);
 
-	if (loc && loc->desc.address && loc->desc.address->ops &&
-	    loc->desc.address->ops->register_location)
-		ret = loc->desc.address->ops->register_location(loc);
+	if (loc && loc->desc.address && loc->desc.address->ops) {
+		if (loc->desc.address->ops->register_location)
+			ret = loc->desc.address->ops->register_location(loc);
+		else VFI_DEBUG (MY_ERROR, "\t%s: ops->register_location is null\n",__FUNCTION__);
+	}
 	return VFI_RESULT(ret);
 }
 
 void vfi_address_unregister(struct vfi_location *loc)
 {
 	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
-	if (loc && loc->desc.address && loc->desc.address->ops)
-		loc->desc.address->ops->unregister_location(loc);
+	if (loc && loc->desc.address && loc->desc.address->ops) {
+		if (loc->desc.address->ops->unregister_location)
+			loc->desc.address->ops->unregister_location(loc);
+		else VFI_DEBUG (MY_ERROR, "\t%s: ops->unregister_location is null\n",__FUNCTION__);
+	}
 }
 
 int vfi_doorbell_register(struct vfi_fabric_address *address, void (*callback)(void *), void *var)

@@ -59,12 +59,22 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 		ret = vfi_fabric_call(&skb, loc, 5, "location_find://%s.%s", desc->name,desc->location);
 	}
 	else {
-		ret = new_vfi_location(&myloc,NULL,desc);
-		if (ret)
-			return VFI_RESULT(ret);
-		ret = vfi_fabric_call(&skb, myloc, 5, "location_find://%s", desc->name);
-		vfi_address_unregister(myloc);
-		vfi_location_delete(myloc);
+	        struct vfi_location *uniqueloc = kzalloc(sizeof(struct vfi_location), GFP_KERNEL);
+        	if (NULL == uniqueloc)
+                	return VFI_RESULT(-ENOMEM);
+
+		vfi_clone_desc(&uniqueloc->desc,desc);
+		uniqueloc->desc.ops = &vfi_fabric_ops;
+	        kobject_set_name(&uniqueloc->kset.kobj,"%p", &uniqueloc);
+		uniqueloc->kset.kobj.ktype = &vfi_location_type;
+		uniqueloc->kset.kobj.kset = &vfi_subsys->kset;
+		ret = kset_register(&uniqueloc->kset);
+		if (!ret) { 
+			ret = vfi_fabric_call(&skb, uniqueloc, 5, "location_find://%s", desc->name);
+			if (ret != -ENOMEM)
+				vfi_address_unregister(uniqueloc);
+		}
+		vfi_location_delete(uniqueloc);
 	}
 	if (ret)
 		return VFI_RESULT(ret);
@@ -111,7 +121,7 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 					if (ret)
 						return VFI_RESULT(ret);
 
-					if (myloc && myloc->desc.ops && myloc->desc.ops->location_put)
+					if (myloc->desc.ops && myloc->desc.ops->location_put)
 						myloc->desc.ops->location_put(myloc,desc);
 
 					ret = new_vfi_smbs(&myloc->smbs,"smbs",myloc);
@@ -144,7 +154,6 @@ static void vfi_fabric_location_put(struct vfi_location *loc, struct vfi_desc_pa
 {
 	struct sk_buff  *skb;
 	struct vfi_location *oldloc;
-	struct vfi_location *myloc = NULL;
 	int ret;
 
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
@@ -158,14 +167,25 @@ static void vfi_fabric_location_put(struct vfi_location *loc, struct vfi_desc_pa
 		ret = vfi_fabric_call(&skb, loc, 5, "location_put://%s.%s", desc->name,desc->location);
 	}
 	else {
-		ret = new_vfi_location(&myloc,NULL,desc);
-		if (ret)
-			goto out;
-		ret = vfi_fabric_call(&skb,myloc, 5, "location_put://%s", desc->name);
-		vfi_location_put(myloc);
-		if (ret)
-			goto out;
+	        struct vfi_location *uniqueloc = kzalloc(sizeof(struct vfi_location), GFP_KERNEL);
+        	if (NULL == uniqueloc)
+                	goto out;
+
+		vfi_clone_desc(&uniqueloc->desc,desc);
+		uniqueloc->desc.ops = &vfi_fabric_ops;
+	        kobject_set_name(&uniqueloc->kset.kobj,"%p", &uniqueloc);
+		uniqueloc->kset.kobj.ktype = &vfi_location_type;
+		uniqueloc->kset.kobj.kset = &vfi_subsys->kset;
+		ret = kset_register(&uniqueloc->kset);
+		if (!ret) {
+			ret = vfi_fabric_call(&skb,uniqueloc, 5, "location_put://%s", desc->name);
+			if (ret != -ENOMEM)
+				vfi_address_unregister(uniqueloc);
+		}
+		vfi_location_put(uniqueloc);
 	}
+	if (ret)
+		goto out;
 	
 	VFI_DEBUG(MY_DEBUG,"%s skb(%p)\n",__FUNCTION__,skb);
 
