@@ -219,6 +219,7 @@ int vfi_fabric_call(struct sk_buff **retskb, struct vfi_location *loc, int to, c
 
 			wait_event_interruptible_timeout(cb->wq, (cb->rply_skb != NULL), to*HZ); 
 			skb = cb->rply_skb;
+			cb->check = NULL;
 			kfree(cb);
 
 			if (skb) {
