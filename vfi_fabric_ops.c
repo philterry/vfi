@@ -64,7 +64,7 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
                 	return VFI_RESULT(-ENOMEM);
 
 		vfi_clone_desc(&uniqueloc->desc,desc);
-		uniqueloc->desc.ops = &vfi_fabric_ops;
+		uniqueloc->desc.ops = &vfi_local_ops;
 	        kobject_set_name(&uniqueloc->kset.kobj,"%p", &uniqueloc);
 		uniqueloc->kset.kobj.ktype = &vfi_location_type;
 		uniqueloc->kset.kobj.kset = &vfi_subsys->kset;
@@ -121,8 +121,8 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 					if (ret)
 						return VFI_RESULT(ret);
 
-					if (myloc->desc.ops && myloc->desc.ops->location_put)
-						myloc->desc.ops->location_put(myloc,desc);
+					if (myloc->desc.ops && myloc->desc.ops->location_lose)
+						myloc->desc.ops->location_lose(myloc,desc);
 
 					ret = new_vfi_smbs(&myloc->smbs,"smbs",myloc);
 					if (ret == 0 || ret == -EEXIST) {
@@ -152,40 +152,44 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 
 static void vfi_fabric_location_put(struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	struct sk_buff  *skb;
-	struct vfi_location *oldloc;
+	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
+	vfi_location_put(loc);
+}
+
+static void vfi_fabric_location_lose(struct vfi_location *loc, struct vfi_desc_param *desc)
+{
+	struct sk_buff *skb = (struct sk_buff *) NULL;
+	struct vfi_location *uniqueloc;
 	int ret;
 
 	VFI_DEBUG(MY_DEBUG,"%s\n",__FUNCTION__);
 
-	ret = find_vfi_name(&oldloc,loc,desc);
-
-	if (ret || !oldloc)
+	if (!loc) {
+		VFI_DEBUG(MY_ERROR,"\t%s called with null location\n",__FUNCTION__);
 		return;
+	}
 
-	if (loc) {
+	uniqueloc = kzalloc(sizeof(struct vfi_location), GFP_KERNEL);
+        if (NULL == uniqueloc) {
+		VFI_DEBUG(MY_ERROR,"\t%s failed to allocate unique temporary local location\n",__FUNCTION__);
+               	return;
+	}
+
+	vfi_clone_desc(&uniqueloc->desc,desc);
+	uniqueloc->desc.ops = &vfi_local_ops;
+	kobject_set_name(&uniqueloc->kset.kobj,"%p", &uniqueloc);
+	uniqueloc->kset.kobj.ktype = &vfi_location_type;
+	uniqueloc->kset.kobj.kset = &vfi_subsys->kset;
+	ret = kset_register(&uniqueloc->kset);
+	if (!ret) {
 		ret = vfi_fabric_call(&skb, loc, 5, "location_put://%s.%s", desc->name,desc->location);
+		if (ret != -ENOMEM)
+			vfi_address_unregister(uniqueloc);
+		if (ret)
+			VFI_DEBUG(MY_ERROR,"\t%s vfi_fabric_call ret(%d)\n",__FUNCTION__,ret);
 	}
-	else {
-	        struct vfi_location *uniqueloc = kzalloc(sizeof(struct vfi_location), GFP_KERNEL);
-        	if (NULL == uniqueloc)
-                	goto out;
-
-		vfi_clone_desc(&uniqueloc->desc,desc);
-		uniqueloc->desc.ops = &vfi_fabric_ops;
-	        kobject_set_name(&uniqueloc->kset.kobj,"%p", &uniqueloc);
-		uniqueloc->kset.kobj.ktype = &vfi_location_type;
-		uniqueloc->kset.kobj.kset = &vfi_subsys->kset;
-		ret = kset_register(&uniqueloc->kset);
-		if (!ret) {
-			ret = vfi_fabric_call(&skb,uniqueloc, 5, "location_put://%s", desc->name);
-			if (ret != -ENOMEM)
-				vfi_address_unregister(uniqueloc);
-		}
-		vfi_location_put(uniqueloc);
-	}
-	if (ret)
-		goto out;
+	else VFI_DEBUG(MY_ERROR,"\t%s failed to register unique temporary local location ret(%d)\n",__FUNCTION__,ret);
+	vfi_location_put(uniqueloc);
 	
 	VFI_DEBUG(MY_DEBUG,"%s skb(%p)\n",__FUNCTION__,skb);
 
@@ -194,16 +198,12 @@ static void vfi_fabric_location_put(struct vfi_location *loc, struct vfi_desc_pa
 
 		if (!vfi_parse_desc(&reply,skb->data)) {
 			dev_kfree_skb(skb);
-			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0 ) {
-				vfi_location_put(oldloc);
+			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) != 1) || ret) {
+				VFI_DEBUG(MY_ERROR,"\t%s location_put result(%d)\n",__FUNCTION__,ret);
 			}
 			vfi_clean_desc(&reply);
 		}
 	}
-out:
-	vfi_location_put(oldloc);
-	
-	return;
 }
 
 static int vfi_fabric_smb_find(struct vfi_smb **smb, struct vfi_location *parent, struct vfi_desc_param *desc)
@@ -1779,6 +1779,7 @@ struct vfi_ops vfi_fabric_ops = {
 	.location_delete = vfi_fabric_location_delete,
 	.location_find   = vfi_fabric_location_find,
 	.location_put    = vfi_fabric_location_put,
+	.location_lose   = vfi_fabric_location_lose,
 	.smb_create      = vfi_fabric_smb_create,
 	.smb_delete      = vfi_fabric_smb_delete,
 	.smb_find        = vfi_fabric_smb_find,

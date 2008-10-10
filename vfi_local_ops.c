@@ -55,6 +55,11 @@ static void vfi_local_location_put(struct vfi_location *loc, struct vfi_desc_par
 	}
 }
 
+static void vfi_local_location_lose(struct vfi_location *loc, struct vfi_desc_param *desc)
+{
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %s\n",__FUNCTION__,loc,desc,desc->name);
+}
+
 static int vfi_local_smb_find(struct vfi_smb **smb, struct vfi_location *parent, struct vfi_desc_param *desc)
 {
 	*smb = to_vfi_smb(kset_find_obj(&parent->smbs->kset,desc->name));
@@ -1428,6 +1433,7 @@ struct vfi_ops vfi_local_ops = {
 	.location_delete = vfi_local_location_delete,
 	.location_find   = vfi_local_location_find,
 	.location_put    = vfi_local_location_put,
+	.location_lose	 = vfi_local_location_lose,
 	.smb_create      = vfi_local_smb_create,
 	.smb_delete      = vfi_local_smb_delete,
 	.smb_find        = vfi_local_smb_find,

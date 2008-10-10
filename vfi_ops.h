@@ -30,7 +30,7 @@ struct vfi_ops {
 	int  (*location_find)  (struct vfi_location **, struct vfi_location *, struct vfi_desc_param *);
 	void (*location_delete)(struct vfi_location *,  struct vfi_desc_param *);
 	void (*location_put)   (struct vfi_location *,  struct vfi_desc_param *);
-
+	void (*location_lose)  (struct vfi_location *,  struct vfi_desc_param *);
 
 	int  (*smb_create)(struct vfi_smb **,     struct vfi_location *, struct vfi_desc_param *);
 	int  (*smb_find)  (struct vfi_smb **,     struct vfi_location *, struct vfi_desc_param *);
