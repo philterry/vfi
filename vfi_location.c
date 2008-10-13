@@ -32,6 +32,8 @@ static void vfi_location_release(struct kobject *kobj)
 {
 	struct vfi_location *p = to_vfi_location(kobj);
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
+	if (p->desc.ops && p->desc.ops->location_lose)
+		p->desc.ops->location_lose(p,&p->desc);
 	vfi_clean_desc(&p->desc);
 	kfree(p);
 }

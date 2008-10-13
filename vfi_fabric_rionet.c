@@ -386,6 +386,7 @@ static int fabric_register(struct vfi_location *loc)
 {
 	struct fabric_address *old = to_fabric_address(loc->desc.address);
 	struct fabric_address *fna;
+	struct vfi_location *old_loc;
 	char *ndev_name;
 	struct net_device *ndev = NULL;
 
@@ -408,9 +409,9 @@ static int fabric_register(struct vfi_location *loc)
 	if (old) {
 		fna->rio_id = old->rio_id;
 	}
+	old_loc = fna->reg_loc;
 	fna->reg_loc = vfi_location_get(loc);
-
-	vfi_location_put(old->reg_loc);
+	vfi_location_put(old_loc);
 	_fabric_put(old);
 
 	return 0;

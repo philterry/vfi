@@ -182,7 +182,7 @@ static void vfi_fabric_location_lose(struct vfi_location *loc, struct vfi_desc_p
 	uniqueloc->kset.kobj.kset = &vfi_subsys->kset;
 	ret = kset_register(&uniqueloc->kset);
 	if (!ret) {
-		ret = vfi_fabric_call(&skb, loc, 5, "location_put://%s.%s", desc->name,desc->location);
+		ret = vfi_fabric_call(&skb, uniqueloc, 5, "location_put://%s.%s", desc->name,desc->location);
 		if (ret != -ENOMEM)
 			vfi_address_unregister(uniqueloc);
 		if (ret)
