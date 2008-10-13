@@ -403,6 +403,12 @@ static int vfi_fabric_sync_find(struct vfi_sync **sync, struct vfi_location *loc
 	VFI_DEBUG (MY_DEBUG, "%s (%s)\n", __func__, ((desc) ? ((desc->name) ? : "<UNK>") : "<NULL>"));
 
 	/*
+ 	* Make sure there are some existing syncs in the local tree.
+ 	*/
+	if (!loc->syncs)
+		return VFI_RESULT(-EINVAL);
+
+	/*
 	* Look for an existing stub for the target sync in the local tree.
 	* 
 	*/
