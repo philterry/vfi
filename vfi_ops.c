@@ -1140,8 +1140,11 @@ static int sync_put(const char *desc, char *result, int *size)
 	ret = -ENODEV;
 
 	if ( !(ret = find_vfi_sync(&sync,&params)) ) {
-		if (sync && sync->desc.ops && sync->desc.ops->sync_put)
+		ret = -EINVAL;
+		if (sync && sync->desc.ops && sync->desc.ops->sync_put) {
 			sync->desc.ops->sync_put(sync,&params);
+			ret = 0;
+		}
 	}
 
 	vfi_sync_put(sync);
