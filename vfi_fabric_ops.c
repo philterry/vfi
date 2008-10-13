@@ -397,10 +397,12 @@ static void vfi_fabric_xfer_lose(struct vfi_xfer *xfer, struct vfi_desc_param *d
 **/
 static int vfi_fabric_sync_find(struct vfi_sync **sync, struct vfi_location *loc, struct vfi_desc_param *desc)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff  *skb;
 	int ret;
 
 	VFI_DEBUG (MY_DEBUG, "%s (%s)\n", __func__, ((desc) ? ((desc->name) ? : "<UNK>") : "<NULL>"));
+
+	*sync = NULL;
 
 	/*
  	* Make sure there are some existing syncs in the local tree.
