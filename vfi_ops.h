@@ -50,6 +50,7 @@ struct vfi_ops {
 	void (*sync_put)   (struct vfi_sync *,     struct vfi_desc_param *);
 	int  (*sync_send)  (struct vfi_sync *,     struct vfi_desc_param *);
 	int  (*sync_wait)  (struct vfi_sync *,     struct vfi_desc_param *);
+	int  (*sync_lose)  (struct vfi_sync *,     struct vfi_desc_param *);
 
 	int  (*mmap_create)(struct vfi_mmap **,  struct vfi_smb *,      struct vfi_desc_param *);
 	int  (*mmap_find)  (struct vfi_mmap **,  struct vfi_smb *,      struct vfi_desc_param *);

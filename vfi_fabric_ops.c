@@ -444,8 +444,8 @@ static int vfi_fabric_sync_find(struct vfi_sync **sync, struct vfi_location *loc
 				ret = vfi_sync_create(sync,loc,&reply);
 				if (ret == -EEXIST) {
 					if ( (*sync = to_vfi_sync(kset_find_obj(&loc->syncs->kset,desc->name))) ) {
-						if ((*sync)->desc.ops && (*sync)->desc.ops->sync_put) 
-							(*sync)->desc.ops->sync_put(*sync,desc);
+						if ((*sync)->desc.ops && (*sync)->desc.ops->sync_lose) 
+							(*sync)->desc.ops->sync_lose(*sync,desc);
 						ret = 0;
 					}
 				}
@@ -547,6 +547,41 @@ static int vfi_fabric_sync_wait(struct vfi_sync *sync, struct vfi_desc_param *de
 	}
 
 	return VFI_RESULT(ret);
+}
+
+/**
+* vfi_fabric_sync_lose - just send a put to the remote location
+* @loc	: location where sync officially resides
+* @desc	: target sync parameter descriptor
+*
+* This function send a put on a vfi_sync object for the sync described by @desc, which officially resides
+* at a remote fabric location defined by @loc.
+*
+* The function returns a pointer to the vfi_sync object that represents the target sync in the
+* local tree. It will return NULL if no such sync exists at the remote site.
+*
+**/
+static void vfi_fabric_sync_lose(struct vfi_sync *sync, struct vfi_desc_param *desc)
+{
+	struct sk_buff  *skb;
+	int ret;
+
+	VFI_DEBUG (MY_DEBUG, "%s %p %p\n", __func__, sync, desc);
+
+	ret = vfi_fabric_call(&skb, sync->desc.ploc, 5, "sync_put://%s.%s",
+				desc->name,desc->location
+				);
+	if (skb) {
+		struct vfi_desc_param reply;
+		ret = -EINVAL;
+		if (!vfi_parse_desc(&reply,skb->data)) {
+			dev_kfree_skb(skb);
+			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
+				ret = 0;
+			}
+			vfi_clean_desc(&reply);
+		}
+	}
 }
 
 /**
@@ -1806,6 +1841,7 @@ struct vfi_ops vfi_fabric_ops = {
 	.sync_put        = vfi_fabric_sync_put,
 	.sync_wait       = vfi_fabric_sync_wait,
 	.sync_send       = vfi_fabric_sync_send,
+	.sync_lose       = vfi_fabric_sync_lose,
 	.srcs_create     = vfi_fabric_srcs_create,
 	.srcs_delete     = vfi_fabric_srcs_delete,
 	.src_create      = vfi_fabric_src_create,
