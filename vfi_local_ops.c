@@ -160,6 +160,11 @@ static void vfi_local_sync_put(struct vfi_sync *sync, struct vfi_desc_param *des
 	vfi_sync_put(sync);
 }
 
+static void vfi_local_sync_lose(struct vfi_sync *sync, struct vfi_desc_param *desc)
+{
+	VFI_DEBUG(MY_DEBUG,"%s %p %p %s\n",__FUNCTION__,sync,desc,desc->name);
+}
+
 static int vfi_local_mmap_find(struct vfi_mmap **mmap, struct vfi_smb *parent, struct vfi_desc_param *desc)
 {
 	char buf[512];
@@ -1448,6 +1453,7 @@ struct vfi_ops vfi_local_ops = {
 	.sync_delete     = vfi_local_sync_delete,
 	.sync_find       = vfi_local_sync_find,
 	.sync_put        = vfi_local_sync_put,
+	.sync_lose       = vfi_local_sync_lose,
 	.sync_send       = vfi_local_sync_send,
 	.sync_wait       = vfi_local_sync_wait,
 	.mmap_create     = vfi_local_mmap_create,
