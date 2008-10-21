@@ -67,6 +67,7 @@ static ssize_t vfi_read(struct file *filep, char __user *buf, size_t count, loff
 	int mycount = 0;
 	struct privdata *priv = (struct privdata *)filep->private_data;
 	int left;
+	int copied;
 
 	if (down_interruptible(&priv->sem))
 		return -ERESTARTSYS;
@@ -90,10 +91,15 @@ static ssize_t vfi_read(struct file *filep, char __user *buf, size_t count, loff
 			priv->offset = 0;
 		}
 		left = priv->size - priv->offset;
-		if ( (ret = copy_to_user(buf, priv->mybuf->reply+priv->offset, left)) ) {
-			priv->offset += left - ret;
-			mycount += left - ret;
+		copied = count < left ? count : left ;
+		if ( (ret = copy_to_user(buf, priv->mybuf->reply+priv->offset, copied)) ) {
+			priv->offset += copied - ret;
+			mycount += copied - ret;
 			goto out;
+		}
+		else if (count < left){
+			mycount += copied;
+			priv->offset += copied;
 		}
 		else {
 			mycount += left;
