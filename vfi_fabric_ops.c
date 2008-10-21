@@ -475,26 +475,8 @@ static int vfi_fabric_sync_find(struct vfi_sync **sync, struct vfi_location *loc
 **/
 static void vfi_fabric_sync_put(struct vfi_sync *sync, struct vfi_desc_param *desc)
 {
-	struct sk_buff  *skb;
-	int ret;
-
 	VFI_DEBUG (MY_DEBUG, "%s %p %p\n", __func__, sync, desc);
-
-	ret = vfi_fabric_call(&skb, sync->desc.ploc, 5, "sync_put://%s.%s",
-				desc->name,desc->location
-				);
-	if (skb) {
-		struct vfi_desc_param reply;
-		ret = -EINVAL;
-		if (!vfi_parse_desc(&reply,skb->data)) {
-			dev_kfree_skb(skb);
-			if ( (sscanf(vfi_get_option(&reply,"result"),"%d",&ret) == 1) && ret == 0) {
-				ret = 0;
-				vfi_sync_put(sync);
-			}
-			vfi_clean_desc(&reply);
-		}
-	}
+	vfi_sync_put(sync);
 }
 
 static int vfi_fabric_sync_send(struct vfi_sync *sync, struct vfi_desc_param *desc)

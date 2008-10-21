@@ -99,6 +99,7 @@ static ssize_t vfi_subsys_debug_show(struct vfi_subsys *vfi_subsys, char *buffer
 	SHOW_BIT( "evnts", VFI_DBG_EVNTS);
 	SHOW_BIT( "evnt", VFI_DBG_EVNT);
 	SHOW_BIT( "funcall", VFI_DBG_FUNCALL);
+	SHOW_BIT( "dmachain", VFI_DBG_DMA_CHAIN);
 	SHOW_BIT( "life", VFI_DBG_LIFE);
 	SHOW_BIT( "error", VFI_DBG_ERROR);
 	SHOW_LEVEL();
@@ -142,6 +143,7 @@ static ssize_t vfi_subsys_debug_store(struct vfi_subsys *vfi_subsys, const char 
 		STORE_BIT( "evnts", VFI_DBG_EVNTS);
 		STORE_BIT( "evnt", VFI_DBG_EVNT);
 		STORE_BIT("funcall", VFI_DBG_FUNCALL);
+		STORE_BIT("dmachain", VFI_DBG_DMA_CHAIN);
 		STORE_BIT("life", VFI_DBG_LIFE);
 		STORE_BIT("error", VFI_DBG_ERROR);
 		STORE_BIT("all", VFI_DBG_ALL);

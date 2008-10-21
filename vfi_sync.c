@@ -29,10 +29,8 @@ static void vfi_sync_release(struct kobject *kobj)
 {
 	struct vfi_sync *p = to_vfi_sync(kobj);
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,p);
-	/* If this smb is going away and it also resides on the fabric, release it there also */
-	if ( p->desc.ops == &vfi_fabric_ops ) {
+	if (p->desc.ops && p->desc.ops->sync_lose)
 		p->desc.ops->sync_lose(p, &p->desc);
-	}
 	vfi_clean_desc(&p->desc);
 	kfree(p);
 }
