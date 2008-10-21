@@ -240,13 +240,13 @@ void vfi_dst_delete (struct vfi_bind *bind, struct vfi_bind_param *desc)
 		    desc->xfer.name, desc->xfer.location,desc->xfer.offset, desc->xfer.extent, 
 		    desc->dst.name, desc->dst.location,desc->dst.offset, desc->dst.extent);
 	
-	ret = snprintf (buf, 128, "%s.%s#%llx:%x",
-			desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent);
+	ret = snprintf (buf, 128, "%s.%s#%llx",
+			desc->dst.name, desc->dst.location, desc->dst.offset);
 	if (ret >= 128) {
 		VFI_DEBUG(MY_DEBUG, "%s buffer not big enough\n",__FUNCTION__);
 		buf = krealloc(&buf,ret+1,GFP_KERNEL);
-		snprintf (buf, ret, "%s.%s#%llx:%x",
-			  desc->dst.name, desc->dst.location, desc->dst.offset, desc->dst.extent);
+		snprintf (buf, ret, "%s.%s#%llx",
+				  desc->dst.name,desc->dst.location,desc->dst.offset);
 	}
 	
 	dst = to_vfi_dst (kset_find_obj (&bind->dsts->kset, buf));
