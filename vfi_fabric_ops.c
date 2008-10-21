@@ -646,12 +646,6 @@ static int vfi_fabric_dst_find(struct vfi_dst **dst, struct vfi_bind *parent, st
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
 				ret = vfi_dst_create(dst,parent,&reply);
-				/*
-				 * Don't forget that this is a find function so the caller assumes a "get"
-				 * is performed on the searched object. If the object has just been created
-				 * do an artificial get
-				*/
-				vfi_dst_get(*dst);
 			}
 			vfi_clean_bind(&reply);
 		}
@@ -681,12 +675,6 @@ static int vfi_fabric_src_find(struct vfi_src **src, struct vfi_dst *parent, str
 			dev_kfree_skb(skb);
 			if ( (sscanf(vfi_get_option(&reply.src,"result"),"%d",&ret) == 1) && ret == 0) {
 				ret = vfi_src_create(src,parent,&reply);
-				/*
-				 * Don't forget that this is a find function so the caller assumes a "get"
-				 * is performed on the searched object. If the object has just been created
-				 * do an artificial get
-				*/
-				vfi_src_get(*src);
 			}
 			vfi_clean_bind(&reply);
 		}
