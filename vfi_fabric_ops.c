@@ -933,6 +933,9 @@ static int vfi_fabric_dst_events(struct vfi_bind *bind, struct vfi_bind_param *d
 
 		ret = vfi_event_create(&bind->dst_done_event,event_list,&desc->dst,bind,0,event_id);
 		bind->dst_done_event_id = event_id;
+
+		vfi_events_put(event_list);
+
 		return VFI_RESULT(0);
 	}
 	return VFI_RESULT(-EINVAL);
@@ -1177,6 +1180,9 @@ static int vfi_fabric_src_events(struct vfi_dst *parent, struct vfi_bind_param *
 
 		ret = vfi_event_create(&bind->src_done_event, event_list,&desc->src,bind,0,event_id);
 		bind->src_done_event_id = event_id;
+
+		vfi_events_put(event_list);
+
 		return VFI_RESULT(0);
 	}
 	return VFI_RESULT(-EINVAL);
