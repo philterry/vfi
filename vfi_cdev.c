@@ -77,17 +77,21 @@ static loff_t vfi_llseek(struct file *filep, loff_t offset, int origin)
 	switch (origin) {
 	case 1:  
 		if (offset < 0) {
-			list_move(priv->seeklist.next,&priv->readlist);
-			offset = priv->pos += offset;
-			break;
+			if (!list_empty(&priv->seeklist)) {
+				list_move(priv->seeklist.next,&priv->readlist);
+				priv->seekbufs--;
+				offset = priv->pos += offset;
+				break;
+			}
+			else VFI_DEBUG(MY_ERROR,"%s backward seek failed\n",__FUNCTION__);
 		}
 		else if (offset == 0) { 
 			priv->pos = 0;
 			break;
 		}
+		else VFI_DEBUG(MY_ERROR,"%s forward seek requested\n",__FUNCTION__);
 
 		// fall through
-		VFI_DEBUG(MY_ERROR,"%s forward seek requested\n",__FUNCTION__);
 	default: 
 		offset = no_llseek(filep,offset,origin); 
 		break;
