@@ -11,6 +11,7 @@
 
 #define MY_DEBUG      VFI_DBG_CDEV | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_CDEV | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_CDEV | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi.h>
 
@@ -43,7 +44,10 @@ struct mybuffers {
 struct privdata {
 	struct semaphore sem;
 	wait_queue_head_t rwq;
-	struct list_head list;
+	struct list_head readlist;
+	struct list_head seeklist;
+	int seekbufs;
+	loff_t pos;
 	int open;
 	struct mybuffers *mybuf;
 	int offset;
@@ -61,6 +65,39 @@ static struct kobj_type privtype = {
 	.release = release_privdata,
 };
 
+static loff_t vfi_llseek(struct file *filep, loff_t offset, int origin)
+{
+	struct privdata *priv = (struct privdata *)filep->private_data;
+
+	if (down_interruptible(&priv->sem))
+		return -ERESTARTSYS;
+
+	VFI_DEBUG(MY_DEBUG,"%s filep(%p),offset(%lld),origin(%d)\n",__FUNCTION__,filep,offset,origin);
+
+	switch (origin) {
+	case 1:  
+		if (offset < 0) {
+			list_move(priv->seeklist.next,&priv->readlist);
+			offset = priv->pos += offset;
+			break;
+		}
+		else if (offset == 0) { 
+			priv->pos = 0;
+			break;
+		}
+
+		// fall through
+		VFI_DEBUG(MY_ERROR,"%s forward seek requested\n",__FUNCTION__);
+	default: 
+		offset = no_llseek(filep,offset,origin); 
+		break;
+	}
+
+	up(&priv->sem);
+
+	return offset;
+}
+
 static ssize_t vfi_read(struct file *filep, char __user *buf, size_t count, loff_t *offset)
 {
 	int ret;
@@ -76,42 +113,48 @@ static ssize_t vfi_read(struct file *filep, char __user *buf, size_t count, loff
 
 	while (!mycount) {
 		if (!priv->mybuf) {
-			while (list_empty(&priv->list)) {
+			while (list_empty(&priv->readlist)) {
 				up(&priv->sem);
 				if (filep->f_flags & O_NONBLOCK)
 					return -EAGAIN;
-				if (wait_event_interruptible(priv->rwq, (!list_empty(&priv->list))))
+				if (wait_event_interruptible(priv->rwq, (!list_empty(&priv->readlist))))
 					return -ERESTARTSYS;
 				if (down_interruptible(&priv->sem))
 					return -ERESTARTSYS;
 			}
-			priv->mybuf = to_mybuffers(priv->list.next);
-			list_del(priv->list.next);
+			priv->mybuf = to_mybuffers(priv->readlist.next);
+			list_del(priv->readlist.next);
 			priv->size = priv->mybuf->size;
 			priv->offset = 0;
 		}
 		left = priv->size - priv->offset;
-		copied = count < left ? count : left ;
+		copied = count < left ? count : left;
 		if ( (ret = copy_to_user(buf, priv->mybuf->reply+priv->offset, copied)) ) {
 			priv->offset += copied - ret;
 			mycount += copied - ret;
-			goto out;
 		}
-		else if (count < left){
-			mycount += copied;
+		else if (count < left) {
 			priv->offset += copied;
+			mycount += copied;
 		}
 		else {
 			mycount += left;
-			kfree(priv->mybuf->buf);
-			kfree(priv->mybuf);
+			INIT_LIST_HEAD(&priv->mybuf->list);
+			list_add(&priv->mybuf->list,&priv->seeklist);
 			priv->mybuf = 0;
+			if (priv->seekbufs > 16) {
+				struct mybuffers *freebuf = to_mybuffers(priv->seeklist.prev);
+				list_del(priv->seeklist.prev);
+				kfree(freebuf->buf);
+				kfree(freebuf);
+			}
+			else priv->seekbufs++;
 		}
 	}
-out:
+
+	priv->pos = *offset += mycount;
 	up(&priv->sem);
 
-	*offset += mycount;
 	return mycount;
 }
 
@@ -133,7 +176,7 @@ static void queue_to_read(struct privdata *priv, struct mybuffers *mybuf)
 	INIT_LIST_HEAD(&mybuf->list);
 	down(&priv->sem);
 	if (priv->open) {
-		list_add_tail(&mybuf->list,&priv->list);
+		list_add_tail(&mybuf->list,&priv->readlist);
 		up(&priv->sem);
 		wake_up_interruptible(&priv->rwq);
 		return;
@@ -253,7 +296,7 @@ static ssize_t vfi_write(struct file *filep, const char __user *buf, size_t coun
 		work->priv = priv;
 		kobject_get(&priv->kobj);
 		queue_work(work->woq,&work->work);
-		*offset += count;
+		priv->pos = *offset += count;
 		up(&priv->sem);
 	}
 	else {
@@ -500,10 +543,10 @@ static unsigned int vfi_poll(struct file *filep, struct poll_table_struct *poll_
 
 	poll_wait(filep, &priv->rwq, poll_table);
 
-	if (priv->mybuf || !list_empty(&priv->list))
+	if (priv->mybuf || !list_empty(&priv->readlist))
 		mask |= POLLIN | POLLRDNORM;
 
-	VFI_DEBUG(MY_DEBUG,"%s mybuf(%p), !list_empty(%d)\n",__FUNCTION__,priv->mybuf,!list_empty(&priv->list));
+	VFI_DEBUG(MY_DEBUG,"%s mybuf(%p), !list_empty(%d)\n",__FUNCTION__,priv->mybuf,!list_empty(&priv->readlist));
 	up(&priv->sem);
 	return mask;
 }
@@ -657,7 +700,8 @@ static int vfi_open(struct inode *inode, struct file *filep)
 
 	sema_init(&priv->sem,1);
 	init_waitqueue_head(&priv->rwq);
-	INIT_LIST_HEAD(&priv->list);
+	INIT_LIST_HEAD(&priv->readlist);
+	INIT_LIST_HEAD(&priv->seeklist);
 	kobject_init(&priv->kobj, &privtype);
 	priv->open = 1;
 	filep->private_data = priv;
@@ -673,10 +717,16 @@ static int vfi_release(struct inode *inode, struct file *filep)
 		return -ERESTARTSYS;
 
 	priv->open = 0;
-	list_for_each_safe(entry,temp,&priv->list) {
+	list_for_each_safe(entry,temp,&priv->readlist) {
 		list_del(entry);
 		kfree(to_mybuffers(entry));
 	}
+	list_for_each_safe(entry,temp,&priv->seeklist) {
+		list_del(entry);
+		kfree(to_mybuffers(entry));
+	}
+	priv->seekbufs = 0;
+	priv->pos = 0;
 	up(&priv->sem);
 	kobject_put(&priv->kobj);
 
@@ -687,6 +737,7 @@ struct file_operations vfi_file_ops = {
 	.owner = THIS_MODULE,
  	.read = vfi_read, 
 	.write = vfi_write,
+	.llseek = vfi_llseek,
 /* 	.fsync = vfi_fsync, */
 	.aio_write = vfi_aio_write,
 /* 	.aio_fsync = vfi_aio_fsync, */
