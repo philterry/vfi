@@ -10,6 +10,7 @@
  */
 #define MY_DEBUG      VFI_DBG_DMARIO | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_DMARIO | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_DMARIO | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi.h>
 #include <linux/vfi_dma.h>
@@ -41,6 +42,7 @@ extern int get_rio_id (struct vfi_fabric_address *x);
 
 struct dma_engine {
 	struct vfi_dma_engine rde;
+	struct semaphore sem;
 	struct completion dma_callback_sem;
 	struct ppc_dma_chan ppc8641_dma_chans[PPC8641_DMA_NCHANS];
 	struct task_struct *callback_thread;
@@ -491,7 +493,8 @@ static void dma_rio_queue_transfer(struct vfi_dma_descriptor *list)
 		return;
 	}
 	chan = load_balance(xfo);
-	ppcdma_queue_chain(chan, xfo);
+	if (chan) 
+		ppcdma_queue_chain(chan, xfo);
 }
 
 static struct vfi_dma_engine *dma_rio_get(struct vfi_dma_engine *rde)
@@ -907,6 +910,7 @@ static int __init dma_rio_init(void)
 
 	if ( (de = new_dma_engine()) ) {
 		rde = &de->rde;
+		sema_init(&de->sem,1);
 		de->next_channel = first_chan;
 		snprintf(rde->name, VFI_MAX_DMA_NAME_LEN, "%s", "vfi_rio_dma");
 	}
@@ -1001,9 +1005,14 @@ err_event_in:
 static struct ppc_dma_chan *load_balance(struct my_xfer_object *xfo)
 {
 	struct ppc_dma_chan *chan;
-	int avail = de->next_channel;
+	int avail;
 	int i;
 	int queue_len;
+
+	if (down_interruptible(&de->sem)) {
+		VFI_DEBUG(MY_ERROR,"%s failed\n",__FUNCTION__);
+		return NULL;
+	}
 
 	/* Candidate is 'next_channel' */
 	avail = de->next_channel;
@@ -1024,7 +1033,9 @@ static struct ppc_dma_chan *load_balance(struct my_xfer_object *xfo)
 	else
 		de->next_channel++;
 
-	return (chan);
+	up(&de->sem);
+
+	return chan;
 }
 
 static void __exit dma_rio_close(void)
