@@ -444,13 +444,9 @@ static int vfi_fabric_sync_find(struct vfi_sync **sync, struct vfi_location *loc
 				reply.extent = 0;
 				reply.offset = 0;
 				ret = vfi_sync_create(sync,loc,&reply);
-				if (ret == -EEXIST) {
-					if ( (*sync = to_vfi_sync(kset_find_obj(&loc->syncs->kset,desc->name))) ) {
-						if ((*sync)->desc.ops && (*sync)->desc.ops->sync_lose) 
-							(*sync)->desc.ops->sync_lose(*sync,desc);
+				if (ret == -EEXIST)
+					if ( (*sync = to_vfi_sync(kset_find_obj(&loc->syncs->kset,desc->name))) ) 
 						ret = 0;
-					}
-				}
 			}
 			vfi_clean_desc(&reply);
 		}
