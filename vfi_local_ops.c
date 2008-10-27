@@ -30,7 +30,6 @@
 #include <linux/vfi_event.h>
 #include <linux/vfi_sync.h>
 #include <linux/vfi_syncs.h>
-#include <linux/vfi_readies.h>
 
 #include <linux/wait.h>
 #include <linux/device.h>
