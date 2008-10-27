@@ -121,9 +121,6 @@ static int vfi_fabric_location_find(struct vfi_location **newloc, struct vfi_loc
 					if (ret)
 						return VFI_RESULT(ret);
 
-					if (myloc->desc.ops && myloc->desc.ops->location_lose)
-						myloc->desc.ops->location_lose(myloc,desc);
-
 					ret = myloc->smbs ? 0 : new_vfi_smbs(&myloc->smbs,"smbs",myloc);
 					if (ret == 0 || ret == -EEXIST) {
 						ret = myloc->xfers ? 0 : new_vfi_xfers(&myloc->xfers,"xfers",myloc);
