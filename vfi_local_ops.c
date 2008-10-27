@@ -30,6 +30,7 @@
 #include <linux/vfi_event.h>
 #include <linux/vfi_sync.h>
 #include <linux/vfi_syncs.h>
+#include <linux/vfi_readies.h>
 
 #include <linux/wait.h>
 #include <linux/device.h>
@@ -1198,17 +1199,26 @@ static int vfi_local_event_start(struct vfi_location *loc, struct vfi_desc_param
 {
 	struct vfi_events *event_list;
 	int ret;
+	int	first;
 	ret = find_vfi_events(&event_list,vfi_subsys->events,desc->name);
+
 	if (event_list == NULL )
 		return VFI_RESULT(-EINVAL);
+
+	first = 1;
 
 	/* Loop through the event chain if any */
 	while (event_list) {
 		vfi_events_start(event_list);
-		/* find_vfi_events is doing a get */
-		vfi_events_put(event_list);
+		if ( first ) {
+			/* find_vfi_events is doing a get */
+			vfi_events_put(event_list);
+			first = 0;
+		}
+
 		event_list = event_list->next;
 	}
+
 
 	return VFI_RESULT(0);
 }
@@ -1260,6 +1270,10 @@ static int vfi_local_event_chain(struct vfi_location *loc, struct vfi_desc_param
 	/* Make this event point to next event */
 	event_list_this->next = event_list_next;
 	event_list_next->prev = event_list_this;
+
+	/* find_vfi_events is doing a get */
+	vfi_events_put(event_list_this);
+	vfi_events_put(event_list_next);
 
 	return VFI_RESULT(0);
 }
