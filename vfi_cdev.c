@@ -260,7 +260,6 @@ static void def_write(struct work_struct *wk)
  */
 static ssize_t vfi_write(struct file *filep, const char __user *buf, size_t count, loff_t *offset)
 {
-	int ret;
 	struct mybuffers *mybuf;
 	char *buffer;
 	struct privdata *priv = filep->private_data;
@@ -268,20 +267,14 @@ static ssize_t vfi_write(struct file *filep, const char __user *buf, size_t coun
 	size_t thisLen;
 	size_t remains;
 
-	if (down_interruptible(&priv->sem)) 
-		return -ERESTARTSYS;
-
 	VFI_DEBUG(MY_DEBUG,"%s entered\n",__FUNCTION__);
 
 	buffer = kzalloc(count+1,GFP_KERNEL);
-	if (buffer == NULL) {
-		up(&priv->sem);
+	if (buffer == NULL)
 		return -ENOMEM;
-	}
 
-	if ( (ret = copy_from_user(buffer,buf,count)) ) {
+	if ( copy_from_user(buffer,buf,count) ) {
 		kfree(buffer);
-		up(&priv->sem);
 		return -EFAULT;
 	}
 
@@ -304,6 +297,8 @@ static ssize_t vfi_write(struct file *filep, const char __user *buf, size_t coun
 
 		if (filep->f_flags & O_NONBLOCK) {
 			work = kzalloc(sizeof(struct def_work),GFP_KERNEL);
+			if (work == NULL)
+				return -ENOMEM;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
 			INIT_WORK(&work->work,def_write, (void *) work);
 #else
@@ -315,23 +310,22 @@ static ssize_t vfi_write(struct file *filep, const char __user *buf, size_t coun
 			work->priv = priv;
 			kobject_get(&priv->kobj);
 			queue_work(work->woq,&work->work);
-			priv->pos = *offset += thisLen;
-			up(&priv->sem);
 		}
 		else {
-			ret = vfi_real_write(mybuf,thisLen,offset);
-			mybuf->size = ret;
+			if (down_interruptible(&priv->sem)) 
+				return -ERESTARTSYS;
+			mybuf->size = vfi_real_write(mybuf,thisLen,offset);
 			up(&priv->sem);
 			queue_to_read(priv,mybuf);
 		}
+	} while (remains && buffer);
 
-		if (!remains) 
-			break;
-
+	if (filep->f_flags & O_NONBLOCK) {
 		if (down_interruptible(&priv->sem)) 
 			return -ERESTARTSYS;
-
-	} while (buffer);
+		priv->pos = *offset += thisLen;
+		up(&priv->sem);
+	}
 
 	return count;
 }
