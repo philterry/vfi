@@ -73,6 +73,7 @@ static loff_t vfi_llseek(struct file *filep, loff_t offset, int origin)
 		return -ERESTARTSYS;
 
 	VFI_DEBUG(MY_DEBUG,"%s filep(%p),offset(%lld),origin(%d)\n",__FUNCTION__,filep,offset,origin);
+/*AM++*/VFI_DEBUG(MY_ERROR,"%s filep(%p),offset(%lld),origin(%d)\n",__FUNCTION__,filep,offset,origin);
 
 	switch (origin) {
 	case 1:  
@@ -265,6 +266,8 @@ static ssize_t vfi_write(struct file *filep, const char __user *buf, size_t coun
 	char *buffer;
 	struct privdata *priv = filep->private_data;
 	struct def_work *work;
+	size_t thisLen;
+	size_t remains;
 
 	if (down_interruptible(&priv->sem)) 
 		return -ERESTARTSYS;
@@ -283,32 +286,53 @@ static ssize_t vfi_write(struct file *filep, const char __user *buf, size_t coun
 		return -EFAULT;
 	}
 
-	mybuf = kzalloc(1024,GFP_KERNEL);
-	mybuf->buf = strsep(&buffer,"\n");
-	mybuf->reply = (char *)(mybuf+1);
+	remains = count;
 
-	if (filep->f_flags & O_NONBLOCK) {
-		work = kzalloc(sizeof(struct def_work),GFP_KERNEL);
+	do {
+		mybuf = kzalloc(1024,GFP_KERNEL);
+		mybuf->buf = strsep(&buffer,"\n");
+		mybuf->reply = (char *)(mybuf+1);
+
+		thisLen =  buffer ? buffer - mybuf->buf : remains;
+		remains -= thisLen;
+
+		if (remains) {
+			char * remainder = kzalloc(remains+1,GFP_KERNEL);
+			if (remainder)
+				memcpy(remainder,buffer,remains);
+			buffer = remainder;
+		}
+
+		if (filep->f_flags & O_NONBLOCK) {
+			work = kzalloc(sizeof(struct def_work),GFP_KERNEL);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-		INIT_WORK(&work->work,def_write, (void *) work);
+			INIT_WORK(&work->work,def_write, (void *) work);
 #else
-		INIT_WORK(&work->work,def_write);
+			INIT_WORK(&work->work,def_write);
 #endif
-		work->woq = create_singlethread_workqueue("vfi_write");
-		work->mybuf = mybuf;
-		work->count = count;
-		work->priv = priv;
-		kobject_get(&priv->kobj);
-		queue_work(work->woq,&work->work);
-		priv->pos = *offset += count;
-		up(&priv->sem);
-	}
-	else {
-		ret = vfi_real_write(mybuf,count,offset);
-		mybuf->size = ret;
-		up(&priv->sem);
-		queue_to_read(priv,mybuf);
-	}
+			work->woq = create_singlethread_workqueue("vfi_write");
+			work->mybuf = mybuf;
+			work->count = thisLen;
+			work->priv = priv;
+			kobject_get(&priv->kobj);
+			queue_work(work->woq,&work->work);
+			priv->pos = *offset += thisLen;
+			up(&priv->sem);
+		}
+		else {
+			ret = vfi_real_write(mybuf,thisLen,offset);
+			mybuf->size = ret;
+			up(&priv->sem);
+			queue_to_read(priv,mybuf);
+		}
+
+		if (!remains) 
+			break;
+
+		if (down_interruptible(&priv->sem)) 
+			return -ERESTARTSYS;
+
+	} while (buffer);
 
 	return count;
 }
