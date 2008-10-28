@@ -23,6 +23,8 @@
 #include <linux/rio_drv.h>
 #include <linux/rio_ids.h>
 #include <linux/list.h>
+#include <linux/completion.h>
+#include <linux/kthread.h>
 
 #define VFI_DOORBELL_START 0x2000
 #define VFI_DOORBELL_END 0x4000
@@ -67,6 +69,7 @@ struct rio_mport *vfi_rio_port;
 
 struct event_node {
 	struct list_head node;
+	struct list_head indicator;
 	void (*cb) (void *);
 	void *arg;
 	int id;
@@ -83,6 +86,9 @@ struct _vfi_event_mgr {
 	int hashlen;
 	spinlock_t lock;
 	struct semaphore sem;
+	struct completion indication_sem;
+	struct task_struct *indication_thread;
+	struct list_head ind_list;
 	struct event_node *event_harray;
 };
 
@@ -610,6 +616,33 @@ void vfi_events_uninit(struct _vfi_event_mgr *evmgr)
 	
 }
 
+/*
+ * Will be called upon doorbell interrupt
+ */
+static int dbell_indication_thread(void *data)
+{
+	struct event_node *pevent;
+
+	printk("VFI: Starting dbell indication thread\n");
+
+	/* Send completion messages to registered callback function */
+	while (1) {
+
+		wait_for_completion(&dbmgr->indication_sem);
+
+		while (!list_empty(&dbmgr->ind_list)) {
+			pevent = list_first_entry(&dbmgr->ind_list, struct event_node, indicator);
+
+			/* Invoke callback */
+			if (pevent->cb) {
+				(pevent->cb)(pevent->arg);
+			}
+
+			list_del(&pevent->indicator);
+		}
+	}
+}
+
 static struct _vfi_event_mgr *vfi_events_init(int first, int last, int hashlen)
 {
 	int num = last - first + 1;
@@ -635,6 +668,22 @@ static struct _vfi_event_mgr *vfi_events_init(int first, int last, int hashlen)
 	evmgr->first_id = first;
 	evmgr->last_id = last;
 	evmgr->hashlen = hashlen;
+
+	INIT_LIST_HEAD(&evmgr->ind_list);
+
+	/* Set up completion callback mechanism */
+	init_completion(&evmgr->indication_sem);
+
+	/* returns a task_struct  */
+	evmgr->indication_thread = kthread_create(dbell_indication_thread, NULL, "DoorBell indication");
+
+	if (IS_ERR(evmgr->indication_thread)) {
+		goto bad1;
+	}
+
+	/* Start up completion callback thread */
+	wake_up_process(evmgr->indication_thread);
+
 	VFI_DEBUG(MY_DEBUG,"%s, doorbell init ok\n",__FUNCTION__);
 	return evmgr;
 bad1:
@@ -667,9 +716,16 @@ static void vfi_event_dispatch(struct _vfi_event_mgr *evmgr, int id)
 		VFI_DEBUG(MY_DEBUG,"%s, doorbell not found!\n",__FUNCTION__);
 		return;
 	}
-
+#if 0
 	if (pevent->cb)
 		(pevent->cb)(pevent->arg);
+#else
+	if (pevent->cb) {
+		list_add_tail(&pevent->indicator, &evmgr->ind_list);
+		complete(&evmgr->indication_sem);
+	}
+
+#endif
 }
 
 /* Allocate an event and associate it with a callback.
