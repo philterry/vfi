@@ -716,16 +716,10 @@ static void vfi_event_dispatch(struct _vfi_event_mgr *evmgr, int id)
 		VFI_DEBUG(MY_DEBUG,"%s, doorbell not found!\n",__FUNCTION__);
 		return;
 	}
-#if 0
-	if (pevent->cb)
-		(pevent->cb)(pevent->arg);
-#else
 	if (pevent->cb) {
 		list_add_tail(&pevent->indicator, &evmgr->ind_list);
 		complete(&evmgr->indication_sem);
 	}
-
-#endif
 }
 
 /* Allocate an event and associate it with a callback.
