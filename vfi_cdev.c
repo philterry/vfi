@@ -72,8 +72,7 @@ static loff_t vfi_llseek(struct file *filep, loff_t offset, int origin)
 	if (down_interruptible(&priv->sem))
 		return -ERESTARTSYS;
 
-	VFI_DEBUG(MY_DEBUG,"%s filep(%p),offset(%lld),origin(%d)\n",__FUNCTION__,filep,offset,origin);
-/*AM++*/VFI_DEBUG(MY_ERROR,"%s filep(%p),offset(%lld),origin(%d)\n",__FUNCTION__,filep,offset,origin);
+	VFI_DEBUG(MY_ERROR,"%s filep(%p),offset(%lld),origin(%d)\n",__FUNCTION__,filep,offset,origin);
 
 	switch (origin) {
 	case 1:  
