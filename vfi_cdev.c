@@ -323,7 +323,7 @@ static ssize_t vfi_write(struct file *filep, const char __user *buf, size_t coun
 	if (filep->f_flags & O_NONBLOCK) {
 		if (down_interruptible(&priv->sem)) 
 			return -ERESTARTSYS;
-		priv->pos = *offset += thisLen;
+		priv->pos = *offset += count;
 		up(&priv->sem);
 	}
 
