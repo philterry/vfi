@@ -73,6 +73,9 @@ static void fabric_do_rqst(struct work_struct *wo)
 		skb_put(cb->rply_skb,size);
 		ret = vfi_fabric_tx(cb->sender,cb->rply_skb);
 	}
+	else {
+		dev_kfree_skb(cb->rply_skb);
+	}
 
 	vfi_fabric_put(cb->sender);
 
