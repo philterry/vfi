@@ -179,7 +179,7 @@ void vfi_events_start(struct vfi_events *events)
 		return;
 
 	if (down_trylock(&events->start_lock)) {
-		printk("Error, event already started\n");
+		printk("Error, event %s already started\n", events->kset.kobj.name);
 		return;
 	}
 
