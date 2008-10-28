@@ -169,6 +169,7 @@ void vfi_events_start(struct vfi_events *events)
 {
 	struct vfi_event *event;
 	struct list_head *entry;
+	unsigned long flags;
 
 	int wait = 0;
 
@@ -182,7 +183,7 @@ void vfi_events_start(struct vfi_events *events)
 		return;
 	}
 
-	spin_lock(&events->kset.list_lock);
+	spin_lock_irqsave(&events->kset.list_lock, flags);
 	if (!list_empty(&events->kset.list)) {
 		list_for_each(entry,&events->kset.list) {
 			event = to_vfi_event(to_kobj(entry));
@@ -192,7 +193,7 @@ void vfi_events_start(struct vfi_events *events)
 			}
 		}
 	}
-	spin_unlock(&events->kset.list_lock);
+	spin_unlock_irqrestore(&events->kset.list_lock, flags);
 
 	while (wait--)
 		wait_for_completion(&events->dma_sync);
