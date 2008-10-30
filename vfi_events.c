@@ -171,8 +171,6 @@ void vfi_events_start(struct vfi_events *events)
 	struct vfi_event *event;
 	struct list_head *entry;
 
-	struct vfi_readies *readies = vfi_subsys->events;
-
 	int wait = 0;
 
 	VFI_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,events);
@@ -194,7 +192,6 @@ void vfi_events_start(struct vfi_events *events)
 			if (event->start_event) {
 				wait++;
 				event->start_event(event->bind);
-				readies->numStarts++;
 			}
 		}
 	}
