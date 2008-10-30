@@ -25,7 +25,6 @@
 #include <linux/kthread.h>
 #include <linux/proc_fs.h>
 #include <asm/io.h>
-#include <asm/mpic.h>
 #include "./ringbuf.h"
 #ifdef VFI_PERF_JIFFIES
 #include <linux/jiffies.h>
@@ -422,10 +421,10 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 
 	chan = &de->ppc8641_dma_chans[num];
 	spin_lock(&chan->queuelock);
-	mpic_mask_irq(chan->irq);
+	disable_irq(chan->irq);
 	match = find_in_queue(&chan->dma_q, xfo);
 	if (match == 0) {	/* Descriptor not found in queue */
-		mpic_unmask_irq(chan->irq);
+		enable_irq(chan->irq);
 		spin_unlock(&chan->queuelock);
 		return /* -EINVAL */;
 	}
@@ -435,7 +434,7 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 		list_del(&xfo->xf.node);
 		xfo->xf.flags &= ~XFO_STAT_MASK;
 		xfo->xf.flags |= VFI_XFO_CANCELLED;
-		mpic_unmask_irq(chan->irq);
+		enable_irq(chan->irq);
 		spin_unlock(&chan->queuelock);
 		return;
 	}
@@ -445,7 +444,7 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 		list_del(&xfo->xf.node);
 		xfo->xf.flags &= ~XFO_STAT_MASK;
 		xfo->xf.flags |= VFI_XFO_CANCELLED;
-		mpic_unmask_irq(chan->irq);
+		enable_irq(chan->irq);
 		spin_unlock(&chan->queuelock);
 		return;
 	}
@@ -482,7 +481,7 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 		start_dma(chan, xfo);
 	}
 
-	mpic_unmask_irq(chan->irq);
+	enable_irq(chan->irq);
 	spin_unlock(&chan->queuelock);
 	return;
 }
