@@ -25,6 +25,7 @@
 #include <linux/kthread.h>
 #include <linux/proc_fs.h>
 #include <asm/io.h>
+#include <asm/mpic.h>
 #include "./ringbuf.h"
 #ifdef VFI_PERF_JIFFIES
 #include <linux/jiffies.h>
@@ -42,7 +43,6 @@ extern int get_rio_id (struct vfi_fabric_address *x);
 
 struct dma_engine {
 	struct vfi_dma_engine rde;
-	struct semaphore sem;
 	struct completion dma_callback_sem;
 	struct ppc_dma_chan ppc8641_dma_chans[PPC8641_DMA_NCHANS];
 	struct task_struct *callback_thread;
@@ -149,8 +149,7 @@ static int dma_completion_thread(void *data)
 		wait_for_completion(&de->dma_callback_sem);
 		if (kthread_should_stop())
 			goto stop_thread;
-		pevent =
-		    (struct ppc_dma_event *) ringbuf_get(event_ring_out);
+		pevent = (struct ppc_dma_event *) ringbuf_get(event_ring_out);
 		while (pevent) {
 			chan = &de->ppc8641_dma_chans[pevent->chan_num];
 			VFI_DEBUG(MY_DEBUG,"DMA completion event on channel %d\n", chan->num);
@@ -410,7 +409,6 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 {
 	struct my_xfer_object *xfo = (struct my_xfer_object *) desc;
 	struct list_head *node;
-	unsigned long flags;
 	unsigned long status;
 	struct ppc_dma_chan *chan;
 	int match;
@@ -423,10 +421,12 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 		return /* -EINVAL */;
 
 	chan = &de->ppc8641_dma_chans[num];
-	spin_lock_irqsave(&chan->queuelock, flags);
+	spin_lock(&chan->queuelock);
+	mpic_mask_irq(chan->irq);
 	match = find_in_queue(&chan->dma_q, xfo);
 	if (match == 0) {	/* Descriptor not found in queue */
-		spin_unlock_irqrestore(&chan->queuelock, flags);
+		mpic_unmask_irq(chan->irq);
+		spin_unlock(&chan->queuelock);
 		return /* -EINVAL */;
 	}
 
@@ -435,7 +435,8 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 		list_del(&xfo->xf.node);
 		xfo->xf.flags &= ~XFO_STAT_MASK;
 		xfo->xf.flags |= VFI_XFO_CANCELLED;
-		spin_unlock_irqrestore(&chan->queuelock, flags);
+		mpic_unmask_irq(chan->irq);
+		spin_unlock(&chan->queuelock);
 		return;
 	}
 
@@ -444,7 +445,8 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 		list_del(&xfo->xf.node);
 		xfo->xf.flags &= ~XFO_STAT_MASK;
 		xfo->xf.flags |= VFI_XFO_CANCELLED;
-		spin_unlock_irqrestore(&chan->queuelock, flags);
+		mpic_unmask_irq(chan->irq);
+		spin_unlock(&chan->queuelock);
 		return;
 	}
 
@@ -469,7 +471,7 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 			    ("DMA-%i Error: channel abort failed\n",
 			     chan->num);
 			chan->state = DMA_ERR_STOP;
-			spin_unlock_irqrestore(&chan->queuelock, flags);
+			spin_unlock(&chan->queuelock);
 			return /* -EBUSY */;
 #if  0
 			BUG_ON();
@@ -480,7 +482,8 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 		start_dma(chan, xfo);
 	}
 
-	spin_unlock_irqrestore(&chan->queuelock, flags);
+	mpic_unmask_irq(chan->irq);
+	spin_unlock(&chan->queuelock);
 	return;
 }
 
@@ -488,6 +491,7 @@ static void dma_rio_queue_transfer(struct vfi_dma_descriptor *list)
 {
 	struct ppc_dma_chan *chan;
 	struct my_xfer_object *xfo = (struct my_xfer_object *) list;
+
 	if (de->nchans == 1) {
 		ppcdma_queue_chain(&de->ppc8641_dma_chans[first_chan], xfo);
 		return;
@@ -636,8 +640,6 @@ static irqreturn_t do_interrupt(int irq, void *data)
 	}
 #endif
 
-	chan->state = DMA_IDLE;
-
 	/* Check for errors */
 	te = status & DMA_STAT_TE;
 	if (te) {
@@ -659,7 +661,7 @@ static irqreturn_t do_interrupt(int irq, void *data)
 		chan->list_int++;
 
 	if (list_empty(&chan->dma_q)) {
-printk("DMA interrupt, empty list\n");
+		printk("DMA interrupt, empty list\n");
 		/* Spurious interrupt??  Transfer Q empty */
 		chan->bogus_int++;
 		chan->state = DMA_IDLE;
@@ -674,12 +676,15 @@ printk("DMA interrupt, empty list\n");
 	if (chan->state == DMA_ERR_STOP) {
 		pdesc->xf.extra = (te | pe);
 		send_completion(chan, pdesc, PPCDMA_ERROR);
+		chan->state = DMA_IDLE;
 	} else {
 		chan->bytes_tx += pdesc->xf.len;
 		send_completion(chan, pdesc, PPCDMA_OK);
 		if (!list_empty(&chan->dma_q)) {
 			pdesc = to_xfer_object(chan->dma_q.next);
 			start_dma(chan, pdesc);
+		} else {
+			chan->state = DMA_IDLE;
 		}
 	}
 	return (IRQ_HANDLED);
@@ -702,7 +707,6 @@ static void start_dma(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
 static int  ppcdma_queue_chain(struct ppc_dma_chan *chan, 
 	struct my_xfer_object *xfo)
 {
-	unsigned long flags;
 	struct dma_link *dlink;
 	unsigned int dlink_phys;
 
@@ -724,11 +728,15 @@ static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
 		dlink_phys = dlink->next;
 	}
 	
-	/* Lock interrupts -- ISR can dequeue */
-	spin_lock_irqsave(&chan->queuelock, flags);
+	/* Lock against other CPU */
+	spin_lock(&chan->queuelock);
+	/* Disable dma interrupts on this cahnnel only. ISR can dequeue */
+	mpic_mask_irq(chan->irq);
 	if (chan->state != DMA_IDLE && chan->state != DMA_RUNNING) {
 		/* channel in error state, don't queue this node */
-		spin_unlock_irqrestore(&chan->queuelock, flags);
+		mpic_unmask_irq(chan->irq);
+		spin_unlock(&chan->queuelock);
+		printk("%s:%d\n",__FUNCTION__,__LINE__);
 		return (-EAGAIN);
 	}
 
@@ -738,19 +746,16 @@ static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
 
 	/* Launch if DMA engine idle */
 	if (chan->state == DMA_IDLE) {
-#ifdef DEBUG_DMA
 		if (chan->dma_q.prev != &xfo->xf.node) {
-			printk
-			    ("DMA-%d error: queue not empty when channel idle",
-			     chan->num);
+			printk("DMA-%d error: queue not empty when channel idle", chan->num);
 		}
-#endif
 		start_dma(chan, xfo);
 	}
 	else
 		xfo->xf.flags = (chan->num << 8) | VFI_XFO_QUEUED;
 
-	spin_unlock_irqrestore(&chan->queuelock, flags);
+	mpic_unmask_irq(chan->irq);
+	spin_unlock(&chan->queuelock);
 	return 0;
 }
 
@@ -872,6 +877,7 @@ static int setup_vfi_channel(struct platform_device *pdev)
 	err = request_irq(chan->irq, &do_interrupt, 0, chan->name, chan);
 	if (err)
 		goto err_irq;
+
 	spin_lock_init(&chan->cleanup_lock);
 	spin_lock_init(&chan->queuelock);
 	INIT_LIST_HEAD(&chan->dma_q);
@@ -910,7 +916,6 @@ static int __init dma_rio_init(void)
 
 	if ( (de = new_dma_engine()) ) {
 		rde = &de->rde;
-		sema_init(&de->sem,1);
 		de->next_channel = first_chan;
 		snprintf(rde->name, VFI_MAX_DMA_NAME_LEN, "%s", "vfi_rio_dma");
 	}
@@ -1009,11 +1014,6 @@ static struct ppc_dma_chan *load_balance(struct my_xfer_object *xfo)
 	int i;
 	int queue_len;
 
-	if (down_interruptible(&de->sem)) {
-		VFI_DEBUG(MY_ERROR,"%s failed\n",__FUNCTION__);
-		return NULL;
-	}
-
 	/* Candidate is 'next_channel' */
 	avail = de->next_channel;
 	chan = &de->ppc8641_dma_chans[avail];
@@ -1031,9 +1031,7 @@ static struct ppc_dma_chan *load_balance(struct my_xfer_object *xfo)
 	if (avail == last_chan)
 		de->next_channel = first_chan;
 	else
-		de->next_channel++;
-
-	up(&de->sem);
+		de->next_channel = avail + 1;
 
 	return chan;
 }
