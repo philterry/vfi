@@ -25,6 +25,7 @@
 #include <linux/list.h>
 #include <linux/completion.h>
 #include <linux/kthread.h>
+#include <asm/mpic.h>
 
 #define VFI_DOORBELL_START 0x2000
 #define VFI_DOORBELL_END 0x4000
@@ -622,8 +623,14 @@ void vfi_events_uninit(struct _vfi_event_mgr *evmgr)
 static int dbell_indication_thread(void *data)
 {
 	struct event_node *pevent;
+	int	  irq;
 
 	printk("VFI: Starting dbell indication thread\n");
+
+	/*
+	 * Get the inbound doorbell interrupt from fsl_rio
+	 */
+	irq = rio_hw_get_rxdbell_irq_num(port);
 
 	/* Send completion messages to registered callback function */
 	while (1) {
@@ -638,7 +645,12 @@ static int dbell_indication_thread(void *data)
 				(pevent->cb)(pevent->arg);
 			}
 
+			/*
+			 * The inbound doorbell interrupt is appending to the list so protect it
+			 */
+			mpic_mask_irq(irq);
 			list_del(&pevent->indicator);
+			mpic_unmask_irq(irq);
 		}
 	}
 }
@@ -674,7 +686,9 @@ static struct _vfi_event_mgr *vfi_events_init(int first, int last, int hashlen)
 	/* Set up completion callback mechanism */
 	init_completion(&evmgr->indication_sem);
 
-	/* returns a task_struct  */
+	/*
+	 * returns a task_struct
+	 */
 	evmgr->indication_thread = kthread_create(dbell_indication_thread, NULL, "DoorBell indication");
 
 	if (IS_ERR(evmgr->indication_thread)) {
