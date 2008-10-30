@@ -648,9 +648,9 @@ static int dbell_indication_thread(void *data)
 			/*
 			 * The inbound doorbell interrupt is appending to the list so protect it
 			 */
-			mpic_mask_irq(irq);
+			disable_irq(irq);
 			list_del(&pevent->indicator);
-			mpic_unmask_irq(irq);
+			enable_irq(irq);
 		}
 	}
 }

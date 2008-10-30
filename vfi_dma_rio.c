@@ -731,10 +731,10 @@ static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
 	/* Lock against other CPU */
 	spin_lock(&chan->queuelock);
 	/* Disable dma interrupts on this cahnnel only. ISR can dequeue */
-	mpic_mask_irq(chan->irq);
+	disable_irq(chan->irq);
 	if (chan->state != DMA_IDLE && chan->state != DMA_RUNNING) {
 		/* channel in error state, don't queue this node */
-		mpic_unmask_irq(chan->irq);
+		enable_irq(chan->irq);
 		spin_unlock(&chan->queuelock);
 		printk("%s:%d\n",__FUNCTION__,__LINE__);
 		return (-EAGAIN);
@@ -754,7 +754,7 @@ static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
 	else
 		xfo->xf.flags = (chan->num << 8) | VFI_XFO_QUEUED;
 
-	mpic_unmask_irq(chan->irq);
+	enable_irq(chan->irq);
 	spin_unlock(&chan->queuelock);
 	return 0;
 }
