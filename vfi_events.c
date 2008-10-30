@@ -17,6 +17,7 @@
 #include <linux/vfi_subsys.h>
 #include <linux/vfi_readies.h>
 #include <linux/vfi_event.h>
+#include <linux/vfi_drv.h>
 
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -169,31 +170,35 @@ void vfi_events_start(struct vfi_events *events)
 {
 	struct vfi_event *event;
 	struct list_head *entry;
-	unsigned long flags;
+
+	struct vfi_readies *readies = vfi_subsys->events;
 
 	int wait = 0;
 
 	VFI_DEBUG(MY_DEBUG,"%s events(%p)\n",__FUNCTION__,events);
 
-	if (events == NULL)
+	if (events == NULL) {
+		printk("Error, event is null\n");
 		return;
+	}
 
 	if (down_trylock(&events->start_lock)) {
 		printk("Error, event %s already started\n", events->kset.kobj.name);
 		return;
 	}
 
-	spin_lock_irqsave(&events->kset.list_lock, flags);
+	spin_lock(&events->kset.list_lock);
 	if (!list_empty(&events->kset.list)) {
 		list_for_each(entry,&events->kset.list) {
 			event = to_vfi_event(to_kobj(entry));
 			if (event->start_event) {
 				wait++;
 				event->start_event(event->bind);
+				readies->numStarts++;
 			}
 		}
 	}
-	spin_unlock_irqrestore(&events->kset.list_lock, flags);
+	spin_unlock(&events->kset.list_lock);
 
 	while (wait--)
 		wait_for_completion(&events->dma_sync);
