@@ -506,6 +506,9 @@ static int vfi_local_dsts_create(struct vfi_dsts **dsts, struct vfi_bind *parent
 	if (!DESC_VALID(&dsmb->desc,&desc->dst))
 		goto fail_ddesc;
 
+	if (!dsmb->pages)
+		goto fail_ddesc;
+
 	first_page = START_PAGE(&dsmb->desc,&desc->dst);
 	last_page = first_page + NUM_DMA(&dsmb->desc,&desc->dst);
 
