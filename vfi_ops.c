@@ -2089,10 +2089,13 @@ static int dsts_create(const char *desc, char *result, int *size)
 		* invoke the dsts_create function at the <dst> site.
 		*
 		*/
-		if (bind && bind->desc.dst.ops && bind->desc.dst.ops->dsts_create)
-			ret = bind->desc.dst.ops->dsts_create(&dsts,bind, &params);
+		if (bind) {
+			if (bind->desc.dst.ops && bind->desc.dst.ops->dsts_create)
+				ret = bind->desc.dst.ops->dsts_create(&dsts,bind, &params);
 
-		event_id = bind->dst_done_event->event_id;
+			if (bind->dst_done_event)
+				event_id = bind->dst_done_event->event_id;
+		}
 	}
 	VFI_KTRACE ("<*** %s bind put after dsts_create opcall ***>\n", __func__);
 	vfi_bind_put(bind);
