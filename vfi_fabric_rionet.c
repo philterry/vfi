@@ -25,7 +25,6 @@
 #include <linux/list.h>
 #include <linux/completion.h>
 #include <linux/kthread.h>
-#include <asm/mpic.h>
 
 #define VFI_DOORBELL_START 0x2000
 #define VFI_DOORBELL_END 0x4000

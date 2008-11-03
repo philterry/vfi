@@ -408,6 +408,7 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 {
 	struct my_xfer_object *xfo = (struct my_xfer_object *) desc;
 	struct list_head *node;
+	unsigned long flags;
 	unsigned long status;
 	struct ppc_dma_chan *chan;
 	int match;
@@ -420,12 +421,10 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 		return /* -EINVAL */;
 
 	chan = &de->ppc8641_dma_chans[num];
-	spin_lock(&chan->queuelock);
-	disable_irq(chan->irq);
+	spin_lock_irqsave(&chan->queuelock,flags);
 	match = find_in_queue(&chan->dma_q, xfo);
 	if (match == 0) {	/* Descriptor not found in queue */
-		enable_irq(chan->irq);
-		spin_unlock(&chan->queuelock);
+		spin_unlock_irqrestore(&chan->queuelock,flags);
 		return /* -EINVAL */;
 	}
 
@@ -434,8 +433,7 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 		list_del(&xfo->xf.node);
 		xfo->xf.flags &= ~XFO_STAT_MASK;
 		xfo->xf.flags |= VFI_XFO_CANCELLED;
-		enable_irq(chan->irq);
-		spin_unlock(&chan->queuelock);
+		spin_unlock_irqrestore(&chan->queuelock,flags);
 		return;
 	}
 
@@ -444,8 +442,7 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 		list_del(&xfo->xf.node);
 		xfo->xf.flags &= ~XFO_STAT_MASK;
 		xfo->xf.flags |= VFI_XFO_CANCELLED;
-		enable_irq(chan->irq);
-		spin_unlock(&chan->queuelock);
+		spin_unlock_irqrestore(&chan->queuelock,flags);
 		return;
 	}
 
@@ -470,7 +467,7 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 			    ("DMA-%i Error: channel abort failed\n",
 			     chan->num);
 			chan->state = DMA_ERR_STOP;
-			spin_unlock(&chan->queuelock);
+			spin_unlock_irqrestore(&chan->queuelock,flags);
 			return /* -EBUSY */;
 #if  0
 			BUG_ON();
@@ -481,8 +478,7 @@ static void dma_rio_cancel_transfer(struct vfi_dma_descriptor *desc)
 		start_dma(chan, xfo);
 	}
 
-	enable_irq(chan->irq);
-	spin_unlock(&chan->queuelock);
+	spin_unlock_irqrestore(&chan->queuelock,flags);
 	return;
 }
 
@@ -706,6 +702,7 @@ static void start_dma(struct ppc_dma_chan *chan, struct my_xfer_object *xfo)
 static int  ppcdma_queue_chain(struct ppc_dma_chan *chan, 
 	struct my_xfer_object *xfo)
 {
+	unsigned long flags;
 	struct dma_link *dlink;
 	unsigned int dlink_phys;
 
@@ -727,14 +724,10 @@ static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
 		dlink_phys = dlink->next;
 	}
 	
-	/* Lock against other CPU */
-	spin_lock(&chan->queuelock);
-	/* Disable dma interrupts on this cahnnel only. ISR can dequeue */
-	disable_irq(chan->irq);
+	spin_lock_irqsave(&chan->queuelock,flags);
 	if (chan->state != DMA_IDLE && chan->state != DMA_RUNNING) {
 		/* channel in error state, don't queue this node */
-		enable_irq(chan->irq);
-		spin_unlock(&chan->queuelock);
+		spin_unlock_irqrestore(&chan->queuelock,flags);
 		printk("%s:%d\n",__FUNCTION__,__LINE__);
 		return (-EAGAIN);
 	}
@@ -753,8 +746,7 @@ static int  ppcdma_queue_chain(struct ppc_dma_chan *chan,
 	else
 		xfo->xf.flags = (chan->num << 8) | VFI_XFO_QUEUED;
 
-	enable_irq(chan->irq);
-	spin_unlock(&chan->queuelock);
+	spin_unlock_irqrestore(&chan->queuelock,flags);
 	return 0;
 }
 
