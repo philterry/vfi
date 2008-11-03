@@ -170,6 +170,7 @@ void vfi_events_start(struct vfi_events *events)
 {
 	struct vfi_event *event;
 	struct list_head *entry;
+	struct list_head *next;
 
 	int wait = 0;
 
@@ -185,17 +186,13 @@ void vfi_events_start(struct vfi_events *events)
 		return;
 	}
 
-	spin_lock(&events->kset.list_lock);
-	if (!list_empty(&events->kset.list)) {
-		list_for_each(entry,&events->kset.list) {
-			event = to_vfi_event(to_kobj(entry));
-			if (event->start_event) {
-				wait++;
-				event->start_event(event->bind);
-			}
+	list_for_each_safe(entry,next,&events->kset.list) {
+		event = to_vfi_event(to_kobj(entry));
+		if (event->start_event) {
+			wait++;
+			event->start_event(event->bind);
 		}
 	}
-	spin_unlock(&events->kset.list_lock);
 
 	while (wait--)
 		wait_for_completion(&events->dma_sync);
