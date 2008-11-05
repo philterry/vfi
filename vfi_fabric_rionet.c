@@ -596,12 +596,20 @@ static int list_len (struct list_head *list)
 	}
 	return ret;
 }
+
 void vfi_events_uninit(struct _vfi_event_mgr *evmgr)
 {
 	int i;
 	struct list_head *temp;
 	struct list_head *curr;
 	struct event_node *pdb;
+
+	if (evmgr->indication_thread && !IS_ERR(evmgr->indication_thread))
+		kthread_stop(evmgr->indication_thread);
+
+	list_for_each_safe(curr, temp, &evmgr->ind_list) {
+		kfree(list_entry(curr, struct event_node, node));
+	}
 
 	for (i = 0; i < evmgr->hashlen; i++) {
 		pdb = &evmgr->event_harray[i];
@@ -613,7 +621,6 @@ void vfi_events_uninit(struct _vfi_event_mgr *evmgr)
 	}
 	kfree (evmgr->event_harray);
 	kfree (evmgr);
-	
 }
 
 /*
@@ -621,8 +628,9 @@ void vfi_events_uninit(struct _vfi_event_mgr *evmgr)
  */
 static int dbell_indication_thread(void *data)
 {
+	struct _vfi_event_mgr *evmgr = (struct _vfi_event_mgr *) data;
 	struct event_node *pevent;
-	int	  irq;
+	int irq;
 
 	printk("VFI: Starting dbell indication thread\n");
 
@@ -634,10 +642,12 @@ static int dbell_indication_thread(void *data)
 	/* Send completion messages to registered callback function */
 	while (1) {
 
-		wait_for_completion(&dbmgr->indication_sem);
+		wait_for_completion(&evmgr->indication_sem);
+		if (kthread_should_stop())
+			goto stop;
 
-		while (!list_empty(&dbmgr->ind_list)) {
-			pevent = list_first_entry(&dbmgr->ind_list, struct event_node, indicator);
+		while (!list_empty(&evmgr->ind_list)) {
+			pevent = list_first_entry(&evmgr->ind_list, struct event_node, indicator);
 
 			/* Invoke callback */
 			if (pevent->cb) {
@@ -650,8 +660,15 @@ static int dbell_indication_thread(void *data)
 			disable_irq(irq);
 			list_del(&pevent->indicator);
 			enable_irq(irq);
+
+ 			/* Check for driver exit since callbacks may sleep */
+			if (kthread_should_stop())
+				goto stop;
 		}
 	}
+stop:
+	printk("VFI: Exiting dbell indication thread\n");
+	return 0;
 }
 
 static struct _vfi_event_mgr *vfi_events_init(int first, int last, int hashlen)
@@ -688,7 +705,7 @@ static struct _vfi_event_mgr *vfi_events_init(int first, int last, int hashlen)
 	/*
 	 * returns a task_struct
 	 */
-	evmgr->indication_thread = kthread_create(dbell_indication_thread, NULL, "DoorBell indication");
+	evmgr->indication_thread = kthread_create(dbell_indication_thread, evmgr, "DoorBell indication");
 
 	if (IS_ERR(evmgr->indication_thread)) {
 		goto bad1;
