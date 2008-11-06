@@ -10,6 +10,7 @@
 
 #define MY_DEBUG      VFI_DBG_FABNET | VFI_DBG_FUNCALL | VFI_DBG_DEBUG
 #define MY_LIFE_DEBUG VFI_DBG_FABNET | VFI_DBG_LIFE    | VFI_DBG_DEBUG
+#define MY_ERROR      VFI_DBG_FABNET | VFI_DBG_ERROR   | VFI_DBG_ERR
 
 #include <linux/vfi_fabric.h>
 #include <linux/vfi_location.h>
@@ -171,17 +172,18 @@ static struct fabric_address *new_fabric_address(unsigned long idx, unsigned lon
 	struct fabric_address *new = kzalloc(sizeof(struct fabric_address),GFP_KERNEL);
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);
 
-	INIT_LIST_HEAD(&new->list);
+	if (new) {
+		INIT_LIST_HEAD(&new->list);
 
-	kobject_init(&new->kobj,&fabric_address_type );
+		kobject_init(&new->kobj,&fabric_address_type );
 
-	new->idx = idx;
+		new->idx = idx;
 
-	update_fabric_address(new,src_idx,hwaddr,ndev);
+		update_fabric_address(new,src_idx,hwaddr,ndev);
 
-	new->rfa.ops = &fabric_rionet_ops;
-	new->rfa.owner = THIS_MODULE;
-
+		new->rfa.ops = &fabric_rionet_ops;
+		new->rfa.owner = THIS_MODULE;
+	}
 	return new;
 }
 
@@ -212,18 +214,19 @@ static struct fabric_address *find_fabric_mac(char *hwaddr, struct net_device *n
 
 static struct fabric_address *find_fabric_address(unsigned long idx, unsigned long src_idx, char *hwaddr, struct net_device *ndev)
 {
-	struct fabric_address *fp = address_table[idx & 15];
+	struct fabric_address *fp;
 	struct fabric_address *new;
 
 	VFI_DEBUG(MY_DEBUG,"%s idx %lx, src_idx %lx\n", __FUNCTION__, idx, src_idx);
 	VFI_DEBUG_SAFE(MY_DEBUG,hwaddr,"%s " MACADDRFMT "\n",__FUNCTION__,MACADDRBYTES(hwaddr));
-	if ( idx == UNKNOWN_IDX) {
+	if (idx == UNKNOWN_IDX) {
 		if ( (new = find_fabric_mac(hwaddr,ndev)) )
 			return new;
 		else
 			return new_fabric_address(idx,0,hwaddr,ndev);
-		}
+	}
 
+	fp = address_table[idx & 15];
 	if (fp) {
 		if (fp->idx == idx) {
 			update_fabric_address(fp,src_idx,hwaddr,ndev);
@@ -240,8 +243,11 @@ static struct fabric_address *find_fabric_address(unsigned long idx, unsigned lo
 		}
 
 		new = new_fabric_address(idx,src_idx,hwaddr,ndev);
-		list_add_tail(&new->list,&fp->list);
-		return _fabric_get(new);
+		if (new) {
+			list_add_tail(&new->list,&fp->list);
+			_fabric_get(new);
+		}
+		return new;
 	}
 
 	address_table[idx & 15] = fp = _fabric_get(new_fabric_address(idx,src_idx,hwaddr,ndev));
@@ -305,10 +311,17 @@ static int vfi_rx_packet(struct sk_buff *skb, struct net_device *dev, struct pac
 	srcidx = ntohl(mac->h_srcidx);
 
 	fna = find_fabric_address(srcidx,0,mac->h_source,dev);
-	
-	if (fna->reg_loc)
-		if (dstidx && fna->reg_loc->desc.extent != dstidx)
-			goto forget;
+	if (!fna)
+		goto forget;
+
+	if (fna->reg_loc) {
+		if (dstidx && fna->reg_loc->desc.extent != dstidx) {
+			_fabric_put(fna);
+			fna = find_fabric_address(dstidx,0,mac->h_source,dev);
+			if (!fna)
+				goto forget;
+		}
+	}
 
 	if (skb_tailroom(skb))  /* FIXME */
 		*skb_put(skb,1) = '\0';
