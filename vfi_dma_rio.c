@@ -1042,7 +1042,6 @@ static void __exit dma_rio_close(void)
 
 	vfi_dma_unregister("vfi_rio_dma");
 	iounmap(de->regbase);
-	kfree(de);
 
 	for (i = first_chan; i <= last_chan; i++) {
 		chan = &de->ppc8641_dma_chans[i];
@@ -1067,6 +1066,8 @@ static void __exit dma_rio_close(void)
 		remove_proc_entry ("vfi_rio_dma", proc_root_vfi);
 	}
 #endif
+
+	kfree(de);
 }
 
 static int __devinit mpc85xx_vfi_probe (struct platform_device *pdev)
