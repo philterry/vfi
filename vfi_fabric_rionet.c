@@ -1016,6 +1016,7 @@ static void __exit fabric_rionet_close(void)
 	dev_remove_pack(&vfi_packets);
 	vfi_doorbells_uninit();
 	vfi_fabric_unregister("vfi_fabric_rionet");
+	rio_unregister_driver(&vfi_rio_drv);
 }
 
 static int __init fabric_rionet_init(void)
