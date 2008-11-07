@@ -30,6 +30,11 @@ void ringbuf_init(RINGBUF * pRing, void **ppArray, int len, int full)
 		pRing->iWrite = 0;
 }
 
+int ringbuf_empty(RINGBUF * pRing)
+{
+	return (pRing->iRead == pRing->iWrite);
+}
+
 void *ringbuf_get(RINGBUF * pRing)
 {
 	void *pData;
@@ -58,5 +63,6 @@ void *ringbuf_put(RINGBUF * pRing, void *pData)
 }
 
 EXPORT_SYMBOL (ringbuf_init);
+EXPORT_SYMBOL (ringbuf_empty);
 EXPORT_SYMBOL (ringbuf_get);
 EXPORT_SYMBOL (ringbuf_put);

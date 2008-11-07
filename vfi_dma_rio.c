@@ -42,7 +42,7 @@ extern int get_rio_id (struct vfi_fabric_address *x);
 
 struct dma_engine {
 	struct vfi_dma_engine rde;
-	struct completion dma_callback_sem;
+	wait_queue_head_t dma_callback_event;
 	struct ppc_dma_chan ppc8641_dma_chans[PPC8641_DMA_NCHANS];
 	struct task_struct *callback_thread;
 	void *regbase;
@@ -144,12 +144,12 @@ static int dma_completion_thread(void *data)
 	struct my_xfer_object *xfo;
 	printk("VFI: Starting completion thread\n");
 	/* Send completion messages to registered callback function */
-	while (1) {
-		wait_for_completion(&de->dma_callback_sem);
-		if (kthread_should_stop())
-			goto stop_thread;
+	while (!kthread_should_stop()) {
+		wait_event_interruptible(de->dma_callback_event,
+					(!ringbuf_empty(event_ring_out) ||
+					 kthread_should_stop()));
 		pevent = (struct ppc_dma_event *) ringbuf_get(event_ring_out);
-		while (pevent) {
+		while (!kthread_should_stop() && pevent) {
 			chan = &de->ppc8641_dma_chans[pevent->chan_num];
 			VFI_DEBUG(MY_DEBUG,"DMA completion event on channel %d\n", chan->num);
 			xfo = pevent->desc;
@@ -166,17 +166,9 @@ static int dma_completion_thread(void *data)
 				xfo->xf.cb((struct vfi_dma_descriptor *) xfo);
 			}
 			ringbuf_put(event_ring_in, (void *) pevent);
-			pevent = (struct ppc_dma_event *)
-			    ringbuf_get(event_ring_out);
-
-			/* Test for driver exit again here, since callbacks
-			 * can sleep
-			 */
-			if (kthread_should_stop())
-				goto stop_thread;
+			pevent = (struct ppc_dma_event *) ringbuf_get(event_ring_out);
 		}
 	}
-stop_thread:
 	printk("VFI: Exiting completion thread\n");
 	return 0;
 }
@@ -580,7 +572,7 @@ static void send_completion (struct ppc_dma_chan *chan,
 	event->status = status;
 	event->chan_num = chan->num;
 	ringbuf_put(event_ring_out, (void *) event);
-	complete(&de->dma_callback_sem);
+	wake_up_interruptible(&de->dma_callback_event);
 }
 
 #ifdef MY_DEBUG
@@ -935,7 +927,7 @@ static int __init dma_rio_init(void)
 	platform_driver_register(&mpc85xx_vfi_driver);
 
 	/* Set up completion callback mechanism */
-	init_completion(&de->dma_callback_sem);
+	init_waitqueue_head(&de->dma_callback_event);
 
 	event_array = (struct ppc_dma_event *)
 	    kmalloc((nevents + 1) * sizeof(struct ppc_dma_event),

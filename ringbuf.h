@@ -35,6 +35,7 @@ typedef struct _ringbuffer {
 
 extern void ringbuf_init(RINGBUF * pRing, void **ppArray, int len,
 			 int full);
+extern int  ringbuf_empty(RINGBUF * pRing);
 extern void *ringbuf_get(RINGBUF * pRing);
 extern void *ringbuf_put(RINGBUF * pRing, void *pData);
 
