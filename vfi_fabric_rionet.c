@@ -705,14 +705,15 @@ static struct _vfi_event_mgr *vfi_events_init(int first, int last, int hashlen)
 	init_waitqueue_head(&evmgr->dbell_event);
 	evmgr->dbell_thread = kthread_create(dbell_indication_thread, evmgr, "DoorBell indication");
 	if (IS_ERR(evmgr->dbell_thread))
-		goto bad1;
+		goto bad2;
 	wake_up_process(evmgr->dbell_thread);
 
 	VFI_DEBUG(MY_DEBUG,"%s, doorbell init ok\n",__FUNCTION__);
 	return evmgr;
-bad1:
+
+bad2:	kfree(evmgr->event_harray);
+bad1:	kfree(evmgr);
 	VFI_DEBUG(MY_DEBUG,"%s, doorbell init failed\n",__FUNCTION__);
-	kfree(evmgr);
 	return (NULL);
 };
 
