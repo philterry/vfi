@@ -87,9 +87,9 @@ struct _vfi_event_mgr {
 	int hashlen;
 	spinlock_t lock;
 	struct semaphore sem;
-	struct completion indication_sem;
-	struct task_struct *indication_thread;
-	struct list_head ind_list;
+	struct task_struct *dbell_thread;
+	wait_queue_head_t dbell_event;
+	struct list_head dbell_list;
 	struct event_node *event_harray;
 };
 
@@ -617,10 +617,10 @@ void vfi_events_uninit(struct _vfi_event_mgr *evmgr)
 	struct list_head *curr;
 	struct event_node *pdb;
 
-	if (evmgr->indication_thread && !IS_ERR(evmgr->indication_thread))
-		kthread_stop(evmgr->indication_thread);
+	if (evmgr->dbell_thread && !IS_ERR(evmgr->dbell_thread))
+		kthread_stop(evmgr->dbell_thread);
 
-	list_for_each_safe(curr, temp, &evmgr->ind_list) {
+	list_for_each_safe(curr, temp, &evmgr->dbell_list) {
 		kfree(list_entry(curr, struct event_node, node));
 	}
 
@@ -647,39 +647,30 @@ static int dbell_indication_thread(void *data)
 
 	printk("VFI: Starting dbell indication thread\n");
 
-	/*
-	 * Get the inbound doorbell interrupt from fsl_rio
-	 */
+	/* Get the inbound doorbell interrupt from fsl_rio */
 	irq = rio_hw_get_rxdbell_irq_num(port);
 
-	/* Send completion messages to registered callback function */
-	while (1) {
+	/* Indicate received doorbells to registered callback function */
+	while(!kthread_should_stop()) {
+		wait_event_interruptible(evmgr->dbell_event,
+					(!list_empty(&evmgr->dbell_list) || 
+					 kthread_should_stop()));
 
-		wait_for_completion(&evmgr->indication_sem);
-		if (kthread_should_stop())
-			goto stop;
-
-		while (!list_empty(&evmgr->ind_list)) {
-			pevent = list_first_entry(&evmgr->ind_list, struct event_node, indicator);
+		while (!kthread_should_stop() && !list_empty(&evmgr->dbell_list)) {
+			pevent = list_first_entry(&evmgr->dbell_list, struct event_node, indicator);
 
 			/* Invoke callback */
 			if (pevent->cb) {
 				(pevent->cb)(pevent->arg);
 			}
 
-			/*
-			 * The inbound doorbell interrupt is appending to the list so protect it
-			 */
+			/* The inbound doorbell interrupt is appending to the list so protect it */
 			disable_irq(irq);
 			list_del(&pevent->indicator);
 			enable_irq(irq);
-
- 			/* Check for driver exit since callbacks may sleep */
-			if (kthread_should_stop())
-				goto stop;
 		}
 	}
-stop:
+
 	printk("VFI: Exiting dbell indication thread\n");
 	return 0;
 }
@@ -710,22 +701,12 @@ static struct _vfi_event_mgr *vfi_events_init(int first, int last, int hashlen)
 	evmgr->last_id = last;
 	evmgr->hashlen = hashlen;
 
-	INIT_LIST_HEAD(&evmgr->ind_list);
-
-	/* Set up completion callback mechanism */
-	init_completion(&evmgr->indication_sem);
-
-	/*
-	 * returns a task_struct
-	 */
-	evmgr->indication_thread = kthread_create(dbell_indication_thread, evmgr, "DoorBell indication");
-
-	if (IS_ERR(evmgr->indication_thread)) {
+	INIT_LIST_HEAD(&evmgr->dbell_list);
+	init_waitqueue_head(&evmgr->dbell_event);
+	evmgr->dbell_thread = kthread_create(dbell_indication_thread, evmgr, "DoorBell indication");
+	if (IS_ERR(evmgr->dbell_thread))
 		goto bad1;
-	}
-
-	/* Start up completion callback thread */
-	wake_up_process(evmgr->indication_thread);
+	wake_up_process(evmgr->dbell_thread);
 
 	VFI_DEBUG(MY_DEBUG,"%s, doorbell init ok\n",__FUNCTION__);
 	return evmgr;
@@ -760,8 +741,8 @@ static void vfi_event_dispatch(struct _vfi_event_mgr *evmgr, int id)
 		return;
 	}
 	if (pevent->cb) {
-		list_add_tail(&pevent->indicator, &evmgr->ind_list);
-		complete(&evmgr->indication_sem);
+		list_add_tail(&pevent->indicator, &evmgr->dbell_list);
+		wake_up_interruptible(&evmgr->dbell_event);
 	}
 }
 
