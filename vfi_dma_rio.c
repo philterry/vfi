@@ -1044,6 +1044,14 @@ static void __exit dma_rio_close(void)
 	iounmap(de->regbase);
 	kfree(de);
 
+	for (i = first_chan; i <= last_chan; i++) {
+		chan = &de->ppc8641_dma_chans[i];
+		if (chan->irq >= 0) {
+			synchronize_irq(chan->irq);
+			free_irq(chan->irq, chan);
+		}
+	}
+
 	platform_driver_unregister(&mpc85xx_vfi_driver);
 
 #ifdef CONFIG_PROC_FS
