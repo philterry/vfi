@@ -1044,6 +1044,8 @@ static void __exit dma_rio_close(void)
 	iounmap(de->regbase);
 	kfree(de);
 
+	platform_driver_unregister(&mpc85xx_vfi_driver);
+
 #ifdef CONFIG_PROC_FS
 	if (proc_root_vfi && proc_dev_dir) {
 		for (i = first_chan; i <= last_chan; i++) {
