@@ -222,10 +222,8 @@ static struct fabric_address *find_fabric_address(unsigned long idx, unsigned lo
 	if (idx == UNKNOWN_IDX) {
 		if ( (new = find_fabric_mac(hwaddr,ndev)) )
 			return new;
-		else {
-			address_table[idx & 15] = fp = _fabric_get(new_fabric_address(idx,0,hwaddr,ndev));
-			return fp;
-		}
+		else
+			return _fabric_get(new_fabric_address(idx,0,hwaddr,ndev));
 	}
 
 	fp = address_table[idx & 15];
