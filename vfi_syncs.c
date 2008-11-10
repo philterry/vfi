@@ -114,10 +114,10 @@ int new_vfi_syncs(struct vfi_syncs **syncs, char *name, struct vfi_location *par
 	int ret;
 	struct vfi_syncs *new = kzalloc(sizeof(struct vfi_syncs), GFP_KERNEL);
     
-	*syncs = new;
-
-	if (NULL == new)
+	if (NULL == new) {
+		*syncs = NULL;
 		return VFI_RESULT(-ENOMEM);
+	}
 
 	kobject_set_name(&new->kset.kobj,name);
 	new->kset.kobj.ktype = &vfi_syncs_type;
@@ -125,9 +125,14 @@ int new_vfi_syncs(struct vfi_syncs **syncs, char *name, struct vfi_location *par
 	new->kset.kobj.parent = &parent->kset.kobj;
 
 	ret = kset_register(&new->kset);
-	if (ret) {
+
+	if ( !ret ) {
+		*syncs = new;
+	} else {
 		vfi_syncs_put(new);
-		*syncs = NULL;
+		if ( ret != -EEXIST ) {
+			*syncs = NULL;
+		}
 	}
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,new);

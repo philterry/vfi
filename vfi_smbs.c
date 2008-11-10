@@ -114,10 +114,10 @@ int new_vfi_smbs(struct vfi_smbs **smbs, char *name, struct vfi_location *parent
 	int ret;
 	struct vfi_smbs *new = kzalloc(sizeof(struct vfi_smbs), GFP_KERNEL);
     
-	*smbs = new;
-
-	if (NULL == new)
+	if (NULL == new) {
+		*smbs = NULL;
 		return VFI_RESULT(-ENOMEM);
+	}
 
 	kobject_set_name(&new->kset.kobj,name);
 	new->kset.kobj.ktype = &vfi_smbs_type;
@@ -125,9 +125,14 @@ int new_vfi_smbs(struct vfi_smbs **smbs, char *name, struct vfi_location *parent
 	new->kset.kobj.parent = &parent->kset.kobj;
 
 	ret = kset_register(&new->kset);
-	if (ret) {
+
+	if ( !ret ) {
+		*smbs = new;
+	} else {
 		vfi_smbs_put(new);
-		*smbs = NULL;
+		if ( ret != -EEXIST ) {
+			*smbs = NULL;
+		}
 	}
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,*smbs);

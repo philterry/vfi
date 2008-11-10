@@ -114,10 +114,10 @@ int new_vfi_xfers(struct vfi_xfers **xfers, char *name, struct vfi_location *par
 	int ret;
 	struct vfi_xfers *new = kzalloc(sizeof(struct vfi_xfers), GFP_KERNEL);
     
-	*xfers = new;
-
-	if (NULL == new)
+	if (NULL == new) {
+		*xfers = NULL;
 		return VFI_RESULT(-ENOMEM);
+	}
 
 	kobject_set_name(&new->kset.kobj,name);
 	new->kset.kobj.ktype = &vfi_xfers_type;
@@ -125,9 +125,14 @@ int new_vfi_xfers(struct vfi_xfers **xfers, char *name, struct vfi_location *par
 	new->kset.kobj.parent = &parent->kset.kobj;
 
 	ret = kset_register(&new->kset);
-	if (ret) {
+
+	if ( !ret ) {
+		*xfers = new;
+	} else {
 		vfi_xfers_put(new);
-		*xfers = NULL;
+		if ( ret != -EEXIST ) {
+			*xfers = NULL;
+		}
 	}
 
 	VFI_DEBUG(MY_LIFE_DEBUG,"%s %p\n",__FUNCTION__,*xfers);
