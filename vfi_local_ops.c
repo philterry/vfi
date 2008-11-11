@@ -142,6 +142,15 @@ static void vfi_local_xfer_lose(struct vfi_xfer *xfer,struct vfi_desc_param *des
 **/
 static int vfi_local_sync_find(struct vfi_sync **sync, struct vfi_location *parent, struct vfi_desc_param *desc)
 {
+	*sync = NULL;
+
+	/*
+ 	* Make sure there are some existing syncs in the local tree.
+ 	*/
+	if (!parent->syncs) {
+		return VFI_RESULT(-EINVAL);
+	}
+
 	*sync = to_vfi_sync(kset_find_obj(&parent->syncs->kset,desc->name));
 	VFI_DEBUG(MY_DEBUG,"%s %p %p -> %p\n",__FUNCTION__,parent,desc,*sync);
 	return VFI_RESULT(*sync == NULL);
